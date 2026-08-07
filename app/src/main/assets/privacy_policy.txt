@@ -29,8 +29,11 @@
 六、你的选择
 可拒绝定位/通知权限，改为手动搜索城市；可在设置中调整后台刷新间隔与关闭通知；可清除应用数据删除本地缓存与偏好。
 
-七、联系
+七、联系与下载
 如需完整商店版隐私政策链接、个人信息查询或数据删除协助，请联系开发者：
-邮箱：zhangruyangm@foxmail.com
+邮箱：zhangruyangm@gmail.com
+
+当前版本暂未上架应用商店，可通过以下 GitHub 页面下载安装包：
+https://github.com/zhangruyangm-creator/xiaoxiong-weather-releases
 
 使用本应用即表示你已阅读并同意上述说明。
