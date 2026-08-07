@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,7 +74,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
@@ -394,6 +397,15 @@ fun BearMazeScreen(
     )
     var frame by remember { mutableStateOf(0L) }
 
+    // 60 关中 48 关是种子生成关，生成要跑 BFS 可解性校验（可能重试多次）。
+    // 提前在后台线程一次性生成并缓存，滚动选关时才不会在主线程逐关生成导致卡顿。
+    var campaignLevels by remember { mutableStateOf<List<MazeLevel>?>(null) }
+    LaunchedEffect(Unit) {
+        campaignLevels = withContext(Dispatchers.Default) {
+            List(MAZE_CAMPAIGN_SIZE) { mazeCampaignLevel(it) }
+        }
+    }
+
     LaunchedEffect(Unit) {
         var last = Long.MIN_VALUE
         while (isActive) {
@@ -413,7 +425,10 @@ fun BearMazeScreen(
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                     }
                 }
-                frame = now
+                // 选关界面没有动画，只在游玩时推进帧，避免每帧状态更新打断滚动手势
+                if (game.phase != MazePhase.SELECT) {
+                    frame = now
+                }
             }
         }
     }
@@ -427,12 +442,25 @@ fun BearMazeScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (game.phase) {
-            MazePhase.SELECT -> MazeLevelSelect(
-                game = game,
-                onPick = { game.startLevel(it) },
-                onEndless = { game.startEndless(1) },
-                onExit = onExit
-            )
+            MazePhase.SELECT -> {
+                val levels = campaignLevels
+                if (levels == null) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    MazeLevelSelect(
+                        game = game,
+                        campaignLevels = levels,
+                        onPick = { game.startLevel(it) },
+                        onEndless = { game.startEndless(1) },
+                        onExit = onExit
+                    )
+                }
+            }
             MazePhase.PLAYING, MazePhase.CLEAR -> {
                 MazePlayField(
                     game = game,
@@ -463,6 +491,7 @@ fun BearMazeScreen(
 @Composable
 private fun MazeLevelSelect(
     game: MazeGame,
+    campaignLevels: List<MazeLevel>,
     onPick: (Int) -> Unit,
     onEndless: () -> Unit,
     onExit: () -> Unit
@@ -527,9 +556,8 @@ private fun MazeLevelSelect(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            items(MAZE_CAMPAIGN_SIZE) { i ->
-                // 生成关含可解性 BFS，缓存避免滚动/重组时在主线程反复生成
-                val lv = remember(i) { mazeCampaignLevel(i) }
+            items(campaignLevels.size) { i ->
+                val lv = campaignLevels[i]
                 val open = i < game.unlocked
                 val style = mazeThemeStyle(lv.theme)
                 val handcrafted = i < MAZE_HANDCRAFTED_COUNT
