@@ -22,12 +22,13 @@ import kotlinx.coroutines.launch
 /**
  * 彩蛋口令触发与 4 个小熊游戏弹窗的统一容器。
  * 口令在搜索框输入后立即触发对应游戏，并清空搜索框/收起键盘；
+ * 清空搜索框时保留「当前位置」模式（经 [onClearQuery] 回调，不走常规输入）。
  * 退出游戏时回到首页第一页。
  */
 @Composable
 internal fun BearGameOverlay(
     query: String,
-    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit,
     sceneCode: Int?,
     isDay: Boolean?,
     pagerState: PagerState,
@@ -42,22 +43,22 @@ internal fun BearGameOverlay(
     LaunchedEffect(query) {
         when (query.trim()) {
             EASTER_EGG_BEAR_GAME -> {
-                onQueryChange("")
+                onClearQuery()
                 focusManager.clearFocus()
                 showBearGame = true
             }
             EASTER_EGG_BEAR_STAR -> {
-                onQueryChange("")
+                onClearQuery()
                 focusManager.clearFocus()
                 showStarGame = true
             }
             EASTER_EGG_BEAR_MAZE -> {
-                onQueryChange("")
+                onClearQuery()
                 focusManager.clearFocus()
                 showMazeGame = true
             }
             EASTER_EGG_BEAR_FARM -> {
-                onQueryChange("")
+                onClearQuery()
                 focusManager.clearFocus()
                 showFarmGame = true
             }

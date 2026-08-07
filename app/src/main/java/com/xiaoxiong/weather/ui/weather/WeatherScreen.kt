@@ -384,7 +384,7 @@ private fun WeatherScreenContent(
         // 彩蛋口令触发与游戏弹窗：放在温度单位 Provider 内，与背景场景同生命周期
         BearGameOverlay(
             query = state.query,
-            onQueryChange = viewModel::onQueryChange,
+            onClearQuery = viewModel::clearQueryKeepLocation,
             sceneCode = bgSceneCode,
             isDay = bgCurrent?.isDay,
             pagerState = pagerState,

@@ -588,7 +588,7 @@ object WeatherAlertGenerator {
         val reportMm = maxOf(sum3, sum6, sum12)
         val warning = sum3 >= WeatherCodes.PONDING_WARNING_3H_MM ||
             sum6 >= WeatherCodes.PONDING_WARNING_6H_MM ||
-            sum12 >= WeatherCodes.PRECIP_DAILY_HEAVY_MM
+            sum12 >= WeatherCodes.PONDING_WARNING_12H_MM
 
         return Spec(
             AlertKind.PONDING,

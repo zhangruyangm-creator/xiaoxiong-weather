@@ -51,6 +51,23 @@ internal class CitySearchController(
         queryFlow.value = value
     }
 
+    /**
+     * 彩蛋口令等场景清空搜索框：不退出「当前位置」模式。
+     * 常规输入走 [onQueryChange]（清空时会按文本内容决定是否保持定位）。
+     */
+    fun clearQueryKeepLocation() {
+        onState {
+            it.copy(
+                query = "",
+                suggestions = emptyList(),
+                isSearching = false,
+                errorMessage = null,
+                usingCurrentLocation = it.usingCurrentLocation
+            )
+        }
+        queryFlow.value = ""
+    }
+
     private suspend fun handleQuery(query: String) {
         val trimmed = query.trim()
         if (DebugWeatherStore.isMagicQuery(trimmed)) {

@@ -155,6 +155,9 @@ class WeatherViewModel(
 
     fun onQueryChange(value: String) = searchController.onQueryChange(value)
 
+    /** 彩蛋口令进入游戏等场景：清空搜索框但不退出「当前位置」模式。 */
+    fun clearQueryKeepLocation() = searchController.clearQueryKeepLocation()
+
     fun selectCity(city: City, fromLocation: Boolean = false, quiet: Boolean = false) {
         // 手动选城时作废进行中的定位，避免 GPS 晚到抢回城市
         if (!fromLocation) {

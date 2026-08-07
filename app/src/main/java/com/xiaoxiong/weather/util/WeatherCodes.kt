@@ -63,6 +63,8 @@ object WeatherCodes {
     /** 达此累计时升为 WARNING 级别积水提醒 */
     const val PONDING_WARNING_3H_MM = 40.0
     const val PONDING_WARNING_6H_MM = 50.0
+    /** 达此 12h 累计时升为 WARNING 级别积水提醒（须高于 [PONDING_12H_MM] 触发档） */
+    const val PONDING_WARNING_12H_MM = 75.0
     /** 雨停后仍提示积水的小时数 */
     const val PONDING_HOURS_AFTER_RAIN = 2
     /**

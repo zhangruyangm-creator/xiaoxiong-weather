@@ -488,6 +488,46 @@ class WeatherAlertGeneratorTest {
     }
 
     @Test
+    fun ponding_twelveHourAccumulation_watchBeforeWarningThreshold() {
+        // 12h 累计 60mm：刚达触发档，应仍是 WATCH（60 < 75 预警档）
+        val current = WeatherFixtures.current(
+            time = "2026-08-04T21:00",
+            weatherCode = 63,
+            precipitationMm = 5.0
+        )
+        val hourly = (10..21).map { hour ->
+            WeatherFixtures.hourly(
+                "2026-08-04T%02d:00".format(hour),
+                precipitationMm = 5.0
+            )
+        }
+        val specs = WeatherAlertGenerator.specs(current, hourly, emptyList(), null)
+        val ponding = specs.first { it.kind == AlertKind.PONDING }
+        assertEquals(AlertSeverity.WATCH, ponding.severity)
+        assertEquals(60.0, ponding.messageArg as Double, 0.01)
+    }
+
+    @Test
+    fun ponding_twelveHourAccumulation_warningAtSevereThreshold() {
+        // 12h 累计 78mm：3h/6h 均未达预警档，只有 12h 档升 WARNING
+        val current = WeatherFixtures.current(
+            time = "2026-08-04T21:00",
+            weatherCode = 65,
+            precipitationMm = 6.5
+        )
+        val hourly = (10..21).map { hour ->
+            WeatherFixtures.hourly(
+                "2026-08-04T%02d:00".format(hour),
+                precipitationMm = 6.5
+            )
+        }
+        val specs = WeatherAlertGenerator.specs(current, hourly, emptyList(), null)
+        val ponding = specs.first { it.kind == AlertKind.PONDING }
+        assertEquals(AlertSeverity.WARNING, ponding.severity)
+        assertEquals(78.0, ponding.messageArg as Double, 0.01)
+    }
+
+    @Test
     fun ponding_skippedWhenAccumulationLow() {
         val current = WeatherFixtures.current(
             time = "2026-08-04T12:00",

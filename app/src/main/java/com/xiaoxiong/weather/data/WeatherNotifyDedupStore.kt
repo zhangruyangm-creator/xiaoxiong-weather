@@ -34,7 +34,8 @@ class WeatherNotifyDedupStore(private val context: Context) {
         if (lastAt == 0L || lastCity == null) return true
         if (cityName != lastCity) return true
 
-        val codeChanged = (weatherCode ?: Int.MIN_VALUE) != lastCode
+        // 天气码缺失（接口坏包等）时不算「变化」，避免对内容为 -- 的快照重复推送
+        val codeChanged = weatherCode != null && weatherCode != lastCode
         val tempChanged = temperatureC != null && lastTemp != null &&
             abs(temperatureC - lastTemp) >= TEMP_DELTA_C
         // 恶劣天气超过静默窗口可再提醒一次；普通天气只在码/气温变化时提醒
