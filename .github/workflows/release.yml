@@ -53,17 +53,16 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.tag }}
         run: |
-          NOTES=$(python3 -c "
-import re, pathlib
-txt = pathlib.Path('CHANGELOG.md').read_text()
-m = re.search(r'## \\[' + '$VERSION' + r'\\].*?(?=\\n## |\\Z)', txt, re.S)
-print(m.group(0).strip() if m else '')
-")
+          NOTES=$(awk -v ver="[$VERSION]" '
+            BEGIN { RS = "\n## " }
+            index($0, ver) == 1 { print; exit }
+          ' CHANGELOG.md)
           if [ -z "$NOTES" ]; then
             echo "has_notes=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_notes=true" >> "$GITHUB_OUTPUT"
-            echo "$NOTES" > /tmp/release-notes.txt
+            echo "## $VERSION" > /tmp/release-notes.txt
+            echo "$NOTES" >> /tmp/release-notes.txt
           fi
 
       - name: Publish to releases repo
