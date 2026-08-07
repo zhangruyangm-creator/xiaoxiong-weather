@@ -33,10 +33,10 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
@@ -46,32 +46,41 @@ private val urlRegex = Regex("https?://[^\\s]+")
 private val mailRegex = Regex("[\\w.+-]+@[\\w-]+\\.[\\w.-]+")
 
 /** 文本里的一处可点击链接：字符范围 + 打开地址。 */
-private class LinkSpan(val start: Int, val end: Int, val url: String)
+private class LinkSpan(
+    val start: Int,
+    val end: Int,
+    val url: String,
+)
 
 /**
  * 把纯文本里的网址与邮箱标注为链接样式，并返回链接范围。
  * 邮箱会转成 mailto 打开。
  */
-private fun linkifyText(raw: String, linkStyle: SpanStyle): Pair<AnnotatedString, List<LinkSpan>> {
-    val candidates = buildList {
-        urlRegex.findAll(raw).forEach { add(it.range to it.value.trimEnd('。', '，', '；', '）', ']', '》')) }
-        mailRegex.findAll(raw).forEach { add(it.range to it.value) }
-    }.sortedBy { it.first.first }
+private fun linkifyText(
+    raw: String,
+    linkStyle: SpanStyle,
+): Pair<AnnotatedString, List<LinkSpan>> {
+    val candidates =
+        buildList {
+            urlRegex.findAll(raw).forEach { add(it.range to it.value.trimEnd('。', '，', '；', '）', ']', '》')) }
+            mailRegex.findAll(raw).forEach { add(it.range to it.value) }
+        }.sortedBy { it.first.first }
 
     val spans = mutableListOf<LinkSpan>()
-    val builder = buildAnnotatedString {
-        var last = 0
-        for ((range, value) in candidates) {
-            if (range.first < last) continue
-            append(raw, last, range.first)
-            val url = if ('@' in value) "mailto:$value" else value
-            val start = length
-            withStyle(linkStyle) { append(value) }
-            spans += LinkSpan(start, length, url)
-            last = range.last + 1
+    val builder =
+        buildAnnotatedString {
+            var last = 0
+            for ((range, value) in candidates) {
+                if (range.first < last) continue
+                append(raw, last, range.first)
+                val url = if ('@' in value) "mailto:$value" else value
+                val start = length
+                withStyle(linkStyle) { append(value) }
+                spans += LinkSpan(start, length, url)
+                last = range.last + 1
+            }
+            append(raw, last, raw.length)
         }
-        append(raw, last, raw.length)
-    }
     return builder to spans
 }
 
@@ -80,15 +89,20 @@ private fun linkifyText(raw: String, linkStyle: SpanStyle): Pair<AnnotatedString
 fun PrivacyScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val loadFailed = stringResource(R.string.privacy_policy_load_failed)
-    val text = remember(loadFailed) {
-        runCatching {
-            context.assets.open("privacy_policy.txt").bufferedReader().use { it.readText() }
-        }.getOrDefault(loadFailed)
-    }
-    val linkStyle = SpanStyle(
-        color = MaterialTheme.colorScheme.primary,
-        textDecoration = TextDecoration.Underline
-    )
+    val text =
+        remember(loadFailed) {
+            runCatching {
+                context.assets
+                    .open("privacy_policy.txt")
+                    .bufferedReader()
+                    .use { it.readText() }
+            }.getOrDefault(loadFailed)
+        }
+    val linkStyle =
+        SpanStyle(
+            color = MaterialTheme.colorScheme.primary,
+            textDecoration = TextDecoration.Underline,
+        )
     val (linkedText, links) = remember(text, linkStyle) { linkifyText(text, linkStyle) }
     val uriHandler = LocalUriHandler.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -104,46 +118,48 @@ fun PrivacyScreen(onBack: () -> Unit) {
                     title = {
                         Text(
                             stringResource(R.string.privacy_policy_title),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.cd_back)
+                                contentDescription = stringResource(R.string.cd_back),
                             )
                         }
-                    }
+                    },
                 )
-            }
+            },
         ) { padding ->
             SelectionContainer {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(16.dp)
-                        .verticalScroll(rememberScrollState())
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     Text(
                         text = linkedText,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         onTextLayout = { layout = it },
-                        modifier = Modifier.pointerInput(links) {
-                            awaitEachGesture {
-                                // 点击落在链接范围内才打开，其余事件（选择/滚动）不拦截
-                                val down = awaitFirstDown(requireUnconsumed = false)
-                                val result = layout ?: return@awaitEachGesture
-                                val offset = result.getOffsetForPosition(down.position)
-                                val link = links.firstOrNull { offset in it.start until it.end }
-                                if (link != null) {
-                                    uriHandler.openUri(link.url)
-                                    waitForUpOrCancellation()?.consume()
+                        modifier =
+                            Modifier.pointerInput(links) {
+                                awaitEachGesture {
+                                    // 点击落在链接范围内才打开，其余事件（选择/滚动）不拦截
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    val result = layout ?: return@awaitEachGesture
+                                    val offset = result.getOffsetForPosition(down.position)
+                                    val link = links.firstOrNull { offset in it.start until it.end }
+                                    if (link != null) {
+                                        uriHandler.openUri(link.url)
+                                        waitForUpOrCancellation()?.consume()
+                                    }
                                 }
-                            }
-                        }
+                            },
                     )
                 }
             }

@@ -1,6 +1,5 @@
 package com.xiaoxiong.weather.ui.weather
 
-import androidx.annotation.StringRes
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.AppSettingsSource
 import com.xiaoxiong.weather.data.City
@@ -8,11 +7,9 @@ import com.xiaoxiong.weather.data.FavoriteCitySource
 import com.xiaoxiong.weather.data.LocationPermissionSource
 import com.xiaoxiong.weather.data.SelectedCitySource
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * 冷启动与权限状态机：
@@ -35,25 +32,29 @@ class ColdStartController(
     private val updateState: ((WeatherUiState) -> WeatherUiState) -> Unit,
     private val currentSelectedCity: () -> City?,
     private val hasWeather: () -> Boolean,
-    private val str: (Int) -> String
+    private val str: (Int) -> String,
 ) {
     private var initialLoadStarted = false
     private var pendingLocateAfterPermission = false
+
     /** 冷启动时因尚无权限而没能定位；首次授权后应补一次定位 */
     private var coldStartDeferredLocation = false
+
     /**
      * 冷启动首次 ON_START 由 [ensureInitialLoad] 负责拉数，跳过一次前台刷新，
      * 避免与首启加载重复请求。
      */
     private var skipNextForegroundRefresh = true
+
     /** 进程内只自动申请一次运行时权限（不跨进程持久化，避免杀进程后永远不再弹）*/
     private var runtimePermissionsRequested = false
 
-    private val foregroundRefresh = ForegroundAutoRefresh(
-        scope = scope,
-        hasCity = { currentSelectedCity() != null },
-        onQuietRefresh = { refresh(true) }
-    )
+    private val foregroundRefresh =
+        ForegroundAutoRefresh(
+            scope = scope,
+            hasCity = { currentSelectedCity() != null },
+            onQuietRefresh = { refresh(true) },
+        )
 
     /** Activity 进入前台（ON_START）：启动整点轮询，并在非冷启动时立即静默刷新。 */
     fun onAppForeground() {
@@ -150,16 +151,17 @@ class ColdStartController(
         if (initialLoadStarted) return
         initialLoadStarted = true
         scope.launch {
-            val (settings, saved, favorite) = coroutineScope {
-                val settingsDeferred = async { settingsStore.getOnce() }
-                val savedDeferred = async { selectedCityStore.getOnce() }
-                val favoriteDeferred = async { favoriteStore.firstOrNull() }
-                Triple(
-                    settingsDeferred.await(),
-                    savedDeferred.await(),
-                    favoriteDeferred.await()
-                )
-            }
+            val (settings, saved, favorite) =
+                coroutineScope {
+                    val settingsDeferred = async { settingsStore.getOnce() }
+                    val savedDeferred = async { selectedCityStore.getOnce() }
+                    val favoriteDeferred = async { favoriteStore.firstOrNull() }
+                    Triple(
+                        settingsDeferred.await(),
+                        savedDeferred.await(),
+                        favoriteDeferred.await(),
+                    )
+                }
             val hasPermission = locationHelper.hasLocationPermission()
             val preferLocate = settings.preferLocationOnLaunch
             when {
@@ -187,12 +189,13 @@ class ColdStartController(
         }
     }
 
-    private fun fallbackBeijing() = City(
-        id = 1816670,
-        name = "北京",
-        latitude = 39.9042,
-        longitude = 116.4074,
-        country = "中国",
-        admin1 = "北京"
-    )
+    private fun fallbackBeijing() =
+        City(
+            id = 1816670,
+            name = "北京",
+            latitude = 39.9042,
+            longitude = 116.4074,
+            country = "中国",
+            admin1 = "北京",
+        )
 }

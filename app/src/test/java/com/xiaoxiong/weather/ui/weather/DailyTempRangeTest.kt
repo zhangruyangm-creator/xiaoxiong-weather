@@ -7,14 +7,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DailyTempRangeTest {
-
     @Test
     fun weekBounds_fromDailyList() {
-        val days = listOf(
-            DailyWeather(date = "2026-08-01", tempMinC = 10.0, tempMaxC = 20.0),
-            DailyWeather(date = "2026-08-02", tempMinC = 5.0, tempMaxC = 28.0),
-            DailyWeather(date = "2026-08-03", tempMinC = 12.0, tempMaxC = 18.0)
-        )
+        val days =
+            listOf(
+                DailyWeather(date = "2026-08-01", tempMinC = 10.0, tempMaxC = 20.0),
+                DailyWeather(date = "2026-08-02", tempMinC = 5.0, tempMaxC = 28.0),
+                DailyWeather(date = "2026-08-03", tempMinC = 12.0, tempMaxC = 18.0),
+            )
         assertEquals(5.0 to 28.0, weekTemperatureBounds(days))
     }
 
@@ -34,13 +34,14 @@ class DailyTempRangeTest {
 
     @Test
     fun alignedBar_enforcesMinWidth() {
-        val range = weekAlignedTempBarRange(
-            dayMinC = 15.0,
-            dayMaxC = 15.2,
-            weekMinC = 0.0,
-            weekMaxC = 30.0,
-            minVisibleWidth = 0.06f
-        )
+        val range =
+            weekAlignedTempBarRange(
+                dayMinC = 15.0,
+                dayMaxC = 15.2,
+                weekMinC = 0.0,
+                weekMaxC = 30.0,
+                minVisibleWidth = 0.06f,
+            )
         assertTrue(range.width + 1e-4f >= 0.06f)
     }
 }

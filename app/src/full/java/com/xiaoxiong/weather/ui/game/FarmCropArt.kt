@@ -16,15 +16,21 @@ import kotlin.math.sin
  * 按类别（蔬菜/花卉/谷物/水果/香草/菇菌/其他）+ 生长阶段渲染，
  * 用 crop.color / crop.leafColor 区分作物，每株带高光与阴影增加立体感。
  */
-fun DrawScope.drawFarmCrop(crop: CropDef, stage: Int, progress: Float, wilted: Boolean) {
+fun DrawScope.drawFarmCrop(
+    crop: CropDef,
+    stage: Int,
+    progress: Float,
+    wilted: Boolean,
+) {
     val u = size.minDimension
     val cx = size.width / 2f
     val baseY = size.height * 0.82f
     val seed = crop.id.hashCode()
-    val grow = when (stage) {
-        4, 5 -> 1f
-        else -> (0.28f + 0.72f * progress.coerceIn(0f, 1f)).coerceIn(0.28f, 1f)
-    }
+    val grow =
+        when (stage) {
+            4, 5 -> 1f
+            else -> (0.28f + 0.72f * progress.coerceIn(0f, 1f)).coerceIn(0.28f, 1f)
+        }
     val alpha = if (wilted) 0.5f else 1f
 
     // 刚种下：只画土丘 + 一粒芽点
@@ -50,13 +56,13 @@ private fun DrawScope.drawCropShape(
     u: Float,
     grow: Float,
     alpha: Float,
-    seed: Int
+    seed: Int,
 ) {
     // 地面阴影
     drawOval(
         Color.Black.copy(alpha = 0.10f * alpha),
         topLeft = Offset(cx - u * 0.30f, baseY - u * 0.03f),
-        size = Size(u * 0.60f, u * 0.10f)
+        size = Size(u * 0.60f, u * 0.10f),
     )
     when (crop.category) {
         "花卉" -> drawFlower(crop, cx, baseY, u, grow, alpha, seed)
@@ -74,21 +80,22 @@ private fun DrawScope.drawLeaf(
     len: Float,
     angle: Float,
     color: Color,
-    alpha: Float
+    alpha: Float,
 ) {
     rotate(degrees = angle, pivot = Offset(cx, cy)) {
-        val leaf = Path().apply {
-            moveTo(cx, cy)
-            quadraticTo(cx + len * 0.35f, cy - len * 0.42f, cx + len, cy)
-            quadraticTo(cx + len * 0.35f, cy + len * 0.42f, cx, cy)
-            close()
-        }
+        val leaf =
+            Path().apply {
+                moveTo(cx, cy)
+                quadraticTo(cx + len * 0.35f, cy - len * 0.42f, cx + len, cy)
+                quadraticTo(cx + len * 0.35f, cy + len * 0.42f, cx, cy)
+                close()
+            }
         drawPath(leaf, color.copy(alpha = alpha))
         drawLine(
             Color.Black.copy(alpha = 0.12f * alpha),
             Offset(cx + len * 0.08f, cy),
             Offset(cx + len * 0.78f, cy),
-            strokeWidth = 1f
+            strokeWidth = 1f,
         )
     }
 }
@@ -100,15 +107,16 @@ private fun DrawScope.drawStem(
     topY: Float,
     color: Color,
     width: Float,
-    alpha: Float
+    alpha: Float,
 ) {
-    val stem = Path().apply {
-        moveTo(x - width / 2f, bottomY)
-        quadraticTo(x + width * 0.4f, (bottomY + topY) / 2f, x - width / 2f, topY)
-        lineTo(x + width / 2f, topY)
-        quadraticTo(x - width * 0.4f, (bottomY + topY) / 2f, x + width / 2f, bottomY)
-        close()
-    }
+    val stem =
+        Path().apply {
+            moveTo(x - width / 2f, bottomY)
+            quadraticTo(x + width * 0.4f, (bottomY + topY) / 2f, x - width / 2f, topY)
+            lineTo(x + width / 2f, topY)
+            quadraticTo(x - width * 0.4f, (bottomY + topY) / 2f, x + width / 2f, bottomY)
+            close()
+        }
     drawPath(stem, color.copy(alpha = alpha))
 }
 
@@ -118,7 +126,7 @@ private fun DrawScope.drawFruitBall(
     r: Float,
     color: Color,
     alpha: Float,
-    leafColor: Color
+    leafColor: Color,
 ) {
     drawCircle(Color.Black.copy(alpha = 0.12f * alpha), r, center + Offset(0f, r * 0.08f))
     drawCircle(color.copy(alpha = alpha), r, center)
@@ -126,14 +134,14 @@ private fun DrawScope.drawFruitBall(
     drawCircle(
         Color.White.copy(alpha = 0.45f * alpha),
         r * 0.28f,
-        center + Offset(-r * 0.32f, -r * 0.32f)
+        center + Offset(-r * 0.32f, -r * 0.32f),
     )
     // 蒂
     drawLine(
         Color(0xFF33691E).copy(alpha = alpha),
         center + Offset(0f, -r * 0.9f),
         center + Offset(-r * 0.15f, -r * 1.25f),
-        strokeWidth = 1.4f
+        strokeWidth = 1.4f,
     )
     drawCircle(leafColor.copy(alpha = alpha), r * 0.16f, center + Offset(-r * 0.15f, -r * 1.28f))
 }
@@ -146,7 +154,7 @@ private fun DrawScope.drawLeafy(
     u: Float,
     grow: Float,
     alpha: Float,
-    seed: Int
+    seed: Int,
 ) {
     val leaf = Color(crop.leafColor)
     val h = 0.68f * u * grow
@@ -176,7 +184,7 @@ private fun DrawScope.drawFlower(
     u: Float,
     grow: Float,
     alpha: Float,
-    seed: Int
+    seed: Int,
 ) {
     val leaf = Color(crop.leafColor)
     val stemC = Color(0xFF558B2F)
@@ -194,7 +202,7 @@ private fun DrawScope.drawFlower(
         drawCircle(
             petal.copy(alpha = alpha),
             r * 0.52f,
-            c + Offset(cos(a) * r * 0.72f, sin(a) * r * 0.72f)
+            c + Offset(cos(a) * r * 0.72f, sin(a) * r * 0.72f),
         )
     }
     drawCircle(Color(0xFFFFC107).copy(alpha = alpha), r * 0.30f, c)
@@ -209,7 +217,7 @@ private fun DrawScope.drawGrain(
     u: Float,
     grow: Float,
     alpha: Float,
-    seed: Int
+    seed: Int,
 ) {
     val leaf = Color(crop.leafColor)
     val h = 0.8f * u * grow
@@ -229,7 +237,7 @@ private fun DrawScope.drawGrain(
         drawOval(
             kernel.copy(alpha = alpha),
             topLeft = Offset(sx - sSize * 0.5f, sy - sSize * 0.6f),
-            size = Size(sSize, sSize * 1.2f)
+            size = Size(sSize, sSize * 1.2f),
         )
     }
 }
@@ -242,7 +250,7 @@ private fun DrawScope.drawFruit(
     u: Float,
     grow: Float,
     alpha: Float,
-    seed: Int
+    seed: Int,
 ) {
     val leaf = Color(crop.leafColor)
     val h = 0.5f * u * grow
@@ -270,7 +278,7 @@ private fun DrawScope.drawMushroom(
     u: Float,
     grow: Float,
     alpha: Float,
-    @Suppress("UNUSED_PARAMETER") seed: Int
+    @Suppress("UNUSED_PARAMETER") seed: Int,
 ) {
     val h = 0.42f * u * grow
     val topY = baseY - h
@@ -281,37 +289,46 @@ private fun DrawScope.drawMushroom(
         stemC.copy(alpha = alpha),
         topLeft = Offset(cx - u * 0.06f, topY + h * 0.3f),
         size = Size(u * 0.12f, h * 0.7f),
-        cornerRadius = CornerRadius(u * 0.03f)
+        cornerRadius = CornerRadius(u * 0.03f),
     )
     // 伞盖
     drawCircle(cap.copy(alpha = alpha), u * 0.17f * grow, Offset(cx, topY + h * 0.28f))
     // 伞沿亮色
     drawArc(
         cap.lighten().copy(alpha = alpha),
-        startAngle = 180f, sweepAngle = 180f, useCenter = false,
+        startAngle = 180f,
+        sweepAngle = 180f,
+        useCenter = false,
         topLeft = Offset(cx - u * 0.17f * grow, topY + h * 0.28f - u * 0.17f * grow),
         size = Size(u * 0.34f * grow, u * 0.34f * grow),
-        style = androidx.compose.ui.graphics.drawscope.Stroke(width = u * 0.04f)
+        style =
+            androidx.compose.ui.graphics.drawscope
+                .Stroke(width = u * 0.04f),
     )
     // 白点
     drawCircle(
         Color.White.copy(alpha = 0.85f * alpha),
         u * 0.035f,
-        Offset(cx - u * 0.07f, topY + h * 0.24f)
+        Offset(cx - u * 0.07f, topY + h * 0.24f),
     )
     drawCircle(
         Color.White.copy(alpha = 0.7f * alpha),
         u * 0.03f,
-        Offset(cx + u * 0.06f, topY + h * 0.32f)
+        Offset(cx + u * 0.06f, topY + h * 0.32f),
     )
 }
 
 /** 刚播种的土丘。 */
-private fun DrawScope.drawMound(cx: Float, baseY: Float, u: Float, alpha: Float) {
+private fun DrawScope.drawMound(
+    cx: Float,
+    baseY: Float,
+    u: Float,
+    alpha: Float,
+) {
     drawOval(
         Color(0xFF6D4C41).copy(alpha = 0.22f * alpha),
         topLeft = Offset(cx - u * 0.22f, baseY - u * 0.10f),
-        size = Size(u * 0.44f, u * 0.16f)
+        size = Size(u * 0.44f, u * 0.16f),
     )
 }
 

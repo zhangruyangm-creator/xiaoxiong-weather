@@ -19,9 +19,9 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,36 +58,42 @@ internal fun SearchHeader(
     suggestions: List<City>,
     onQueryChange: (String) -> Unit,
     onSelectCity: (City) -> Unit,
-    onClearRecent: () -> Unit
+    onClearRecent: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     var searchFocused by remember { mutableStateOf(false) }
     val showDiscovery = searchFocused && query.trim().length < 2
-    val favoriteIds = remember(favorites) {
-        favorites.map { approxKey(it) }.toSet()
-    }
-    val recentForChips = remember(recentCities, favoriteIds) {
-        recentCities.filterNot { approxKey(it) in favoriteIds }.take(8)
-    }
-    val popularForChips = remember(popularCities, favoriteIds, recentCities) {
-        val recentKeys = recentCities.map { approxKey(it) }.toSet()
-        popularCities.filterNot {
-            approxKey(it) in favoriteIds || approxKey(it) in recentKeys
-        }.take(12)
-    }
+    val favoriteIds =
+        remember(favorites) {
+            favorites.map { approxKey(it) }.toSet()
+        }
+    val recentForChips =
+        remember(recentCities, favoriteIds) {
+            recentCities.filterNot { approxKey(it) in favoriteIds }.take(8)
+        }
+    val popularForChips =
+        remember(popularCities, favoriteIds, recentCities) {
+            val recentKeys = recentCities.map { approxKey(it) }.toSet()
+            popularCities
+                .filterNot {
+                    approxKey(it) in favoriteIds || approxKey(it) in recentKeys
+                }.take(12)
+        }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { searchFocused = it.isFocused },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { searchFocused = it.isFocused },
             singleLine = true,
             shape = RoundedCornerShape(18.dp),
             label = { Text(stringResource(R.string.search_city_label)) },
@@ -98,31 +104,33 @@ internal fun SearchHeader(
                     IconButton(onClick = { onQueryChange("") }) {
                         Icon(
                             Icons.Default.Clear,
-                            contentDescription = stringResource(R.string.cd_clear)
+                            contentDescription = stringResource(R.string.cd_clear),
                         )
                     }
                 }
             },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-            ),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(
-                onSearch = {
-                    suggestions.firstOrNull()?.let(onSelectCity)
-                    focusManager.clearFocus()
-                }
-            )
+            keyboardActions =
+                KeyboardActions(
+                    onSearch = {
+                        suggestions.firstOrNull()?.let(onSelectCity)
+                        focusManager.clearFocus()
+                    },
+                ),
         )
 
         if (favorites.isNotEmpty()) {
             CityChipRow(
                 cities = favorites,
                 selectedCity = selectedCity,
-                onSelectCity = onSelectCity
+                onSelectCity = onSelectCity,
             )
         }
 
@@ -131,12 +139,12 @@ internal fun SearchHeader(
                 title = stringResource(R.string.search_recent),
                 icon = Icons.Filled.History,
                 actionLabel = stringResource(R.string.search_recent_clear),
-                onAction = onClearRecent
+                onAction = onClearRecent,
             ) {
                 CityChipRow(
                     cities = recentForChips,
                     selectedCity = selectedCity,
-                    onSelectCity = onSelectCity
+                    onSelectCity = onSelectCity,
                 )
             }
         }
@@ -144,12 +152,12 @@ internal fun SearchHeader(
         if (showDiscovery && popularForChips.isNotEmpty()) {
             DiscoverySection(
                 title = stringResource(R.string.search_popular),
-                icon = Icons.Filled.Whatshot
+                icon = Icons.Filled.Whatshot,
             ) {
                 CityChipRow(
                     cities = popularForChips,
                     selectedCity = selectedCity,
-                    onSelectCity = onSelectCity
+                    onSelectCity = onSelectCity,
                 )
             }
         }
@@ -159,45 +167,47 @@ internal fun SearchHeader(
                 text = stringResource(R.string.search_hint_empty),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp)
+                modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
 
         if (isSearching) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .size(22.dp),
-                    strokeWidth = 2.dp
+                    modifier =
+                        Modifier
+                            .padding(8.dp)
+                            .size(22.dp),
+                    strokeWidth = 2.dp,
                 )
             }
         }
 
         suggestions.forEach { city ->
             SoftCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        onSelectCity(city)
-                        focusManager.clearFocus()
-                    }
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onSelectCity(city)
+                            focusManager.clearFocus()
+                        },
             ) {
                 Text(
                     text = city.name,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = city.displayName,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -210,18 +220,18 @@ private fun DiscoverySection(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.size(6.dp))
             Text(
@@ -229,7 +239,7 @@ private fun DiscoverySection(
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             if (actionLabel != null && onAction != null) {
                 TextButton(onClick = onAction) {
@@ -245,13 +255,14 @@ private fun DiscoverySection(
 private fun CityChipRow(
     cities: List<City>,
     selectedCity: City?,
-    onSelectCity: (City) -> Unit
+    onSelectCity: (City) -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         cities.forEach { city ->
             val selected = isSameFavoriteCity(city, selectedCity)
@@ -261,37 +272,41 @@ private fun CityChipRow(
                 label = {
                     Text(
                         text = city.name,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 },
-                leadingIcon = if (selected) {
-                    {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = stringResource(R.string.cd_current_city),
-                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                        )
-                    }
-                } else {
-                    null
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                    labelColor = MaterialTheme.colorScheme.onSurface,
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
-                )
+                leadingIcon =
+                    if (selected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = stringResource(R.string.cd_current_city),
+                                modifier = Modifier.size(FilterChipDefaults.IconSize),
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                colors =
+                    FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
             )
         }
     }
 }
 
-private fun isSameFavoriteCity(favorite: City, selected: City?): Boolean {
+private fun isSameFavoriteCity(
+    favorite: City,
+    selected: City?,
+): Boolean {
     if (selected == null) return false
     return abs(favorite.latitude - selected.latitude) < 0.01 &&
         abs(favorite.longitude - selected.longitude) < 0.01
 }
 
-private fun approxKey(city: City): String =
-    "${"%.2f".format(city.latitude)},${"%.2f".format(city.longitude)}"
+private fun approxKey(city: City): String = "${"%.2f".format(city.latitude)},${"%.2f".format(city.longitude)}"

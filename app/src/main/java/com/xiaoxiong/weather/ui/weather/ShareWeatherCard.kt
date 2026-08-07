@@ -56,6 +56,7 @@ import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.formatTemperature
 import com.xiaoxiong.weather.util.parseFlexibleDateTime
 import com.xiaoxiong.weather.util.weatherCodeDescription
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
@@ -63,7 +64,6 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
-import kotlinx.coroutines.launch
 
 /**
  * 天气分享卡片：太阳熊插画（节日覆盖 > 日常片刻）+ 场景渐变 + 当前天气。
@@ -73,7 +73,7 @@ import kotlinx.coroutines.launch
 fun ShareWeatherCard(
     snapshot: WeatherSnapshot,
     quote: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val current = snapshot.current
     val precipRate = WeatherCodes.intensityPrecipMmPerHour(current)
@@ -82,35 +82,37 @@ fun ShareWeatherCard(
     val tempUnit = LocalTemperatureUnit.current
 
     val bear = remember(snapshot.current.time) { shareBearArtwork(snapshot) }
-    val dateLabel = remember(snapshot.current.time) {
-        val date = parseFlexibleDateTime(snapshot.current.time)?.toLocalDate() ?: LocalDate.now()
-        date.format(
-            DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault())
-        )
-    }
+    val dateLabel =
+        remember(snapshot.current.time) {
+            val date = parseFlexibleDateTime(snapshot.current.time)?.toLocalDate() ?: LocalDate.now()
+            date.format(
+                DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()),
+            )
+        }
     val today = snapshot.daily.firstOrNull()
 
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(Brush.verticalGradient(style.gradient))
-            .padding(20.dp)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(24.dp))
+                .background(Brush.verticalGradient(style.gradient))
+                .padding(20.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = dateLabel,
                 style = MaterialTheme.typography.labelLarge,
-                color = style.mutedContentColor
+                color = style.mutedContentColor,
             )
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = style.contentColor
+                color = style.contentColor,
             )
         }
 
@@ -120,12 +122,13 @@ fun ShareWeatherCard(
             painter = painterResource(bear.drawableRes),
             contentDescription = stringResource(bear.captionRes),
             contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxWidth(0.72f)
-                .aspectRatio(1f)
-                .clip(bearShape)
-                .align(Alignment.CenterHorizontally)
-                .background(style.contentColor.copy(alpha = 0.06f))
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.72f)
+                    .aspectRatio(1f)
+                    .clip(bearShape)
+                    .align(Alignment.CenterHorizontally)
+                    .background(style.contentColor.copy(alpha = 0.06f)),
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
@@ -133,19 +136,19 @@ fun ShareWeatherCard(
             style = MaterialTheme.typography.titleMedium,
             color = style.contentColor,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             WeatherIcon(
                 code = displayCode,
                 isDay = current.isDay ?: true,
                 modifier = Modifier.size(44.dp),
-                precipMmPerHour = precipRate
+                precipMmPerHour = precipRate,
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -155,38 +158,39 @@ fun ShareWeatherCard(
                     fontWeight = FontWeight.Bold,
                     color = style.contentColor,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = weatherCodeDescription(displayCode, precipRate),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = style.mutedContentColor
+                    color = style.mutedContentColor,
                 )
             }
             Text(
                 text = formatTemperature(current.temperatureC, tempUnit),
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
-                color = style.contentColor
+                color = style.contentColor,
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = stringResource(
-                R.string.high_low_temps,
-                formatTemperature(today?.tempMaxC, tempUnit),
-                formatTemperature(today?.tempMinC, tempUnit)
-            ),
+            text =
+                stringResource(
+                    R.string.high_low_temps,
+                    formatTemperature(today?.tempMaxC, tempUnit),
+                    formatTemperature(today?.tempMinC, tempUnit),
+                ),
             style = MaterialTheme.typography.labelMedium,
             color = style.mutedContentColor,
             modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.End
+            textAlign = TextAlign.End,
         )
 
         Spacer(modifier = Modifier.height(14.dp))
         HorizontalDivider(
             thickness = 0.5.dp,
-            color = style.mutedContentColor.copy(alpha = 0.35f)
+            color = style.mutedContentColor.copy(alpha = 0.35f),
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
@@ -196,40 +200,45 @@ fun ShareWeatherCard(
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
 
 /** 分享卡片预览弹窗：卡片内容实时录进 GraphicsLayer，点分享时导出 PNG。 */
 @Composable
-fun ShareWeatherCardDialog(snapshot: WeatherSnapshot, onDismiss: () -> Unit) {
+fun ShareWeatherCardDialog(
+    snapshot: WeatherSnapshot,
+    onDismiss: () -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val graphicsLayer = rememberGraphicsLayer()
     var sharing by remember { mutableStateOf(false) }
     // 每次打开弹窗随机抽一句，预览与导出同一句
     val quotes = stringArrayResource(R.array.share_card_quotes)
-    val quote = remember(quotes.size) {
-        if (quotes.isEmpty()) "" else quotes.random()
-    }
+    val quote =
+        remember(quotes.size) {
+            if (quotes.isEmpty()) "" else quotes.random()
+        }
 
     Dialog(onDismissRequest = { if (!sharing) onDismiss() }) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             ShareWeatherCard(
                 snapshot = snapshot,
                 quote = quote,
-                modifier = Modifier
-                    .width(300.dp)
-                    // 每帧把卡片内容录进 layer，分享时 toImageBitmap() 直接出图
-                    .drawWithCache {
-                        onDrawWithContent {
-                            graphicsLayer.record {
-                                this@onDrawWithContent.drawContent()
+                modifier =
+                    Modifier
+                        .width(300.dp)
+                        // 每帧把卡片内容录进 layer，分享时 toImageBitmap() 直接出图
+                        .drawWithCache {
+                            onDrawWithContent {
+                                graphicsLayer.record {
+                                    this@onDrawWithContent.drawContent()
+                                }
+                                drawLayer(graphicsLayer)
                             }
-                            drawLayer(graphicsLayer)
-                        }
-                    }
+                        },
             )
             Spacer(modifier = Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -244,22 +253,24 @@ fun ShareWeatherCardDialog(snapshot: WeatherSnapshot, onDismiss: () -> Unit) {
                             try {
                                 val raw = graphicsLayer.toImageBitmap().asAndroidBitmap()
                                 // 硬件位图无法 compress；统一拷成软件 ARGB_8888 再导出
-                                val bitmap = raw.copy(Bitmap.Config.ARGB_8888, false)
-                                    ?: throw IllegalStateException("bitmap copy failed")
+                                val bitmap =
+                                    raw.copy(Bitmap.Config.ARGB_8888, false)
+                                        ?: throw IllegalStateException("bitmap copy failed")
                                 shareWeatherCardImage(context, bitmap)
                                 onDismiss()
                             } catch (_: Exception) {
-                                Toast.makeText(
-                                    context,
-                                    R.string.share_card_failed,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast
+                                    .makeText(
+                                        context,
+                                        R.string.share_card_failed,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
                             } finally {
                                 sharing = false
                             }
                         }
                     },
-                    enabled = !sharing
+                    enabled = !sharing,
                 ) {
                     Text(stringResource(R.string.share_card_send))
                 }
@@ -270,7 +281,7 @@ fun ShareWeatherCardDialog(snapshot: WeatherSnapshot, onDismiss: () -> Unit) {
 
 private data class BearArtwork(
     @param:DrawableRes val drawableRes: Int,
-    @param:StringRes val captionRes: Int
+    @param:StringRes val captionRes: Int,
 )
 
 /** 与日出日落弧同一套片刻逻辑：节日优先，其余按钟点/周末选取。 */
@@ -281,11 +292,12 @@ private fun shareBearArtwork(snapshot: WeatherSnapshot): BearArtwork {
     val today = snapshot.daily.firstOrNull()
     val rise = today?.sunrise?.let { parseFlexibleDateTime(it) }
     val set = today?.sunset?.let { parseFlexibleDateTime(it) }
-    val phase = if (now != null && rise != null && set != null) {
-        sunPathPhase(now, rise, set)
-    } else {
-        null
-    }
+    val phase =
+        if (now != null && rise != null && set != null) {
+            sunPathPhase(now, rise, set)
+        } else {
+            null
+        }
     val moment = sunPathBearMoment(phase, date, time)
     val holiday = holidayBearOverride(date, moment)
     return if (holiday != null) {
@@ -295,23 +307,28 @@ private fun shareBearArtwork(snapshot: WeatherSnapshot): BearArtwork {
     }
 }
 
-private fun shareWeatherCardImage(context: Context, bitmap: Bitmap) {
+private fun shareWeatherCardImage(
+    context: Context,
+    bitmap: Bitmap,
+) {
     val dir = File(context.cacheDir, "share").apply { mkdirs() }
     val file = File(dir, "weather_card.png")
     FileOutputStream(file).use { out ->
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
     }
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
-    )
-    val send = Intent(Intent.ACTION_SEND).apply {
-        type = "image/png"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
+    val uri =
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+    val send =
+        Intent(Intent.ACTION_SEND).apply {
+            type = "image/png"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
     context.startActivity(
-        Intent.createChooser(send, context.getString(R.string.share_card_chooser))
+        Intent.createChooser(send, context.getString(R.string.share_card_chooser)),
     )
 }

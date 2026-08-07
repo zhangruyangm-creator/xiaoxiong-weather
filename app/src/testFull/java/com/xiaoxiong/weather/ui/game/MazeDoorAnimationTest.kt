@@ -8,7 +8,6 @@ import org.junit.Test
  * 而不是用步数（moves）做时间基准。
  */
 class MazeDoorAnimationTest {
-
     @Test
     fun doorOpenProgress_startsAtCollectionMoment() {
         assertEquals(0f, doorOpenProgress(time = 20f, lastHoneyAt = 20f), 0.0001f)

@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChinaCityCatalogRelevanceTest {
-
     @Test
     fun relevanceScore_nameMatchLevels() {
         val city = WeatherFixtures.city("济南", admin1 = "山东", admin2 = "济南市")
@@ -32,10 +31,11 @@ class ChinaCityCatalogRelevanceTest {
 
     @Test
     fun hasStrongMatch() {
-        val cities = listOf(
-            WeatherFixtures.city("潍坊"),
-            WeatherFixtures.city("诸城", admin2 = "潍坊市")
-        )
+        val cities =
+            listOf(
+                WeatherFixtures.city("潍坊"),
+                WeatherFixtures.city("诸城", admin2 = "潍坊市"),
+            )
         assertTrue(ChinaCityCatalog.hasStrongMatch("诸城", cities))
         assertFalse(ChinaCityCatalog.hasStrongMatch("xyz", cities))
     }

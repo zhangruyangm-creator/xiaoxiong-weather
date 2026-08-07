@@ -25,6 +25,7 @@ baselineprofile = "1.4.1"
 profileinstaller = "1.4.1"
 macrobenchmark = "1.4.1"
 uiautomator = "2.3.0"
+ktlintGradle = "0.11.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -73,3 +74,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlyticsPlugin" }
+ktlint = { id = "io.github.usefulness.ktlint-gradle-plugin", version.ref = "ktlintGradle" }

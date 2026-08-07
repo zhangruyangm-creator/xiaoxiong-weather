@@ -20,7 +20,7 @@ import com.xiaoxiong.weather.R
 fun PrivacyGateDialog(
     onAccept: () -> Unit,
     onDecline: () -> Unit,
-    onReadPrivacy: () -> Unit
+    onReadPrivacy: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = {},
@@ -31,7 +31,7 @@ fun PrivacyGateDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     stringResource(R.string.privacy_gate_intro),
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(stringResource(R.string.privacy_gate_bullet_location))
@@ -41,14 +41,14 @@ fun PrivacyGateDialog(
                 Text(
                     stringResource(R.string.privacy_gate_footer),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.privacy_gate_read),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable(onClick = onReadPrivacy)
+                    modifier = Modifier.clickable(onClick = onReadPrivacy),
                 )
             }
         },
@@ -61,6 +61,6 @@ fun PrivacyGateDialog(
             TextButton(onClick = onDecline) {
                 Text(stringResource(R.string.privacy_gate_decline))
             }
-        }
+        },
     )
 }

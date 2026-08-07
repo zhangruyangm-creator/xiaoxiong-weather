@@ -72,10 +72,10 @@ import kotlin.math.roundToInt
 fun TodayCardsSettingsScreen(
     settingsStore: AppSettingsStore,
     scope: CoroutineScope,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val settings by settingsStore.settings.collectAsStateWithLifecycle(
-        initialValue = AppSettings()
+        initialValue = AppSettings(),
     )
     var cards by remember { mutableStateOf(TodayCardLayout.DEFAULT) }
     LaunchedEffect(settings.todayCards) {
@@ -103,33 +103,34 @@ fun TodayCardsSettingsScreen(
                     title = {
                         Text(
                             stringResource(R.string.settings_today_cards_title),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.cd_back)
+                                contentDescription = stringResource(R.string.cd_back),
                             )
                         }
-                    }
+                    },
                 )
-            }
+            },
         ) { padding ->
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(PaddingValues(16.dp)),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(PaddingValues(16.dp)),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 SoftCard(modifier = Modifier.fillMaxWidth()) {
                     SectionHeader(
                         title = stringResource(R.string.settings_today_cards),
                         subtitle = stringResource(R.string.settings_today_cards_hint),
-                        icon = Icons.Filled.ViewAgenda
+                        icon = Icons.Filled.ViewAgenda,
                     )
                 }
 
@@ -163,7 +164,7 @@ fun TodayCardsSettingsScreen(
                             draggingIndex = -1
                             dragOffsetY = 0f
                             persist(cards)
-                        }
+                        },
                     )
                 }
 
@@ -173,7 +174,7 @@ fun TodayCardsSettingsScreen(
                         cards = TodayCardLayout.DEFAULT
                         scope.launch { settingsStore.resetTodayCards() }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.settings_today_cards_reset))
                 }
@@ -191,41 +192,43 @@ private fun TodayCardPrefRow(
     onVisibleChange: (Boolean) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
-    onDragEnd: () -> Unit
+    onDragEnd: () -> Unit,
 ) {
     val shape = RoundedCornerShape(16.dp)
     val locked = pref.id.alwaysVisible
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .zIndex(if (dragging) 2f else 0f)
-            .offset { IntOffset(0, if (dragging) dragOffsetY.roundToInt() else 0) }
-            .shadow(if (dragging) 8.dp else 0.dp, shape, clip = false)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), shape)
-            .padding(horizontal = 10.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .zIndex(if (dragging) 2f else 0f)
+                .offset { IntOffset(0, if (dragging) dragOffsetY.roundToInt() else 0) }
+                .shadow(if (dragging) 8.dp else 0.dp, shape, clip = false)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), shape)
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Filled.DragHandle,
             contentDescription = stringResource(R.string.cd_drag_reorder),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .minimumInteractiveComponentSize()
-                .padding(10.dp)
-                .size(28.dp)
-                .pointerInput(pref.id) {
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = { onDragStart() },
-                        onDragEnd = onDragEnd,
-                        onDragCancel = onDragEnd,
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            onDrag(dragAmount.y)
-                        }
-                    )
-                }
+            modifier =
+                Modifier
+                    .minimumInteractiveComponentSize()
+                    .padding(10.dp)
+                    .size(28.dp)
+                    .pointerInput(pref.id) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { onDragStart() },
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragEnd,
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onDrag(dragAmount.y)
+                            },
+                        )
+                    },
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -233,20 +236,20 @@ private fun TodayCardPrefRow(
                 text = stringResource(pref.id.titleRes),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             if (locked) {
                 Text(
                     text = stringResource(R.string.settings_today_cards_current_locked),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
         Switch(
             checked = pref.visible || locked,
             onCheckedChange = { if (!locked) onVisibleChange(it) },
-            enabled = !locked
+            enabled = !locked,
         )
     }
 }

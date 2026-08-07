@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 class ForegroundAutoRefresh(
     private val scope: CoroutineScope,
     private val hasCity: () -> Boolean,
-    private val onQuietRefresh: () -> Unit
+    private val onQuietRefresh: () -> Unit,
 ) {
     private var job: Job? = null
     var isInForeground: Boolean = false
@@ -36,12 +36,13 @@ class ForegroundAutoRefresh(
     private fun startLoop() {
         job?.cancel()
         if (!isInForeground) return
-        job = scope.launch {
-            while (isActive && isInForeground) {
-                delay(WeatherRefreshPolicy.millisUntilNextQuarterHour())
-                if (!isInForeground) break
-                if (hasCity()) onQuietRefresh()
+        job =
+            scope.launch {
+                while (isActive && isInForeground) {
+                    delay(WeatherRefreshPolicy.millisUntilNextQuarterHour())
+                    if (!isInForeground) break
+                    if (hasCity()) onQuietRefresh()
+                }
             }
-        }
     }
 }

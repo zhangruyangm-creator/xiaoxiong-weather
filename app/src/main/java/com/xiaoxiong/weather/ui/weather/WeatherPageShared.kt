@@ -20,18 +20,20 @@ import com.xiaoxiong.weather.R
 
 @Composable
 internal fun OfflineBanner(lastUpdatedText: String?) {
-    val text = if (lastUpdatedText != null) {
-        stringResource(R.string.offline_updated, lastUpdatedText)
-    } else {
-        stringResource(R.string.offline_cached)
-    }
+    val text =
+        if (lastUpdatedText != null) {
+            stringResource(R.string.offline_updated, lastUpdatedText)
+        } else {
+            stringResource(R.string.offline_cached)
+        }
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.tertiaryContainer)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.tertiaryContainer)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         StatusDot(MaterialTheme.colorScheme.tertiary)
         Spacer(modifier = Modifier.width(8.dp))
@@ -39,7 +41,7 @@ internal fun OfflineBanner(lastUpdatedText: String?) {
             text = text,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onTertiaryContainer
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
         )
     }
 }
@@ -49,7 +51,7 @@ internal fun EmptyHint(text: String) {
     SoftCard(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = text,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

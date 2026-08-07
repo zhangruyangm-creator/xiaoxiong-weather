@@ -7,12 +7,11 @@ import org.junit.Test
  * 锁/钥匙数量、传送门成对，并对战役/无尽关做冰面可解性校验。
  */
 class MazeSolvabilityTest {
-
     private data class Counts(
         val locks: Int,
         val keys: Int,
         val portalBad: List<Int>,
-        val honeys: Int
+        val honeys: Int,
     )
 
     private fun counts(level: MazeLevel): Counts {
@@ -76,11 +75,12 @@ class MazeSolvabilityTest {
         for (seed in seeds) {
             for (wave in 1..40) {
                 val diff = (8 + wave * 2).coerceAtMost(45)
-                val lv = generateMazeLevel(
-                    seed = seed xor (wave.toLong() * 0x9E3779B9L),
-                    id = wave,
-                    difficulty = diff
-                )
+                val lv =
+                    generateMazeLevel(
+                        seed = seed xor (wave.toLong() * 0x9E3779B9L),
+                        id = wave,
+                        difficulty = diff,
+                    )
                 val c = counts(lv)
                 if (c.locks > c.keys) {
                     problems += "seed=$seed wave=$wave locks=${c.locks} keys=${c.keys} h=${c.honeys}"
@@ -95,30 +95,32 @@ class MazeSolvabilityTest {
         }
         assertTrue(
             "Found ${problems.size}\n" + problems.take(40).joinToString("\n"),
-            problems.isEmpty()
+            problems.isEmpty(),
         )
     }
 
     @Test
     fun simpleIceAndHoney_solvable() {
-        val map = listOf(
-            "#######",
-            "#S..H.#",
-            "#.###.#",
-            "#..I.E#",
-            "#######"
-        )
+        val map =
+            listOf(
+                "#######",
+                "#S..H.#",
+                "#.###.#",
+                "#..I.E#",
+                "#######",
+            )
         assertTrue(mazeMapSolvable(map))
     }
 
     @Test
     fun lockWithoutKey_unsolvable() {
         // 蜂蜜与出口都在锁后，且地图无钥匙
-        val map = listOf(
-            "########",
-            "#S..LH.E#",
-            "########"
-        )
+        val map =
+            listOf(
+                "########",
+                "#S..LH.E#",
+                "########",
+            )
         assertTrue(!mazeMapSolvable(map))
     }
 }

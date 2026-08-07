@@ -44,14 +44,13 @@ data class WeatherUiState(
     val errorMessage: String? = null,
     val infoMessage: String? = null,
     /** 隐藏调试模式已开启 */
-    val debugEnabled: Boolean = false
+    val debugEnabled: Boolean = false,
 )
 
 class WeatherViewModel(
     application: Application,
-    private val deps: WeatherViewModelDeps
+    private val deps: WeatherViewModelDeps,
 ) : AndroidViewModel(application) {
-
     private val repository = deps.weatherRepository
     private val locationHelper = deps.locationHelper
     private val favoriteStore = deps.favoriteStore
@@ -65,35 +64,40 @@ class WeatherViewModel(
     private val _uiState = MutableStateFlow(WeatherUiState())
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
-    val favorites: StateFlow<List<City>> = favoriteStore.favorites
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val favorites: StateFlow<List<City>> =
+        favoriteStore.favorites
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val recentCities: StateFlow<List<City>> = recentCityStore.recent
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val recentCities: StateFlow<List<City>> =
+        recentCityStore.recent
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _popularCities = MutableStateFlow<List<City>>(emptyList())
     val popularCities: StateFlow<List<City>> = _popularCities.asStateFlow()
 
-    val appSettings: StateFlow<AppSettings> = settingsStore.settings
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+    val appSettings: StateFlow<AppSettings> =
+        settingsStore.settings
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
-    private val debugController = DebugModeController(
-        scope = viewModelScope,
-        app = getApplication(),
-        store = deps.debugWeatherStore,
-        onState = { transform -> _uiState.update(transform) },
-        republishWeather = { republishBaseWeather() }
-    )
+    private val debugController =
+        DebugModeController(
+            scope = viewModelScope,
+            app = getApplication(),
+            store = deps.debugWeatherStore,
+            onState = { transform -> _uiState.update(transform) },
+            republishWeather = { republishBaseWeather() },
+        )
     val debugState: StateFlow<DebugWeatherState> = debugController.state
 
-    private val searchController = CitySearchController(
-        scope = viewModelScope,
-        app = getApplication(),
-        citySearch = deps.citySearch,
-        onState = { transform -> _uiState.update(transform) },
-        currentState = { _uiState.value },
-        onDebugMagicQuery = { debugController.enable() }
-    )
+    private val searchController =
+        CitySearchController(
+            scope = viewModelScope,
+            app = getApplication(),
+            citySearch = deps.citySearch,
+            onState = { transform -> _uiState.update(transform) },
+            currentState = { _uiState.value },
+            onDebugMagicQuery = { debugController.enable() },
+        )
 
     /** 未经调试覆盖的原始快照，供编辑器与退出调试还原。 */
     private val _baseWeather = MutableStateFlow<WeatherSnapshot?>(null)
@@ -104,28 +108,30 @@ class WeatherViewModel(
     private val locationCoordinator = deps.locationSessionFactory.create(viewModelScope)
     private val presentationEffects = deps.presentationEffects
 
-    private val coldStart = ColdStartController(
-        scope = viewModelScope,
-        settingsStore = settingsStore,
-        selectedCityStore = selectedCityStore,
-        favoriteStore = favoriteStore,
-        locationHelper = locationHelper,
-        selectCity = { city, fromLocation, quiet -> selectCity(city, fromLocation, quiet) },
-        loadCurrentLocationWeather = { showRationale, quiet ->
-            loadCurrentLocationWeather(showRationale, quiet)
-        },
-        refresh = { quiet -> refresh(quiet) },
-        updateState = { transform -> _uiState.update(transform) },
-        currentSelectedCity = { _uiState.value.selectedCity },
-        hasWeather = { _uiState.value.weather != null },
-        str = { id -> getApplication<Application>().str(id) }
-    )
+    private val coldStart =
+        ColdStartController(
+            scope = viewModelScope,
+            settingsStore = settingsStore,
+            selectedCityStore = selectedCityStore,
+            favoriteStore = favoriteStore,
+            locationHelper = locationHelper,
+            selectCity = { city, fromLocation, quiet -> selectCity(city, fromLocation, quiet) },
+            loadCurrentLocationWeather = { showRationale, quiet ->
+                loadCurrentLocationWeather(showRationale, quiet)
+            },
+            refresh = { quiet -> refresh(quiet) },
+            updateState = { transform -> _uiState.update(transform) },
+            currentSelectedCity = { _uiState.value.selectedCity },
+            hasWeather = { _uiState.value.weather != null },
+            str = { id -> getApplication<Application>().str(id) },
+        )
 
     init {
         viewModelScope.launch {
-            _popularCities.value = withContext(Dispatchers.Default) {
-                deps.popularCitiesLoader(getApplication())
-            }
+            _popularCities.value =
+                withContext(Dispatchers.Default) {
+                    deps.popularCitiesLoader(getApplication())
+                }
         }
         debugController.start()
         searchController.start()
@@ -137,15 +143,13 @@ class WeatherViewModel(
 
     fun onAppBackground() = coldStart.onAppBackground()
 
-    fun consumeRuntimePermissionRequest(): Boolean =
-        coldStart.consumeRuntimePermissionRequest()
+    fun consumeRuntimePermissionRequest(): Boolean = coldStart.consumeRuntimePermissionRequest()
 
     fun hasLocationPermission(): Boolean = coldStart.hasLocationPermission()
 
     fun onPermissionResult(granted: Boolean) = coldStart.onPermissionResult(granted)
 
-    fun onNotificationPermissionResult(granted: Boolean) =
-        coldStart.onNotificationPermissionResult(granted)
+    fun onNotificationPermissionResult(granted: Boolean) = coldStart.onNotificationPermissionResult(granted)
 
     fun ensureInitialLoad() = coldStart.ensureInitialLoad()
 
@@ -158,7 +162,11 @@ class WeatherViewModel(
     /** 彩蛋口令进入游戏等场景：清空搜索框但不退出「当前位置」模式。 */
     fun clearQueryKeepLocation() = searchController.clearQueryKeepLocation()
 
-    fun selectCity(city: City, fromLocation: Boolean = false, quiet: Boolean = false) {
+    fun selectCity(
+        city: City,
+        fromLocation: Boolean = false,
+        quiet: Boolean = false,
+    ) {
         // 手动选城时作废进行中的定位，避免 GPS 晚到抢回城市
         if (!fromLocation) {
             locationCoordinator.cancelPending()
@@ -181,7 +189,7 @@ class WeatherViewModel(
                 isLoadingWeather = if (quiet) it.isLoadingWeather else true,
                 isLocating = if (quiet) it.isLocating else false,
                 usingCurrentLocation = useLocation,
-                errorMessage = null
+                errorMessage = null,
             )
         }
         viewModelScope.launch {
@@ -193,73 +201,78 @@ class WeatherViewModel(
             }
         }
         weatherJob?.cancel()
-        weatherJob = viewModelScope.launch {
-            if (!quiet) {
-                val cached = weatherCacheStore.get(city)
-                if (cached != null && requestId == weatherRequestId.get()) {
-                    publishWeather(
-                        requestId = requestId,
-                        snapshot = cached.snapshot,
-                        selectedCity = city,
-                        isLoadingWeather = true,
-                        isOffline = false,
-                        lastUpdatedText = formatCacheTime(cached.savedAtEpochMs),
-                        updateIcon = true,
-                        refreshWidgets = false
-                    )
-                }
-            }
-
-            try {
-                val snapshot = repository.fetchWeather(city)
-                if (requestId != weatherRequestId.get()) return@launch
-                weatherCacheStore.save(snapshot)
-                publishWeather(
-                    requestId = requestId,
-                    snapshot = snapshot,
-                    selectedCity = city,
-                    isLoadingWeather = false,
-                    isOffline = false,
-                    lastUpdatedText = nowText(),
-                    errorMessage = null,
-                    updateIcon = true,
-                    refreshWidgets = true
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (requestId != weatherRequestId.get()) return@launch
-                val cached = weatherCacheStore.get(city)
-                if (cached != null) {
-                    publishWeather(
-                        requestId = requestId,
-                        snapshot = cached.snapshot,
-                        selectedCity = city,
-                        isLoadingWeather = false,
-                        isOffline = true,
-                        lastUpdatedText = formatCacheTime(cached.savedAtEpochMs),
-                        errorMessage = if (quiet) null else str(R.string.error_network_cached),
-                        updateIcon = true,
-                        refreshWidgets = true
-                    )
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            isLoadingWeather = false,
+        weatherJob =
+            viewModelScope.launch {
+                if (!quiet) {
+                    val cached = weatherCacheStore.get(city)
+                    if (cached != null && requestId == weatherRequestId.get()) {
+                        publishWeather(
+                            requestId = requestId,
+                            snapshot = cached.snapshot,
+                            selectedCity = city,
+                            isLoadingWeather = true,
                             isOffline = false,
-                            errorMessage = if (quiet) {
-                                null
-                            } else {
-                                userFacingError(e, R.string.error_fetch_weather)
-                            }
+                            lastUpdatedText = formatCacheTime(cached.savedAtEpochMs),
+                            updateIcon = true,
+                            refreshWidgets = false,
                         )
                     }
                 }
+
+                try {
+                    val snapshot = repository.fetchWeather(city)
+                    if (requestId != weatherRequestId.get()) return@launch
+                    weatherCacheStore.save(snapshot)
+                    publishWeather(
+                        requestId = requestId,
+                        snapshot = snapshot,
+                        selectedCity = city,
+                        isLoadingWeather = false,
+                        isOffline = false,
+                        lastUpdatedText = nowText(),
+                        errorMessage = null,
+                        updateIcon = true,
+                        refreshWidgets = true,
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (requestId != weatherRequestId.get()) return@launch
+                    val cached = weatherCacheStore.get(city)
+                    if (cached != null) {
+                        publishWeather(
+                            requestId = requestId,
+                            snapshot = cached.snapshot,
+                            selectedCity = city,
+                            isLoadingWeather = false,
+                            isOffline = true,
+                            lastUpdatedText = formatCacheTime(cached.savedAtEpochMs),
+                            errorMessage = if (quiet) null else str(R.string.error_network_cached),
+                            updateIcon = true,
+                            refreshWidgets = true,
+                        )
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isLoadingWeather = false,
+                                isOffline = false,
+                                errorMessage =
+                                    if (quiet) {
+                                        null
+                                    } else {
+                                        userFacingError(e, R.string.error_fetch_weather)
+                                    },
+                            )
+                        }
+                    }
+                }
             }
-        }
     }
 
-    fun loadCurrentLocationWeather(showRationale: Boolean = true, quiet: Boolean = false) {
+    fun loadCurrentLocationWeather(
+        showRationale: Boolean = true,
+        quiet: Boolean = false,
+    ) {
         if (!locationHelper.hasLocationPermission()) {
             if (showRationale && !quiet) {
                 _uiState.update { it.copy(errorMessage = str(R.string.error_need_location_permission)) }
@@ -277,7 +290,7 @@ class WeatherViewModel(
                     isLocating = true,
                     isLoadingWeather = true,
                     // 保留旧天气，定位期间不把界面刷空
-                    errorMessage = null
+                    errorMessage = null,
                 )
             }
         }
@@ -291,11 +304,12 @@ class WeatherViewModel(
                     it.copy(
                         isLocating = false,
                         isLoadingWeather = false,
-                        errorMessage = if (quiet) {
-                            null
-                        } else {
-                            userFacingError(e, R.string.error_locate_failed)
-                        }
+                        errorMessage =
+                            if (quiet) {
+                                null
+                            } else {
+                                userFacingError(e, R.string.error_locate_failed)
+                            },
                     )
                 }
                 if (_uiState.value.weather == null) {
@@ -304,7 +318,7 @@ class WeatherViewModel(
             },
             onPlaceUpdated = { city ->
                 updateCurrentLocationLabel(city)
-            }
+            },
         )
     }
 
@@ -316,7 +330,7 @@ class WeatherViewModel(
             if (!roughlySameCity(current, city)) return@update state
             state.copy(
                 selectedCity = city,
-                query = city.displayName
+                query = city.displayName,
             )
         }
         viewModelScope.launch {
@@ -337,8 +351,10 @@ class WeatherViewModel(
         }
     }
 
-    fun isFavorite(city: City?, favorites: List<City>): Boolean =
-        favoriteStore.isFavorite(favorites, city)
+    fun isFavorite(
+        city: City?,
+        favorites: List<City>,
+    ): Boolean = favoriteStore.isFavorite(favorites, city)
 
     fun refresh(quiet: Boolean = false) {
         val state = _uiState.value
@@ -350,7 +366,7 @@ class WeatherViewModel(
             selectCity(
                 city = city,
                 fromLocation = state.usingCurrentLocation || city.isCurrentLocation,
-                quiet = quiet
+                quiet = quiet,
             )
         } else if (state.usingCurrentLocation) {
             loadCurrentLocationWeather(showRationale = !quiet, quiet = quiet)
@@ -369,8 +385,7 @@ class WeatherViewModel(
 
     fun exitDebugMode() = debugController.exit()
 
-    fun applyDebugOverride(override: DebugWeatherOverride) =
-        debugController.applyOverride(override)
+    fun applyDebugOverride(override: DebugWeatherOverride) = debugController.applyOverride(override)
 
     fun clearDebugOverride() = debugController.clearOverride()
 
@@ -380,7 +395,7 @@ class WeatherViewModel(
         _uiState.update {
             it.copy(
                 weather = shown,
-                debugEnabled = debugWeatherStore.getOnce().enabled
+                debugEnabled = debugWeatherStore.getOnce().enabled,
             )
         }
     }
@@ -392,7 +407,7 @@ class WeatherViewModel(
                 DebugWeatherStore.apply(
                     base,
                     debug.override,
-                    getApplication<Application>().resources
+                    getApplication<Application>().resources,
                 )
             }
         } else {
@@ -409,7 +424,7 @@ class WeatherViewModel(
         lastUpdatedText: String,
         errorMessage: String? = null,
         updateIcon: Boolean = false,
-        refreshWidgets: Boolean = false
+        refreshWidgets: Boolean = false,
     ) {
         // 入口即弃过期请求：presentWeather 会挂起读 DataStore，期间可能已有更新的请求
         if (requestId != weatherRequestId.get()) return
@@ -423,7 +438,7 @@ class WeatherViewModel(
                     getApplication(),
                     shown.current.weatherCode,
                     WeatherCodes.intensityPrecipMmPerHour(shown.current),
-                    shown.current.isDay
+                    shown.current.isDay,
                 )
             }
             // 先出界面再刷小组件，避免 widget 更新拖住 loading
@@ -435,7 +450,7 @@ class WeatherViewModel(
                     isOffline = isOffline,
                     lastUpdatedText = lastUpdatedText,
                     errorMessage = errorMessage,
-                    debugEnabled = debugWeatherStore.getOnce().enabled
+                    debugEnabled = debugWeatherStore.getOnce().enabled,
                 )
             }
             if (refreshWidgets) {
@@ -444,22 +459,29 @@ class WeatherViewModel(
         }
     }
 
-    private fun roughlySameCity(a: City?, b: City): Boolean {
+    private fun roughlySameCity(
+        a: City?,
+        b: City,
+    ): Boolean {
         if (a == null) return false
         return kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
             kotlin.math.abs(a.longitude - b.longitude) < 0.01
     }
 
-    private fun nowText(): String =
-        LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    private fun nowText(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 
     private fun formatCacheTime(epochMs: Long): String =
-        LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMs), ZoneId.systemDefault())
+        LocalDateTime
+            .ofInstant(Instant.ofEpochMilli(epochMs), ZoneId.systemDefault())
             .format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
 
-    private fun str(@StringRes id: Int, vararg args: Any): String =
-        getApplication<Application>().str(id, *args)
+    private fun str(
+        @StringRes id: Int,
+        vararg args: Any,
+    ): String = getApplication<Application>().str(id, *args)
 
-    private fun userFacingError(e: Throwable, @StringRes fallback: Int): String =
-        e.userFacingMessage(getApplication(), fallback)
+    private fun userFacingError(
+        e: Throwable,
+        @StringRes fallback: Int,
+    ): String = e.userFacingMessage(getApplication(), fallback)
 }

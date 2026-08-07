@@ -15,38 +15,40 @@ object AlertBearIcon {
     fun drawableRes(
         kind: AlertKind,
         precipMmPerHour: Double? = null,
-        severity: AlertSeverity? = null
-    ): Int = when (kind) {
-        AlertKind.HEAT -> R.drawable.ic_alert_bear_hot
-        AlertKind.HEAT_WAVE -> R.drawable.ic_alert_bear_heat_wave
-        AlertKind.COLD -> R.drawable.ic_alert_bear_cold
-        AlertKind.COOLDOWN -> R.drawable.ic_alert_bear_cooldown
-        AlertKind.COLD_WAVE -> R.drawable.ic_alert_bear_cold_wave
-        AlertKind.UV -> R.drawable.ic_alert_bear_uv
-        AlertKind.WIND -> R.drawable.ic_alert_bear_wind
-        AlertKind.STORM -> R.drawable.ic_alert_bear_storm
-        AlertKind.HAIL -> R.drawable.ic_alert_bear_hail
-        AlertKind.FREEZING_RAIN -> R.drawable.ic_alert_bear_freezing_rain
-        AlertKind.AIR_QUALITY -> R.drawable.ic_alert_bear_aqi
-        AlertKind.DUST -> R.drawable.ic_alert_bear_dust
-        AlertKind.HEAVY_RAIN -> heavyRainUmbrellaRes(precipMmPerHour, severity)
-        AlertKind.PONDING -> R.drawable.ic_alert_bear_ponding
-        AlertKind.SNOW, AlertKind.SNOW_SOON -> snowBearRes(precipMmPerHour, severity)
-        AlertKind.SNOWING -> R.drawable.ic_launcher_bear_snowy
-        AlertKind.SNOWY_ROAD -> R.drawable.ic_alert_bear_snowy_road
-        AlertKind.FOG, AlertKind.LOW_VISIBILITY -> R.drawable.ic_launcher_bear_foggy
-        AlertKind.RAINING, AlertKind.RAIN_SOON -> rainSoonUmbrellaRes(precipMmPerHour)
-        AlertKind.CLEAR -> R.drawable.ic_launcher_bear_sunny
-    }
+        severity: AlertSeverity? = null,
+    ): Int =
+        when (kind) {
+            AlertKind.HEAT -> R.drawable.ic_alert_bear_hot
+            AlertKind.HEAT_WAVE -> R.drawable.ic_alert_bear_heat_wave
+            AlertKind.COLD -> R.drawable.ic_alert_bear_cold
+            AlertKind.COOLDOWN -> R.drawable.ic_alert_bear_cooldown
+            AlertKind.COLD_WAVE -> R.drawable.ic_alert_bear_cold_wave
+            AlertKind.UV -> R.drawable.ic_alert_bear_uv
+            AlertKind.WIND -> R.drawable.ic_alert_bear_wind
+            AlertKind.STORM -> R.drawable.ic_alert_bear_storm
+            AlertKind.HAIL -> R.drawable.ic_alert_bear_hail
+            AlertKind.FREEZING_RAIN -> R.drawable.ic_alert_bear_freezing_rain
+            AlertKind.AIR_QUALITY -> R.drawable.ic_alert_bear_aqi
+            AlertKind.DUST -> R.drawable.ic_alert_bear_dust
+            AlertKind.HEAVY_RAIN -> heavyRainUmbrellaRes(precipMmPerHour, severity)
+            AlertKind.PONDING -> R.drawable.ic_alert_bear_ponding
+            AlertKind.SNOW, AlertKind.SNOW_SOON -> snowBearRes(precipMmPerHour, severity)
+            AlertKind.SNOWING -> R.drawable.ic_launcher_bear_snowy
+            AlertKind.SNOWY_ROAD -> R.drawable.ic_alert_bear_snowy_road
+            AlertKind.FOG, AlertKind.LOW_VISIBILITY -> R.drawable.ic_launcher_bear_foggy
+            AlertKind.RAINING, AlertKind.RAIN_SOON -> rainSoonUmbrellaRes(precipMmPerHour)
+            AlertKind.CLEAR -> R.drawable.ic_launcher_bear_sunny
+        }
 
     /** 强降雪：预警或小时雪量达暴雪量级用暴雪小熊，其余用大雪小熊。 */
     @DrawableRes
     fun snowBearRes(
         precipMmPerHour: Double? = null,
-        severity: AlertSeverity? = null
+        severity: AlertSeverity? = null,
     ): Int {
-        val blizzard = severity == AlertSeverity.WARNING ||
-            (precipMmPerHour ?: 0.0) >= WeatherCodes.SNOW_HEAVY_MAX_MM_H
+        val blizzard =
+            severity == AlertSeverity.WARNING ||
+                (precipMmPerHour ?: 0.0) >= WeatherCodes.SNOW_HEAVY_MAX_MM_H
         return if (blizzard) {
             R.drawable.ic_launcher_bear_blizzard
         } else {
@@ -58,10 +60,11 @@ object AlertBearIcon {
     @DrawableRes
     fun heavyRainUmbrellaRes(
         precipMmPerHour: Double? = null,
-        severity: AlertSeverity? = null
+        severity: AlertSeverity? = null,
     ): Int {
-        val warning = severity == AlertSeverity.WARNING ||
-            WeatherCodes.isHeavyRainWarningIntensity(precipMmPerHour)
+        val warning =
+            severity == AlertSeverity.WARNING ||
+                WeatherCodes.isHeavyRainWarningIntensity(precipMmPerHour)
         return if (warning) {
             R.drawable.ic_alert_bear_heavy_rain_warning
         } else {

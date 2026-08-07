@@ -24,7 +24,7 @@ internal class CitySearchController(
     private val citySearch: CitySearchUseCase,
     private val onState: ((WeatherUiState) -> WeatherUiState) -> Unit,
     private val currentState: () -> WeatherUiState,
-    private val onDebugMagicQuery: () -> Unit
+    private val onDebugMagicQuery: () -> Unit,
 ) {
     private val queryFlow = MutableStateFlow("")
 
@@ -40,12 +40,13 @@ internal class CitySearchController(
     fun onQueryChange(value: String) {
         onState {
             // 仅在用户真正改动了定位城市文案时才退出「当前位置」模式，避免误触
-            val keepLocation = it.usingCurrentLocation &&
-                value == it.selectedCity?.displayName
+            val keepLocation =
+                it.usingCurrentLocation &&
+                    value == it.selectedCity?.displayName
             it.copy(
                 query = value,
                 errorMessage = null,
-                usingCurrentLocation = keepLocation
+                usingCurrentLocation = keepLocation,
             )
         }
         queryFlow.value = value
@@ -62,7 +63,7 @@ internal class CitySearchController(
                 suggestions = emptyList(),
                 isSearching = false,
                 errorMessage = null,
-                usingCurrentLocation = it.usingCurrentLocation
+                usingCurrentLocation = it.usingCurrentLocation,
             )
         }
         queryFlow.value = ""
@@ -77,7 +78,7 @@ internal class CitySearchController(
                     query = it.selectedCity?.displayName.orEmpty(),
                     suggestions = emptyList(),
                     isSearching = false,
-                    infoMessage = app.str(R.string.debug_entered)
+                    infoMessage = app.str(R.string.debug_entered),
                 )
             }
             return
@@ -97,7 +98,7 @@ internal class CitySearchController(
                 it.copy(
                     suggestions = local.cities,
                     isSearching = !local.strongMatch,
-                    errorMessage = null
+                    errorMessage = null,
                 )
             }
             if (local.strongMatch) {
@@ -110,11 +111,12 @@ internal class CitySearchController(
                 it.copy(
                     suggestions = cities,
                     isSearching = false,
-                    errorMessage = if (cities.isEmpty()) {
-                        app.str(R.string.error_city_not_found, trimmed)
-                    } else {
-                        null
-                    }
+                    errorMessage =
+                        if (cities.isEmpty()) {
+                            app.str(R.string.error_city_not_found, trimmed)
+                        } else {
+                            null
+                        },
                 )
             }
         } catch (e: CancellationException) {
@@ -124,7 +126,7 @@ internal class CitySearchController(
                 it.copy(
                     isSearching = false,
                     suggestions = emptyList(),
-                    errorMessage = e.userFacingMessage(app, R.string.error_search_failed)
+                    errorMessage = e.userFacingMessage(app, R.string.error_search_failed),
                 )
             }
         }

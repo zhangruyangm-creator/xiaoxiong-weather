@@ -84,13 +84,13 @@ internal fun TodayPage(
     isOffline: Boolean,
     lastUpdatedText: String?,
     radarMapRepository: RadarMapRepository,
-    cardLayout: List<TodayCardPref> = TodayCardLayout.DEFAULT
+    cardLayout: List<TodayCardPref> = TodayCardLayout.DEFAULT,
 ) {
     val layout = remember(cardLayout) { TodayCardLayout.mergeWithDefaults(cardLayout) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (weather == null) {
             item { EmptyHint(stringResource(R.string.today_empty)) }
@@ -99,31 +99,35 @@ internal fun TodayPage(
         if (isOffline) {
             item { OfflineBanner(lastUpdatedText) }
         }
-        val visibleCards = layout.filter { pref ->
-            pref.visible && when (pref.id) {
-                TodayCardId.ALERTS -> weather.alerts.isNotEmpty()
-                TodayCardId.CURRENT -> true
-                TodayCardId.LIFE_INDICES -> weather.lifeIndices.isNotEmpty()
-                TodayCardId.AIR_QUALITY -> weather.airQuality != null
-                TodayCardId.RADAR -> true
-                TodayCardId.SUN_EXTRAS -> true
+        val visibleCards =
+            layout.filter { pref ->
+                pref.visible &&
+                    when (pref.id) {
+                        TodayCardId.ALERTS -> weather.alerts.isNotEmpty()
+                        TodayCardId.CURRENT -> true
+                        TodayCardId.LIFE_INDICES -> weather.lifeIndices.isNotEmpty()
+                        TodayCardId.AIR_QUALITY -> weather.airQuality != null
+                        TodayCardId.RADAR -> true
+                        TodayCardId.SUN_EXTRAS -> true
+                    }
             }
-        }
         items(
             items = visibleCards,
-            key = { it.id.name }
+            key = { it.id.name },
         ) { pref ->
             when (pref.id) {
                 TodayCardId.ALERTS -> AlertsSection(weather.alerts)
                 TodayCardId.CURRENT -> CurrentWeatherCard(weather)
                 TodayCardId.LIFE_INDICES -> LifeIndicesSection(weather.lifeIndices)
-                TodayCardId.AIR_QUALITY -> weather.airQuality?.let { aq ->
-                    AirQualityCard(aq, weather.daily.firstOrNull())
-                }
-                TodayCardId.RADAR -> RadarCloudMapSection(
-                    snapshot = weather,
-                    repository = radarMapRepository
-                )
+                TodayCardId.AIR_QUALITY ->
+                    weather.airQuality?.let { aq ->
+                        AirQualityCard(aq, weather.daily.firstOrNull())
+                    }
+                TodayCardId.RADAR ->
+                    RadarCloudMapSection(
+                        snapshot = weather,
+                        repository = radarMapRepository,
+                    )
                 TodayCardId.SUN_EXTRAS -> SunAndExtrasCard(weather)
             }
         }
@@ -135,9 +139,10 @@ internal fun TodayPage(
 internal fun AlertsSection(alerts: List<WeatherAlert>) {
     if (alerts.isEmpty()) return
 
-    val ordered = remember(alerts) {
-        alerts.sortedByDescending { alertSeverityRank(it.severity) }
-    }
+    val ordered =
+        remember(alerts) {
+            alerts.sortedByDescending { alertSeverityRank(it.severity) }
+        }
     // 刷新后预警集合变化时恢复折叠
     val alertKey = remember(ordered) { ordered.joinToString("|") { it.title } }
 
@@ -152,54 +157,57 @@ internal fun AlertsSection(alerts: List<WeatherAlert>) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // 折叠：扑克牌叠层，默认只展开优先级最高的一条
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = true),
-                    onClick = { expanded = !expanded }
-                )
-                .padding(bottom = if (expanded) 0.dp else (stackBehind.size * 8).dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = true),
+                        onClick = { expanded = !expanded },
+                    ).padding(bottom = if (expanded) 0.dp else (stackBehind.size * 8).dp),
         ) {
             if (!expanded) {
                 stackBehind.forEachIndexed { index, alert ->
                     val depth = index + 1
-                    val peekColor = when (alert.severity) {
-                        AlertSeverity.WARNING -> AccentCoral
-                        AlertSeverity.WATCH -> Color(0xFFFFB74D)
-                        AlertSeverity.INFO -> Leaf
-                    }
+                    val peekColor =
+                        when (alert.severity) {
+                            AlertSeverity.WARNING -> AccentCoral
+                            AlertSeverity.WATCH -> Color(0xFFFFB74D)
+                            AlertSeverity.INFO -> Leaf
+                        }
                     Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .offset(y = (depth * 8).dp)
-                            .zIndex(depth.toFloat())
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(peekColor.copy(alpha = 0.72f - index * 0.12f))
-                            .border(
-                                width = 1.dp,
-                                color = Color.White.copy(alpha = 0.28f),
-                                shape = RoundedCornerShape(18.dp)
-                            )
+                        modifier =
+                            Modifier
+                                .matchParentSize()
+                                .offset(y = (depth * 8).dp)
+                                .zIndex(depth.toFloat())
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(peekColor.copy(alpha = 0.72f - index * 0.12f))
+                                .border(
+                                    width = 1.dp,
+                                    color = Color.White.copy(alpha = 0.28f),
+                                    shape = RoundedCornerShape(18.dp),
+                                ),
                     )
                 }
             }
             AlertCard(
                 alert = ordered[0],
                 modifier = Modifier.zIndex(10f),
-                trailingLabel = if (expanded) {
-                    stringResource(R.string.alerts_collapse)
-                } else {
-                    stringResource(R.string.alerts_expand, ordered.size)
-                },
-                expandedIcon = expanded
+                trailingLabel =
+                    if (expanded) {
+                        stringResource(R.string.alerts_collapse)
+                    } else {
+                        stringResource(R.string.alerts_expand, ordered.size)
+                    },
+                expandedIcon = expanded,
             )
         }
 
         AnimatedVisibility(
             visible = expanded,
             enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
+            exit = shrinkVertically() + fadeOut(),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ordered.drop(1).forEach { alert ->
@@ -210,56 +218,59 @@ internal fun AlertsSection(alerts: List<WeatherAlert>) {
     }
 }
 
-private fun alertSeverityRank(severity: AlertSeverity): Int = when (severity) {
-    AlertSeverity.WARNING -> 3
-    AlertSeverity.WATCH -> 2
-    AlertSeverity.INFO -> 1
-}
+private fun alertSeverityRank(severity: AlertSeverity): Int =
+    when (severity) {
+        AlertSeverity.WARNING -> 3
+        AlertSeverity.WATCH -> 2
+        AlertSeverity.INFO -> 1
+    }
 
 @Composable
 private fun AlertCard(
     alert: WeatherAlert,
     modifier: Modifier = Modifier,
     trailingLabel: String? = null,
-    expandedIcon: Boolean = false
+    expandedIcon: Boolean = false,
 ) {
-    val colors = when (alert.severity) {
-        AlertSeverity.WARNING -> AccentCoral to Color.White
-        AlertSeverity.WATCH -> Color(0xFFFFB74D) to Color(0xFF3E2723)
-        AlertSeverity.INFO -> Leaf to Color.White
-    }
+    val colors =
+        when (alert.severity) {
+            AlertSeverity.WARNING -> AccentCoral to Color.White
+            AlertSeverity.WATCH -> Color(0xFFFFB74D) to Color(0xFF3E2723)
+            AlertSeverity.INFO -> Leaf to Color.White
+        }
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(colors.first, colors.first.copy(alpha = 0.82f))
-                )
-            )
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.18f),
-                shape = RoundedCornerShape(18.dp)
-            )
-            .padding(12.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(colors.first, colors.first.copy(alpha = 0.82f)),
+                    ),
+                ).border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.18f),
+                    shape = RoundedCornerShape(18.dp),
+                ).padding(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
-                painter = painterResource(
-                    AlertBearIcon.drawableRes(
-                        alert.kind,
-                        alert.precipMmPerHour,
-                        alert.severity
-                    )
-                ),
+                painter =
+                    painterResource(
+                        AlertBearIcon.drawableRes(
+                            alert.kind,
+                            alert.precipMmPerHour,
+                            alert.severity,
+                        ),
+                    ),
                 contentDescription = alert.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, Color.White.copy(alpha = 0.55f), CircleShape)
-                    .background(Color.White.copy(alpha = 0.18f))
+                modifier =
+                    Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color.White.copy(alpha = 0.55f), CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f)),
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -267,12 +278,12 @@ private fun AlertCard(
                     text = alert.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = colors.second
+                    color = colors.second,
                 )
                 Text(
                     text = alert.message,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colors.second.copy(alpha = 0.95f)
+                    color = colors.second.copy(alpha = 0.95f),
                 )
             }
             if (trailingLabel != null) {
@@ -282,17 +293,18 @@ private fun AlertCard(
                         text = trailingLabel,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = colors.second.copy(alpha = 0.9f)
+                        color = colors.second.copy(alpha = 0.9f),
                     )
                     Icon(
-                        imageVector = if (expandedIcon) {
-                            Icons.Filled.ExpandLess
-                        } else {
-                            Icons.Filled.ExpandMore
-                        },
+                        imageVector =
+                            if (expandedIcon) {
+                                Icons.Filled.ExpandLess
+                            } else {
+                                Icons.Filled.ExpandMore
+                            },
                         contentDescription = trailingLabel,
                         tint = colors.second.copy(alpha = 0.9f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -308,13 +320,13 @@ internal fun CurrentWeatherCard(snapshot: WeatherSnapshot) {
     WeatherAtmosphereCard(
         code = displayCode,
         isDay = current.isDay,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) { style ->
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.Top,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -323,13 +335,13 @@ internal fun CurrentWeatherCard(snapshot: WeatherSnapshot) {
                         fontWeight = FontWeight.Bold,
                         color = style.contentColor,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     if (snapshot.city.isCurrentLocation) {
                         Text(
                             text = stringResource(R.string.gps_location),
                             style = MaterialTheme.typography.labelMedium,
-                            color = style.mutedContentColor
+                            color = style.mutedContentColor,
                         )
                     }
                 }
@@ -337,7 +349,7 @@ internal fun CurrentWeatherCard(snapshot: WeatherSnapshot) {
                     code = displayCode,
                     isDay = current.isDay ?: true,
                     modifier = Modifier.size(64.dp),
-                    precipMmPerHour = precipRate
+                    precipMmPerHour = precipRate,
                 )
             }
 
@@ -347,64 +359,65 @@ internal fun CurrentWeatherCard(snapshot: WeatherSnapshot) {
                 text = formatTemperature(current.temperatureC, tempUnit),
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
-                color = style.contentColor
+                color = style.contentColor,
             )
             Text(
                 text = weatherCodeDescription(displayCode, precipRate),
                 style = MaterialTheme.typography.titleMedium,
-                color = style.contentColor
+                color = style.contentColor,
             )
             val today = snapshot.daily.firstOrNull()
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = stringResource(
-                    R.string.high_low_temps,
-                    formatTemperature(today?.tempMaxC, tempUnit),
-                    formatTemperature(today?.tempMinC, tempUnit)
-                ),
+                text =
+                    stringResource(
+                        R.string.high_low_temps,
+                        formatTemperature(today?.tempMaxC, tempUnit),
+                        formatTemperature(today?.tempMinC, tempUnit),
+                    ),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
-                color = style.contentColor
+                color = style.contentColor,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FrostedMetricTile(
                     stringResource(R.string.metric_feels_like),
                     formatTemperature(current.apparentTemperatureC, tempUnit),
                     Modifier.weight(1f),
                     style.contentColor,
-                    style.mutedContentColor
+                    style.mutedContentColor,
                 )
                 FrostedMetricTile(
                     stringResource(R.string.metric_humidity),
                     current.humidityPercent?.let { "$it%" } ?: "--",
                     Modifier.weight(1f),
                     style.contentColor,
-                    style.mutedContentColor
+                    style.mutedContentColor,
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FrostedMetricTile(
                     stringResource(R.string.metric_visibility),
                     formatVisibility(current.visibilityMeters),
                     Modifier.weight(1f),
                     style.contentColor,
-                    style.mutedContentColor
+                    style.mutedContentColor,
                 )
                 FrostedMetricTile(
                     stringResource(R.string.metric_wind),
                     current.windSpeedKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--",
                     Modifier.weight(1f),
                     style.contentColor,
-                    style.mutedContentColor
+                    style.mutedContentColor,
                 )
             }
 
@@ -412,16 +425,17 @@ internal fun CurrentWeatherCard(snapshot: WeatherSnapshot) {
             MetricGrid(
                 current = current,
                 labelColor = style.mutedContentColor,
-                valueColor = style.contentColor
+                valueColor = style.contentColor,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = stringResource(
-                    R.string.local_time_updated,
-                    formatHourLabel(current.time)
-                ),
+                text =
+                    stringResource(
+                        R.string.local_time_updated,
+                        formatHourLabel(current.time),
+                    ),
                 style = MaterialTheme.typography.bodySmall,
-                color = style.mutedContentColor
+                color = style.mutedContentColor,
             )
         }
     }
@@ -431,7 +445,7 @@ internal fun CurrentWeatherCard(snapshot: WeatherSnapshot) {
 internal fun MetricGrid(
     current: CurrentWeather,
     labelColor: Color,
-    valueColor: Color
+    valueColor: Color,
 ) {
     val precipRate = WeatherCodes.intensityPrecipMmPerHour(current)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -441,14 +455,14 @@ internal fun MetricGrid(
                 current.windGustsKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--",
                 Modifier.weight(1f),
                 valueColor,
-                labelColor
+                labelColor,
             )
             FrostedMetricTile(
                 stringResource(R.string.metric_wind_dir),
                 windDirectionText(current.windDirectionDeg),
                 Modifier.weight(1f),
                 valueColor,
-                labelColor
+                labelColor,
             )
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -457,14 +471,14 @@ internal fun MetricGrid(
                 current.pressureHpa?.let { "${"%.0f".format(it)} hPa" } ?: "--",
                 Modifier.weight(1f),
                 valueColor,
-                labelColor
+                labelColor,
             )
             FrostedMetricTile(
                 stringResource(R.string.metric_dew_point),
                 formatTemperature(current.dewPointC, LocalTemperatureUnit.current),
                 Modifier.weight(1f),
                 valueColor,
-                labelColor
+                labelColor,
             )
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -473,14 +487,14 @@ internal fun MetricGrid(
                 precipRate?.let { "${"%.1f".format(it)} mm" } ?: "--",
                 Modifier.weight(1f),
                 valueColor,
-                labelColor
+                labelColor,
             )
             FrostedMetricTile(
                 stringResource(R.string.metric_cloud),
                 current.cloudCoverPercent?.let { "$it%" } ?: "--",
                 Modifier.weight(1f),
                 valueColor,
-                labelColor
+                labelColor,
             )
         }
     }
@@ -489,13 +503,13 @@ internal fun MetricGrid(
 @Composable
 internal fun AirQualityCard(
     airQuality: AirQuality,
-    today: DailyWeather?
+    today: DailyWeather?,
 ) {
     SoftCard(modifier = Modifier.fillMaxWidth()) {
         SectionHeader(
             title = stringResource(R.string.aq_title),
             subtitle = stringResource(R.string.aq_sub),
-            icon = Icons.Filled.Air
+            icon = Icons.Filled.Air,
         )
         Spacer(modifier = Modifier.height(12.dp))
         val aqi = airQuality.europeanAqi
@@ -503,12 +517,13 @@ internal fun AirQualityCard(
             label = stringResource(R.string.aq_europe, aqiLabelText(aqi)),
             valueText = aqi?.toString() ?: "--",
             progress = ((aqi ?: 0) / 100f).coerceIn(0f, 1f),
-            barColor = when {
-                aqi == null -> MaterialTheme.colorScheme.outline
-                aqi <= 40 -> Leaf
-                aqi <= 60 -> Color(0xFFFFB74D)
-                else -> AccentCoral
-            }
+            barColor =
+                when {
+                    aqi == null -> MaterialTheme.colorScheme.outline
+                    aqi <= 40 -> Leaf
+                    aqi <= 60 -> Color(0xFFFFB74D)
+                    else -> AccentCoral
+                },
         )
         Spacer(modifier = Modifier.height(12.dp))
         val uv = airQuality.uvIndex ?: today?.uvIndexMax
@@ -516,7 +531,7 @@ internal fun AirQualityCard(
             label = stringResource(R.string.aq_uv, uvLabelText(uv)),
             valueText = uv?.let { "%.1f".format(it) } ?: "--",
             progress = ((uv ?: 0.0) / 11.0).toFloat().coerceIn(0f, 1f),
-            barColor = Color(0xFFFFCA28)
+            barColor = Color(0xFFFFCA28),
         )
         Spacer(modifier = Modifier.height(14.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -528,35 +543,40 @@ internal fun AirQualityCard(
             MiniStat(
                 stringResource(R.string.aq_us),
                 airQuality.usAqi?.toString() ?: "--",
-                Modifier.weight(1f)
+                Modifier.weight(1f),
             )
             MiniStat(
                 stringResource(R.string.aq_dust),
                 airQuality.dustUgM3?.let { "%.0f".format(it) } ?: "--",
-                Modifier.weight(1f)
+                Modifier.weight(1f),
             )
         }
     }
 }
 
 @Composable
-internal fun MiniStat(label: String, value: String, modifier: Modifier = Modifier) {
+internal fun MiniStat(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f))
-            .padding(10.dp)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f))
+                .padding(10.dp),
     ) {
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -566,22 +586,24 @@ internal fun SunAndExtrasCard(snapshot: WeatherSnapshot) {
     val today = snapshot.daily.firstOrNull()
     val sunriseLabel = today?.sunrise?.let { formatHourLabel(it) } ?: "--"
     val sunsetLabel = today?.sunset?.let { formatHourLabel(it) } ?: "--"
-    val phase = remember(snapshot.current.time, today?.sunrise, today?.sunset) {
-        val now = parseFlexibleDateTime(snapshot.current.time.orEmpty())
-        val rise = today?.sunrise?.let { parseFlexibleDateTime(it) }
-        val set = today?.sunset?.let { parseFlexibleDateTime(it) }
-        if (now != null && rise != null && set != null) sunPathPhase(now, rise, set) else null
-    }
+    val phase =
+        remember(snapshot.current.time, today?.sunrise, today?.sunset) {
+            val now = parseFlexibleDateTime(snapshot.current.time.orEmpty())
+            val rise = today?.sunrise?.let { parseFlexibleDateTime(it) }
+            val set = today?.sunset?.let { parseFlexibleDateTime(it) }
+            if (now != null && rise != null && set != null) sunPathPhase(now, rise, set) else null
+        }
     SoftCard(modifier = Modifier.fillMaxWidth()) {
         SectionHeader(
             title = stringResource(R.string.extras_title),
             subtitle = stringResource(R.string.extras_sub),
-            icon = Icons.Filled.WbTwilight
+            icon = Icons.Filled.WbTwilight,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        val onDateTime = remember(snapshot.current.time) {
-            parseFlexibleDateTime(snapshot.current.time.orEmpty())
-        }
+        val onDateTime =
+            remember(snapshot.current.time) {
+                parseFlexibleDateTime(snapshot.current.time.orEmpty())
+            }
         val onDate = onDateTime?.toLocalDate() ?: java.time.LocalDate.now()
         val onTime = onDateTime?.toLocalTime() ?: java.time.LocalTime.now()
         SunPathArc(
@@ -589,19 +611,20 @@ internal fun SunAndExtrasCard(snapshot: WeatherSnapshot) {
             sunriseLabel = sunriseLabel,
             sunsetLabel = sunsetLabel,
             onDate = onDate,
-            onTime = onTime
+            onTime = onTime,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        val dayNight = when (phase?.isDay ?: snapshot.current.isDay) {
-            true -> stringResource(R.string.daytime)
-            false -> stringResource(R.string.nighttime)
-            null -> "--"
-        }
+        val dayNight =
+            when (phase?.isDay ?: snapshot.current.isDay) {
+                true -> stringResource(R.string.daytime)
+                false -> stringResource(R.string.nighttime)
+                null -> "--"
+            }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MiniStat(
                 stringResource(R.string.precip_probability),
                 today?.precipProbabilityMax?.let { "$it%" } ?: "--",
-                Modifier.weight(1f)
+                Modifier.weight(1f),
             )
             MiniStat(stringResource(R.string.day_night), dayNight, Modifier.weight(1f))
         }

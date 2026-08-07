@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class GeocodingResponse(
-    val results: List<GeocodingResult>? = null
+    val results: List<GeocodingResult>? = null,
 )
 
 @Serializable
@@ -18,7 +18,7 @@ data class GeocodingResult(
     @SerialName("country_code") val countryCode: String? = null,
     val admin1: String? = null,
     val admin2: String? = null,
-    val timezone: String? = null
+    val timezone: String? = null,
 )
 
 @Serializable
@@ -30,7 +30,7 @@ data class ForecastResponse(
     val timezone: String? = null,
     val current: CurrentWeatherDto? = null,
     val hourly: HourlyWeatherDto? = null,
-    val daily: DailyWeatherDto? = null
+    val daily: DailyWeatherDto? = null,
 )
 
 @Serializable
@@ -50,7 +50,7 @@ data class CurrentWeatherDto(
     @SerialName("cloud_cover") val cloudCover: Int? = null,
     @SerialName("pressure_msl") val pressure: Double? = null,
     @SerialName("dew_point_2m") val dewPoint: Double? = null,
-    @SerialName("is_day") val isDay: Int? = null
+    @SerialName("is_day") val isDay: Int? = null,
 )
 
 @Serializable
@@ -62,7 +62,7 @@ data class HourlyWeatherDto(
     @SerialName("weather_code") val weatherCode: List<Int?> = emptyList(),
     val precipitation: List<Double?> = emptyList(),
     @SerialName("precipitation_probability") val precipProbability: List<Int?> = emptyList(),
-    @SerialName("wind_speed_10m") val windSpeed: List<Double?> = emptyList()
+    @SerialName("wind_speed_10m") val windSpeed: List<Double?> = emptyList(),
 )
 
 @Serializable
@@ -76,7 +76,7 @@ data class DailyWeatherDto(
     val sunrise: List<String?> = emptyList(),
     val sunset: List<String?> = emptyList(),
     @SerialName("uv_index_max") val uvIndexMax: List<Double?> = emptyList(),
-    @SerialName("wind_speed_10m_max") val windMax: List<Double?> = emptyList()
+    @SerialName("wind_speed_10m_max") val windMax: List<Double?> = emptyList(),
 )
 
 @Serializable
@@ -85,7 +85,7 @@ data class AirQualityResponse(
     val longitude: Double? = null,
     val timezone: String? = null,
     val current: AirQualityCurrentDto? = null,
-    val hourly: AirQualityHourlyDto? = null
+    val hourly: AirQualityHourlyDto? = null,
 )
 
 @Serializable
@@ -98,7 +98,7 @@ data class AirQualityCurrentDto(
     val dust: Double? = null,
     @SerialName("uv_index") val uvIndex: Double? = null,
     @SerialName("nitrogen_dioxide") val nitrogenDioxide: Double? = null,
-    val ozone: Double? = null
+    val ozone: Double? = null,
 )
 
 @Serializable
@@ -109,5 +109,5 @@ data class AirQualityHourlyDto(
     @SerialName("pm2_5") val pm25: List<Double?> = emptyList(),
     @SerialName("pm10") val pm10: List<Double?> = emptyList(),
     val dust: List<Double?> = emptyList(),
-    @SerialName("uv_index") val uvIndex: List<Double?> = emptyList()
+    @SerialName("uv_index") val uvIndex: List<Double?> = emptyList(),
 )

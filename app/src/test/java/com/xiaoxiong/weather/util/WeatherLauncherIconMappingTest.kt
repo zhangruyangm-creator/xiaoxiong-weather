@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class WeatherLauncherIconMappingTest {
-
     @Test
     fun fromWeatherCode_clearAndCloud() {
         assertEquals(WeatherLauncherIcon.Style.SUNNY, WeatherLauncherIcon.fromWeatherCode(0))
@@ -13,19 +12,19 @@ class WeatherLauncherIconMappingTest {
         assertEquals(WeatherLauncherIcon.Style.CLOUDY, WeatherLauncherIcon.fromWeatherCode(3))
         assertEquals(
             WeatherLauncherIcon.Style.CLEAR_NIGHT,
-            WeatherLauncherIcon.fromWeatherCode(0, isDay = false)
+            WeatherLauncherIcon.fromWeatherCode(0, isDay = false),
         )
         assertEquals(
             WeatherLauncherIcon.Style.FEW_CLOUDS_NIGHT,
-            WeatherLauncherIcon.fromWeatherCode(1, isDay = false)
+            WeatherLauncherIcon.fromWeatherCode(1, isDay = false),
         )
         assertEquals(
             WeatherLauncherIcon.Style.PARTLY_CLOUDY_NIGHT,
-            WeatherLauncherIcon.fromWeatherCode(2, isDay = false)
+            WeatherLauncherIcon.fromWeatherCode(2, isDay = false),
         )
         assertEquals(
             WeatherLauncherIcon.Style.CLOUDY,
-            WeatherLauncherIcon.fromWeatherCode(3, isDay = false)
+            WeatherLauncherIcon.fromWeatherCode(3, isDay = false),
         )
     }
 
@@ -33,31 +32,31 @@ class WeatherLauncherIconMappingTest {
     fun fromWeather_nightClearUsesMoon() {
         assertEquals(
             WeatherLauncherIcon.Style.CLEAR_NIGHT,
-            WeatherLauncherIcon.fromWeather(0, isDay = false)
+            WeatherLauncherIcon.fromWeather(0, isDay = false),
         )
         assertEquals(
             WeatherLauncherIcon.Style.FEW_CLOUDS_NIGHT,
-            WeatherLauncherIcon.fromWeather(1, isDay = false)
+            WeatherLauncherIcon.fromWeather(1, isDay = false),
         )
         assertEquals(
             WeatherLauncherIcon.Style.PARTLY_CLOUDY_NIGHT,
-            WeatherLauncherIcon.fromWeather(2, isDay = false)
+            WeatherLauncherIcon.fromWeather(2, isDay = false),
         )
         assertEquals(
             WeatherLauncherIcon.Style.SUNNY,
-            WeatherLauncherIcon.fromWeather(0, isDay = true)
+            WeatherLauncherIcon.fromWeather(0, isDay = true),
         )
         assertEquals(
             WeatherLauncherIcon.Style.FEW_CLOUDS,
-            WeatherLauncherIcon.fromWeather(1, isDay = true)
+            WeatherLauncherIcon.fromWeather(1, isDay = true),
         )
         assertEquals(
             WeatherLauncherIcon.Style.RAINY,
-            WeatherLauncherIcon.fromWeather(3, 1.0, isDay = true)
+            WeatherLauncherIcon.fromWeather(3, 1.0, isDay = true),
         )
         assertEquals(
             WeatherLauncherIcon.Style.CLOUDY,
-            WeatherLauncherIcon.fromWeather(3, 0.0, isDay = true)
+            WeatherLauncherIcon.fromWeather(3, 0.0, isDay = true),
         )
     }
 
@@ -65,47 +64,47 @@ class WeatherLauncherIconMappingTest {
     fun fromWeather_usesPrecipMmForFiveRainIcons() {
         assertEquals(
             WeatherLauncherIcon.Style.DRIZZLE,
-            WeatherLauncherIcon.fromWeather(51, 0.4)
+            WeatherLauncherIcon.fromWeather(51, 0.4),
         )
         assertEquals(
             WeatherLauncherIcon.Style.RAINY,
-            WeatherLauncherIcon.fromWeather(51, 0.6)
+            WeatherLauncherIcon.fromWeather(51, 0.6),
         )
         assertEquals(
             WeatherLauncherIcon.Style.MODERATE_RAIN,
-            WeatherLauncherIcon.fromWeather(51, 1.2)
+            WeatherLauncherIcon.fromWeather(51, 1.2),
         )
         assertEquals(
             WeatherLauncherIcon.Style.RAINY,
-            WeatherLauncherIcon.fromWeather(61, 0.4)
+            WeatherLauncherIcon.fromWeather(61, 0.4),
         )
         assertEquals(
             WeatherLauncherIcon.Style.HEAVY_RAIN,
-            WeatherLauncherIcon.fromWeather(61, 5.0)
+            WeatherLauncherIcon.fromWeather(61, 5.0),
         )
         assertEquals(
             WeatherLauncherIcon.Style.HEAVY_RAIN,
-            WeatherLauncherIcon.fromWeather(51, 8.0)
+            WeatherLauncherIcon.fromWeather(51, 8.0),
         )
         assertEquals(
             WeatherLauncherIcon.Style.HEAVY_RAIN,
-            WeatherLauncherIcon.fromWeather(61, 12.0)
+            WeatherLauncherIcon.fromWeather(61, 12.0),
         )
         assertEquals(
             WeatherLauncherIcon.Style.VIOLENT_RAIN,
-            WeatherLauncherIcon.fromWeather(61, 16.0)
+            WeatherLauncherIcon.fromWeather(61, 16.0),
         )
         assertEquals(
             WeatherLauncherIcon.Style.EXTREME_RAIN,
-            WeatherLauncherIcon.fromWeather(61, 40.0)
+            WeatherLauncherIcon.fromWeather(61, 40.0),
         )
         assertEquals(
             WeatherLauncherIcon.Style.EXTREME_RAIN,
-            WeatherLauncherIcon.fromWeather(61, 55.0)
+            WeatherLauncherIcon.fromWeather(61, 55.0),
         )
         assertEquals(
             WeatherLauncherIcon.Style.STORM,
-            WeatherLauncherIcon.fromWeather(95, 30.0)
+            WeatherLauncherIcon.fromWeather(95, 30.0),
         )
     }
 
@@ -146,11 +145,11 @@ class WeatherLauncherIconMappingTest {
         assertEquals(WeatherLauncherIcon.Style.RAINY, WeatherLauncherIcon.Style.fromAlias("Rainy"))
         assertEquals(
             WeatherLauncherIcon.Style.FEW_CLOUDS,
-            WeatherLauncherIcon.Style.fromAlias("FewClouds")
+            WeatherLauncherIcon.Style.fromAlias("FewClouds"),
         )
         assertEquals(
             WeatherLauncherIcon.Style.FEW_CLOUDS_NIGHT,
-            WeatherLauncherIcon.Style.fromAlias("FewCloudsNight")
+            WeatherLauncherIcon.Style.fromAlias("FewCloudsNight"),
         )
         assertEquals(WeatherLauncherIcon.Style.SUNNY, WeatherLauncherIcon.Style.fromAlias(null))
         assertEquals(WeatherLauncherIcon.Style.SUNNY, WeatherLauncherIcon.Style.fromAlias("Nope"))
@@ -160,19 +159,19 @@ class WeatherLauncherIconMappingTest {
     fun drawableRes_followsWeatherCodeStyle() {
         assertEquals(
             com.xiaoxiong.weather.R.drawable.ic_launcher_bear_sunny,
-            WeatherLauncherIcon.drawableRes(0)
+            WeatherLauncherIcon.drawableRes(0),
         )
         assertEquals(
             com.xiaoxiong.weather.R.drawable.ic_launcher_bear_few_clouds,
-            WeatherLauncherIcon.drawableRes(1)
+            WeatherLauncherIcon.drawableRes(1),
         )
         assertEquals(
             com.xiaoxiong.weather.R.drawable.ic_launcher_bear_few_clouds_night,
-            WeatherLauncherIcon.drawableRes(1, isDay = false)
+            WeatherLauncherIcon.drawableRes(1, isDay = false),
         )
         assertEquals(
             com.xiaoxiong.weather.R.drawable.ic_launcher_bear_storm,
-            WeatherLauncherIcon.drawableRes(95)
+            WeatherLauncherIcon.drawableRes(95),
         )
     }
 }

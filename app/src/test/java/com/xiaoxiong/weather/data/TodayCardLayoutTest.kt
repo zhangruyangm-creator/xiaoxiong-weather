@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TodayCardLayoutTest {
-
     @Test
     fun default_allVisibleInCanonicalOrder() {
         val ids = TodayCardLayout.DEFAULT.map { it.id }
@@ -16,11 +15,12 @@ class TodayCardLayoutTest {
 
     @Test
     fun merge_forcesCurrentVisible_andAppendsMissing() {
-        val saved = listOf(
-            TodayCardPref(TodayCardId.RADAR, true),
-            TodayCardPref(TodayCardId.CURRENT, false),
-            TodayCardPref(TodayCardId.ALERTS, false)
-        )
+        val saved =
+            listOf(
+                TodayCardPref(TodayCardId.RADAR, true),
+                TodayCardPref(TodayCardId.CURRENT, false),
+                TodayCardPref(TodayCardId.ALERTS, false),
+            )
         val merged = TodayCardLayout.mergeWithDefaults(saved)
         assertEquals(
             listOf(
@@ -29,9 +29,9 @@ class TodayCardLayoutTest {
                 TodayCardId.ALERTS,
                 TodayCardId.LIFE_INDICES,
                 TodayCardId.AIR_QUALITY,
-                TodayCardId.SUN_EXTRAS
+                TodayCardId.SUN_EXTRAS,
             ),
-            merged.map { it.id }
+            merged.map { it.id },
         )
         assertTrue(merged.first { it.id == TodayCardId.CURRENT }.visible)
         assertFalse(merged.first { it.id == TodayCardId.ALERTS }.visible)
@@ -40,11 +40,12 @@ class TodayCardLayoutTest {
 
     @Test
     fun encodeDecode_roundTrip() {
-        val prefs = TodayCardLayout.withVisibility(
-            TodayCardLayout.move(TodayCardLayout.DEFAULT, fromIndex = 2, toIndex = 0),
-            TodayCardId.RADAR,
-            visible = false
-        )
+        val prefs =
+            TodayCardLayout.withVisibility(
+                TodayCardLayout.move(TodayCardLayout.DEFAULT, fromIndex = 2, toIndex = 0),
+                TodayCardId.RADAR,
+                visible = false,
+            )
         val again = TodayCardLayout.decode(TodayCardLayout.encode(prefs))
         assertEquals(prefs, again)
     }
@@ -57,11 +58,12 @@ class TodayCardLayoutTest {
 
     @Test
     fun withVisibility_ignoresHidingCurrent() {
-        val prefs = TodayCardLayout.withVisibility(
-            TodayCardLayout.DEFAULT,
-            TodayCardId.CURRENT,
-            visible = false
-        )
+        val prefs =
+            TodayCardLayout.withVisibility(
+                TodayCardLayout.DEFAULT,
+                TodayCardId.CURRENT,
+                visible = false,
+            )
         assertTrue(prefs.first { it.id == TodayCardId.CURRENT }.visible)
     }
 

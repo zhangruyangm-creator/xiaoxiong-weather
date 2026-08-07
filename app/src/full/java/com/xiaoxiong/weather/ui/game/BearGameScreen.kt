@@ -5,6 +5,8 @@ import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,35 +43,51 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.res.imageResource
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
+import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
-import kotlinx.coroutines.isActive
 
 /** 彩蛋口令：搜索框输入「#小熊跳跳」进入跑酷小游戏。 */
 const val EASTER_EGG_BEAR_GAME = "#小熊跳跳"
 
 enum class GamePhase { READY, RUNNING, OVER }
+
 enum class ObstacleType { PUDDLE, SNOWMAN, STORM_CLOUD }
 
-class Obstacle(val type: ObstacleType, var x: Float, val w: Float, val h: Float)
-class Coin(var x: Float, val y: Float, val r: Float)
-class BgCloud(var x: Float, var y: Float, val scale: Float, val layer: Float)
+class Obstacle(
+    val type: ObstacleType,
+    var x: Float,
+    val w: Float,
+    val h: Float,
+)
+
+class Coin(
+    var x: Float,
+    val y: Float,
+    val r: Float,
+)
+
+class BgCloud(
+    var x: Float,
+    var y: Float,
+    val scale: Float,
+    val layer: Float,
+)
+
 class Particle(
     var x: Float,
     var y: Float,
@@ -77,9 +95,15 @@ class Particle(
     var vy: Float,
     var life: Float,
     val maxLife: Float = life,
-    val color: Color = Color.White
+    val color: Color = Color.White,
 )
-class FloatText(var x: Float, var y: Float, val text: String, var life: Float = 0.8f)
+
+class FloatText(
+    var x: Float,
+    var y: Float,
+    val text: String,
+    var life: Float = 0.8f,
+)
 
 /**
  * 小熊跑酷全部可变状态。物理量在普通字段里（每帧变化不走快照），
@@ -102,12 +126,16 @@ class BearGame {
     var bob = 0f
     var runPhase = 0f
     var deadT = 0f
+
     /** 眨眼倒计时；< 0 的 0.12s 内为闭眼。 */
     var blinkT = 2.5f
+
     /** 落地挤压计时；< 0 表示未触发。 */
     var squashT = -1f
+
     /** 二段跳空翻进度计时；< 0 表示未触发。 */
     var flipT = -1f
+
     /** 死亡屏幕震动剩余时间。 */
     var shakeT = 0f
     var dustT = 0f
@@ -143,12 +171,13 @@ class BearGame {
         bearY = bearY.coerceIn(-size.height.toFloat(), floorY)
         if (clouds.isEmpty()) {
             repeat(5) {
-                clouds += BgCloud(
-                    x = Random.nextFloat() * size.width,
-                    y = size.height * (0.06f + Random.nextFloat() * 0.22f),
-                    scale = 0.6f + Random.nextFloat() * 0.9f,
-                    layer = if (it % 2 == 0) 0.15f else 0.3f
-                )
+                clouds +=
+                    BgCloud(
+                        x = Random.nextFloat() * size.width,
+                        y = size.height * (0.06f + Random.nextFloat() * 0.22f),
+                        scale = 0.6f + Random.nextFloat() * 0.9f,
+                        layer = if (it % 2 == 0) 0.15f else 0.3f,
+                    )
             }
         }
     }
@@ -186,14 +215,15 @@ class BearGame {
     fun tap() {
         when (phase) {
             GamePhase.READY -> start()
-            GamePhase.RUNNING -> if (jumpsLeft > 0) {
-                bearVY = if (jumpsLeft == 2) jumpV else jumpV2
-                jumpsLeft--
-                grounded = false
-                // 二段跳触发前空翻
-                if (jumpsLeft == 0) flipT = 0f
-                burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
-            }
+            GamePhase.RUNNING ->
+                if (jumpsLeft > 0) {
+                    bearVY = if (jumpsLeft == 2) jumpV else jumpV2
+                    jumpsLeft--
+                    grounded = false
+                    // 二段跳触发前空翻
+                    if (jumpsLeft == 0) flipT = 0f
+                    burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+                }
             GamePhase.OVER -> Unit
         }
     }
@@ -211,36 +241,52 @@ class BearGame {
         squashT = 0f
         flipT = -1f
         burst(
-            bearX + bearSize / 2, groundY,
-            count = 6, spread = 170f * s, color = Color(0xFFD7CCC8)
+            bearX + bearSize / 2,
+            groundY,
+            count = 6,
+            spread = 170f * s,
+            color = Color(0xFFD7CCC8),
         )
     }
 
-    fun burst(cx: Float, cy: Float, count: Int, spread: Float, color: Color = Color.White) {
+    fun burst(
+        cx: Float,
+        cy: Float,
+        count: Int,
+        spread: Float,
+        color: Color = Color.White,
+    ) {
         repeat(count) {
             val a = Random.nextFloat() * (Math.PI * 2).toFloat()
             val v = (0.3f + Random.nextFloat() * 0.7f) * spread
             val life = 0.5f + Random.nextFloat() * 0.4f
-            particles += Particle(
-                x = cx, y = cy,
-                vx = kotlin.math.cos(a) * v, vy = kotlin.math.sin(a) * v - 120f * s,
-                life = life, maxLife = life, color = color
-            )
+            particles +=
+                Particle(
+                    x = cx,
+                    y = cy,
+                    vx = kotlin.math.cos(a) * v,
+                    vy = kotlin.math.sin(a) * v - 120f * s,
+                    life = life,
+                    maxLife = life,
+                    color = color,
+                )
         }
     }
 
     private fun spawn() {
         val r = Random.nextFloat()
-        val type = when {
-            r < 0.40f -> ObstacleType.PUDDLE
-            r < 0.72f -> ObstacleType.SNOWMAN
-            else -> ObstacleType.STORM_CLOUD
-        }
-        val (w, h) = when (type) {
-            ObstacleType.PUDDLE -> 78f * s to 20f * s
-            ObstacleType.SNOWMAN -> 56f * s to 84f * s
-            ObstacleType.STORM_CLOUD -> 68f * s to 50f * s
-        }
+        val type =
+            when {
+                r < 0.40f -> ObstacleType.PUDDLE
+                r < 0.72f -> ObstacleType.SNOWMAN
+                else -> ObstacleType.STORM_CLOUD
+            }
+        val (w, h) =
+            when (type) {
+                ObstacleType.PUDDLE -> 78f * s to 20f * s
+                ObstacleType.SNOWMAN -> 56f * s to 84f * s
+                ObstacleType.STORM_CLOUD -> 68f * s to 50f * s
+            }
         val x = size.width + 48f * s
         obstacles += Obstacle(type, x, w, h)
         if (Random.nextFloat() < 0.4f) {
@@ -253,7 +299,11 @@ class BearGame {
         }
     }
 
-    fun tick(dt: Float, onCoin: () -> Unit, onDeath: (score: Int) -> Unit) {
+    fun tick(
+        dt: Float,
+        onCoin: () -> Unit,
+        onDeath: (score: Int) -> Unit,
+    ) {
         if (size == IntSize.Zero) return
         time += dt
         if (shakeT > 0f) shakeT -= dt
@@ -310,12 +360,16 @@ class BearGame {
                 if (dustT > 0.09f) {
                     dustT = 0f
                     val life = 0.3f + Random.nextFloat() * 0.2f
-                    particles += Particle(
-                        x = bearX + bearSize * 0.25f, y = groundY - 5f * s,
-                        vx = -(70f + Random.nextFloat() * 90f) * s,
-                        vy = -(20f + Random.nextFloat() * 60f) * s,
-                        life = life, maxLife = life, color = Color(0xFFD7CCC8)
-                    )
+                    particles +=
+                        Particle(
+                            x = bearX + bearSize * 0.25f,
+                            y = groundY - 5f * s,
+                            vx = -(70f + Random.nextFloat() * 90f) * s,
+                            vy = -(20f + Random.nextFloat() * 60f) * s,
+                            life = life,
+                            maxLife = life,
+                            color = Color(0xFFD7CCC8),
+                        )
                 }
             }
         } else {
@@ -344,16 +398,20 @@ class BearGame {
         // 碰撞（判定盒内缩，手感宽松一点）
         val insetX = bearSize * 0.20f
         val insetY = bearSize * 0.14f
-        val bearRect = Rect(
-            bearX + insetX, bearY + insetY,
-            bearX + bearSize - insetX, bearY + bearSize - insetY * 0.5f
-        )
-        val overlapping = coins.filter { c ->
-            val dxC = c.x - (bearX + bearSize / 2)
-            val dyC = c.y - (bearY + bearSize / 2)
-            val reach = c.r + bearSize * 0.52f
-            dxC * dxC + dyC * dyC < reach * reach
-        }
+        val bearRect =
+            Rect(
+                bearX + insetX,
+                bearY + insetY,
+                bearX + bearSize - insetX,
+                bearY + bearSize - insetY * 0.5f,
+            )
+        val overlapping =
+            coins.filter { c ->
+                val dxC = c.x - (bearX + bearSize / 2)
+                val dyC = c.y - (bearY + bearSize / 2)
+                val reach = c.r + bearSize * 0.52f
+                dxC * dxC + dyC * dyC < reach * reach
+            }
         if (overlapping.isNotEmpty()) {
             for (coinHit in overlapping) {
                 coins.remove(coinHit)
@@ -363,18 +421,20 @@ class BearGame {
                 onCoin()
             }
         }
-        val dead = obstacles.any { ob ->
-            val obTop = when (ob.type) {
-                ObstacleType.PUDDLE -> groundY - ob.h
-                ObstacleType.SNOWMAN -> groundY - ob.h
-                ObstacleType.STORM_CLOUD -> groundY - ob.h - 4f * s
+        val dead =
+            obstacles.any { ob ->
+                val obTop =
+                    when (ob.type) {
+                        ObstacleType.PUDDLE -> groundY - ob.h
+                        ObstacleType.SNOWMAN -> groundY - ob.h
+                        ObstacleType.STORM_CLOUD -> groundY - ob.h - 4f * s
+                    }
+                val shrinkX = ob.w * 0.16f
+                val shrinkTop = ob.h * 0.14f
+                bearRect.overlaps(
+                    Rect(ob.x + shrinkX, obTop + shrinkTop, ob.x + ob.w - shrinkX, obTop + ob.h),
+                )
             }
-            val shrinkX = ob.w * 0.16f
-            val shrinkTop = ob.h * 0.14f
-            bearRect.overlaps(
-                Rect(ob.x + shrinkX, obTop + shrinkTop, ob.x + ob.w - shrinkX, obTop + ob.h)
-            )
-        }
         if (dead) die(onDeath)
     }
 }
@@ -383,7 +443,7 @@ class BearGame {
 fun BearGameScreen(
     sceneCode: Int?,
     isDay: Boolean?,
-    onExit: () -> Unit
+    onExit: () -> Unit,
 ) {
     BackHandler(onBack = onExit)
     val context = LocalContext.current
@@ -391,30 +451,33 @@ fun BearGameScreen(
     val style = weatherSceneStyle(sceneCode, isDay, appDark = false)
 
     val prefs = remember { context.getSharedPreferences("bear_game", Context.MODE_PRIVATE) }
-    val game = remember {
-        BearGame().also { it.best = prefs.getInt("best", 0) }
-    }
-    val bearSprites = BearSprites(
-        runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
-        runPushA = ImageBitmap.imageResource(R.drawable.bear_run_push_a),
-        runPass = ImageBitmap.imageResource(R.drawable.bear_run_pass),
-        runB = ImageBitmap.imageResource(R.drawable.bear_run_b),
-        runPushB = ImageBitmap.imageResource(R.drawable.bear_run_push_b),
-        jump = ImageBitmap.imageResource(R.drawable.bear_jump),
-        fall = ImageBitmap.imageResource(R.drawable.bear_fall),
-        land = ImageBitmap.imageResource(R.drawable.bear_land)
-    )
+    val game =
+        remember {
+            BearGame().also { it.best = prefs.getInt("best", 0) }
+        }
+    val bearSprites =
+        BearSprites(
+            runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
+            runPushA = ImageBitmap.imageResource(R.drawable.bear_run_push_a),
+            runPass = ImageBitmap.imageResource(R.drawable.bear_run_pass),
+            runB = ImageBitmap.imageResource(R.drawable.bear_run_b),
+            runPushB = ImageBitmap.imageResource(R.drawable.bear_run_push_b),
+            jump = ImageBitmap.imageResource(R.drawable.bear_jump),
+            fall = ImageBitmap.imageResource(R.drawable.bear_fall),
+            land = ImageBitmap.imageResource(R.drawable.bear_land),
+        )
     var frame by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         var last = Long.MIN_VALUE
         while (isActive) {
             withFrameNanos { now ->
-                val dt = if (last == Long.MIN_VALUE) {
-                    1f / 60f
-                } else {
-                    min((now - last) / 1e9f, 0.033f)
-                }
+                val dt =
+                    if (last == Long.MIN_VALUE) {
+                        1f / 60f
+                    } else {
+                        min((now - last) / 1e9f, 0.033f)
+                    }
                 last = now
                 game.tick(
                     dt,
@@ -427,7 +490,7 @@ fun BearGameScreen(
                             game.best = score
                             prefs.edit().putInt("best", score).apply()
                         }
-                    }
+                    },
                 )
                 frame = now
             }
@@ -435,22 +498,24 @@ fun BearGameScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(style.gradient))
-            .onSizeChanged { sz ->
-                game.resize(IntSize(sz.width, sz.height))
-            }
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(style.gradient))
+                .onSizeChanged { sz ->
+                    game.resize(IntSize(sz.width, sz.height))
+                },
     ) {
         Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures {
-                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        game.tap()
-                    }
-                }
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            game.tap()
+                        }
+                    },
         ) {
             frame // 每帧触发重绘
             if (game.size == IntSize.Zero) return@Canvas
@@ -462,74 +527,78 @@ fun BearGameScreen(
         when (game.phase) {
             GamePhase.READY -> {
                 Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = stringResource(R.string.bear_game_title),
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
-                        color = style.contentColor
+                        color = style.contentColor,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = stringResource(R.string.bear_game_tap_start),
                         style = MaterialTheme.typography.titleMedium,
-                        color = style.contentColor
+                        color = style.contentColor,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = stringResource(R.string.bear_game_hint_jump),
                         style = MaterialTheme.typography.bodySmall,
-                        color = style.mutedContentColor
+                        color = style.mutedContentColor,
                     )
                 }
             }
             GamePhase.OVER -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .pointerInput(Unit) {
-                            awaitEachGesture {
-                                awaitFirstDown(requireUnconsumed = false)
-                                do {
-                                    val event = awaitPointerEvent()
-                                    event.changes.forEach { it.consume() }
-                                } while (event.changes.any { it.pressed })
-                            }
-                        }
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.35f))
+                            .pointerInput(Unit) {
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        event.changes.forEach { it.consume() }
+                                    } while (event.changes.any { it.pressed })
+                                }
+                            },
                 )
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(32.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .padding(32.dp),
                     shape = RoundedCornerShape(20.dp),
-                    tonalElevation = 4.dp
+                    tonalElevation = 4.dp,
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
                             text = stringResource(R.string.bear_game_over),
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "${game.score()}",
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = stringResource(R.string.bear_game_best_label) +
-                                " ${game.best}",
+                            text =
+                                stringResource(R.string.bear_game_best_label) +
+                                    " ${game.best}",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(18.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -549,21 +618,27 @@ fun BearGameScreen(
 }
 
 @Composable
-private fun GameHud(game: BearGame, frame: Long, onExit: () -> Unit) {
+private fun GameHud(
+    game: BearGame,
+    frame: Long,
+    onExit: () -> Unit,
+) {
     // frame 仅用于驱动 HUD 每帧刷新分数
-    @Suppress("UNUSED_EXPRESSION") frame
+    @Suppress("UNUSED_EXPRESSION")
+    frame
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onExit) {
             Icon(
                 Icons.Default.Close,
                 contentDescription = stringResource(R.string.cd_close_game),
-                tint = Color.White
+                tint = Color.White,
             )
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -572,12 +647,12 @@ private fun GameHud(game: BearGame, frame: Long, onExit: () -> Unit) {
                 text = "${game.score()}",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
             )
             Text(
                 text = stringResource(R.string.bear_game_best_label) + " ${game.best}",
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.8f)
+                color = Color.White.copy(alpha = 0.8f),
             )
         }
         Spacer(modifier = Modifier.width(12.dp))

@@ -4,13 +4,16 @@ import androidx.annotation.StringRes
 import com.xiaoxiong.weather.R
 
 /** 今天页可配置模块。 */
-enum class TodayCardId(@param:StringRes val titleRes: Int) {
+enum class TodayCardId(
+    @param:StringRes val titleRes: Int,
+) {
     ALERTS(R.string.today_card_alerts),
     CURRENT(R.string.today_card_current),
     LIFE_INDICES(R.string.today_card_life),
     AIR_QUALITY(R.string.today_card_air),
     RADAR(R.string.today_card_radar),
-    SUN_EXTRAS(R.string.today_card_sun);
+    SUN_EXTRAS(R.string.today_card_sun),
+    ;
 
     /** 实况始终展示，不可关闭。 */
     val alwaysVisible: Boolean get() = this == CURRENT
@@ -18,13 +21,14 @@ enum class TodayCardId(@param:StringRes val titleRes: Int) {
 
 data class TodayCardPref(
     val id: TodayCardId,
-    val visible: Boolean
+    val visible: Boolean,
 )
 
 object TodayCardLayout {
-    val DEFAULT: List<TodayCardPref> = TodayCardId.entries.map {
-        TodayCardPref(id = it, visible = true)
-    }
+    val DEFAULT: List<TodayCardPref> =
+        TodayCardId.entries.map {
+            TodayCardPref(id = it, visible = true)
+        }
 
     /**
      * 与默认表合并：保留已保存顺序与显隐；丢弃未知 ID；
@@ -57,26 +61,37 @@ object TodayCardLayout {
 
     fun decode(raw: String?): List<TodayCardPref> {
         if (raw.isNullOrBlank()) return DEFAULT
-        val parsed = raw.split(',')
-            .mapNotNull { token ->
-                val parts = token.trim().split(':')
-                if (parts.size != 2) return@mapNotNull null
-                val id = runCatching { TodayCardId.valueOf(parts[0]) }.getOrNull()
-                    ?: return@mapNotNull null
-                val visible = parts[1] == "1" || parts[1].equals("true", ignoreCase = true)
-                TodayCardPref(id, visible)
-            }
+        val parsed =
+            raw
+                .split(',')
+                .mapNotNull { token ->
+                    val parts = token.trim().split(':')
+                    if (parts.size != 2) return@mapNotNull null
+                    val id =
+                        runCatching { TodayCardId.valueOf(parts[0]) }.getOrNull()
+                            ?: return@mapNotNull null
+                    val visible = parts[1] == "1" || parts[1].equals("true", ignoreCase = true)
+                    TodayCardPref(id, visible)
+                }
         return mergeWithDefaults(parsed)
     }
 
-    fun withVisibility(prefs: List<TodayCardPref>, id: TodayCardId, visible: Boolean): List<TodayCardPref> {
+    fun withVisibility(
+        prefs: List<TodayCardPref>,
+        id: TodayCardId,
+        visible: Boolean,
+    ): List<TodayCardPref> {
         if (id.alwaysVisible) return mergeWithDefaults(prefs)
         return mergeWithDefaults(
-            prefs.map { if (it.id == id) it.copy(visible = visible) else it }
+            prefs.map { if (it.id == id) it.copy(visible = visible) else it },
         )
     }
 
-    fun move(prefs: List<TodayCardPref>, fromIndex: Int, toIndex: Int): List<TodayCardPref> {
+    fun move(
+        prefs: List<TodayCardPref>,
+        fromIndex: Int,
+        toIndex: Int,
+    ): List<TodayCardPref> {
         val list = mergeWithDefaults(prefs).toMutableList()
         if (fromIndex !in list.indices || toIndex !in list.indices || fromIndex == toIndex) {
             return list

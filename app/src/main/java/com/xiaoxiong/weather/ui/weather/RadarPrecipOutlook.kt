@@ -35,45 +35,49 @@ internal data class RadarPrecipOutlook(
     val precipSumMm: Double?,
     val windText: String,
     val visibilityText: String,
-    @StringRes val messageRes: Int
+    @StringRes val messageRes: Int,
 ) {
     companion object {
         fun from(
             resources: Resources,
             current: CurrentWeather,
-            hourly: List<HourlyWeather>
+            hourly: List<HourlyWeather>,
         ): RadarPrecipOutlook {
             // 含当前小时起共 3 帧 ≈ 未来约 2 小时窗口
             val window = upcomingFromCurrent(hourly, { it.time }, current.time, count = 3)
             val maxProb = window.mapNotNull { it.precipProbability }.maxOrNull()
-            val precipSum = window.mapNotNull { it.precipitationMm }
-                .takeIf { it.isNotEmpty() }
-                ?.sum()
+            val precipSum =
+                window
+                    .mapNotNull { it.precipitationMm }
+                    .takeIf { it.isNotEmpty() }
+                    ?.sum()
             val windSpeed = current.windSpeedKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--"
             val windDir = formatWindDirection(resources, current.windDirectionDeg)
-            val windText = if (windDir == "--" && windSpeed == "--") {
-                "--"
-            } else if (windDir == "--") {
-                windSpeed
-            } else {
-                "$windDir $windSpeed"
-            }
-            val messageRes = when {
-                (maxProb ?: 0) >= 60 && (precipSum ?: 0.0) >= 2.0 ->
-                    R.string.radar_msg_heavy
-                (maxProb ?: 0) >= 40 || (precipSum ?: 0.0) >= 0.1 ->
-                    R.string.radar_msg_light
-                (WeatherCodes.intensityPrecipMmPerHour(current) ?: 0.0) >= 0.1 ->
-                    R.string.radar_msg_active
-                else ->
-                    R.string.radar_msg_quiet
-            }
+            val windText =
+                if (windDir == "--" && windSpeed == "--") {
+                    "--"
+                } else if (windDir == "--") {
+                    windSpeed
+                } else {
+                    "$windDir $windSpeed"
+                }
+            val messageRes =
+                when {
+                    (maxProb ?: 0) >= 60 && (precipSum ?: 0.0) >= 2.0 ->
+                        R.string.radar_msg_heavy
+                    (maxProb ?: 0) >= 40 || (precipSum ?: 0.0) >= 0.1 ->
+                        R.string.radar_msg_light
+                    (WeatherCodes.intensityPrecipMmPerHour(current) ?: 0.0) >= 0.1 ->
+                        R.string.radar_msg_active
+                    else ->
+                        R.string.radar_msg_quiet
+                }
             return RadarPrecipOutlook(
                 maxProbPercent = maxProb,
                 precipSumMm = precipSum,
                 windText = windText,
                 visibilityText = formatVisibility(current.visibilityMeters),
-                messageRes = messageRes
+                messageRes = messageRes,
             )
         }
     }
@@ -84,32 +88,32 @@ internal fun RadarSituationStrip(outlook: RadarPrecipOutlook) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             MiniStat(
                 label = stringResource(R.string.radar_prob_2h),
                 value = outlook.maxProbPercent?.let { "$it%" } ?: "--",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             MiniStat(
                 label = stringResource(R.string.radar_sum_2h),
                 value = outlook.precipSumMm?.let { "${"%.1f".format(it)} mm" } ?: "--",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             MiniStat(
                 label = stringResource(R.string.radar_wind),
                 value = outlook.windText,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             MiniStat(
                 label = stringResource(R.string.radar_visibility),
                 value = outlook.visibilityText,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -117,59 +121,61 @@ internal fun RadarSituationStrip(outlook: RadarPrecipOutlook) {
 
 @Composable
 internal fun RadarIntensityLegend() {
-    val legendBrush = remember {
-        Brush.horizontalGradient(
-            listOf(
-                Leaf.copy(alpha = 0.85f),
-                Color(0xFFFFCA28),
-                AccentCoral,
-                Color(0xFFE53935)
+    val legendBrush =
+        remember {
+            Brush.horizontalGradient(
+                listOf(
+                    Leaf.copy(alpha = 0.85f),
+                    Color(0xFFFFCA28),
+                    AccentCoral,
+                    Color(0xFFE53935),
+                ),
             )
-        )
-    }
+        }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = stringResource(R.string.radar_legend_title),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(10.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .background(legendBrush)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(legendBrush),
         ) {}
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 stringResource(R.string.radar_legend_weak),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 stringResource(R.string.radar_legend_mid),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 stringResource(R.string.radar_legend_strong),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 stringResource(R.string.radar_legend_extreme),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Text(
             text = stringResource(R.string.radar_legend_note),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

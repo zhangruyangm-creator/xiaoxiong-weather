@@ -6,7 +6,6 @@ import org.junit.Test
 import java.io.IOException
 
 class AppErrorTest {
-
     @Test
     fun toAppError_preservesHttp() {
         val error = AppError.Http(429).toAppError()

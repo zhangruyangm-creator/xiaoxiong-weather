@@ -45,6 +45,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -54,7 +55,6 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -64,7 +64,6 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.xiaoxiong.weather.R
 import kotlinx.coroutines.isActive
 import kotlin.math.abs
@@ -86,18 +85,29 @@ private class Platform(
     val type: PlatType,
     var vx: Float = 0f,
     var broken: Boolean = false,
-    var breakT: Float = 0f
+    var breakT: Float = 0f,
 )
 
-private class StarItem(val x: Float, val y: Float, var taken: Boolean = false, val seed: Float)
+private class StarItem(
+    val x: Float,
+    val y: Float,
+    var taken: Boolean = false,
+    val seed: Float,
+)
 
-private class JumpFloatText(val text: String, val x: Float, val y: Float, var life: Float)
+private class JumpFloatText(
+    val text: String,
+    val x: Float,
+    val y: Float,
+    var life: Float,
+)
 
-private val jumpTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-    color = android.graphics.Color.WHITE
-    textAlign = Paint.Align.CENTER
-    typeface = android.graphics.Typeface.DEFAULT_BOLD
-}
+private val jumpTextPaint =
+    Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        textAlign = Paint.Align.CENTER
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
 
 /**
  * 小熊摘星：竖版跳台。拖动控制方向，踩云向上；
@@ -114,12 +124,12 @@ private class StarJumpGame {
     var time = 0f
 
     val bearSize get() = 58f * s
-    var bearX = 0f          // 中心 x（屏幕坐标，环绕）
-    var bearY = 0f          // 中心 y（世界坐标，向上为负）
+    var bearX = 0f // 中心 x（屏幕坐标，环绕）
+    var bearY = 0f // 中心 y（世界坐标，向上为负）
     var bearVX = 0f
     var bearVY = 0f
-    var cameraY = 0f        // 屏幕顶对应的世界 y
-    var maxHeight = 0f      // 到达过的最小 bearY
+    var cameraY = 0f // 屏幕顶对应的世界 y
+    var maxHeight = 0f // 到达过的最小 bearY
     var starsCollected = 0
 
     var touchX: Float? = null
@@ -135,7 +145,11 @@ private class StarJumpGame {
 
     val altitudeKm get() = (-cameraY / (2400f * s)).coerceAtLeast(0f)
 
-    fun setDims(width: Float, height: Float, scale: Float) {
+    fun setDims(
+        width: Float,
+        height: Float,
+        scale: Float,
+    ) {
         if (width <= 0f || height <= 0f) return
         val first = w <= 0f || h <= 0f
         if (!first && w == width && h == height && abs(s - scale) < 0.001f) return
@@ -187,14 +201,15 @@ private class StarJumpGame {
             var pw = (150f - 26f * progress) * s
             val roll = Random.nextFloat()
             val early = nextPlatY > -700f * s
-            val type = when {
-                early -> PlatType.NORMAL
-                roll < 0.07f -> PlatType.SPRING
-                roll < 0.07f + 0.10f + 0.08f * progress -> PlatType.BREAK
-                roll < 0.07f + 0.10f + 0.08f * progress + 0.15f + 0.10f * progress ->
-                    PlatType.MOVING
-                else -> PlatType.NORMAL
-            }
+            val type =
+                when {
+                    early -> PlatType.NORMAL
+                    roll < 0.07f -> PlatType.SPRING
+                    roll < 0.07f + 0.10f + 0.08f * progress -> PlatType.BREAK
+                    roll < 0.07f + 0.10f + 0.08f * progress + 0.15f + 0.10f * progress ->
+                        PlatType.MOVING
+                    else -> PlatType.NORMAL
+                }
             if (type == PlatType.MOVING) {
                 pw = min(pw, maxTravel * 0.55f).coerceAtLeast(48f * s)
             } else {
@@ -202,11 +217,12 @@ private class StarJumpGame {
             }
             val xSpan = (maxTravel - pw).coerceAtLeast(1f)
             val x = margin + Random.nextFloat() * xSpan
-            val vx = if (type == PlatType.MOVING) {
-                (50f + 85f * progress) * s * if (Random.nextBoolean()) 1f else -1f
-            } else {
-                0f
-            }
+            val vx =
+                if (type == PlatType.MOVING) {
+                    (50f + 85f * progress) * s * if (Random.nextBoolean()) 1f else -1f
+                } else {
+                    0f
+                }
             platforms.add(Platform(x, nextPlatY, pw, type, vx))
             val gap = (95f + 78f * progress + Random.nextFloat() * 30f) * s
             if (!early && Random.nextFloat() < 0.26f) {
@@ -214,8 +230,8 @@ private class StarJumpGame {
                     StarItem(
                         x = 30f * s + Random.nextFloat() * (w - 60f * s).coerceAtLeast(1f),
                         y = nextPlatY - gap * 0.45f,
-                        seed = Random.nextFloat() * 6.28f
-                    )
+                        seed = Random.nextFloat() * 6.28f,
+                    ),
                 )
             }
             nextPlatY -= gap
@@ -227,7 +243,7 @@ private class StarJumpGame {
         onBounce: () -> Unit,
         onStar: () -> Unit,
         onSpring: () -> Unit,
-        onDeath: (Int) -> Unit
+        onDeath: (Int) -> Unit,
     ) {
         time += dt
         if (phase == GamePhase.READY) return
@@ -310,11 +326,12 @@ private class StarJumpGame {
                                 particles.add(
                                     Particle(
                                         bearX + (Random.nextFloat() - 0.5f) * bs,
-                                        p.y, (Random.nextFloat() - 0.5f) * 160f * s,
+                                        p.y,
+                                        (Random.nextFloat() - 0.5f) * 160f * s,
                                         -Random.nextFloat() * 120f * s,
                                         0.4f + Random.nextFloat() * 0.3f,
-                                        color = Color.White.copy(alpha = 0.85f)
-                                    )
+                                        color = Color.White.copy(alpha = 0.85f),
+                                    ),
                                 )
                             }
                             break
@@ -338,12 +355,13 @@ private class StarJumpGame {
                         val a = Random.nextFloat() * 6.28f
                         particles.add(
                             Particle(
-                                st.x, st.y,
+                                st.x,
+                                st.y,
                                 kotlin.math.cos(a) * (60f + Random.nextFloat() * 140f) * s,
                                 sin(a) * (60f + Random.nextFloat() * 140f) * s,
                                 0.5f + Random.nextFloat() * 0.3f,
-                                color = Color(0xFFFFD54F)
-                            )
+                                color = Color(0xFFFFD54F),
+                            ),
                         )
                     }
                     onStar()
@@ -393,36 +411,39 @@ private class StarJumpGame {
 fun BearStarJumpScreen(
     @Suppress("UNUSED_PARAMETER") sceneCode: Int?,
     @Suppress("UNUSED_PARAMETER") isDay: Boolean?,
-    onExit: () -> Unit
+    onExit: () -> Unit,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
     val density = LocalDensity.current.density
     val prefs = remember { context.getSharedPreferences("bear_game", Context.MODE_PRIVATE) }
-    val game = remember {
-        StarJumpGame().also { it.best = prefs.getInt("best_jump", 0) }
-    }
-    val bearSprites = BearSprites(
-        runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
-        runPushA = ImageBitmap.imageResource(R.drawable.bear_run_push_a),
-        runPass = ImageBitmap.imageResource(R.drawable.bear_run_pass),
-        runB = ImageBitmap.imageResource(R.drawable.bear_run_b),
-        runPushB = ImageBitmap.imageResource(R.drawable.bear_run_push_b),
-        jump = ImageBitmap.imageResource(R.drawable.bear_jump),
-        fall = ImageBitmap.imageResource(R.drawable.bear_fall),
-        land = ImageBitmap.imageResource(R.drawable.bear_land)
-    )
+    val game =
+        remember {
+            StarJumpGame().also { it.best = prefs.getInt("best_jump", 0) }
+        }
+    val bearSprites =
+        BearSprites(
+            runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
+            runPushA = ImageBitmap.imageResource(R.drawable.bear_run_push_a),
+            runPass = ImageBitmap.imageResource(R.drawable.bear_run_pass),
+            runB = ImageBitmap.imageResource(R.drawable.bear_run_b),
+            runPushB = ImageBitmap.imageResource(R.drawable.bear_run_push_b),
+            jump = ImageBitmap.imageResource(R.drawable.bear_jump),
+            fall = ImageBitmap.imageResource(R.drawable.bear_fall),
+            land = ImageBitmap.imageResource(R.drawable.bear_land),
+        )
     var frame by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         var last = Long.MIN_VALUE
         while (isActive) {
             withFrameNanos { now ->
-                val dt = if (last == Long.MIN_VALUE) {
-                    1f / 60f
-                } else {
-                    min((now - last) / 1e9f, 0.033f)
-                }
+                val dt =
+                    if (last == Long.MIN_VALUE) {
+                        1f / 60f
+                    } else {
+                        min((now - last) / 1e9f, 0.033f)
+                    }
                 last = now
                 game.tick(
                     dt,
@@ -441,7 +462,7 @@ fun BearStarJumpScreen(
                             game.best = score
                             prefs.edit().putInt("best_jump", score).apply()
                         }
-                    }
+                    },
                 )
                 frame = now
             }
@@ -451,41 +472,44 @@ fun BearStarJumpScreen(
     BackHandler { onExit() }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { sz ->
-                game.setDims(sz.width.toFloat(), sz.height.toFloat(), density)
-            }
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .onSizeChanged { sz ->
+                    game.setDims(sz.width.toFloat(), sz.height.toFloat(), density)
+                },
     ) {
         Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                // 仅对局中启用转向，避免与「开始」按钮/点按手势抢事件
-                .pointerInput(game.phase) {
-                    if (game.phase != GamePhase.RUNNING) return@pointerInput
-                    // 按住即转向：不走 drag 的 touchSlop，静止按住也能控左右
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        game.touchX = down.position.x
-                        do {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull() ?: break
-                            if (change.pressed) {
-                                game.touchX = change.position.x
-                                change.consume()
-                            }
-                        } while (event.changes.any { it.pressed })
-                        game.touchX = null
-                    }
-                }
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    // 仅对局中启用转向，避免与「开始」按钮/点按手势抢事件
+                    .pointerInput(game.phase) {
+                        if (game.phase != GamePhase.RUNNING) return@pointerInput
+                        // 按住即转向：不走 drag 的 touchSlop，静止按住也能控左右
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            game.touchX = down.position.x
+                            do {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+                                if (change.pressed) {
+                                    game.touchX = change.position.x
+                                    change.consume()
+                                }
+                            } while (event.changes.any { it.pressed })
+                            game.touchX = null
+                        }
+                    },
         ) {
-            @Suppress("UNUSED_EXPRESSION") frame
+            @Suppress("UNUSED_EXPRESSION")
+            frame
             if (game.w <= 0f || game.h <= 0f) return@Canvas
             val shake = if (game.shakeT > 0f) game.shakeT * 14f * game.s else 0f
             withTransform({
                 translate(
                     (Random.nextFloat() - 0.5f) * shake * 2f,
-                    (Random.nextFloat() - 0.5f) * shake * 2f
+                    (Random.nextFloat() - 0.5f) * shake * 2f,
                 )
             }) {
                 drawJumpWorld(game, bearSprites)
@@ -497,26 +521,27 @@ fun BearStarJumpScreen(
         when (game.phase) {
             GamePhase.READY -> {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(32.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .padding(32.dp),
                     shape = RoundedCornerShape(20.dp),
-                    tonalElevation = 4.dp
+                    tonalElevation = 4.dp,
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
                             text = stringResource(R.string.bear_jump_title),
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.bear_jump_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(18.dp))
                         Button(onClick = { game.start() }) {
@@ -527,48 +552,51 @@ fun BearStarJumpScreen(
             }
             GamePhase.OVER -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .pointerInput(Unit) {
-                            // 吞掉底层 Canvas 的按下转向 / 点击
-                            awaitEachGesture {
-                                awaitFirstDown(requireUnconsumed = false)
-                                do {
-                                    val event = awaitPointerEvent()
-                                    event.changes.forEach { it.consume() }
-                                } while (event.changes.any { it.pressed })
-                            }
-                        }
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.35f))
+                            .pointerInput(Unit) {
+                                // 吞掉底层 Canvas 的按下转向 / 点击
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        event.changes.forEach { it.consume() }
+                                    } while (event.changes.any { it.pressed })
+                                }
+                            },
                 )
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(32.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .padding(32.dp),
                     shape = RoundedCornerShape(20.dp),
-                    tonalElevation = 4.dp
+                    tonalElevation = 4.dp,
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
                             text = stringResource(R.string.bear_jump_over),
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "${game.score}",
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = stringResource(R.string.bear_game_best_label) +
-                                " ${game.best}",
+                            text =
+                                stringResource(R.string.bear_game_best_label) +
+                                    " ${game.best}",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(18.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -588,20 +616,26 @@ fun BearStarJumpScreen(
 }
 
 @Composable
-private fun JumpHud(game: StarJumpGame, frame: Long, onExit: () -> Unit) {
-    @Suppress("UNUSED_EXPRESSION") frame
+private fun JumpHud(
+    game: StarJumpGame,
+    frame: Long,
+    onExit: () -> Unit,
+) {
+    @Suppress("UNUSED_EXPRESSION")
+    frame
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onExit) {
             Icon(
                 Icons.Default.Close,
                 contentDescription = stringResource(R.string.cd_close_game),
-                tint = Color.White
+                tint = Color.White,
             )
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -610,29 +644,35 @@ private fun JumpHud(game: StarJumpGame, frame: Long, onExit: () -> Unit) {
                 text = "${game.score}",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
             )
             Text(
-                text = "★ ${game.starsCollected} · " +
-                    stringResource(R.string.bear_game_best_label) + " ${game.best}",
+                text =
+                    "★ ${game.starsCollected} · " +
+                        stringResource(R.string.bear_game_best_label) + " ${game.best}",
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.85f)
+                color = Color.White.copy(alpha = 0.85f),
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
     }
 }
 
-/* ---------------- 世界绘制 ---------------- */
+// ---------------- 世界绘制 ----------------
 
-private class SkyStop(val alt: Float, val top: Color, val bottom: Color)
-
-private val skyStops = listOf(
-    SkyStop(0f, Color(0xFF2E6FB8), Color(0xFF9BDBF5)),   // 白天
-    SkyStop(0.9f, Color(0xFF474A8C), Color(0xFFF79E5F)), // 黄昏
-    SkyStop(1.8f, Color(0xFF121B3E), Color(0xFF3D4E85)), // 夜空
-    SkyStop(2.8f, Color(0xFF04041A), Color(0xFF20123E))  // 太空
+private class SkyStop(
+    val alt: Float,
+    val top: Color,
+    val bottom: Color,
 )
+
+private val skyStops =
+    listOf(
+        SkyStop(0f, Color(0xFF2E6FB8), Color(0xFF9BDBF5)), // 白天
+        SkyStop(0.9f, Color(0xFF474A8C), Color(0xFFF79E5F)), // 黄昏
+        SkyStop(1.8f, Color(0xFF121B3E), Color(0xFF3D4E85)), // 夜空
+        SkyStop(2.8f, Color(0xFF04041A), Color(0xFF20123E)), // 太空
+    )
 
 private fun skyColors(alt: Float): Pair<Color, Color> {
     if (alt <= skyStops.first().alt) {
@@ -663,7 +703,10 @@ private fun starPath(r: Float): Path {
     return path
 }
 
-private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
+private fun DrawScope.drawJumpWorld(
+    game: StarJumpGame,
+    sprites: BearSprites,
+) {
     val w = game.w
     val h = game.h
     val s = game.s
@@ -697,17 +740,25 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
                     // 十字星芒
                     val cr = (2.5f + (h2 % 30) / 10f) * s
                     drawLine(
-                        Color.White, Offset(px - cr, py), Offset(px + cr, py),
-                        strokeWidth = 1.2f * s, alpha = a
+                        Color.White,
+                        Offset(px - cr, py),
+                        Offset(px + cr, py),
+                        strokeWidth = 1.2f * s,
+                        alpha = a,
                     )
                     drawLine(
-                        Color.White, Offset(px, py - cr), Offset(px, py + cr),
-                        strokeWidth = 1.2f * s, alpha = a
+                        Color.White,
+                        Offset(px, py - cr),
+                        Offset(px, py + cr),
+                        strokeWidth = 1.2f * s,
+                        alpha = a,
                     )
                 } else {
                     drawCircle(
-                        Color.White, (1f + (h2 % 3) * 0.5f) * s,
-                        Offset(px, py), alpha = a
+                        Color.White,
+                        (1f + (h2 % 3) * 0.5f) * s,
+                        Offset(px, py),
+                        alpha = a,
                     )
                 }
             }
@@ -725,16 +776,21 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
                     Color(0xFFFFD54F),
                     sunC + Offset(kotlin.math.cos(a) * 34f * s, sin(a) * 34f * s),
                     sunC + Offset(kotlin.math.cos(a) * 46f * s, sin(a) * 46f * s),
-                    strokeWidth = 3f * s, cap = StrokeCap.Round, alpha = 0.7f * sunA
+                    strokeWidth = 3f * s,
+                    cap = StrokeCap.Round,
+                    alpha = 0.7f * sunA,
                 )
             }
         }
         drawCircle(
             Brush.radialGradient(
                 listOf(Color(0xFFFFE082), Color(0xFFFFB300)),
-                center = sunC, radius = 30f * s
+                center = sunC,
+                radius = 30f * s,
             ),
-            radius = 30f * s, center = sunC, alpha = sunA
+            radius = 30f * s,
+            center = sunC,
+            alpha = sunA,
         )
     }
     val moonA = ((alt - 1.1f) / 0.6f).coerceIn(0f, 1f)
@@ -753,8 +809,9 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
         for (i in 0 until 4) {
             val speed = 10f * s * (1 + (i % 3))
             val cx = ((i * 283f * s + game.time * speed) % (w + 260f * s)) - 130f * s
-            val cy = ((i * 251f * s - cam * 0.3f) % (h + 200f * s) + (h + 200f * s)) %
-                (h + 200f * s) - 100f * s
+            val cy =
+                ((i * 251f * s - cam * 0.3f) % (h + 200f * s) + (h + 200f * s)) %
+                    (h + 200f * s) - 100f * s
             val cw = (54f + i * 11f) * s
             val col = Color.White
             drawCircle(col, cw * 0.55f, Offset(cx - cw * 0.4f, cy + cw * 0.1f), alpha = 0.30f * cloudA)
@@ -764,7 +821,7 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
                 col,
                 Offset(cx - cw * 0.85f, cy),
                 Size(cw * 1.7f, cw * 0.45f),
-                alpha = 0.30f * cloudA
+                alpha = 0.30f * cloudA,
             )
         }
     }
@@ -775,7 +832,7 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
         drawRect(
             Brush.verticalGradient(listOf(Color(0xFF8BC34A), Color(0xFF558B2F))),
             Offset(0f, groundTop),
-            Size(w, h - groundTop + 40f * s)
+            Size(w, h - groundTop + 40f * s),
         )
         // 草丛与小花
         var gx = 12f * s
@@ -785,7 +842,8 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
                 Color(0xFF6FA03A),
                 Offset(gx, groundTop + 4f * s),
                 Offset(gx + sin(i * 1.7f) * 3f * s, groundTop - 7f * s),
-                strokeWidth = 2f * s, cap = StrokeCap.Round
+                strokeWidth = 2f * s,
+                cap = StrokeCap.Round,
             )
             gx += 15f * s
             i++
@@ -797,8 +855,9 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
             for (p in 0 until 5) {
                 val a = Math.PI.toFloat() * 2f * p / 5f
                 drawCircle(
-                    Color.White, 2.2f * s,
-                    Offset(fx + kotlin.math.cos(a) * 4.5f * s, fy + sin(a) * 4.5f * s)
+                    Color.White,
+                    2.2f * s,
+                    Offset(fx + kotlin.math.cos(a) * 4.5f * s, fy + sin(a) * 4.5f * s),
                 )
             }
         }
@@ -819,12 +878,15 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
         val pulse = 1f + 0.12f * sin(game.time * 3f + st.seed)
         val r = 13f * s * pulse
         drawCircle(Color(0xFFFFD54F), r * 1.7f, Offset(st.x, sy), alpha = 0.20f)
-        withTransform({ translate(st.x, sy); rotate(sin(game.time + st.seed) * 10f) }) {
+        withTransform({
+            translate(st.x, sy)
+            rotate(sin(game.time + st.seed) * 10f)
+        }) {
             drawPath(starPath(r), Color(0xFFFFD54F))
             drawPath(
                 starPath(r),
                 Color(0xFFFFF8E1),
-                style = Stroke(width = 1.6f * s)
+                style = Stroke(width = 1.6f * s),
             )
         }
     }
@@ -837,7 +899,11 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
     if (game.bearX > w) drawJumpBear(game, sprites, game.bearX - w - game.bearSize)
 }
 
-private fun DrawScope.drawPlatform(game: StarJumpGame, p: Platform, py: Float) {
+private fun DrawScope.drawPlatform(
+    game: StarJumpGame,
+    p: Platform,
+    py: Float,
+) {
     val s = game.s
     val ph = 20f * s
     if (p.broken) {
@@ -854,8 +920,13 @@ private fun DrawScope.drawPlatform(game: StarJumpGame, p: Platform, py: Float) {
                 rotate(side * t * 120f)
             }) {
                 cloudPuffs(
-                    Offset(-halfW / 2f, -ph / 2f), halfW, ph,
-                    Color(0xFF8B93A6), Color(0xFF6E7689), s, alpha
+                    Offset(-halfW / 2f, -ph / 2f),
+                    halfW,
+                    ph,
+                    Color(0xFF8B93A6),
+                    Color(0xFF6E7689),
+                    s,
+                    alpha,
                 )
             }
         }
@@ -865,13 +936,19 @@ private fun DrawScope.drawPlatform(game: StarJumpGame, p: Platform, py: Float) {
     drawOval(
         Color.Black.copy(alpha = 0.10f),
         Offset(p.x + 4f * s, py + ph * 0.9f),
-        Size(p.w * 0.9f, ph * 0.5f)
+        Size(p.w * 0.9f, ph * 0.5f),
     )
     when (p.type) {
-        PlatType.NORMAL -> cloudPuffs(
-            Offset(p.x, py), p.w, ph,
-            Color.White, Color(0xFFE3ECF5), s, 1f
-        )
+        PlatType.NORMAL ->
+            cloudPuffs(
+                Offset(p.x, py),
+                p.w,
+                ph,
+                Color.White,
+                Color(0xFFE3ECF5),
+                s,
+                1f,
+            )
         PlatType.MOVING -> {
             cloudPuffs(Offset(p.x, py), p.w, ph, Color(0xFFEAF4FF), Color(0xFFBCD6F0), s, 1f)
             // 移动风向线
@@ -880,8 +957,12 @@ private fun DrawScope.drawPlatform(game: StarJumpGame, p: Platform, py: Float) {
                 val ly = py + ph * (0.25f + i * 0.35f)
                 val lx = p.x + (if (dir < 0f) p.w + 6f * s else -6f * s - 18f * s)
                 drawLine(
-                    Color(0xFF9CC3E8), Offset(lx, ly), Offset(lx + 18f * s, ly),
-                    strokeWidth = 2f * s, cap = StrokeCap.Round, alpha = 0.8f
+                    Color(0xFF9CC3E8),
+                    Offset(lx, ly),
+                    Offset(lx + 18f * s, ly),
+                    strokeWidth = 2f * s,
+                    cap = StrokeCap.Round,
+                    alpha = 0.8f,
                 )
             }
         }
@@ -892,13 +973,15 @@ private fun DrawScope.drawPlatform(game: StarJumpGame, p: Platform, py: Float) {
                 Color(0xFF5D6472),
                 Offset(p.x + p.w * 0.35f, py + 2f * s),
                 Offset(p.x + p.w * 0.5f, py + ph - 3f * s),
-                strokeWidth = 1.8f * s, cap = StrokeCap.Round
+                strokeWidth = 1.8f * s,
+                cap = StrokeCap.Round,
             )
             drawLine(
                 Color(0xFF5D6472),
                 Offset(p.x + p.w * 0.5f, py + ph - 3f * s),
                 Offset(p.x + p.w * 0.68f, py + 3f * s),
-                strokeWidth = 1.8f * s, cap = StrokeCap.Round
+                strokeWidth = 1.8f * s,
+                cap = StrokeCap.Round,
             )
         }
         PlatType.SPRING -> {
@@ -909,16 +992,20 @@ private fun DrawScope.drawPlatform(game: StarJumpGame, p: Platform, py: Float) {
             bands.forEachIndexed { i, c ->
                 drawArc(
                     color = Color(c),
-                    startAngle = 180f, sweepAngle = 180f, useCenter = false,
-                    topLeft = Offset(
-                        cx - (p.w * 0.42f - i * 4f * s),
-                        py - (p.w * 0.42f - i * 4f * s) * 0.55f
-                    ),
-                    size = Size(
-                        (p.w * 0.42f - i * 4f * s) * 2f,
-                        (p.w * 0.42f - i * 4f * s) * 1.1f
-                    ),
-                    style = Stroke(width = 3.6f * s, cap = StrokeCap.Round)
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft =
+                        Offset(
+                            cx - (p.w * 0.42f - i * 4f * s),
+                            py - (p.w * 0.42f - i * 4f * s) * 0.55f,
+                        ),
+                    size =
+                        Size(
+                            (p.w * 0.42f - i * 4f * s) * 2f,
+                            (p.w * 0.42f - i * 4f * s) * 1.1f,
+                        ),
+                    style = Stroke(width = 3.6f * s, cap = StrokeCap.Round),
                 )
             }
         }
@@ -933,22 +1020,26 @@ private fun DrawScope.cloudPuffs(
     main: Color,
     shade: Color,
     s: Float,
-    alpha: Float
+    alpha: Float,
 ) {
     val cx = topLeft.x + w / 2f
     val baseY = topLeft.y + h * 0.55f
     drawRoundRect(
-        shade, topLeft + Offset(w * 0.06f, h * 0.35f),
+        shade,
+        topLeft + Offset(w * 0.06f, h * 0.35f),
         Size(w * 0.88f, h * 0.7f),
-        CornerRadius(h * 0.35f), alpha = alpha
+        CornerRadius(h * 0.35f),
+        alpha = alpha,
     )
     drawCircle(main, h * 0.62f, Offset(cx - w * 0.26f, baseY), alpha = alpha)
     drawCircle(main, h * 0.8f, Offset(cx, baseY - h * 0.18f), alpha = alpha)
     drawCircle(main, h * 0.58f, Offset(cx + w * 0.27f, baseY), alpha = alpha)
     drawRoundRect(
-        main, topLeft + Offset(w * 0.04f, h * 0.28f),
+        main,
+        topLeft + Offset(w * 0.04f, h * 0.28f),
         Size(w * 0.92f, h * 0.62f),
-        CornerRadius(h * 0.3f), alpha = alpha
+        CornerRadius(h * 0.3f),
+        alpha = alpha,
     )
 }
 
@@ -959,67 +1050,81 @@ private fun DrawScope.drawJumpParticles(game: StarJumpGame) {
             p.color,
             5f * game.s * (alpha * 0.6f + 0.4f),
             Offset(p.x, p.y - game.cameraY),
-            alpha = alpha * 0.9f
+            alpha = alpha * 0.9f,
         )
     }
     for (t in game.texts) {
         val k = (t.life / 0.9f).coerceIn(0f, 1f)
         jumpTextPaint.alpha = (255 * k).toInt()
         drawContext.canvas.nativeCanvas.drawText(
-            t.text, t.x, t.y - game.cameraY - (1f - k) * 30f * game.s, jumpTextPaint
+            t.text,
+            t.x,
+            t.y - game.cameraY - (1f - k) * 30f * game.s,
+            jumpTextPaint,
         )
     }
 }
 
 /** 跳台小熊：上升拉伸前倾、下落微收、倾斜随水平速度；帧用 JUMP。绘制走 [drawGameBear]。 */
-private fun DrawScope.drawJumpBear(game: StarJumpGame, sprites: BearSprites, x: Float) {
+private fun DrawScope.drawJumpBear(
+    game: StarJumpGame,
+    sprites: BearSprites,
+    x: Float,
+) {
     val s = game.s
     val bs = game.bearSize
     val cy = game.bearY - game.cameraY
     val dead = game.phase == GamePhase.OVER
     if (dead && game.deadT > 1.4f) return
 
-    val tilt = (game.bearVX / (700f * s)).coerceIn(-1f, 1f) * 12f +
-        (game.bearVY / (1500f * s)).coerceIn(-1f, 1f) * 6f
+    val tilt =
+        (game.bearVX / (700f * s)).coerceIn(-1f, 1f) * 12f +
+            (game.bearVY / (1500f * s)).coerceIn(-1f, 1f) * 6f
     val stretch = 1f + min(abs(game.bearVY) / (2600f * s), 0.13f)
-    val squash = if (game.squashT in 0f..0.16f) {
-        val sq = game.squashT / 0.16f
-        0.80f + 0.20f * (1f - (1f - sq) * (1f - sq))
-    } else {
-        1f
-    }
+    val squash =
+        if (game.squashT in 0f..0.16f) {
+            val sq = game.squashT / 0.16f
+            0.80f + 0.20f * (1f - (1f - sq) * (1f - sq))
+        } else {
+            1f
+        }
     val alpha = if (dead) (1f - (game.deadT - 0.9f) / 0.5f).coerceIn(0f, 1f) else 1f
-    val tumble = if (dead) {
-        val tk = (game.deadT / 0.5f).coerceIn(0f, 1f)
-        -95f * (1f - (1f - tk) * (1f - tk) * (1f - tk))
-    } else {
-        0f
-    }
+    val tumble =
+        if (dead) {
+            val tk = (game.deadT / 0.5f).coerceIn(0f, 1f)
+            -95f * (1f - (1f - tk) * (1f - tk) * (1f - tk))
+        } else {
+            0f
+        }
     // 帧：待机跑循环呼吸感，落地瞬间用落地帧，上升跳帧，下落下落帧
-    val frame = when {
-        game.phase == GamePhase.READY -> runCycleFrame(game.time * 3.5f)
-        game.squashT in 0f..0.16f -> BearFrame.LAND
-        game.bearVY < 0f -> BearFrame.JUMP
-        else -> BearFrame.FALL
-    }
+    val frame =
+        when {
+            game.phase == GamePhase.READY -> runCycleFrame(game.time * 3.5f)
+            game.squashT in 0f..0.16f -> BearFrame.LAND
+            game.bearVY < 0f -> BearFrame.JUMP
+            else -> BearFrame.FALL
+        }
 
     drawGameBear(
         sprites = sprites,
         centerX = x,
-        centerY = cy + if (game.phase == GamePhase.READY) {
-            sin(game.time * 2.2f) * 2f * s
-        } else {
-            0f
-        },
+        centerY =
+            cy +
+                if (game.phase == GamePhase.READY) {
+                    sin(game.time * 2.2f) * 2f * s
+                } else {
+                    0f
+                },
         bs = bs,
-        pose = BearPose(
-            time = game.time,
-            dead = dead,
-            frame = frame,
-            bodyTilt = tilt + tumble,
-            scaleX = (2f - stretch) * (1f + (1f - squash) * 0.8f),
-            scaleY = stretch * squash,
-            alpha = alpha
-        )
+        pose =
+            BearPose(
+                time = game.time,
+                dead = dead,
+                frame = frame,
+                bodyTilt = tilt + tumble,
+                scaleX = (2f - stretch) * (1f + (1f - squash) * 0.8f),
+                scaleY = stretch * squash,
+                alpha = alpha,
+            ),
     )
 }

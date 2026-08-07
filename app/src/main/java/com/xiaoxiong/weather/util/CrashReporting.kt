@@ -15,7 +15,8 @@ object CrashReporting {
             val clazz = Class.forName("com.google.firebase.crashlytics.FirebaseCrashlytics")
             val getInstance = clazz.getMethod("getInstance")
             val instance = getInstance.invoke(null)
-            clazz.getMethod("setCrashlyticsCollectionEnabled", Boolean::class.javaPrimitiveType)
+            clazz
+                .getMethod("setCrashlyticsCollectionEnabled", Boolean::class.javaPrimitiveType)
                 .invoke(instance, true)
             Log.i(TAG, "Firebase Crashlytics enabled")
         }.onFailure {

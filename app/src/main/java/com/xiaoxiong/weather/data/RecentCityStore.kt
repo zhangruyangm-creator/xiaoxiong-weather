@@ -12,24 +12,33 @@ import kotlinx.serialization.json.Json
 
 private val Context.recentCityDataStore by preferencesDataStore("weather_recent_cities")
 
-class RecentCityStore(private val context: Context) : RecentCitySource {
+class RecentCityStore(
+    private val context: Context,
+) : RecentCitySource {
     private val key = stringPreferencesKey("cities_json")
     private val json = Json { ignoreUnknownKeys = true }
     private val serializer = ListSerializer(RecentCityDto.serializer())
 
-    override val recent: Flow<List<City>> = context.recentCityDataStore.data.map { prefs ->
-        val raw = prefs[key].orEmpty()
-        if (raw.isBlank()) emptyList()
-        else runCatching {
-            json.decodeFromString(serializer, raw).map { it.toCity() }
-        }.getOrDefault(emptyList())
-    }
+    override val recent: Flow<List<City>> =
+        context.recentCityDataStore.data.map { prefs ->
+            val raw = prefs[key].orEmpty()
+            if (raw.isBlank()) {
+                emptyList()
+            } else {
+                runCatching {
+                    json.decodeFromString(serializer, raw).map { it.toCity() }
+                }.getOrDefault(emptyList())
+            }
+        }
 
     override suspend fun add(city: City) {
         context.recentCityDataStore.edit { prefs ->
-            val current = prefs[key]?.let {
-                runCatching { json.decodeFromString(serializer, it) }.getOrDefault(emptyList())
-            }.orEmpty().toMutableList()
+            val current =
+                prefs[key]
+                    ?.let {
+                        runCatching { json.decodeFromString(serializer, it) }.getOrDefault(emptyList())
+                    }.orEmpty()
+                    .toMutableList()
             current.removeAll { sameCity(it.toCity(), city) }
             current.add(0, RecentCityDto.from(city.copy(isCurrentLocation = false)))
             prefs[key] = json.encodeToString(serializer, current.take(MAX_RECENT))
@@ -42,7 +51,10 @@ class RecentCityStore(private val context: Context) : RecentCitySource {
         }
     }
 
-    private fun sameCity(a: City, b: City): Boolean =
+    private fun sameCity(
+        a: City,
+        b: City,
+    ): Boolean =
         kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
             kotlin.math.abs(a.longitude - b.longitude) < 0.01
 
@@ -54,20 +66,21 @@ class RecentCityStore(private val context: Context) : RecentCitySource {
         val longitude: Double,
         val country: String? = null,
         val admin1: String? = null,
-        val admin2: String? = null
+        val admin2: String? = null,
     ) {
         fun toCity() = City(id, name, latitude, longitude, country, admin1, admin2, false)
 
         companion object {
-            fun from(city: City) = RecentCityDto(
-                id = city.id,
-                name = city.name,
-                latitude = city.latitude,
-                longitude = city.longitude,
-                country = city.country,
-                admin1 = city.admin1,
-                admin2 = city.admin2
-            )
+            fun from(city: City) =
+                RecentCityDto(
+                    id = city.id,
+                    name = city.name,
+                    latitude = city.latitude,
+                    longitude = city.longitude,
+                    country = city.country,
+                    admin1 = city.admin1,
+                    admin2 = city.admin2,
+                )
         }
     }
 

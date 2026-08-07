@@ -7,11 +7,14 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 class WeatherRefreshPolicyTest {
-
     private val zone = ZoneId.of("Asia/Shanghai")
 
-    private fun at(hour: Int, minute: Int, second: Int = 0, nano: Int = 0): ZonedDateTime =
-        ZonedDateTime.of(2026, 8, 3, hour, minute, second, nano, zone)
+    private fun at(
+        hour: Int,
+        minute: Int,
+        second: Int = 0,
+        nano: Int = 0,
+    ): ZonedDateTime = ZonedDateTime.of(2026, 8, 3, hour, minute, second, nano, zone)
 
     @Test
     fun millisUntilNextQuarterHour_fromMidSlot() {

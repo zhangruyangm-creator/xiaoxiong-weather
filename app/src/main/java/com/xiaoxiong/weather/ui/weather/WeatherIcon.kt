@@ -49,7 +49,7 @@ fun WeatherIcon(
     code: Int?,
     isDay: Boolean,
     modifier: Modifier = Modifier,
-    precipMmPerHour: Double? = null
+    precipMmPerHour: Double? = null,
 ) {
     val scene = weatherSceneOf(code, isDay)
     Canvas(modifier = modifier) {
@@ -57,17 +57,25 @@ fun WeatherIcon(
         val cx = size.width / 2f
         val cy = size.height / 2f
         when (scene) {
-            WeatherScene.CLEAR -> if (isDay) {
-                drawSun(Offset(cx, cy), radius = 0.23f * u, rayInner = 0.32f * u, rayOuter = 0.43f * u, rayWidth = 0.05f * u)
-            } else {
-                drawMoon(Offset(cx - 0.05f * u, cy + 0.05f * u), r = 0.27f * u)
-                drawStar(Offset(cx + 0.30f * u, cy - 0.28f * u), 0.07f * u)
-                drawStar(Offset(cx - 0.36f * u, cy - 0.30f * u), 0.05f * u)
-            }
+            WeatherScene.CLEAR ->
+                if (isDay) {
+                    drawSun(Offset(cx, cy), radius = 0.23f * u, rayInner = 0.32f * u, rayOuter = 0.43f * u, rayWidth = 0.05f * u)
+                } else {
+                    drawMoon(Offset(cx - 0.05f * u, cy + 0.05f * u), r = 0.27f * u)
+                    drawStar(Offset(cx + 0.30f * u, cy - 0.28f * u), 0.07f * u)
+                    drawStar(Offset(cx - 0.36f * u, cy - 0.30f * u), 0.05f * u)
+                }
 
             WeatherScene.PARTLY_CLOUDY -> {
                 if (isDay) {
-                    drawSun(Offset(cx - 0.19f * u, cy - 0.19f * u), radius = 0.155f * u, rayInner = 0.23f * u, rayOuter = 0.30f * u, rayWidth = 0.042f * u)
+                    drawSun(
+                        Offset(cx - 0.19f * u, cy - 0.19f * u),
+                        radius = 0.155f * u,
+                        rayInner = 0.23f * u,
+                        rayOuter = 0.30f * u,
+                        rayWidth =
+                            0.042f * u,
+                    )
                 } else {
                     drawMoon(Offset(cx - 0.20f * u, cy - 0.20f * u), r = 0.14f * u)
                 }
@@ -89,18 +97,19 @@ fun WeatherIcon(
                     val ex = cx + x1 * u
                     val ly = cy + ys[i] * u
                     drawLine(
-                        brush = Brush.horizontalGradient(
-                            0f to FogGray.copy(alpha = 0f),
-                            0.18f to FogGray,
-                            0.82f to FogGray,
-                            1f to FogGray.copy(alpha = 0f),
-                            startX = sx,
-                            endX = ex
-                        ),
+                        brush =
+                            Brush.horizontalGradient(
+                                0f to FogGray.copy(alpha = 0f),
+                                0.18f to FogGray,
+                                0.82f to FogGray,
+                                1f to FogGray.copy(alpha = 0f),
+                                startX = sx,
+                                endX = ex,
+                            ),
                         start = Offset(sx, ly),
                         end = Offset(ex, ly),
                         strokeWidth = ws[i] * u,
-                        cap = StrokeCap.Round
+                        cap = StrokeCap.Round,
                     )
                 }
             }
@@ -109,8 +118,10 @@ fun WeatherIcon(
             WeatherScene.DRIZZLE -> {
                 drawCloud(cx, cy - 0.10f * u, 0.80f * u)
                 drawDrops(
-                    cx, cy + 0.13f * u, u,
-                    listOf(-0.21f to 0.075f, -0.07f to 0.075f, 0.07f to 0.075f, 0.21f to 0.075f)
+                    cx,
+                    cy + 0.13f * u,
+                    u,
+                    listOf(-0.21f to 0.075f, -0.07f to 0.075f, 0.07f to 0.075f, 0.21f to 0.075f),
                 )
             }
 
@@ -118,35 +129,41 @@ fun WeatherIcon(
             // 无速率数据时按场景回落（RAIN→中雨，HEAVY_RAIN→大雨）
             WeatherScene.RAIN, WeatherScene.HEAVY_RAIN -> {
                 val level = precipMmPerHour?.let { WeatherCodes.rainIntensity(it) }
-                val storm = when (level) {
-                    WeatherCodes.RainIntensity.HEAVY,
-                    WeatherCodes.RainIntensity.TORRENTIAL,
-                    WeatherCodes.RainIntensity.VIOLENT -> true
-                    null -> scene == WeatherScene.HEAVY_RAIN
-                    else -> false
-                }
-                val drops = when (level) {
-                    WeatherCodes.RainIntensity.NONE,
-                    WeatherCodes.RainIntensity.LIGHT ->
-                        listOf(-0.10f to 0.12f, 0.10f to 0.12f)
-                    WeatherCodes.RainIntensity.MODERATE ->
-                        listOf(-0.16f to 0.15f, 0f to 0.15f, 0.16f to 0.15f)
-                    WeatherCodes.RainIntensity.HEAVY ->
-                        listOf(-0.22f to 0.16f, -0.07f to 0.12f, 0.07f to 0.16f, 0.22f to 0.12f)
-                    WeatherCodes.RainIntensity.TORRENTIAL,
-                    WeatherCodes.RainIntensity.VIOLENT ->
-                        listOf(-0.24f to 0.17f, -0.12f to 0.12f, 0f to 0.17f, 0.12f to 0.12f, 0.24f to 0.17f)
-                    null -> if (scene == WeatherScene.HEAVY_RAIN) {
-                        listOf(-0.22f to 0.16f, -0.07f to 0.12f, 0.07f to 0.16f, 0.22f to 0.12f)
-                    } else {
-                        listOf(-0.16f to 0.15f, 0f to 0.15f, 0.16f to 0.15f)
+                val storm =
+                    when (level) {
+                        WeatherCodes.RainIntensity.HEAVY,
+                        WeatherCodes.RainIntensity.TORRENTIAL,
+                        WeatherCodes.RainIntensity.VIOLENT,
+                        -> true
+                        null -> scene == WeatherScene.HEAVY_RAIN
+                        else -> false
                     }
-                }
+                val drops =
+                    when (level) {
+                        WeatherCodes.RainIntensity.NONE,
+                        WeatherCodes.RainIntensity.LIGHT,
+                        ->
+                            listOf(-0.10f to 0.12f, 0.10f to 0.12f)
+                        WeatherCodes.RainIntensity.MODERATE ->
+                            listOf(-0.16f to 0.15f, 0f to 0.15f, 0.16f to 0.15f)
+                        WeatherCodes.RainIntensity.HEAVY ->
+                            listOf(-0.22f to 0.16f, -0.07f to 0.12f, 0.07f to 0.16f, 0.22f to 0.12f)
+                        WeatherCodes.RainIntensity.TORRENTIAL,
+                        WeatherCodes.RainIntensity.VIOLENT,
+                        ->
+                            listOf(-0.24f to 0.17f, -0.12f to 0.12f, 0f to 0.17f, 0.12f to 0.12f, 0.24f to 0.17f)
+                        null ->
+                            if (scene == WeatherScene.HEAVY_RAIN) {
+                                listOf(-0.22f to 0.16f, -0.07f to 0.12f, 0.07f to 0.16f, 0.22f to 0.12f)
+                            } else {
+                                listOf(-0.16f to 0.15f, 0f to 0.15f, 0.16f to 0.15f)
+                            }
+                    }
                 drawCloud(
                     cx,
                     cy - (if (storm) 0.12f else 0.10f) * u,
                     (if (storm) 0.82f else 0.80f) * u,
-                    storm = storm
+                    storm = storm,
                 )
                 drawDrops(cx, cy + 0.13f * u, u, drops)
             }
@@ -154,8 +171,10 @@ fun WeatherIcon(
             WeatherScene.FREEZING_RAIN -> {
                 drawCloud(cx, cy - 0.10f * u, 0.80f * u)
                 drawDrops(
-                    cx - 0.09f * u, cy + 0.13f * u, u,
-                    listOf(-0.09f to 0.13f, 0.07f to 0.13f)
+                    cx - 0.09f * u,
+                    cy + 0.13f * u,
+                    u,
+                    listOf(-0.09f to 0.13f, 0.07f to 0.13f),
                 )
                 drawSnowflake(Offset(cx + 0.17f * u, cy + 0.21f * u), 0.105f * u)
             }
@@ -163,16 +182,19 @@ fun WeatherIcon(
             // 雪同套分档：小雪 2 小晶 / 中雪 2 晶 / 大雪 3 晶+风暴云 / 暴雪 3 大晶+风暴云
             WeatherScene.SNOW, WeatherScene.HEAVY_SNOW -> {
                 val level = precipMmPerHour?.let { WeatherCodes.snowIntensity(code, it) }
-                val storm = when (level) {
-                    WeatherCodes.SnowIntensity.HEAVY,
-                    WeatherCodes.SnowIntensity.BLIZZARD -> true
-                    null -> scene == WeatherScene.HEAVY_SNOW
-                    else -> false
-                }
+                val storm =
+                    when (level) {
+                        WeatherCodes.SnowIntensity.HEAVY,
+                        WeatherCodes.SnowIntensity.BLIZZARD,
+                        -> true
+                        null -> scene == WeatherScene.HEAVY_SNOW
+                        else -> false
+                    }
                 drawCloud(cx, cy - 0.11f * u, 0.80f * u, storm = storm)
                 when (level) {
                     WeatherCodes.SnowIntensity.NONE,
-                    WeatherCodes.SnowIntensity.LIGHT -> {
+                    WeatherCodes.SnowIntensity.LIGHT,
+                    -> {
                         drawSnowflake(Offset(cx - 0.10f * u, cy + 0.20f * u), 0.075f * u)
                         drawSnowflake(Offset(cx + 0.12f * u, cy + 0.24f * u), 0.06f * u)
                     }
@@ -216,13 +238,14 @@ fun WeatherIcon(
                 listOf(-0.17f, 0f, 0.17f).forEach { dx ->
                     val center = Offset(cx + dx * u, cy + 0.19f * u)
                     drawCircle(
-                        brush = Brush.radialGradient(
-                            listOf(Color.White, RainBottom),
-                            center = center,
-                            radius = 0.072f * u
-                        ),
+                        brush =
+                            Brush.radialGradient(
+                                listOf(Color.White, RainBottom),
+                                center = center,
+                                radius = 0.072f * u,
+                            ),
                         radius = 0.072f * u,
-                        center = center
+                        center = center,
                     )
                 }
             }
@@ -237,7 +260,7 @@ private fun DrawScope.drawSun(
     radius: Float,
     rayInner: Float,
     rayOuter: Float,
-    rayWidth: Float
+    rayWidth: Float,
 ) {
     for (i in 0 until 8) {
         val a = i * PI / 4
@@ -248,73 +271,95 @@ private fun DrawScope.drawSun(
             Offset(center.x + dx * rayInner, center.y + dy * rayInner),
             Offset(center.x + dx * rayOuter, center.y + dy * rayOuter),
             strokeWidth = rayWidth,
-            cap = StrokeCap.Round
+            cap = StrokeCap.Round,
         )
     }
     drawCircle(
         brush = Brush.radialGradient(listOf(SunCenter, SunEdge), center = center, radius = radius),
         radius = radius,
-        center = center
+        center = center,
     )
 }
 
 // 月牙用 saveLayer + Clear 裁剪：CLEAR 只作用于离屏层，不会穿透到底层卡片背景
-private fun DrawScope.drawMoon(center: Offset, r: Float) {
+private fun DrawScope.drawMoon(
+    center: Offset,
+    r: Float,
+) {
     drawIntoCanvas { canvas ->
         canvas.saveLayer(Rect(Offset.Zero, size), Paint())
         drawCircle(
             brush = Brush.radialGradient(listOf(MoonCenter, MoonEdge), center = center, radius = r),
             radius = r,
-            center = center
+            center = center,
         )
         drawCircle(
             Color.Black,
             radius = r * 0.85f,
             center = Offset(center.x + r * 0.55f, center.y - r * 0.35f),
-            blendMode = BlendMode.Clear
+            blendMode = BlendMode.Clear,
         )
         canvas.restore()
     }
 }
 
-private fun DrawScope.drawStar(center: Offset, r: Float) {
-    val path = Path().apply {
-        moveTo(center.x, center.y - r)
-        quadraticTo(center.x, center.y, center.x + r, center.y)
-        quadraticTo(center.x, center.y, center.x, center.y + r)
-        quadraticTo(center.x, center.y, center.x - r, center.y)
-        quadraticTo(center.x, center.y, center.x, center.y - r)
-        close()
-    }
+private fun DrawScope.drawStar(
+    center: Offset,
+    r: Float,
+) {
+    val path =
+        Path().apply {
+            moveTo(center.x, center.y - r)
+            quadraticTo(center.x, center.y, center.x + r, center.y)
+            quadraticTo(center.x, center.y, center.x, center.y + r)
+            quadraticTo(center.x, center.y, center.x - r, center.y)
+            quadraticTo(center.x, center.y, center.x, center.y - r)
+            close()
+        }
     drawPath(path, MoonEdge)
 }
 
-private fun cloudPath(cx: Float, cy: Float, s: Float): Path = Path().apply {
-    addOval(Rect(center = Offset(cx - 0.21f * s, cy + 0.01f * s), radius = 0.185f * s))
-    addOval(Rect(center = Offset(cx + 0.03f * s, cy - 0.11f * s), radius = 0.24f * s))
-    addOval(Rect(center = Offset(cx + 0.25f * s, cy + 0.02f * s), radius = 0.155f * s))
-    addRoundRect(
-        RoundRect(
-            rect = Rect(cx - 0.375f * s, cy - 0.06f * s, cx + 0.395f * s, cy + 0.20f * s),
-            cornerRadius = CornerRadius(0.12f * s)
+private fun cloudPath(
+    cx: Float,
+    cy: Float,
+    s: Float,
+): Path =
+    Path().apply {
+        addOval(Rect(center = Offset(cx - 0.21f * s, cy + 0.01f * s), radius = 0.185f * s))
+        addOval(Rect(center = Offset(cx + 0.03f * s, cy - 0.11f * s), radius = 0.24f * s))
+        addOval(Rect(center = Offset(cx + 0.25f * s, cy + 0.02f * s), radius = 0.155f * s))
+        addRoundRect(
+            RoundRect(
+                rect = Rect(cx - 0.375f * s, cy - 0.06f * s, cx + 0.395f * s, cy + 0.20f * s),
+                cornerRadius = CornerRadius(0.12f * s),
+            ),
         )
-    )
-}
-
-private fun DrawScope.drawCloud(cx: Float, cy: Float, s: Float, storm: Boolean = false) {
-    val colors = if (storm) {
-        listOf(StormCloudTop, StormCloudBottom)
-    } else {
-        listOf(CloudTop, CloudMid, CloudBottom)
     }
+
+private fun DrawScope.drawCloud(
+    cx: Float,
+    cy: Float,
+    s: Float,
+    storm: Boolean = false,
+) {
+    val colors =
+        if (storm) {
+            listOf(StormCloudTop, StormCloudBottom)
+        } else {
+            listOf(CloudTop, CloudMid, CloudBottom)
+        }
     drawPath(
         path = cloudPath(cx, cy, s),
-        brush = Brush.verticalGradient(colors, startY = cy - 0.35f * s, endY = cy + 0.20f * s)
+        brush = Brush.verticalGradient(colors, startY = cy - 0.35f * s, endY = cy + 0.20f * s),
     )
 }
 
 // 水滴：尖端朝上、圆底朝下，纵向渐变
-private fun teardropPath(x: Float, y: Float, h: Float): Path {
+private fun teardropPath(
+    x: Float,
+    y: Float,
+    h: Float,
+): Path {
     val r = h * 0.30f
     val bulbCy = y + h - r
     return Path().apply {
@@ -327,18 +372,27 @@ private fun teardropPath(x: Float, y: Float, h: Float): Path {
 }
 
 /** drops: (x 偏移 u, 高度 u)，数量与尺寸按降水强度区分 */
-private fun DrawScope.drawDrops(cx: Float, topY: Float, u: Float, drops: List<Pair<Float, Float>>) {
+private fun DrawScope.drawDrops(
+    cx: Float,
+    topY: Float,
+    u: Float,
+    drops: List<Pair<Float, Float>>,
+) {
     drops.forEach { (dx, h) ->
         val px = cx + dx * u
         val ph = h * u
         drawPath(
             path = teardropPath(px, topY, ph),
-            brush = Brush.verticalGradient(listOf(RainTop, RainBottom), startY = topY, endY = topY + ph)
+            brush = Brush.verticalGradient(listOf(RainTop, RainBottom), startY = topY, endY = topY + ph),
         )
     }
 }
 
-private fun DrawScope.drawSnowflake(center: Offset, r: Float, color: Color = SnowBlue) {
+private fun DrawScope.drawSnowflake(
+    center: Offset,
+    r: Float,
+    color: Color = SnowBlue,
+) {
     for (i in 0 until 3) {
         val a = i * PI / 3
         val dx = (cos(a) * r).toFloat()
@@ -348,47 +402,57 @@ private fun DrawScope.drawSnowflake(center: Offset, r: Float, color: Color = Sno
             Offset(center.x - dx, center.y - dy),
             Offset(center.x + dx, center.y + dy),
             strokeWidth = r * 0.24f,
-            cap = StrokeCap.Round
+            cap = StrokeCap.Round,
         )
     }
     drawCircle(color, radius = r * 0.20f, center = center)
 }
 
 // 闪电略微探入云底，宽高比 ~0.26:0.34，避免细长"面条"感
-private fun DrawScope.drawBolt(cx: Float, topY: Float, u: Float) {
-    val path = Path().apply {
-        moveTo(cx + 0.10f * u, topY)
-        lineTo(cx - 0.10f * u, topY + 0.18f * u)
-        lineTo(cx + 0.005f * u, topY + 0.18f * u)
-        lineTo(cx - 0.08f * u, topY + 0.34f * u)
-        lineTo(cx + 0.16f * u, topY + 0.12f * u)
-        lineTo(cx + 0.05f * u, topY + 0.12f * u)
-        close()
-    }
+private fun DrawScope.drawBolt(
+    cx: Float,
+    topY: Float,
+    u: Float,
+) {
+    val path =
+        Path().apply {
+            moveTo(cx + 0.10f * u, topY)
+            lineTo(cx - 0.10f * u, topY + 0.18f * u)
+            lineTo(cx + 0.005f * u, topY + 0.18f * u)
+            lineTo(cx - 0.08f * u, topY + 0.34f * u)
+            lineTo(cx + 0.16f * u, topY + 0.12f * u)
+            lineTo(cx + 0.05f * u, topY + 0.12f * u)
+            close()
+        }
     drawPath(
         path = path,
-        brush = Brush.verticalGradient(listOf(BoltTop, BoltBottom), startY = topY, endY = topY + 0.34f * u)
+        brush = Brush.verticalGradient(listOf(BoltTop, BoltBottom), startY = topY, endY = topY + 0.34f * u),
     )
 }
 
-private fun DrawScope.drawThermometer(cx: Float, cy: Float, u: Float) {
+private fun DrawScope.drawThermometer(
+    cx: Float,
+    cy: Float,
+    u: Float,
+) {
     val tubeW = 0.16f * u
-    val bodyBrush = Brush.verticalGradient(
-        listOf(ThermoTop, ThermoBottom),
-        startY = cy - 0.34f * u,
-        endY = cy + 0.38f * u
-    )
+    val bodyBrush =
+        Brush.verticalGradient(
+            listOf(ThermoTop, ThermoBottom),
+            startY = cy - 0.34f * u,
+            endY = cy + 0.38f * u,
+        )
     drawRoundRect(
         bodyBrush,
         topLeft = Offset(cx - tubeW / 2, cy - 0.34f * u),
         size = Size(tubeW, 0.52f * u),
-        cornerRadius = CornerRadius(tubeW / 2)
+        cornerRadius = CornerRadius(tubeW / 2),
     )
     drawCircle(bodyBrush, radius = 0.16f * u, center = Offset(cx, cy + 0.22f * u))
     drawRoundRect(
         Color.White.copy(alpha = 0.85f),
         topLeft = Offset(cx - tubeW * 0.22f, cy - 0.28f * u),
         size = Size(tubeW * 0.44f, 0.40f * u),
-        cornerRadius = CornerRadius(tubeW * 0.22f)
+        cornerRadius = CornerRadius(tubeW * 0.22f),
     )
 }

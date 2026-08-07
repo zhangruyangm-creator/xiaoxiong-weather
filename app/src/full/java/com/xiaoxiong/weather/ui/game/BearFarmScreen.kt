@@ -3,6 +3,11 @@ package com.xiaoxiong.weather.ui.game
 import android.content.Context
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -27,11 +32,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -52,7 +52,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -72,6 +71,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaoxiong.weather.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import kotlin.math.cos
@@ -84,10 +84,14 @@ const val EASTER_EGG_BEAR_FARM = "#小熊农场"
 
 private enum class FarmTool { INFO, PLANT, WATER, WEED, BUG, HARVEST, CLEAR }
 
-private val farmJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+private val farmJson =
+    Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
 private class BearFarm(
-    private val appContext: Context
+    private val appContext: Context,
 ) {
     private val prefs = appContext.getSharedPreferences("bear_game", Context.MODE_PRIVATE)
     var coins by mutableIntStateOf(80)
@@ -100,44 +104,52 @@ private class BearFarm(
     var showShop by mutableStateOf(false)
     var time = 0f
 
-    private fun str(id: Int, vararg args: Any): String =
-        if (args.isEmpty()) appContext.getString(id) else appContext.getString(id, *args)
+    private fun str(
+        id: Int,
+        vararg args: Any,
+    ): String = if (args.isEmpty()) appContext.getString(id) else appContext.getString(id, *args)
 
-    private fun stageLabel(stage: Int) = str(
-        when (stage) {
-            1 -> R.string.bear_farm_stage_seed
-            2 -> R.string.bear_farm_stage_sprout
-            3 -> R.string.bear_farm_stage_grow
-            4 -> R.string.bear_farm_stage_ripe
-            5 -> R.string.bear_farm_stage_wilt
-            else -> R.string.bear_farm_stage_empty
-        }
-    )
+    private fun stageLabel(stage: Int) =
+        str(
+            when (stage) {
+                1 -> R.string.bear_farm_stage_seed
+                2 -> R.string.bear_farm_stage_sprout
+                3 -> R.string.bear_farm_stage_grow
+                4 -> R.string.bear_farm_stage_ripe
+                5 -> R.string.bear_farm_stage_wilt
+                else -> R.string.bear_farm_stage_empty
+            },
+        )
 
     fun load() {
         val raw = prefs.getString("farm_save_v1", null) ?: return
         runCatching {
             val s = farmJson.decodeFromString(FarmSave.serializer(), raw)
             coins = s.coins
-            plots = s.plots.map { it.copy() }.let { list ->
-                if (list.size < FARM_PLOT_COUNT) {
-                    list + List(FARM_PLOT_COUNT - list.size) { FarmPlotState() }
-                } else list.take(FARM_PLOT_COUNT)
-            }
-            unlocked = s.unlockedCropIds.toSet().ifEmpty {
-                setOf("radish", "cabbage", "wheat", "tomato")
-            }
+            plots =
+                s.plots.map { it.copy() }.let { list ->
+                    if (list.size < FARM_PLOT_COUNT) {
+                        list + List(FARM_PLOT_COUNT - list.size) { FarmPlotState() }
+                    } else {
+                        list.take(FARM_PLOT_COUNT)
+                    }
+                }
+            unlocked =
+                s.unlockedCropIds.toSet().ifEmpty {
+                    setOf("radish", "cabbage", "wheat", "tomato")
+                }
             harvestedTotal = s.harvestedTotal
         }
     }
 
     fun save() {
-        val s = FarmSave(
-            coins = coins,
-            plots = plots,
-            unlockedCropIds = unlocked.toList(),
-            harvestedTotal = harvestedTotal
-        )
+        val s =
+            FarmSave(
+                coins = coins,
+                plots = plots,
+                unlockedCropIds = unlocked.toList(),
+                harvestedTotal = harvestedTotal,
+            )
         prefs.edit().putString("farm_save_v1", farmJson.encodeToString(FarmSave.serializer(), s)).apply()
     }
 
@@ -153,74 +165,83 @@ private class BearFarm(
      * 按真实时间推进：浇水蒸发、下雨补水、杂草害虫、生长。
      * 离线追赶按分钟切片（单次最多追 8 小时），避免一口气跳阶段/枯萎。
      */
-    fun tick(now: Long, weather: FarmWeather, dtVisual: Float) {
+    fun tick(
+        now: Long,
+        weather: FarmWeather,
+        dtVisual: Float,
+    ) {
         time += dtVisual
         val fx = farmWeatherEffect(weather)
         val maxCatchUp = 8L * 60L * 60L * 1000L
         val minStepMs = 200L
         val sliceMs = 60_000L // 离线追赶按 1 分钟切片
         var dirty = false
-        val next = plots.map { p ->
-            val plot = p.copy()
-            if (plot.lastTickMs <= 0L) {
-                plot.lastTickMs = now
+        val next =
+            plots.map { p ->
+                val plot = p.copy()
+                if (plot.lastTickMs <= 0L) {
+                    plot.lastTickMs = now
+                    dirty = true
+                }
+                var elapsed = (now - plot.lastTickMs).coerceAtLeast(0L)
+                if (elapsed > maxCatchUp) elapsed = maxCatchUp
+                // 未满 200ms 不推进；但 lastTickMs 初值修正仍要写回
+                if (elapsed < minStepMs) return@map plot
                 dirty = true
-            }
-            var elapsed = (now - plot.lastTickMs).coerceAtLeast(0L)
-            if (elapsed > maxCatchUp) elapsed = maxCatchUp
-            // 未满 200ms 不推进；但 lastTickMs 初值修正仍要写回
-            if (elapsed < minStepMs) return@map plot
-            dirty = true
 
-            while (elapsed >= minStepMs) {
-                val step = if (elapsed > sliceMs) sliceMs else elapsed
-                elapsed -= step
-                val hours = step / 3_600_000f
-                val weedP = farmChanceAtLeastOnce(fx.weedChancePerHour, hours)
-                val bugP = farmChanceAtLeastOnce(fx.bugChancePerHour, hours)
-                val wiltP = farmChanceAtLeastOnce(0.25f, hours)
+                while (elapsed >= minStepMs) {
+                    val step = if (elapsed > sliceMs) sliceMs else elapsed
+                    elapsed -= step
+                    val hours = step / 3_600_000f
+                    val weedP = farmChanceAtLeastOnce(fx.weedChancePerHour, hours)
+                    val bugP = farmChanceAtLeastOnce(fx.bugChancePerHour, hours)
+                    val wiltP = farmChanceAtLeastOnce(0.25f, hours)
 
-                plot.moisture = (plot.moisture - fx.dryPerHour * hours + fx.rainPerHour * hours)
-                    .coerceIn(0f, 1f)
+                    plot.moisture =
+                        (plot.moisture - fx.dryPerHour * hours + fx.rainPerHour * hours)
+                            .coerceIn(0f, 1f)
 
-                if (plot.stage in 1..4) {
-                    if (!plot.weed && Random.nextFloat() < weedP) plot.weed = true
-                    if (!plot.bug && Random.nextFloat() < bugP) plot.bug = true
-                }
+                    if (plot.stage in 1..4) {
+                        if (!plot.weed && Random.nextFloat() < weedP) plot.weed = true
+                        if (!plot.bug && Random.nextFloat() < bugP) plot.bug = true
+                    }
 
-                // 枯萎：干旱即可按概率触发（不再要求单次 ≥ 0.5h，否则在线几乎永不枯）
-                if (plot.stage in 1..4 && plot.moisture < 0.08f && Random.nextFloat() < wiltP) {
-                    plot.stage = 5
-                    plot.stageProgress = 0f
-                }
+                    // 枯萎：干旱即可按概率触发（不再要求单次 ≥ 0.5h，否则在线几乎永不枯）
+                    if (plot.stage in 1..4 && plot.moisture < 0.08f && Random.nextFloat() < wiltP) {
+                        plot.stage = 5
+                        plot.stageProgress = 0f
+                    }
 
-                val crop = cropById(plot.cropId)
-                if (crop != null && plot.stage in 1..3) {
-                    val blocked = plot.weed || plot.bug || plot.moisture < 0.25f
-                    if (!blocked) {
-                        val stageIdx = plot.stage - 1
-                        val needH = crop.stageHours.getOrElse(stageIdx) { 1f }.coerceAtLeast(0.2f)
-                        val mul = fx.growthMul * (0.7f + 0.3f * plot.moisture)
-                        plot.stageProgress += (hours / needH) * mul
-                        while (plot.stageProgress >= 1f && plot.stage in 1..3) {
-                            plot.stageProgress -= 1f
-                            plot.stage += 1
-                            if (plot.stage >= 4) {
-                                plot.stage = 4
-                                plot.stageProgress = 1f
-                                break
+                    val crop = cropById(plot.cropId)
+                    if (crop != null && plot.stage in 1..3) {
+                        val blocked = plot.weed || plot.bug || plot.moisture < 0.25f
+                        if (!blocked) {
+                            val stageIdx = plot.stage - 1
+                            val needH = crop.stageHours.getOrElse(stageIdx) { 1f }.coerceAtLeast(0.2f)
+                            val mul = fx.growthMul * (0.7f + 0.3f * plot.moisture)
+                            plot.stageProgress += (hours / needH) * mul
+                            while (plot.stageProgress >= 1f && plot.stage in 1..3) {
+                                plot.stageProgress -= 1f
+                                plot.stage += 1
+                                if (plot.stage >= 4) {
+                                    plot.stage = 4
+                                    plot.stageProgress = 1f
+                                    break
+                                }
                             }
                         }
                     }
                 }
+                plot.lastTickMs = now
+                plot
             }
-            plot.lastTickMs = now
-            plot
-        }
         if (dirty) plots = next
     }
 
-    fun onPlot(index: Int, weather: FarmWeather) {
+    fun onPlot(
+        index: Int,
+        weather: FarmWeather,
+    ) {
         val plot = plots.getOrNull(index) ?: return
         when (selectedTool) {
             FarmTool.INFO -> {
@@ -229,38 +250,43 @@ private class BearFarm(
                     when (plot.stage) {
                         0 -> str(R.string.bear_farm_toast_empty)
                         5 -> str(R.string.bear_farm_toast_wilted)
-                        4 -> str(
-                            R.string.bear_farm_toast_ripe,
-                            crop?.emoji ?: "",
-                            crop?.nameZh ?: "?"
-                        )
-                        else -> buildString {
-                            append(
-                                str(
-                                    R.string.bear_farm_toast_status,
-                                    crop?.emoji ?: "",
-                                    crop?.nameZh ?: "?",
-                                    stageLabel(plot.stage),
-                                    (plot.stageProgress * 100).toInt()
-                                )
+                        4 ->
+                            str(
+                                R.string.bear_farm_toast_ripe,
+                                crop?.emoji ?: "",
+                                crop?.nameZh ?: "?",
                             )
-                            if (plot.moisture < 0.3f) append(str(R.string.bear_farm_toast_thirsty))
-                            if (plot.weed) append(str(R.string.bear_farm_toast_has_weed))
-                            if (plot.bug) append(str(R.string.bear_farm_toast_has_bug))
-                        }
-                    }
+                        else ->
+                            buildString {
+                                append(
+                                    str(
+                                        R.string.bear_farm_toast_status,
+                                        crop?.emoji ?: "",
+                                        crop?.nameZh ?: "?",
+                                        stageLabel(plot.stage),
+                                        (plot.stageProgress * 100).toInt(),
+                                    ),
+                                )
+                                if (plot.moisture < 0.3f) append(str(R.string.bear_farm_toast_thirsty))
+                                if (plot.weed) append(str(R.string.bear_farm_toast_has_weed))
+                                if (plot.bug) append(str(R.string.bear_farm_toast_has_bug))
+                            }
+                    },
                 )
             }
             FarmTool.PLANT -> {
                 if (plot.stage != 0) {
-                    toast(str(R.string.bear_farm_toast_occupied)); return
+                    toast(str(R.string.bear_farm_toast_occupied))
+                    return
                 }
                 val crop = cropById(selectedSeedId) ?: return
                 if (crop.id !in unlocked) {
-                    toast(str(R.string.bear_farm_toast_locked_seed)); return
+                    toast(str(R.string.bear_farm_toast_locked_seed))
+                    return
                 }
                 if (coins < crop.seedCost) {
-                    toast(str(R.string.bear_farm_toast_need_coins, crop.seedCost)); return
+                    toast(str(R.string.bear_farm_toast_need_coins, crop.seedCost))
+                    return
                 }
                 coins -= crop.seedCost
                 updatePlot(index) {
@@ -275,58 +301,72 @@ private class BearFarm(
             }
             FarmTool.WATER -> {
                 if (plot.stage == 0 || plot.stage == 5) {
-                    toast(str(R.string.bear_farm_toast_nothing_water)); return
+                    toast(str(R.string.bear_farm_toast_nothing_water))
+                    return
                 }
                 updatePlot(index) { moisture = (moisture + 0.45f).coerceAtMost(1f) }
                 toast(str(R.string.bear_farm_toast_watered))
             }
             FarmTool.WEED -> {
                 if (!plot.weed) {
-                    toast(str(R.string.bear_farm_toast_no_weed)); return
+                    toast(str(R.string.bear_farm_toast_no_weed))
+                    return
                 }
                 updatePlot(index) { weed = false }
                 toast(str(R.string.bear_farm_toast_weeded))
             }
             FarmTool.BUG -> {
                 if (!plot.bug) {
-                    toast(str(R.string.bear_farm_toast_no_bug)); return
+                    toast(str(R.string.bear_farm_toast_no_bug))
+                    return
                 }
                 updatePlot(index) { bug = false }
                 toast(str(R.string.bear_farm_toast_debugged))
             }
             FarmTool.HARVEST -> {
                 if (plot.stage != 4) {
-                    toast(str(R.string.bear_farm_toast_not_ripe)); return
+                    toast(str(R.string.bear_farm_toast_not_ripe))
+                    return
                 }
                 val crop = cropById(plot.cropId) ?: return
-                val bonus = when (weather) {
-                    FarmWeather.SUNNY -> 1.15f
-                    FarmWeather.RAINY -> 1.05f
-                    else -> 1f
-                }
+                val bonus =
+                    when (weather) {
+                        FarmWeather.SUNNY -> 1.15f
+                        FarmWeather.RAINY -> 1.05f
+                        else -> 1f
+                    }
                 val gain = (crop.sellPrice * bonus).toInt()
                 coins += gain
                 harvestedTotal++
                 val unlockedMsg = unlockByProgress()
                 updatePlot(index) {
-                    cropId = null; stage = 0; stageProgress = 0f
-                    weed = false; bug = false; moisture = 0.4f
+                    cropId = null
+                    stage = 0
+                    stageProgress = 0f
+                    weed = false
+                    bug = false
+                    moisture = 0.4f
                 }
-                val harvestMsg = str(
-                    R.string.bear_farm_toast_harvest,
-                    crop.emoji,
-                    crop.nameZh,
-                    gain
-                )
+                val harvestMsg =
+                    str(
+                        R.string.bear_farm_toast_harvest,
+                        crop.emoji,
+                        crop.nameZh,
+                        gain,
+                    )
                 toast(if (unlockedMsg != null) "$harvestMsg\n$unlockedMsg" else harvestMsg)
             }
             FarmTool.CLEAR -> {
                 if (plot.stage == 0) {
-                    toast(str(R.string.bear_farm_toast_already_empty)); return
+                    toast(str(R.string.bear_farm_toast_already_empty))
+                    return
                 }
                 updatePlot(index) {
-                    cropId = null; stage = 0; stageProgress = 0f
-                    weed = false; bug = false
+                    cropId = null
+                    stage = 0
+                    stageProgress = 0f
+                    weed = false
+                    bug = false
                 }
                 toast(str(R.string.bear_farm_toast_cleared))
             }
@@ -345,10 +385,14 @@ private class BearFarm(
         return str(R.string.bear_farm_toast_unlock_crop, c?.emoji ?: "", c?.nameZh ?: "")
     }
 
-    private fun updatePlot(index: Int, block: FarmPlotState.() -> Unit) {
-        plots = plots.mapIndexed { i, p ->
-            if (i == index) p.copy().also(block) else p
-        }
+    private fun updatePlot(
+        index: Int,
+        block: FarmPlotState.() -> Unit,
+    ) {
+        plots =
+            plots.mapIndexed { i, p ->
+                if (i == index) p.copy().also(block) else p
+            }
     }
 
     fun buyUnlock(cropId: String): Boolean {
@@ -356,7 +400,8 @@ private class BearFarm(
         if (cropId in unlocked) return false
         val price = crop.seedCost * 5
         if (coins < price) {
-            toast(str(R.string.bear_farm_toast_unlock_need, price)); return false
+            toast(str(R.string.bear_farm_toast_unlock_need, price))
+            return false
         }
         coins -= price
         unlocked = unlocked + cropId
@@ -370,7 +415,7 @@ private class BearFarm(
 fun BearFarmScreen(
     sceneCode: Int?,
     isDay: Boolean?,
-    onExit: () -> Unit
+    onExit: () -> Unit,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -390,8 +435,12 @@ fun BearFarmScreen(
         var last = Long.MIN_VALUE
         while (isActive) {
             withFrameNanos { now ->
-                val dt = if (last == Long.MIN_VALUE) 1f / 60f
-                else min((now - last) / 1e9f, 0.05f)
+                val dt =
+                    if (last == Long.MIN_VALUE) {
+                        1f / 60f
+                    } else {
+                        min((now - last) / 1e9f, 0.05f)
+                    }
                 last = now
                 farm.tick(System.currentTimeMillis(), weather, dt)
                 // 每约 5 秒自动存一次
@@ -409,31 +458,34 @@ fun BearFarmScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    skyGradient(Color(fx.skyTop), Color(fx.skyBottom))
-                )
-            )
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        skyGradient(Color(fx.skyTop), Color(fx.skyBottom)),
+                    ),
+                ),
     ) {
         // 氛围装饰
         Canvas(modifier = Modifier.fillMaxSize()) {
-            @Suppress("UNUSED_EXPRESSION") frame
+            @Suppress("UNUSED_EXPRESSION")
+            frame
             // 地平线光晕：位于画面上部天空区域
             drawHorizonGlow(
                 size.height * 0.32f,
                 midColor(Color(fx.skyTop), Color.White),
-                size.height * 0.30f
+                size.height * 0.30f,
             )
             drawFarmAtmosphere(weather, farm.time)
         }
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(12.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(12.dp),
         ) {
             // 顶栏
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -448,25 +500,25 @@ fun BearFarmScreen(
                         stringResource(R.string.bear_farm_title),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
                     )
                     Text(
                         stringResource(fx.labelRes),
                         color = Color.White.copy(alpha = 0.9f),
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFFFFF8E1).copy(alpha = 0.92f)
+                    color = Color(0xFFFFF8E1).copy(alpha = 0.92f),
                 ) {
                     Text(
                         "🪙 ${farm.coins}",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6D4C41)
+                        color = Color(0xFF6D4C41),
                     )
                 }
                 Spacer(modifier = Modifier.width(6.dp))
@@ -479,23 +531,25 @@ fun BearFarmScreen(
                 Text(
                     msg,
                     color = Color.White,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
                     textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
 
             // 田地
             LazyVerticalGrid(
                 columns = GridCells.Fixed(FARM_COLS),
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 8.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                contentPadding = PaddingValues(4.dp)
+                contentPadding = PaddingValues(4.dp),
             ) {
                 itemsIndexed(farm.plots) { index, plot ->
                     FarmPlotCell(
@@ -504,7 +558,7 @@ fun BearFarmScreen(
                         onClick = {
                             farm.onPlot(index, weather)
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        }
+                        },
                     )
                 }
             }
@@ -512,11 +566,12 @@ fun BearFarmScreen(
             // 种子条（播种工具时）
             if (farm.selectedTool == FarmTool.PLANT) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     FARM_CROPS.filter { it.id in farm.unlocked }.forEach { crop ->
                         val sel = farm.selectedSeedId == crop.id
@@ -524,13 +579,16 @@ fun BearFarmScreen(
                             onClick = { farm.selectedSeedId = crop.id },
                             shape = RoundedCornerShape(12.dp),
                             color = if (sel) Color(0xFFFFF59D) else Color.White.copy(alpha = 0.85f),
-                            border = if (sel) {
-                                BorderStroke(2.dp, Color(0xFFFF8F00))
-                            } else null
+                            border =
+                                if (sel) {
+                                    BorderStroke(2.dp, Color(0xFFFF8F00))
+                                } else {
+                                    null
+                                },
                         ) {
                             Column(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Text(crop.emoji, fontSize = 22.sp)
                                 Text(crop.nameZh, style = MaterialTheme.typography.labelSmall)
@@ -543,41 +601,44 @@ fun BearFarmScreen(
 
             // 工具栏
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 FarmTool.entries.forEach { tool ->
-                    val label = stringResource(
+                    val label =
+                        stringResource(
+                            when (tool) {
+                                FarmTool.INFO -> R.string.bear_farm_tool_info
+                                FarmTool.PLANT -> R.string.bear_farm_tool_plant
+                                FarmTool.WATER -> R.string.bear_farm_tool_water
+                                FarmTool.WEED -> R.string.bear_farm_tool_weed
+                                FarmTool.BUG -> R.string.bear_farm_tool_bug
+                                FarmTool.HARVEST -> R.string.bear_farm_tool_harvest
+                                FarmTool.CLEAR -> R.string.bear_farm_tool_clear
+                            },
+                        )
+                    val icon =
                         when (tool) {
-                            FarmTool.INFO -> R.string.bear_farm_tool_info
-                            FarmTool.PLANT -> R.string.bear_farm_tool_plant
-                            FarmTool.WATER -> R.string.bear_farm_tool_water
-                            FarmTool.WEED -> R.string.bear_farm_tool_weed
-                            FarmTool.BUG -> R.string.bear_farm_tool_bug
-                            FarmTool.HARVEST -> R.string.bear_farm_tool_harvest
-                            FarmTool.CLEAR -> R.string.bear_farm_tool_clear
+                            FarmTool.INFO -> "👀"
+                            FarmTool.PLANT -> "🌱"
+                            FarmTool.WATER -> "💧"
+                            FarmTool.WEED -> "🌿"
+                            FarmTool.BUG -> "🐛"
+                            FarmTool.HARVEST -> "🧺"
+                            FarmTool.CLEAR -> "🧹"
                         }
-                    )
-                    val icon = when (tool) {
-                        FarmTool.INFO -> "👀"
-                        FarmTool.PLANT -> "🌱"
-                        FarmTool.WATER -> "💧"
-                        FarmTool.WEED -> "🌿"
-                        FarmTool.BUG -> "🐛"
-                        FarmTool.HARVEST -> "🧺"
-                        FarmTool.CLEAR -> "🧹"
-                    }
                     val sel = farm.selectedTool == tool
                     Surface(
                         onClick = { farm.selectedTool = tool },
                         shape = RoundedCornerShape(14.dp),
-                        color = if (sel) Color(0xFF81C784) else Color.White.copy(alpha = 0.88f)
+                        color = if (sel) Color(0xFF81C784) else Color.White.copy(alpha = 0.88f),
                     ) {
                         Column(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(icon, fontSize = 20.sp)
                             Text(label, style = MaterialTheme.typography.labelSmall)
@@ -590,7 +651,7 @@ fun BearFarmScreen(
         if (farm.showShop) {
             FarmShopDialog(
                 farm = farm,
-                onDismiss = { farm.showShop = false }
+                onDismiss = { farm.showShop = false },
             )
         }
     }
@@ -600,26 +661,27 @@ fun BearFarmScreen(
 private fun FarmPlotCell(
     plot: FarmPlotState,
     soilColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val crop = cropById(plot.cropId)
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = soilColor),
-        modifier = Modifier.aspectRatio(1f)
+        modifier = Modifier.aspectRatio(1f),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             FarmPlotVisual(
                 plot = plot,
                 crop = crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
             // 状态角标：杂草 / 害虫
             Column(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(3.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(3.dp),
             ) {
                 if (plot.weed) Text("🌿", fontSize = 13.sp)
                 if (plot.bug) Text("🐛", fontSize = 13.sp)
@@ -627,25 +689,27 @@ private fun FarmPlotCell(
             if (plot.stage in 1..4) {
                 // 水分条
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(4.dp)
-                        .fillMaxWidth(0.8f)
-                        .height(4.dp)
-                        .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(4.dp)
+                            .fillMaxWidth(0.8f)
+                            .height(4.dp)
+                            .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(2.dp)),
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth(plot.moisture.coerceIn(0f, 1f))
-                            .height(4.dp)
-                            .background(
-                                when {
-                                    plot.moisture < 0.25f -> Color(0xFFE53935)
-                                    plot.moisture < 0.5f -> Color(0xFFFFB300)
-                                    else -> Color(0xFF42A5F5)
-                                },
-                                RoundedCornerShape(2.dp)
-                            )
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(plot.moisture.coerceIn(0f, 1f))
+                                .height(4.dp)
+                                .background(
+                                    when {
+                                        plot.moisture < 0.25f -> Color(0xFFE53935)
+                                        plot.moisture < 0.5f -> Color(0xFFFFB300)
+                                        else -> Color(0xFF42A5F5)
+                                    },
+                                    RoundedCornerShape(2.dp),
+                                ),
                     )
                 }
             }
@@ -653,10 +717,11 @@ private fun FarmPlotCell(
             if (plot.stage == 4) {
                 Text(
                     "✨",
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(2.dp),
-                    fontSize = 13.sp
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(2.dp),
+                    fontSize = 13.sp,
                 )
             }
         }
@@ -668,7 +733,7 @@ private fun FarmPlotCell(
 private fun FarmPlotVisual(
     plot: FarmPlotState,
     crop: CropDef?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // 土壤纹理
@@ -682,7 +747,7 @@ private fun FarmPlotVisual(
                     "＋",
                     color = Color.White.copy(alpha = 0.55f),
                     fontSize = 26.sp,
-                    fontWeight = FontWeight.Light
+                    fontWeight = FontWeight.Light,
                 )
             }
             5 -> {
@@ -692,14 +757,15 @@ private fun FarmPlotVisual(
                     stage = plot.stage,
                     progress = 1f,
                     wilted = true,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
                 )
                 Text(
                     "🥀",
                     fontSize = 12.sp,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 4.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 4.dp),
                 )
             }
             else -> {
@@ -707,16 +773,17 @@ private fun FarmPlotVisual(
                 // 生长中：进度环
                 if (plot.stage in 1..3) {
                     Canvas(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(6.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(6.dp),
                     ) {
                         drawArc(
                             Color.White.copy(alpha = 0.6f),
                             startAngle = -90f,
                             sweepAngle = 360f * plot.stageProgress,
                             useCenter = false,
-                            style = Stroke(width = 2.5f)
+                            style = Stroke(width = 2.5f),
                         )
                     }
                 }
@@ -726,51 +793,54 @@ private fun FarmPlotVisual(
                     val pulse by transition.animateFloat(
                         initialValue = 0f,
                         targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 650),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "pulse"
+                        animationSpec =
+                            infiniteRepeatable(
+                                animation = tween(durationMillis = 650),
+                                repeatMode = RepeatMode.Reverse,
+                            ),
+                        label = "pulse",
                     )
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawCircle(
                             Color(0xFFFFF59D).copy(alpha = 0.10f + 0.12f * pulse),
                             radius = size.minDimension * 0.44f,
-                            center = center
+                            center = center,
                         )
                     }
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val s = 1f + 0.10f * pulse
-                                scaleX = s
-                                scaleY = s
-                            },
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val s = 1f + 0.10f * pulse
+                                    scaleX = s
+                                    scaleY = s
+                                },
+                        contentAlignment = Alignment.Center,
                     ) {
                         FarmCropCanvas(
                             crop = c,
                             stage = plot.stage,
                             progress = 1f,
                             wilted = false,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
                 } else {
                     // 种子/发芽/成长：自绘植株，种子阶段整体下移像埋在土里
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .offset(y = if (plot.stage == 1) 12.dp else 0.dp),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .offset(y = if (plot.stage == 1) 12.dp else 0.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         FarmCropCanvas(
                             crop = c,
                             stage = plot.stage,
                             progress = plot.stageProgress,
                             wilted = false,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
                 }
@@ -786,7 +856,7 @@ private fun FarmCropCanvas(
     stage: Int,
     progress: Float,
     wilted: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Canvas(modifier = modifier) {
         val c = crop ?: return@Canvas
@@ -807,7 +877,7 @@ private fun DrawScope.drawSoilBase(plot: FarmPlotState) {
                     furrow,
                     Offset(w * 0.12f, y),
                     Size(w * 0.76f, h * 0.08f),
-                    CornerRadius(3f)
+                    CornerRadius(3f),
                 )
             }
             drawCircle(Color.White.copy(alpha = 0.07f), w * 0.028f, Offset(w * 0.2f, h * 0.45f))
@@ -820,19 +890,22 @@ private fun DrawScope.drawSoilBase(plot: FarmPlotState) {
                 Color(0xFF3E2723).copy(alpha = 0.16f),
                 Offset(w * 0.10f, h * 0.62f),
                 Size(w * 0.80f, h * 0.22f),
-                CornerRadius(12f)
+                CornerRadius(12f),
             )
             drawRoundRect(
                 Color.White.copy(alpha = 0.08f),
                 Offset(w * 0.14f, h * 0.60f),
                 Size(w * 0.72f, h * 0.10f),
-                CornerRadius(6f)
+                CornerRadius(6f),
             )
         }
     }
 }
 
-private fun DrawScope.drawFarmAtmosphere(weather: FarmWeather, time: Float) {
+private fun DrawScope.drawFarmAtmosphere(
+    weather: FarmWeather,
+    time: Float,
+) {
     when (weather) {
         FarmWeather.RAINY, FarmWeather.STORMY -> {
             for (i in 0 until 50) {
@@ -840,8 +913,9 @@ private fun DrawScope.drawFarmAtmosphere(weather: FarmWeather, time: Float) {
                 val y = ((i * 53 + time * 240) % (size.height + 60)) - 30
                 drawLine(
                     Color.White.copy(alpha = 0.35f),
-                    Offset(x, y), Offset(x - 3f, y + 12f),
-                    strokeWidth = 2f
+                    Offset(x, y),
+                    Offset(x - 3f, y + 12f),
+                    strokeWidth = 2f,
                 )
             }
             if (weather == FarmWeather.STORMY && sin(time * 8f) > 0.92f) {
@@ -864,7 +938,7 @@ private fun DrawScope.drawFarmAtmosphere(weather: FarmWeather, time: Float) {
                     Color(0xFFFFD54F),
                     sun + Offset(cos(a) * 32f, sin(a) * 32f),
                     sun + Offset(cos(a) * 42f, sin(a) * 42f),
-                    strokeWidth = 3f
+                    strokeWidth = 3f,
                 )
             }
         }
@@ -883,79 +957,85 @@ private fun DrawScope.drawFarmAtmosphere(weather: FarmWeather, time: Float) {
 }
 
 @Composable
-private fun FarmShopDialog(farm: BearFarm, onDismiss: () -> Unit) {
+private fun FarmShopDialog(
+    farm: BearFarm,
+    onDismiss: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
     ) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .clickable(enabled = false) {},
-            shape = RoundedCornerShape(20.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.92f)
+                    .clickable(enabled = false) {},
+            shape = RoundedCornerShape(20.dp),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     stringResource(R.string.bear_farm_shop_title),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
                     stringResource(R.string.bear_farm_shop_hint, farm.harvestedTotal) +
                         " · ${farm.unlocked.size}/${FARM_CROPS.size}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.height(420.dp)
+                    modifier = Modifier.height(420.dp),
                 ) {
                     itemsIndexed(FARM_CROPS) { _, crop ->
                         val owned = crop.id in farm.unlocked
                         val unlockPrice = crop.seedCost * 5
                         Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (owned) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)
-                            )
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = if (owned) Color(0xFFE8F5E9) else Color(0xFFFFF3E0),
+                                ),
                         ) {
                             Column(
                                 modifier = Modifier.padding(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Text(crop.emoji, fontSize = 24.sp)
                                 Text(crop.nameZh, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 Text(
                                     crop.category,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
                                     "约${"%.1f".format(crop.totalHours)}时 · 售${crop.sellPrice}",
                                     style = MaterialTheme.typography.labelSmall,
                                     textAlign = TextAlign.Center,
-                                    fontSize = 10.sp
+                                    fontSize = 10.sp,
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 if (owned) {
                                     Text(
                                         stringResource(R.string.bear_farm_shop_owned),
                                         color = Color(0xFF2E7D32),
-                                        style = MaterialTheme.typography.labelMedium
+                                        style = MaterialTheme.typography.labelMedium,
                                     )
                                 } else {
                                     Button(
                                         onClick = { farm.buyUnlock(crop.id) },
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                     ) {
                                         Text(
                                             stringResource(R.string.bear_farm_shop_unlock_btn, unlockPrice),
-                                            fontSize = 11.sp
+                                            fontSize = 11.sp,
                                         )
                                     }
                                 }
@@ -965,7 +1045,7 @@ private fun FarmShopDialog(farm: BearFarm, onDismiss: () -> Unit) {
                 }
                 TextButton(
                     onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.align(Alignment.End),
                 ) { Text(stringResource(R.string.bear_farm_close_shop)) }
             }
         }

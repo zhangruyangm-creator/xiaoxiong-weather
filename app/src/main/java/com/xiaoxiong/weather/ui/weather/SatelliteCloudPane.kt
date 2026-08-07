@@ -58,7 +58,7 @@ private const val CLOUD_OVERLAY_ALPHA = 0.78f
 @Composable
 internal fun SatelliteCloudPane(
     city: City,
-    repository: RadarMapRepository
+    repository: RadarMapRepository,
 ) {
     var cloud by remember(city.id, city.latitude, city.longitude) {
         mutableStateOf<SatelliteCloudMap?>(null)
@@ -79,23 +79,25 @@ internal fun SatelliteCloudPane(
         try {
             coroutineScope {
                 val forceRefresh = refreshKey > 0
-                val cloudJob = async {
-                    repository.loadSatelliteCloudMap(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        zoom = zoom,
-                        size = size,
-                        forceRefresh = forceRefresh
-                    )
-                }
-                val basemapJob = async {
-                    repository.loadBasemap(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        zoom = zoom,
-                        size = size
-                    )
-                }
+                val cloudJob =
+                    async {
+                        repository.loadSatelliteCloudMap(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            zoom = zoom,
+                            size = size,
+                            forceRefresh = forceRefresh,
+                        )
+                    }
+                val basemapJob =
+                    async {
+                        repository.loadBasemap(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            zoom = zoom,
+                            size = size,
+                        )
+                    }
                 cloud = cloudJob.await()
                 basemap = basemapJob.await()
             }
@@ -111,36 +113,38 @@ internal fun SatelliteCloudPane(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF15202B))
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF15202B)),
     ) {
         when {
             loading && cloud == null && basemap == null -> {
                 RadarScanLoadingOverlay(
                     cityName = city.name,
                     modifier = Modifier.fillMaxSize(),
-                    detailRes = R.string.cloud_scan_detail
+                    detailRes = R.string.cloud_scan_detail,
                 )
             }
             errorRes != null && cloud == null -> {
                 Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = stringResource(errorRes ?: R.string.cloud_load_failed),
                         color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                     TextButton(onClick = { refreshKey += 1 }) {
                         Text(
                             stringResource(R.string.label_retry),
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -151,7 +155,7 @@ internal fun SatelliteCloudPane(
                         bitmap = map,
                         contentDescription = stringResource(R.string.cd_basemap),
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
                     )
                 }
                 cloud?.let { map ->
@@ -160,7 +164,7 @@ internal fun SatelliteCloudPane(
                         contentDescription = stringResource(R.string.cd_cloud_map),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        alpha = if (basemap != null) CLOUD_OVERLAY_ALPHA else 1f
+                        alpha = if (basemap != null) CLOUD_OVERLAY_ALPHA else 1f,
                     )
                 }
                 if (loading && cloud == null) {
@@ -168,50 +172,54 @@ internal fun SatelliteCloudPane(
                         cityName = city.name,
                         compact = true,
                         modifier = Modifier.fillMaxSize(),
-                        detailRes = R.string.cloud_scan_detail
+                        detailRes = R.string.cloud_scan_detail,
                     )
                 }
                 Box(
                     modifier = Modifier.align(Alignment.Center),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .background(AccentCoral.copy(alpha = 0.28f))
+                        modifier =
+                            Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(AccentCoral.copy(alpha = 0.28f)),
                     )
                     Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(AccentCoral)
-                            .border(1.5.dp, Color.White, CircleShape)
+                        modifier =
+                            Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(AccentCoral)
+                                .border(1.5.dp, Color.White, CircleShape),
                     )
                 }
                 Text(
                     text = city.name,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(10.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.Black.copy(alpha = 0.5f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                cloud?.let { map ->
-                    Text(
-                        text = stringResource(R.string.cloud_date, map.dateUtc),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
                             .padding(10.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color.Black.copy(alpha = 0.5f))
                             .padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                cloud?.let { map ->
+                    Text(
+                        text = stringResource(R.string.cloud_date, map.dateUtc),
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.5f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                         color = Color.White,
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }
@@ -221,18 +229,19 @@ internal fun SatelliteCloudPane(
     Spacer(modifier = Modifier.height(10.dp))
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         FilledIconButton(
             onClick = { refreshKey += 1 },
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurface
-            )
+            colors =
+                IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
         ) {
             Icon(
                 Icons.Filled.Refresh,
-                contentDescription = stringResource(R.string.cd_refresh_cloud)
+                contentDescription = stringResource(R.string.cd_refresh_cloud),
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
@@ -240,18 +249,18 @@ internal fun SatelliteCloudPane(
             text = stringResource(R.string.cloud_hint),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         TextButton(
             onClick = {
                 val url = RadarMapRepository.windySatelliteUrl(city.latitude, city.longitude)
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-            }
+            },
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.OpenInNew,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(stringResource(R.string.radar_fullscreen))
@@ -260,6 +269,6 @@ internal fun SatelliteCloudPane(
     Text(
         text = stringResource(R.string.cloud_attribution),
         style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }

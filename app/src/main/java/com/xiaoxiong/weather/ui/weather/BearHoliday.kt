@@ -16,7 +16,7 @@ import java.time.Month
  */
 enum class BearHoliday(
     @param:StringRes val captionRes: Int,
-    @param:DrawableRes private vararg val bearVariants: Int
+    @param:DrawableRes private vararg val bearVariants: Int,
 ) {
     SPRING_FESTIVAL(
         R.string.sun_bear_fest_spring,
@@ -26,36 +26,38 @@ enum class BearHoliday(
         R.drawable.ic_sun_bear_fest_spring_4,
         R.drawable.ic_sun_bear_fest_spring_5,
         R.drawable.ic_sun_bear_fest_spring_6,
-        R.drawable.ic_sun_bear_fest_spring_7
+        R.drawable.ic_sun_bear_fest_spring_7,
     ),
     CHRISTMAS(
         R.string.sun_bear_fest_christmas,
         R.drawable.ic_sun_bear_fest_christmas,
         R.drawable.ic_sun_bear_fest_christmas_2,
-        R.drawable.ic_sun_bear_fest_christmas_3
+        R.drawable.ic_sun_bear_fest_christmas_3,
     ),
     NEW_YEAR(
         R.string.sun_bear_fest_new_year,
         R.drawable.ic_sun_bear_fest_new_year,
-        R.drawable.ic_sun_bear_fest_new_year_2
+        R.drawable.ic_sun_bear_fest_new_year_2,
     ),
+
     /** 中秋 ∩ 国庆：双节同庆。 */
     MID_AUTUMN_NATIONAL(
         R.string.sun_bear_fest_double,
         R.drawable.ic_sun_bear_fest_double,
-        R.drawable.ic_sun_bear_fest_double_2
+        R.drawable.ic_sun_bear_fest_double_2,
     ),
     MID_AUTUMN(
         R.string.sun_bear_fest_mid_autumn,
         R.drawable.ic_sun_bear_fest_mid_autumn,
-        R.drawable.ic_sun_bear_fest_mid_autumn_2
+        R.drawable.ic_sun_bear_fest_mid_autumn_2,
     ),
     NATIONAL_DAY(
         R.string.sun_bear_fest_national,
         R.drawable.ic_sun_bear_fest_national,
         R.drawable.ic_sun_bear_fest_national_2,
-        R.drawable.ic_sun_bear_fest_national_3
-    );
+        R.drawable.ic_sun_bear_fest_national_3,
+    ),
+    ;
 
     /** 按自然日选取插画：春节初一/初二可不同，明年春节也可不同。 */
     @DrawableRes
@@ -69,15 +71,16 @@ enum class BearHoliday(
     @StringRes
     fun captionResFor(date: LocalDate): Int {
         if (this == SPRING_FESTIVAL) {
-            val captions = intArrayOf(
-                R.string.sun_bear_fest_spring,
-                R.string.sun_bear_fest_spring_dumpling,
-                R.string.sun_bear_fest_spring_cake,
-                R.string.sun_bear_fest_spring_firework,
-                R.string.sun_bear_fest_spring_couplet,
-                R.string.sun_bear_fest_spring_dinner,
-                R.string.sun_bear_fest_spring_firecracker
-            )
+            val captions =
+                intArrayOf(
+                    R.string.sun_bear_fest_spring,
+                    R.string.sun_bear_fest_spring_dumpling,
+                    R.string.sun_bear_fest_spring_cake,
+                    R.string.sun_bear_fest_spring_firework,
+                    R.string.sun_bear_fest_spring_couplet,
+                    R.string.sun_bear_fest_spring_dinner,
+                    R.string.sun_bear_fest_spring_firecracker,
+                )
             return captions[dailyVariantIndex(date, "FEST_$name", captions.size)]
         }
         return captionRes
@@ -103,7 +106,7 @@ fun bearHolidayOn(date: LocalDate): BearHoliday? {
  */
 fun holidayBearOverride(
     date: LocalDate,
-    moment: SunPathBearMoment
+    moment: SunPathBearMoment,
 ): BearHoliday? {
     if (moment == SunPathBearMoment.SLEEP || moment == SunPathBearMoment.ALMOST_DAWN) return null
     return bearHolidayOn(date)
@@ -125,5 +128,4 @@ private fun isMidAutumn(date: LocalDate): Boolean {
     return false
 }
 
-private fun isNationalDay(date: LocalDate): Boolean =
-    date.month == Month.OCTOBER && date.dayOfMonth in 1..3
+private fun isNationalDay(date: LocalDate): Boolean = date.month == Month.OCTOBER && date.dayOfMonth in 1..3

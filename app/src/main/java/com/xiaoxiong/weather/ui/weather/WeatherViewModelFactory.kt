@@ -34,11 +34,11 @@ data class WeatherViewModelDeps(
     val presentationEffects: WeatherPresentationEffects = WeatherPresentationEffects.Default,
     val popularCitiesLoader: suspend (Application) -> List<City> = { app ->
         ChinaCityCatalog.popular(app, limit = 12)
-    }
+    },
 )
 
 class WeatherViewModelFactory(
-    private val application: Application
+    private val application: Application,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -48,21 +48,23 @@ class WeatherViewModelFactory(
         val c = application.appContainer()
         return WeatherViewModel(
             application = application,
-            deps = WeatherViewModelDeps(
-                weatherRepository = c.weatherRepository,
-                locationHelper = c.locationHelper,
-                favoriteStore = c.favoriteStore,
-                recentCityStore = c.recentCityStore,
-                selectedCityStore = c.selectedCityStore,
-                weatherCacheStore = c.weatherCacheStore,
-                citySearch = c.citySearchUseCase,
-                settingsStore = c.settingsStore,
-                debugWeatherStore = c.debugWeatherStore,
-                radarMapRepository = c.radarMapRepository,
-                locationSessionFactory = LocationSessionFactory { scope ->
-                    LocationWeatherCoordinator(c.locationHelper, scope)
-                }
-            )
+            deps =
+                WeatherViewModelDeps(
+                    weatherRepository = c.weatherRepository,
+                    locationHelper = c.locationHelper,
+                    favoriteStore = c.favoriteStore,
+                    recentCityStore = c.recentCityStore,
+                    selectedCityStore = c.selectedCityStore,
+                    weatherCacheStore = c.weatherCacheStore,
+                    citySearch = c.citySearchUseCase,
+                    settingsStore = c.settingsStore,
+                    debugWeatherStore = c.debugWeatherStore,
+                    radarMapRepository = c.radarMapRepository,
+                    locationSessionFactory =
+                        LocationSessionFactory { scope ->
+                            LocationWeatherCoordinator(c.locationHelper, scope)
+                        },
+                ),
         ) as T
     }
 }

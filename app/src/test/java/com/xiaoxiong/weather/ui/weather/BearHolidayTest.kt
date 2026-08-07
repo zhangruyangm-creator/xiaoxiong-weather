@@ -8,7 +8,6 @@ import org.junit.Test
 import java.time.LocalDate
 
 class BearHolidayTest {
-
     @Test
     fun springFestival_coversEveThroughDay3() {
         // 2026 春节：2 月 17 日
@@ -54,7 +53,7 @@ class BearHolidayTest {
         val cny = LocalDate.of(2026, 2, 17)
         assertEquals(
             BearHoliday.SPRING_FESTIVAL,
-            holidayBearOverride(cny, SunPathBearMoment.WORK_MORNING)
+            holidayBearOverride(cny, SunPathBearMoment.WORK_MORNING),
         )
         assertNull(holidayBearOverride(cny, SunPathBearMoment.SLEEP))
         assertNull(holidayBearOverride(cny, SunPathBearMoment.ALMOST_DAWN))
@@ -74,54 +73,60 @@ class BearHolidayTest {
         val day2 = LocalDate.of(2026, 2, 18)
         val a = BearHoliday.SPRING_FESTIVAL.bearResFor(eve)
         assertEquals(a, BearHoliday.SPRING_FESTIVAL.bearResFor(eve))
-        val pool = setOf(
-            R.drawable.ic_sun_bear_fest_spring,
-            R.drawable.ic_sun_bear_fest_spring_2,
-            R.drawable.ic_sun_bear_fest_spring_3,
-            R.drawable.ic_sun_bear_fest_spring_4,
-            R.drawable.ic_sun_bear_fest_spring_5,
-            R.drawable.ic_sun_bear_fest_spring_6,
-            R.drawable.ic_sun_bear_fest_spring_7
-        )
-        assertTrue(a in pool)
-        val week = (0L..40L).map {
-            BearHoliday.SPRING_FESTIVAL.bearResFor(day1.plusDays(it))
-        }.toSet()
-        assertTrue("expected multiple spring arts across days", week.size > 1)
-        val captions = listOf(
-            R.string.sun_bear_fest_spring,
-            R.string.sun_bear_fest_spring_dumpling,
-            R.string.sun_bear_fest_spring_cake,
-            R.string.sun_bear_fest_spring_firework,
-            R.string.sun_bear_fest_spring_couplet,
-            R.string.sun_bear_fest_spring_dinner,
-            R.string.sun_bear_fest_spring_firecracker
-        )
-        for (i in 0L..40L) {
-            val d = day1.plusDays(i)
-            val res = BearHoliday.SPRING_FESTIVAL.bearResFor(d)
-            val idx = listOf(
+        val pool =
+            setOf(
                 R.drawable.ic_sun_bear_fest_spring,
                 R.drawable.ic_sun_bear_fest_spring_2,
                 R.drawable.ic_sun_bear_fest_spring_3,
                 R.drawable.ic_sun_bear_fest_spring_4,
                 R.drawable.ic_sun_bear_fest_spring_5,
                 R.drawable.ic_sun_bear_fest_spring_6,
-                R.drawable.ic_sun_bear_fest_spring_7
-            ).indexOf(res)
+                R.drawable.ic_sun_bear_fest_spring_7,
+            )
+        assertTrue(a in pool)
+        val week =
+            (0L..40L)
+                .map {
+                    BearHoliday.SPRING_FESTIVAL.bearResFor(day1.plusDays(it))
+                }.toSet()
+        assertTrue("expected multiple spring arts across days", week.size > 1)
+        val captions =
+            listOf(
+                R.string.sun_bear_fest_spring,
+                R.string.sun_bear_fest_spring_dumpling,
+                R.string.sun_bear_fest_spring_cake,
+                R.string.sun_bear_fest_spring_firework,
+                R.string.sun_bear_fest_spring_couplet,
+                R.string.sun_bear_fest_spring_dinner,
+                R.string.sun_bear_fest_spring_firecracker,
+            )
+        for (i in 0L..40L) {
+            val d = day1.plusDays(i)
+            val res = BearHoliday.SPRING_FESTIVAL.bearResFor(d)
+            val idx =
+                listOf(
+                    R.drawable.ic_sun_bear_fest_spring,
+                    R.drawable.ic_sun_bear_fest_spring_2,
+                    R.drawable.ic_sun_bear_fest_spring_3,
+                    R.drawable.ic_sun_bear_fest_spring_4,
+                    R.drawable.ic_sun_bear_fest_spring_5,
+                    R.drawable.ic_sun_bear_fest_spring_6,
+                    R.drawable.ic_sun_bear_fest_spring_7,
+                ).indexOf(res)
             assertEquals(captions[idx], BearHoliday.SPRING_FESTIVAL.captionResFor(d))
         }
-        val allSeen = (0L..60L).map {
-            BearHoliday.SPRING_FESTIVAL.bearResFor(day1.plusDays(it))
-        }.toSet()
+        val allSeen =
+            (0L..60L)
+                .map {
+                    BearHoliday.SPRING_FESTIVAL.bearResFor(day1.plusDays(it))
+                }.toSet()
         assertEquals(7, allSeen.size)
         // 跨年春节也可能换图
         val nextCny = LocalDate.of(2027, 2, 6)
         assertTrue(
             BearHoliday.SPRING_FESTIVAL.bearResFor(day1) in pool &&
-                BearHoliday.SPRING_FESTIVAL.bearResFor(nextCny) in pool
+                BearHoliday.SPRING_FESTIVAL.bearResFor(nextCny) in pool,
         )
         assertTrue(day2 != eve)
     }
 }
-

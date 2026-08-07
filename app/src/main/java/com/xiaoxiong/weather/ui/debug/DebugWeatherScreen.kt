@@ -52,7 +52,7 @@ fun DebugWeatherScreen(
     onBack: () -> Unit,
     onApply: (DebugWeatherOverride) -> Unit,
     onExitDebug: () -> Unit,
-    onClearOverride: () -> Unit
+    onClearOverride: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
     val current = baseWeather?.current
@@ -61,7 +61,7 @@ fun DebugWeatherScreen(
     }
     var feels by remember(initialOverride, current) {
         mutableStateOf(
-            fieldText(initialOverride.apparentTemperatureC, current?.apparentTemperatureC)
+            fieldText(initialOverride.apparentTemperatureC, current?.apparentTemperatureC),
         )
     }
     var humidity by remember(initialOverride, current) {
@@ -74,8 +74,8 @@ fun DebugWeatherScreen(
         mutableStateOf(
             fieldText(
                 initialOverride.precipitationRateMmPerHour,
-                current?.precipitationRateMmPerHour
-            )
+                current?.precipitationRateMmPerHour,
+            ),
         )
     }
     var wind by remember(initialOverride, current) {
@@ -92,26 +92,27 @@ fun DebugWeatherScreen(
     }
     var aqi by remember(initialOverride, baseWeather) {
         mutableStateOf(
-            fieldText(initialOverride.europeanAqi, baseWeather?.airQuality?.europeanAqi)
+            fieldText(initialOverride.europeanAqi, baseWeather?.airQuality?.europeanAqi),
         )
     }
     var dust by remember(initialOverride, baseWeather) {
         mutableStateOf(fieldText(initialOverride.dustUgM3, baseWeather?.airQuality?.dustUgM3))
     }
 
-    fun buildOverride(): DebugWeatherOverride = DebugWeatherOverride(
-        temperatureC = temperature.toDoubleOrNull(),
-        apparentTemperatureC = feels.toDoubleOrNull(),
-        humidityPercent = humidity.toIntOrNull(),
-        weatherCode = weatherCode.toIntOrNull(),
-        precipitationRateMmPerHour = precip.toDoubleOrNull(),
-        windSpeedKmh = wind.toDoubleOrNull(),
-        windGustsKmh = gust.toDoubleOrNull(),
-        visibilityMeters = visibility.toDoubleOrNull(),
-        uvIndex = uv.toDoubleOrNull(),
-        europeanAqi = aqi.toIntOrNull(),
-        dustUgM3 = dust.toDoubleOrNull()
-    )
+    fun buildOverride(): DebugWeatherOverride =
+        DebugWeatherOverride(
+            temperatureC = temperature.toDoubleOrNull(),
+            apparentTemperatureC = feels.toDoubleOrNull(),
+            humidityPercent = humidity.toIntOrNull(),
+            weatherCode = weatherCode.toIntOrNull(),
+            precipitationRateMmPerHour = precip.toDoubleOrNull(),
+            windSpeedKmh = wind.toDoubleOrNull(),
+            windGustsKmh = gust.toDoubleOrNull(),
+            visibilityMeters = visibility.toDoubleOrNull(),
+            uvIndex = uv.toDoubleOrNull(),
+            europeanAqi = aqi.toIntOrNull(),
+            dustUgM3 = dust.toDoubleOrNull(),
+        )
 
     AppScreenBackground(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -122,40 +123,42 @@ fun DebugWeatherScreen(
                     title = {
                         Text(
                             stringResource(R.string.debug_title),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.cd_back)
+                                contentDescription = stringResource(R.string.cd_back),
                             )
                         }
-                    }
+                    },
                 )
-            }
+            },
         ) { padding ->
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
                     SoftCard(modifier = Modifier.fillMaxWidth()) {
                         SectionHeader(
                             title = stringResource(R.string.debug_editor_title),
-                            subtitle = baseWeather?.city?.displayName
-                                ?: stringResource(R.string.debug_no_city),
-                            icon = Icons.Filled.BugReport
+                            subtitle =
+                                baseWeather?.city?.displayName
+                                    ?: stringResource(R.string.debug_no_city),
+                            icon = Icons.Filled.BugReport,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.debug_editor_hint),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -164,50 +167,50 @@ fun DebugWeatherScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             DebugField(
                                 stringResource(R.string.debug_field_temp),
-                                temperature
+                                temperature,
                             ) { temperature = it }
                             DebugField(
                                 stringResource(R.string.debug_field_feels),
-                                feels
+                                feels,
                             ) { feels = it }
                             DebugField(
                                 stringResource(R.string.debug_field_humidity),
                                 humidity,
-                                KeyboardType.Number
+                                KeyboardType.Number,
                             ) { humidity = it }
                             DebugField(
                                 stringResource(R.string.debug_field_weather_code),
                                 weatherCode,
-                                KeyboardType.Number
+                                KeyboardType.Number,
                             ) { weatherCode = it }
                             DebugField(
                                 stringResource(R.string.debug_field_precip),
-                                precip
+                                precip,
                             ) { precip = it }
                             DebugField(
                                 stringResource(R.string.debug_field_wind),
-                                wind
+                                wind,
                             ) { wind = it }
                             DebugField(
                                 stringResource(R.string.debug_field_gust),
-                                gust
+                                gust,
                             ) { gust = it }
                             DebugField(
                                 stringResource(R.string.debug_field_visibility),
-                                visibility
+                                visibility,
                             ) { visibility = it }
                             DebugField(
                                 stringResource(R.string.debug_field_uv),
-                                uv
+                                uv,
                             ) { uv = it }
                             DebugField(
                                 stringResource(R.string.debug_field_aqi),
                                 aqi,
-                                KeyboardType.Number
+                                KeyboardType.Number,
                             ) { aqi = it }
                             DebugField(
                                 stringResource(R.string.debug_field_dust),
-                                dust
+                                dust,
                             ) { dust = it }
                         }
                     }
@@ -215,18 +218,18 @@ fun DebugWeatherScreen(
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Button(
                             onClick = { onApply(buildOverride()) },
                             modifier = Modifier.weight(1f),
-                            enabled = baseWeather != null
+                            enabled = baseWeather != null,
                         ) {
                             Text(stringResource(R.string.debug_apply))
                         }
                         OutlinedButton(
                             onClick = onClearOverride,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         ) {
                             Text(stringResource(R.string.debug_clear_override))
                         }
@@ -234,7 +237,7 @@ fun DebugWeatherScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = onExitDebug,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(stringResource(R.string.debug_exit))
                     }
@@ -250,7 +253,7 @@ private fun DebugField(
     label: String,
     value: String,
     keyboardType: KeyboardType = KeyboardType.Decimal,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
 ) {
     OutlinedTextField(
         value = value,
@@ -258,15 +261,19 @@ private fun DebugField(
         modifier = Modifier.fillMaxWidth(),
         label = { Text(label) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
     )
 }
 
-private fun fieldText(override: Double?, fallback: Double?): String =
-    (override ?: fallback)?.let { trimNum(it) } ?: ""
+private fun fieldText(
+    override: Double?,
+    fallback: Double?,
+): String = (override ?: fallback)?.let { trimNum(it) } ?: ""
 
-private fun fieldText(override: Int?, fallback: Int?): String =
-    (override ?: fallback)?.toString() ?: ""
+private fun fieldText(
+    override: Int?,
+    fallback: Int?,
+): String = (override ?: fallback)?.toString() ?: ""
 
 private fun trimNum(value: Double): String {
     val asLong = value.toLong()

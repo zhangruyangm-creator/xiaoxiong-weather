@@ -9,7 +9,7 @@ import java.io.IOException
  */
 class RetryInterceptor(
     private val maxRetries: Int = 2,
-    private val baseDelayMs: Long = 400L
+    private val baseDelayMs: Long = 400L,
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
@@ -37,6 +37,5 @@ class RetryInterceptor(
         }
     }
 
-    private fun shouldRetry(code: Int): Boolean =
-        code == 429 || code in 500..599
+    private fun shouldRetry(code: Int): Boolean = code == 429 || code in 500..599
 }

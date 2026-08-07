@@ -69,7 +69,7 @@ import java.time.format.DateTimeFormatter
 internal fun LiveRadarPane(
     city: City,
     repository: RadarMapRepository,
-    timezoneId: String? = null
+    timezoneId: String? = null,
 ) {
     var frames by remember(city.id, city.latitude, city.longitude) {
         mutableStateOf<List<RadarFrame>>(emptyList())
@@ -100,12 +100,14 @@ internal fun LiveRadarPane(
         repository.clearRadarFrameCache()
         try {
             coroutineScope {
-                val basemapJob = async {
-                    repository.loadBasemap(city.latitude, city.longitude, zoom)
-                }
-                val framesJob = async {
-                    repository.fetchPastRadarFrames(city.latitude, city.longitude, zoom)
-                }
+                val basemapJob =
+                    async {
+                        repository.loadBasemap(city.latitude, city.longitude, zoom)
+                    }
+                val framesJob =
+                    async {
+                        repository.fetchPastRadarFrames(city.latitude, city.longitude, zoom)
+                    }
                 basemap = basemapJob.await()
                 val list = framesJob.await()
                 frames = list
@@ -140,10 +142,11 @@ internal fun LiveRadarPane(
     }
 
     LaunchedEffect(frames, frameIndex) {
-        val frame = frames.getOrNull(frameIndex) ?: run {
-            currentBitmap = null
-            return@LaunchedEffect
-        }
+        val frame =
+            frames.getOrNull(frameIndex) ?: run {
+                currentBitmap = null
+                return@LaunchedEffect
+            }
         val cachedHint = currentBitmap
         if (cachedHint == null) imageLoading = true
         currentBitmap = repository.loadImage(frame.imageUrl)
@@ -159,35 +162,37 @@ internal fun LiveRadarPane(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF1B2A38))
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF1B2A38)),
     ) {
         when {
             loading -> {
                 RadarScanLoadingOverlay(
                     cityName = city.name,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
             errorRes != null && frames.isEmpty() && basemap == null -> {
                 Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = stringResource(errorRes ?: R.string.radar_load_failed_generic),
                         color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                     TextButton(onClick = { reload() }) {
                         Text(
                             stringResource(R.string.label_retry),
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -198,7 +203,7 @@ internal fun LiveRadarPane(
                         bitmap = map,
                         contentDescription = stringResource(R.string.cd_basemap),
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
                     )
                 }
                 currentBitmap?.let { bmp ->
@@ -207,72 +212,77 @@ internal fun LiveRadarPane(
                         contentDescription = stringResource(R.string.cd_radar_echo),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        alpha = 0.88f
+                        alpha = 0.88f,
                     )
                 }
                 if (imageLoading && currentBitmap == null) {
                     RadarScanLoadingOverlay(
                         cityName = city.name,
                         compact = true,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
                 // 城市定位点（雷达图中心即所选城市）
                 Box(
                     modifier = Modifier.align(Alignment.Center),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .background(AccentCoral.copy(alpha = 0.28f))
+                        modifier =
+                            Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(AccentCoral.copy(alpha = 0.28f)),
                     )
                     Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(AccentCoral)
-                            .border(1.5.dp, Color.White, CircleShape)
+                        modifier =
+                            Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(AccentCoral)
+                                .border(1.5.dp, Color.White, CircleShape),
                     )
                 }
                 Text(
                     text = city.name,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(10.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.Black.copy(alpha = 0.5f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                frames.getOrNull(frameIndex)?.let { frame ->
-                    Text(
-                        text = formatRadarTime(frame.timeEpochSec, timezoneId),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
                             .padding(10.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color.Black.copy(alpha = 0.5f))
                             .padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                frames.getOrNull(frameIndex)?.let { frame ->
+                    Text(
+                        text = formatRadarTime(frame.timeEpochSec, timezoneId),
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.5f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                         color = Color.White,
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
                 val overlayError = errorRes
                 if (overlayError != null && frames.isEmpty()) {
                     Text(
                         text = stringResource(overlayError),
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(10.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                         color = Color.White,
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 }
             }
@@ -283,33 +293,36 @@ internal fun LiveRadarPane(
         Spacer(modifier = Modifier.height(10.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             FilledIconButton(
                 onClick = { playing = !playing },
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                colors =
+                    IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
             ) {
                 Icon(
                     imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = stringResource(
-                        if (playing) R.string.cd_pause else R.string.cd_play
-                    )
+                    contentDescription =
+                        stringResource(
+                            if (playing) R.string.cd_pause else R.string.cd_play,
+                        ),
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
             FilledIconButton(
                 onClick = { reload() },
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                )
+                colors =
+                    IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
             ) {
                 Icon(
                     Icons.Filled.Refresh,
-                    contentDescription = stringResource(R.string.cd_refresh_radar)
+                    contentDescription = stringResource(R.string.cd_refresh_radar),
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -327,7 +340,7 @@ internal fun LiveRadarPane(
                 },
                 valueRange = 0f..(frames.lastIndex.coerceAtLeast(0).toFloat()),
                 steps = (frames.size - 2).coerceAtLeast(0),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -336,23 +349,23 @@ internal fun LiveRadarPane(
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = stringResource(R.string.radar_hint_center),
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         TextButton(
             onClick = {
                 val url = RadarMapRepository.windyRadarUrl(city.latitude, city.longitude)
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-            }
+            },
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.OpenInNew,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(stringResource(R.string.radar_fullscreen))
@@ -361,16 +374,19 @@ internal fun LiveRadarPane(
     Text(
         text = stringResource(R.string.radar_attribution),
         style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
 internal val RadarTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-private fun zoneOf(timezoneId: String?): ZoneId =
-    runCatching { timezoneId?.let { ZoneId.of(it) } }.getOrNull() ?: ZoneId.systemDefault()
+private fun zoneOf(timezoneId: String?): ZoneId = runCatching { timezoneId?.let { ZoneId.of(it) } }.getOrNull() ?: ZoneId.systemDefault()
 
-internal fun formatRadarTime(epochSec: Long, timezoneId: String? = null): String =
-    Instant.ofEpochSecond(epochSec)
+internal fun formatRadarTime(
+    epochSec: Long,
+    timezoneId: String? = null,
+): String =
+    Instant
+        .ofEpochSecond(epochSec)
         .atZone(zoneOf(timezoneId))
         .format(RadarTimeFormatter)

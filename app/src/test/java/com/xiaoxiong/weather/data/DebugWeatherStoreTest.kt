@@ -10,7 +10,6 @@ import org.junit.Test
 import org.mockito.Mockito
 
 class DebugWeatherStoreTest {
-
     @Test
     fun magicQuery_matches() {
         assertTrue(DebugWeatherStore.isMagicQuery("__debug__"))
@@ -23,30 +22,35 @@ class DebugWeatherStoreTest {
     fun apply_overridesTempAndPrecip_andEmitsRainingAlert() {
         val resources = mockResources()
         val city = WeatherFixtures.city("青岛")
-        val base = WeatherSnapshot(
-            city = city,
-            current = WeatherFixtures.current(
-                weatherCode = 0,
-                temperatureC = 22.0,
-                precipitationRateMmPerHour = 0.0
-            ),
-            hourly = listOf(
-                WeatherFixtures.hourly("2026-08-02T12:00", precipitationMm = 0.0, weatherCode = 0)
-            ),
-            daily = emptyList(),
-            alerts = listOf(
-                WeatherAlert("clear", "ok", AlertSeverity.INFO, AlertKind.CLEAR)
+        val base =
+            WeatherSnapshot(
+                city = city,
+                current =
+                    WeatherFixtures.current(
+                        weatherCode = 0,
+                        temperatureC = 22.0,
+                        precipitationRateMmPerHour = 0.0,
+                    ),
+                hourly =
+                    listOf(
+                        WeatherFixtures.hourly("2026-08-02T12:00", precipitationMm = 0.0, weatherCode = 0),
+                    ),
+                daily = emptyList(),
+                alerts =
+                    listOf(
+                        WeatherAlert("clear", "ok", AlertSeverity.INFO, AlertKind.CLEAR),
+                    ),
             )
-        )
-        val shown = DebugWeatherStore.apply(
-            base,
-            DebugWeatherOverride(
-                temperatureC = 30.0,
-                weatherCode = 63,
-                precipitationRateMmPerHour = 2.2
-            ),
-            resources
-        )
+        val shown =
+            DebugWeatherStore.apply(
+                base,
+                DebugWeatherOverride(
+                    temperatureC = 30.0,
+                    weatherCode = 63,
+                    precipitationRateMmPerHour = 2.2,
+                ),
+                resources,
+            )
         assertEquals(30.0, shown.current.temperatureC)
         assertEquals(63, shown.current.weatherCode)
         assertEquals(2.2, shown.current.precipitationRateMmPerHour)

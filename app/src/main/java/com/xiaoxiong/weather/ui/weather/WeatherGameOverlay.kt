@@ -32,7 +32,7 @@ internal fun BearGameOverlay(
     sceneCode: Int?,
     isDay: Boolean?,
     pagerState: PagerState,
-    scope: CoroutineScope
+    scope: CoroutineScope,
 ) {
     val focusManager = LocalFocusManager.current
     var showBearGame by remember { mutableStateOf(false) }
@@ -76,7 +76,7 @@ internal fun BearGameOverlay(
             onExit = {
                 showBearGame = false
                 onExit()
-            }
+            },
         )
     }
     if (showStarGame) {
@@ -86,7 +86,7 @@ internal fun BearGameOverlay(
             onExit = {
                 showStarGame = false
                 onExit()
-            }
+            },
         )
     }
     if (showMazeGame) {
@@ -96,7 +96,7 @@ internal fun BearGameOverlay(
             onExit = {
                 showMazeGame = false
                 onExit()
-            }
+            },
         )
     }
     if (showFarmGame) {
@@ -106,7 +106,7 @@ internal fun BearGameOverlay(
             onExit = {
                 showFarmGame = false
                 onExit()
-            }
+            },
         )
     }
 }

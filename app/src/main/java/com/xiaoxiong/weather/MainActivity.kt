@@ -29,27 +29,31 @@ class MainActivity : ComponentActivity() {
         val settingsStore = applicationContext.appContainer().settingsStore
         setContent {
             val settings by settingsStore.settings.collectAsStateWithLifecycle(
-                initialValue = com.xiaoxiong.weather.data.AppSettings()
+                initialValue =
+                    com.xiaoxiong.weather.data
+                        .AppSettings(),
             )
-            val darkTheme = when (settings.themeMode) {
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-                ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
-            }
+            val darkTheme =
+                when (settings.themeMode) {
+                    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                }
             val baseDensity = LocalDensity.current
-            val appDensity = remember(baseDensity, settings.fontScale) {
-                Density(
-                    density = baseDensity.density,
-                    fontScale = settings.fontScale.resolve(baseDensity.fontScale)
-                )
-            }
+            val appDensity =
+                remember(baseDensity, settings.fontScale) {
+                    Density(
+                        density = baseDensity.density,
+                        fontScale = settings.fontScale.resolve(baseDensity.fontScale),
+                    )
+                }
             CompositionLocalProvider(LocalDensity provides appDensity) {
                 XiaoxiongWeatherTheme(darkTheme = darkTheme) {
                     // 必须带上 onBackground，否则透明 Surface 可能让子树继承成深色字
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background,
-                        contentColor = MaterialTheme.colorScheme.onBackground
+                        contentColor = MaterialTheme.colorScheme.onBackground,
                     ) {
                         WeatherScreen(settingsStore = settingsStore)
                     }

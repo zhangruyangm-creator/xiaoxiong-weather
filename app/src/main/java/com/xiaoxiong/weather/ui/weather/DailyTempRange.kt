@@ -8,7 +8,7 @@ import com.xiaoxiong.weather.data.DailyWeather
  */
 data class DailyTempBarRange(
     val start: Float,
-    val end: Float
+    val end: Float,
 ) {
     val width: Float get() = (end - start).coerceAtLeast(0f)
 }
@@ -30,7 +30,7 @@ fun weekAlignedTempBarRange(
     dayMaxC: Double?,
     weekMinC: Double,
     weekMaxC: Double,
-    minVisibleWidth: Float = 0.06f
+    minVisibleWidth: Float = 0.06f,
 ): DailyTempBarRange {
     val span = (weekMaxC - weekMinC).coerceAtLeast(1.0)
     val dayMin = dayMinC ?: weekMinC

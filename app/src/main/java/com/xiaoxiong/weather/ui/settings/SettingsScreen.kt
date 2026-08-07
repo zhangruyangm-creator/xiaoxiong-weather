@@ -14,13 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,10 +70,10 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenTodayCards: () -> Unit = {},
-    onDebugUnlocked: () -> Unit = {}
+    onDebugUnlocked: () -> Unit = {},
 ) {
     val settings by settingsStore.settings.collectAsStateWithLifecycle(
-        initialValue = AppSettings()
+        initialValue = AppSettings(),
     )
     val context = LocalContext.current
     var aboutTapCount by remember { mutableIntStateOf(0) }
@@ -93,29 +93,31 @@ fun SettingsScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.cd_back)
+                                contentDescription = stringResource(R.string.cd_back),
                             )
                         }
-                    }
+                    },
                 )
-            }
+            },
         ) { padding ->
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item {
                     SoftCard(modifier = Modifier.fillMaxWidth()) {
                         SectionHeader(
                             title = stringResource(R.string.settings_notifications),
-                            subtitle = stringResource(
-                                R.string.settings_notifications_subtitle,
-                                settings.backgroundRefreshInterval.hours
-                            ),
-                            icon = Icons.Filled.Notifications
+                            subtitle =
+                                stringResource(
+                                    R.string.settings_notifications_subtitle,
+                                    settings.backgroundRefreshInterval.hours,
+                                ),
+                            icon = Icons.Filled.Notifications,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         SettingsSwitchRow(
@@ -124,7 +126,7 @@ fun SettingsScreen(
                             checked = settings.notificationsEnabled,
                             onCheckedChange = {
                                 scope.launch { settingsStore.setNotificationsEnabled(it) }
-                            }
+                            },
                         )
                     }
                 }
@@ -133,7 +135,7 @@ fun SettingsScreen(
                         SectionHeader(
                             title = stringResource(R.string.settings_refresh_interval),
                             subtitle = stringResource(R.string.settings_refresh_interval_sub),
-                            icon = Icons.Filled.Schedule
+                            icon = Icons.Filled.Schedule,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         BackgroundRefreshInterval.entries.forEach { option ->
@@ -146,10 +148,10 @@ fun SettingsScreen(
                                         WeatherRefreshWorker.enqueue(
                                             context = context,
                                             intervalHours = option.hours,
-                                            policy = ExistingPeriodicWorkPolicy.UPDATE
+                                            policy = ExistingPeriodicWorkPolicy.UPDATE,
                                         )
                                     }
-                                }
+                                },
                             )
                         }
                     }
@@ -159,7 +161,7 @@ fun SettingsScreen(
                         SectionHeader(
                             title = stringResource(R.string.settings_temp_unit),
                             subtitle = stringResource(R.string.settings_temp_unit_sub),
-                            icon = Icons.Filled.Thermostat
+                            icon = Icons.Filled.Thermostat,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         SettingsChoiceRow(
@@ -169,7 +171,7 @@ fun SettingsScreen(
                                 scope.launch {
                                     settingsStore.setTemperatureUnit(TemperatureUnit.CELSIUS)
                                 }
-                            }
+                            },
                         )
                         SettingsChoiceRow(
                             title = stringResource(R.string.settings_fahrenheit),
@@ -178,7 +180,7 @@ fun SettingsScreen(
                                 scope.launch {
                                     settingsStore.setTemperatureUnit(TemperatureUnit.FAHRENHEIT)
                                 }
-                            }
+                            },
                         )
                     }
                 }
@@ -186,7 +188,7 @@ fun SettingsScreen(
                     SoftCard(modifier = Modifier.fillMaxWidth()) {
                         SectionHeader(
                             title = stringResource(R.string.settings_theme),
-                            icon = Icons.Filled.Palette
+                            icon = Icons.Filled.Palette,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         SettingsChoiceRow(
@@ -194,21 +196,21 @@ fun SettingsScreen(
                             selected = settings.themeMode == ThemeMode.SYSTEM,
                             onClick = {
                                 scope.launch { settingsStore.setThemeMode(ThemeMode.SYSTEM) }
-                            }
+                            },
                         )
                         SettingsChoiceRow(
                             title = stringResource(R.string.settings_theme_light),
                             selected = settings.themeMode == ThemeMode.LIGHT,
                             onClick = {
                                 scope.launch { settingsStore.setThemeMode(ThemeMode.LIGHT) }
-                            }
+                            },
                         )
                         SettingsChoiceRow(
                             title = stringResource(R.string.settings_theme_dark),
                             selected = settings.themeMode == ThemeMode.DARK,
                             onClick = {
                                 scope.launch { settingsStore.setThemeMode(ThemeMode.DARK) }
-                            }
+                            },
                         )
                     }
                 }
@@ -217,7 +219,7 @@ fun SettingsScreen(
                         SectionHeader(
                             title = stringResource(R.string.settings_font),
                             subtitle = stringResource(R.string.settings_font_sub),
-                            icon = Icons.Filled.TextFields
+                            icon = Icons.Filled.TextFields,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         AppFontScale.entries.forEach { option ->
@@ -226,7 +228,7 @@ fun SettingsScreen(
                                 selected = settings.fontScale == option,
                                 onClick = {
                                     scope.launch { settingsStore.setFontScale(option) }
-                                }
+                                },
                             )
                         }
                     }
@@ -236,7 +238,7 @@ fun SettingsScreen(
                         SectionHeader(
                             title = stringResource(R.string.settings_launch),
                             subtitle = stringResource(R.string.settings_launch_sub),
-                            icon = Icons.Filled.MyLocation
+                            icon = Icons.Filled.MyLocation,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         SettingsSwitchRow(
@@ -245,51 +247,53 @@ fun SettingsScreen(
                             checked = settings.preferLocationOnLaunch,
                             onCheckedChange = {
                                 scope.launch { settingsStore.setPreferLocationOnLaunch(it) }
-                            }
+                            },
                         )
                     }
                 }
                 item {
                     SoftCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onOpenTodayCards)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onOpenTodayCards),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 SectionHeader(
                                     title = stringResource(R.string.settings_today_cards),
                                     subtitle = stringResource(R.string.settings_today_cards_sub),
-                                    icon = Icons.Filled.ViewAgenda
+                                    icon = Icons.Filled.ViewAgenda,
                                 )
                             }
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
                 item {
                     SoftCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                aboutTapCount += 1
-                                if (aboutTapCount >= DebugWeatherStore.ABOUT_TAP_COUNT) {
-                                    aboutTapCount = 0
-                                    onDebugUnlocked()
-                                }
-                            }
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    aboutTapCount += 1
+                                    if (aboutTapCount >= DebugWeatherStore.ABOUT_TAP_COUNT) {
+                                        aboutTapCount = 0
+                                        onDebugUnlocked()
+                                    }
+                                },
                     ) {
                         SectionHeader(
                             title = stringResource(R.string.settings_about),
                             subtitle = stringResource(R.string.settings_about_sub),
-                            icon = Icons.Filled.Info
+                            icon = Icons.Filled.Info,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         TextButton(onClick = onOpenPrivacy) {
@@ -298,20 +302,20 @@ fun SettingsScreen(
                         Text(
                             text = stringResource(R.string.settings_about_permissions),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.settings_alert_disclaimer_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.settings_alert_disclaimer_body),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -325,23 +329,23 @@ private fun SettingsSwitchRow(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 subtitle,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
@@ -352,25 +356,27 @@ private fun SettingsSwitchRow(
 private fun SettingsChoiceRow(
     title: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
+            color =
+                if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
         )
         if (selected) {
             Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)

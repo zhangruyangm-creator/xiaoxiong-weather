@@ -20,7 +20,14 @@ import kotlin.math.sin
  * 加上 JUMP（上升）/ FALL（下落）/ LAND（落地）。
  */
 enum class BearFrame {
-    RUN_A, RUN_PUSH_A, RUN_PASS, RUN_B, RUN_PUSH_B, JUMP, FALL, LAND
+    RUN_A,
+    RUN_PUSH_A,
+    RUN_PASS,
+    RUN_B,
+    RUN_PUSH_B,
+    JUMP,
+    FALL,
+    LAND,
 }
 
 /** 小熊精灵表：各帧位图，由 Screen 层用 imageResource 加载后传入。 */
@@ -32,18 +39,19 @@ class BearSprites(
     val runPushB: ImageBitmap,
     val jump: ImageBitmap,
     val fall: ImageBitmap,
-    val land: ImageBitmap
+    val land: ImageBitmap,
 ) {
-    fun of(frame: BearFrame): ImageBitmap = when (frame) {
-        BearFrame.RUN_A -> runA
-        BearFrame.RUN_PUSH_A -> runPushA
-        BearFrame.RUN_PASS -> runPass
-        BearFrame.RUN_B -> runB
-        BearFrame.RUN_PUSH_B -> runPushB
-        BearFrame.JUMP -> jump
-        BearFrame.FALL -> fall
-        BearFrame.LAND -> land
-    }
+    fun of(frame: BearFrame): ImageBitmap =
+        when (frame) {
+            BearFrame.RUN_A -> runA
+            BearFrame.RUN_PUSH_A -> runPushA
+            BearFrame.RUN_PASS -> runPass
+            BearFrame.RUN_B -> runB
+            BearFrame.RUN_PUSH_B -> runPushB
+            BearFrame.JUMP -> jump
+            BearFrame.FALL -> fall
+            BearFrame.LAND -> land
+        }
 }
 
 /**
@@ -60,7 +68,7 @@ class BearPose(
     val scaleY: Float = 1f,
     /** 水平镜像（朝左）。枢轴为小熊中心，画布绝对坐标。 */
     val flipX: Boolean = false,
-    val alpha: Float = 1f
+    val alpha: Float = 1f,
 )
 
 /**
@@ -76,7 +84,7 @@ fun DrawScope.drawGameBear(
     centerX: Float,
     centerY: Float,
     bs: Float,
-    pose: BearPose
+    pose: BearPose,
 ) {
     if (pose.alpha <= 0f) return
     withTransform({
@@ -98,13 +106,14 @@ fun DrawScope.drawGameBear(
             image = img,
             srcOffset = IntOffset.Zero,
             srcSize = IntSize(img.width, img.height),
-            dstOffset = IntOffset(
-                (centerX - half).roundToInt(),
-                (centerY - half).roundToInt()
-            ),
+            dstOffset =
+                IntOffset(
+                    (centerX - half).roundToInt(),
+                    (centerY - half).roundToInt(),
+                ),
             dstSize = IntSize(side, side),
             alpha = pose.alpha,
-            filterQuality = FilterQuality.High
+            filterQuality = FilterQuality.High,
         )
         if (pose.dead) {
             // 眩晕星星：三颗金星绕头顶转圈
@@ -113,11 +122,12 @@ fun DrawScope.drawGameBear(
                 drawCircle(
                     color = Color(0xFFFFD54F),
                     radius = bs * 0.05f,
-                    center = Offset(
-                        centerX + cos(a) * bs * 0.32f,
-                        centerY - bs * 0.55f + sin(a) * bs * 0.10f
-                    ),
-                    alpha = pose.alpha
+                    center =
+                        Offset(
+                            centerX + cos(a) * bs * 0.32f,
+                            centerY - bs * 0.55f + sin(a) * bs * 0.10f,
+                        ),
+                    alpha = pose.alpha,
                 )
             }
         }

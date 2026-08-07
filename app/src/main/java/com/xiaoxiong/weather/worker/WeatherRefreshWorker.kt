@@ -21,7 +21,6 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.AlertKind
 import com.xiaoxiong.weather.data.AppError
 import com.xiaoxiong.weather.data.WeatherAlertGenerator
-import com.xiaoxiong.weather.data.WeatherNotifyDedupStore
 import com.xiaoxiong.weather.data.WeatherRefreshPolicy
 import com.xiaoxiong.weather.di.appContainer
 import com.xiaoxiong.weather.util.WeatherCodes
@@ -32,9 +31,8 @@ import java.util.concurrent.TimeUnit
 
 class WeatherRefreshWorker(
     appContext: Context,
-    params: WorkerParameters
+    params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
-
     override suspend fun doWork(): Result {
         return try {
             val container = applicationContext.appContainer()
@@ -44,11 +42,12 @@ class WeatherRefreshWorker(
             val cacheStore = container.weatherCacheStore
             val dedup = container.notifyDedupStore
 
-            val city = if (selection.useLocation && locationHelper.hasLocationPermission()) {
-                runCatching { locationHelper.resolveCurrentCity() }.getOrDefault(selection.city)
-            } else {
-                selection.city
-            }
+            val city =
+                if (selection.useLocation && locationHelper.hasLocationPermission()) {
+                    runCatching { locationHelper.resolveCurrentCity() }.getOrDefault(selection.city)
+                } else {
+                    selection.city
+                }
 
             val cached = cacheStore.get(city)
             val now = System.currentTimeMillis()
@@ -75,22 +74,24 @@ class WeatherRefreshWorker(
                 applicationContext,
                 current.weatherCode,
                 precipRate,
-                current.isDay
+                current.isDay,
             )
 
             val settings = container.settingsStore.getOnce()
             if (settings.notificationsEnabled) {
-                val soonSpec = WeatherAlertGenerator
-                    .specs(snapshot.current, snapshot.hourly, snapshot.daily, snapshot.airQuality)
-                    .firstOrNull { it.kind == AlertKind.RAIN_SOON || it.kind == AlertKind.SNOW_SOON }
+                val soonSpec =
+                    WeatherAlertGenerator
+                        .specs(snapshot.current, snapshot.hourly, snapshot.daily, snapshot.airQuality)
+                        .firstOrNull { it.kind == AlertKind.RAIN_SOON || it.kind == AlertKind.SNOW_SOON }
                 when {
                     soonSpec != null && dedup.shouldNotifySoon(city.name, soonSignature(city.name, soonSpec)) -> {
                         val alertTitle = applicationContext.getString(soonSpec.titleRes)
-                        val alertText = if (soonSpec.messageArg != null) {
-                            applicationContext.getString(soonSpec.messageRes, soonSpec.messageArg)
-                        } else {
-                            applicationContext.getString(soonSpec.messageRes)
-                        }
+                        val alertText =
+                            if (soonSpec.messageArg != null) {
+                                applicationContext.getString(soonSpec.messageRes, soonSpec.messageArg)
+                            } else {
+                                applicationContext.getString(soonSpec.messageRes)
+                            }
                         showNotification("${city.name} · $alertTitle", alertText)
                         dedup.rememberNotifiedSoon(soonSignature(city.name, soonSpec))
                         dedup.rememberNotified(city.name, current.weatherCode, current.temperatureC)
@@ -98,17 +99,19 @@ class WeatherRefreshWorker(
                     dedup.shouldNotify(city.name, current.weatherCode, current.temperatureC) -> {
                         val displayCode = WeatherCodes.displayCode(current.weatherCode, precipRate)
                         val title = "${city.name} ${formatTemperature(current.temperatureC, settings.temperatureUnit)}"
-                        val text = applicationContext.getString(
-                            R.string.notify_body,
-                            WeatherCodes.emoji(displayCode),
-                            WeatherCodes.description(
-                                applicationContext,
-                                displayCode,
-                                precipRate
-                            ),
-                            current.humidityPercent?.toString() ?: "--",
-                            com.xiaoxiong.weather.util.formatVisibility(current.visibilityMeters)
-                        )
+                        val text =
+                            applicationContext.getString(
+                                R.string.notify_body,
+                                WeatherCodes.emoji(displayCode),
+                                WeatherCodes.description(
+                                    applicationContext,
+                                    displayCode,
+                                    precipRate,
+                                ),
+                                current.humidityPercent?.toString() ?: "--",
+                                com.xiaoxiong.weather.util
+                                    .formatVisibility(current.visibilityMeters),
+                            )
                         showNotification(title, text)
                         dedup.rememberNotified(city.name, current.weatherCode, current.temperatureC)
                     }
@@ -124,33 +127,42 @@ class WeatherRefreshWorker(
         }
     }
 
-    private fun soonSignature(cityName: String, spec: WeatherAlertGenerator.Spec): String =
-        "$cityName|${spec.kind}|${spec.titleRes}"
+    private fun soonSignature(
+        cityName: String,
+        spec: WeatherAlertGenerator.Spec,
+    ): String = "$cityName|${spec.kind}|${spec.titleRes}"
 
     @SuppressLint("MissingPermission")
-    private fun showNotification(title: String, text: String) {
+    private fun showNotification(
+        title: String,
+        text: String,
+    ) {
         ensureChannel()
-        val openApp = Intent(applicationContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        val contentPending = PendingIntent.getActivity(
-            applicationContext,
-            0,
-            openApp,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_weather)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setContentIntent(contentPending)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setSilent(true)
-            .setAutoCancel(true)
-            .build()
+        val openApp =
+            Intent(applicationContext, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+        val contentPending =
+            PendingIntent.getActivity(
+                applicationContext,
+                0,
+                openApp,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        val notification =
+            NotificationCompat
+                .Builder(applicationContext, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_weather)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setContentIntent(contentPending)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSilent(true)
+                .setAutoCancel(true)
+                .build()
 
         // Android 13+ 未授权通知时静默失败即可
         runCatching {
@@ -161,19 +173,21 @@ class WeatherRefreshWorker(
     private fun ensureChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            applicationContext.getString(R.string.notify_channel_name),
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = applicationContext.getString(R.string.notify_channel_desc)
-            setShowBadge(false)
-        }
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                applicationContext.getString(R.string.notify_channel_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = applicationContext.getString(R.string.notify_channel_desc)
+                setShowBadge(false)
+            }
         manager.createNotificationChannel(channel)
     }
 
     companion object {
         const val UNIQUE_WORK = "weather_periodic_refresh_v3"
+
         // v2 无网络约束，升级后 KEEP 不会追加约束，必须换名迁移
         private const val LEGACY_UNIQUE_WORK_V2 = "weather_periodic_refresh_v2"
         private const val LEGACY_UNIQUE_WORK = "weather_periodic_refresh"
@@ -183,20 +197,23 @@ class WeatherRefreshWorker(
         fun enqueue(
             context: Context,
             intervalHours: Int = WeatherRefreshPolicy.BACKGROUND_HOURS,
-            policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
+            policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP,
         ) {
             val wm = WorkManager.getInstance(context.applicationContext)
             // 停掉旧的周期任务，避免重复刷通知
             wm.cancelUniqueWork(LEGACY_UNIQUE_WORK)
             wm.cancelUniqueWork(LEGACY_UNIQUE_WORK_V2)
             val hours = intervalHours.coerceIn(1, 24).toLong()
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .setRequiresBatteryNotLow(true)
-                .build()
-            val request = PeriodicWorkRequestBuilder<WeatherRefreshWorker>(hours, TimeUnit.HOURS)
-                .setConstraints(constraints)
-                .build()
+            val constraints =
+                Constraints
+                    .Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            val request =
+                PeriodicWorkRequestBuilder<WeatherRefreshWorker>(hours, TimeUnit.HOURS)
+                    .setConstraints(constraints)
+                    .build()
             wm.enqueueUniquePeriodicWork(UNIQUE_WORK, policy, request)
         }
     }

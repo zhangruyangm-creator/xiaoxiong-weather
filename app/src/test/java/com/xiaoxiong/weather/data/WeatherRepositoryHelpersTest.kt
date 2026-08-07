@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WeatherRepositoryHelpersTest {
-
     @Test
     fun normalizePlaceQuery_stripsSuffixes() {
         assertEquals("北京", WeatherRepository.normalizePlaceQuery("北京市"))
@@ -40,10 +39,11 @@ class WeatherRepositoryHelpersTest {
     @Test
     fun mergeCityResults_prefersFirstAndDedups() {
         val preferred = listOf(WeatherFixtures.city("济南", lat = 36.65, lon = 117.12))
-        val extras = listOf(
-            WeatherFixtures.city("济南市", lat = 36.66, lon = 117.13), // near-dup
-            WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
-        )
+        val extras =
+            listOf(
+                WeatherFixtures.city("济南市", lat = 36.66, lon = 117.13), // near-dup
+                WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38),
+            )
         val merged = WeatherRepository.mergeCityResults(preferred, extras)
         assertEquals(2, merged.size)
         assertEquals("济南", merged[0].name)

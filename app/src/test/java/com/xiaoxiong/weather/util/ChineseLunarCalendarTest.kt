@@ -8,7 +8,6 @@ import org.junit.Test
 import java.time.LocalDate
 
 class ChineseLunarCalendarTest {
-
     @Test
     fun springFestival_knownDates() {
         assertEquals(LocalDate.of(1900, 1, 31), ChineseLunarCalendar.springFestival(1900))

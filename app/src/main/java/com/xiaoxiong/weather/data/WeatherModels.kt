@@ -11,12 +11,13 @@ data class City(
     val country: String? = null,
     val admin1: String? = null,
     val admin2: String? = null,
-    val isCurrentLocation: Boolean = false
+    val isCurrentLocation: Boolean = false,
 ) {
     val displayName: String
-        get() = listOfNotNull(name, admin2, admin1, country)
-            .distinct()
-            .joinToString(", ")
+        get() =
+            listOfNotNull(name, admin2, admin1, country)
+                .distinct()
+                .joinToString(", ")
 }
 
 @Serializable
@@ -44,7 +45,7 @@ data class CurrentWeather(
     val cloudCoverPercent: Int? = null,
     val pressureHpa: Double? = null,
     val dewPointC: Double? = null,
-    val isDay: Boolean? = null
+    val isDay: Boolean? = null,
 )
 
 @Serializable
@@ -56,7 +57,7 @@ data class HourlyWeather(
     val weatherCode: Int? = null,
     val precipitationMm: Double? = null,
     val precipProbability: Int? = null,
-    val windSpeedKmh: Double? = null
+    val windSpeedKmh: Double? = null,
 )
 
 @Serializable
@@ -70,7 +71,7 @@ data class DailyWeather(
     val sunrise: String? = null,
     val sunset: String? = null,
     val uvIndexMax: Double? = null,
-    val windMaxKmh: Double? = null
+    val windMaxKmh: Double? = null,
 )
 
 @Serializable
@@ -83,7 +84,7 @@ data class AirQuality(
     val dustUgM3: Double? = null,
     val uvIndex: Double? = null,
     val nitrogenDioxide: Double? = null,
-    val ozone: Double? = null
+    val ozone: Double? = null,
 )
 
 @Serializable
@@ -97,6 +98,7 @@ enum class AlertKind {
     HEAVY_RAIN,
     PONDING,
     SNOW,
+
     /** 未来数小时强降雪 / 暴雪预报。 */
     SNOW_SOON,
     SNOWY_ROAD,
@@ -104,23 +106,28 @@ enum class AlertKind {
     FOG,
     WIND,
     HEAT,
+
     /** 连续多日高温预报（非当前体感高温）。 */
     HEAT_WAVE,
     COLD,
+
     /** 日际剧烈降温，但降温后仍偏暖（添衣，非冰雪寒潮）。 */
     COOLDOWN,
+
     /** 日际剧烈降温且降温后偏冷（寒潮感）。 */
     COLD_WAVE,
     LOW_VISIBILITY,
+
     /** 当前正在降雨（未达强降雨阈值时的出行提醒）。 */
     RAINING,
     RAIN_SOON,
+
     /** 当前正在降雪（未达强降雪阈值时的出行提醒）。 */
     SNOWING,
     UV,
     AIR_QUALITY,
     DUST,
-    CLEAR
+    CLEAR,
 }
 
 @Serializable
@@ -130,7 +137,7 @@ data class WeatherAlert(
     val severity: AlertSeverity,
     val kind: AlertKind = AlertKind.CLEAR,
     /** 未来降雨提醒等：用峰值小时雨量选伞色小熊。 */
-    val precipMmPerHour: Double? = null
+    val precipMmPerHour: Double? = null,
 )
 
 @Serializable
@@ -142,14 +149,14 @@ enum class LifeIndexKind {
     CAR_WASH,
     LAUNDRY,
     SPORT,
-    COLD
+    COLD,
 }
 
 @Serializable
 enum class LifeIndexLevel {
     GOOD,
     FAIR,
-    POOR
+    POOR,
 }
 
 @Serializable
@@ -159,7 +166,7 @@ data class LifeIndex(
     val title: String,
     val summary: String,
     /** 若有则覆盖默认「适宜/不宜」类标签（穿衣等不适用「不宜」时使用） */
-    val levelLabel: String? = null
+    val levelLabel: String? = null,
 )
 
 @Serializable
@@ -175,5 +182,5 @@ data class WeatherSnapshot(
     /** 测站/网格海拔（米），来自 Open-Meteo elevation。 */
     val elevationMeters: Double? = null,
     /** 城市 IANA 时区（如 Asia/Shanghai），来自 Open-Meteo timezone=auto；用于雷达帧等 UTC 时刻的本地化展示。 */
-    val timezone: String? = null
+    val timezone: String? = null,
 )

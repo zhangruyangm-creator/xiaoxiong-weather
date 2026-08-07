@@ -20,18 +20,19 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /** 飘分用的原生文字画笔，全程复用，只改 alpha / textSize。 */
-private val floatTextPaint = Paint().apply {
-    color = android.graphics.Color.rgb(255, 202, 40)
-    isFakeBoldText = true
-    textAlign = Paint.Align.CENTER
-    setShadowLayer(4f, 0f, 2f, android.graphics.Color.argb(120, 0, 0, 0))
-}
+private val floatTextPaint =
+    Paint().apply {
+        color = android.graphics.Color.rgb(255, 202, 40)
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+        setShadowLayer(4f, 0f, 2f, android.graphics.Color.argb(120, 0, 0, 0))
+    }
 
 fun DrawScope.drawWorld(
     game: BearGame,
     contentColor: Color,
     isDay: Boolean,
-    sprites: BearSprites
+    sprites: BearSprites,
 ) {
     val s = game.s
     val groundY = game.groundY
@@ -44,7 +45,7 @@ fun DrawScope.drawWorld(
         if (shakeAmp > 0f) {
             translate(
                 (Random.nextFloat() * 2f - 1f) * shakeAmp,
-                (Random.nextFloat() * 2f - 1f) * shakeAmp
+                (Random.nextFloat() * 2f - 1f) * shakeAmp,
             )
         }
     }) {
@@ -60,9 +61,12 @@ fun DrawScope.drawWorld(
     }
 }
 
-/* ---------------- 天空 ---------------- */
+// ---------------- 天空 ----------------
 
-private fun DrawScope.drawSky(game: BearGame, isDay: Boolean) {
+private fun DrawScope.drawSky(
+    game: BearGame,
+    isDay: Boolean,
+) {
     val s = game.s
     val cx = size.width * 0.80f
     val cy = size.height * 0.15f
@@ -81,7 +85,7 @@ private fun DrawScope.drawSky(game: BearGame, isDay: Boolean) {
                     end = Offset(cx + cos(a) * outer, cy + sin(a) * outer),
                     strokeWidth = 3.5f * s,
                     cap = StrokeCap.Round,
-                    alpha = 0.85f
+                    alpha = 0.85f,
                 )
             }
         }
@@ -105,18 +109,18 @@ private fun DrawScope.drawSky(game: BearGame, isDay: Boolean) {
     drawHorizonGlow(
         game.groundY,
         if (isDay) Color(0xFFFFE082) else Color(0xFFB0C4DE),
-        size.height * 0.12f
+        size.height * 0.12f,
     )
 }
 
-/* ---------------- 远景 ---------------- */
+// ---------------- 远景 ----------------
 
 private fun DrawScope.drawHills(
     game: BearGame,
     contentColor: Color,
     parallax: Float,
     heightRatio: Float,
-    alpha: Float
+    alpha: Float,
 ) {
     val s = game.s
     val groundY = game.groundY
@@ -128,8 +132,10 @@ private fun DrawScope.drawHills(
     var x = offset - segW
     while (x < size.width + segW) {
         path.quadraticTo(
-            x + segW / 2, groundY - hillH * 2,
-            x + segW, groundY
+            x + segW / 2,
+            groundY - hillH * 2,
+            x + segW,
+            groundY,
         )
         x += segW
     }
@@ -150,27 +156,30 @@ private fun DrawScope.drawBgClouds(game: BearGame) {
             color = col,
             topLeft = Offset(c.x, c.y),
             size = Size(cw, ch),
-            cornerRadius = CornerRadius(ch / 2)
+            cornerRadius = CornerRadius(ch / 2),
         )
         drawCircle(col, ch * 0.72f, Offset(c.x + cw * 0.32f, c.y + ch * 0.15f))
     }
 }
 
-/* ---------------- 地面 ---------------- */
+// ---------------- 地面 ----------------
 
-private fun DrawScope.drawGround(game: BearGame, contentColor: Color) {
+private fun DrawScope.drawGround(
+    game: BearGame,
+    contentColor: Color,
+) {
     val s = game.s
     val groundY = game.groundY
     drawRect(
         color = contentColor.copy(alpha = 0.10f),
         topLeft = Offset(0f, groundY),
-        size = Size(size.width, size.height - groundY)
+        size = Size(size.width, size.height - groundY),
     )
     drawLine(
         color = contentColor.copy(alpha = 0.45f),
         start = Offset(0f, groundY),
         end = Offset(size.width, groundY),
-        strokeWidth = 2f * s
+        strokeWidth = 2f * s,
     )
     // 速度刻度
     var dashX = -(game.distance % (90f * s))
@@ -179,7 +188,7 @@ private fun DrawScope.drawGround(game: BearGame, contentColor: Color) {
             color = contentColor.copy(alpha = 0.22f),
             topLeft = Offset(dashX, groundY + 12f * s),
             size = Size(26f * s, 4f * s),
-            cornerRadius = CornerRadius(2f * s)
+            cornerRadius = CornerRadius(2f * s),
         )
         dashX += 90f * s
     }
@@ -200,7 +209,7 @@ private fun DrawScope.drawGround(game: BearGame, contentColor: Color) {
                     start = Offset(bx + b * 4f * s, groundY + 2f * s),
                     end = Offset(bx + b * 7f * s, groundY + 2f * s - gh),
                     strokeWidth = 2.2f * s,
-                    cap = StrokeCap.Round
+                    cap = StrokeCap.Round,
                 )
             }
         }
@@ -209,7 +218,7 @@ private fun DrawScope.drawGround(game: BearGame, contentColor: Color) {
     }
 }
 
-/* ---------------- 金币 ---------------- */
+// ---------------- 金币 ----------------
 
 private fun DrawScope.drawCoins(game: BearGame) {
     val s = game.s
@@ -223,7 +232,7 @@ private fun DrawScope.drawCoins(game: BearGame) {
             drawCircle(
                 Color.White.copy(alpha = 0.9f),
                 c.r * 0.16f,
-                center + Offset(0f, -c.r * 0.4f)
+                center + Offset(0f, -c.r * 0.4f),
             )
         }
         // 每隔一颗画十字星闪
@@ -231,19 +240,23 @@ private fun DrawScope.drawCoins(game: BearGame) {
             val tw = abs(sin(game.time * 4f + c.x)) * c.r * 0.5f
             drawLine(
                 Color.White.copy(alpha = 0.85f),
-                center + Offset(-tw, 0f), center + Offset(tw, 0f),
-                strokeWidth = 1.6f * s, cap = StrokeCap.Round
+                center + Offset(-tw, 0f),
+                center + Offset(tw, 0f),
+                strokeWidth = 1.6f * s,
+                cap = StrokeCap.Round,
             )
             drawLine(
                 Color.White.copy(alpha = 0.85f),
-                center + Offset(0f, -tw), center + Offset(0f, tw),
-                strokeWidth = 1.6f * s, cap = StrokeCap.Round
+                center + Offset(0f, -tw),
+                center + Offset(0f, tw),
+                strokeWidth = 1.6f * s,
+                cap = StrokeCap.Round,
             )
         }
     }
 }
 
-/* ---------------- 障碍 ---------------- */
+// ---------------- 障碍 ----------------
 
 private fun DrawScope.drawObstacles(game: BearGame) {
     val s = game.s
@@ -254,25 +267,25 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                 drawOval(
                     color = Color(0xFF0288D1),
                     topLeft = Offset(ob.x, groundY - ob.h),
-                    size = Size(ob.w, ob.h)
+                    size = Size(ob.w, ob.h),
                 )
                 drawOval(
                     color = Color(0xFF4FC3F7),
                     topLeft = Offset(ob.x + ob.w * 0.14f, groundY - ob.h * 0.78f),
-                    size = Size(ob.w * 0.55f, ob.h * 0.45f)
+                    size = Size(ob.w * 0.55f, ob.h * 0.45f),
                 )
                 // 涟漪两圈
                 drawOval(
                     color = Color.White.copy(alpha = 0.55f),
                     topLeft = Offset(ob.x + ob.w * 0.20f, groundY - ob.h * 0.62f),
                     size = Size(ob.w * 0.26f, ob.h * 0.30f),
-                    style = Stroke(width = 1.4f * s)
+                    style = Stroke(width = 1.4f * s),
                 )
                 drawOval(
                     color = Color.White.copy(alpha = 0.35f),
                     topLeft = Offset(ob.x + ob.w * 0.52f, groundY - ob.h * 0.55f),
                     size = Size(ob.w * 0.20f, ob.h * 0.24f),
-                    style = Stroke(width = 1.2f * s)
+                    style = Stroke(width = 1.2f * s),
                 )
             }
             ObstacleType.SNOWMAN -> {
@@ -284,7 +297,7 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                 drawOval(
                     color = Color(0xFF37474F).copy(alpha = 0.18f),
                     topLeft = Offset(ob.x - ob.w * 0.1f, groundY - ob.h * 0.06f),
-                    size = Size(ob.w * 1.2f, ob.h * 0.10f)
+                    size = Size(ob.w * 1.2f, ob.h * 0.10f),
                 )
                 drawCircle(Color.White, bodyR, bodyC)
                 drawCircle(Color.White, headR, headC)
@@ -293,26 +306,28 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                     Color(0xFF8D6E63),
                     bodyC + Offset(-bodyR * 0.8f, -bodyR * 0.2f),
                     bodyC + Offset(-bodyR * 1.5f, -bodyR * 0.9f),
-                    strokeWidth = 3f * s, cap = StrokeCap.Round
+                    strokeWidth = 3f * s,
+                    cap = StrokeCap.Round,
                 )
                 drawLine(
                     Color(0xFF8D6E63),
                     bodyC + Offset(bodyR * 0.8f, -bodyR * 0.2f),
                     bodyC + Offset(bodyR * 1.5f, -bodyR * 0.9f),
-                    strokeWidth = 3f * s, cap = StrokeCap.Round
+                    strokeWidth = 3f * s,
+                    cap = StrokeCap.Round,
                 )
                 // 围巾：颈圈 + 垂下来的尾巴
                 drawRoundRect(
                     Color(0xFFE53935),
                     topLeft = Offset(headC.x - headR * 0.95f, headC.y + headR * 0.42f),
                     size = Size(headR * 1.9f, headR * 0.42f),
-                    cornerRadius = CornerRadius(headR * 0.2f)
+                    cornerRadius = CornerRadius(headR * 0.2f),
                 )
                 drawRoundRect(
                     Color(0xFFC62828),
                     topLeft = Offset(headC.x + headR * 0.25f, headC.y + headR * 0.7f),
                     size = Size(headR * 0.5f, headR * 0.85f),
-                    cornerRadius = CornerRadius(headR * 0.18f)
+                    cornerRadius = CornerRadius(headR * 0.18f),
                 )
                 // 煤球纽扣
                 drawCircle(Color(0xFF37474F), bodyR * 0.11f, bodyC + Offset(0f, -bodyR * 0.25f))
@@ -323,10 +338,12 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                 drawCircle(Color(0xFFFF7043), headR * 0.16f, headC + Offset(0f, headR * 0.22f))
                 drawArc(
                     color = Color(0xFF37474F),
-                    startAngle = 20f, sweepAngle = 140f, useCenter = false,
+                    startAngle = 20f,
+                    sweepAngle = 140f,
+                    useCenter = false,
                     topLeft = Offset(headC.x - headR * 0.4f, headC.y + headR * 0.1f),
                     size = Size(headR * 0.8f, headR * 0.5f),
-                    style = Stroke(width = 1.6f * s, cap = StrokeCap.Round)
+                    style = Stroke(width = 1.6f * s, cap = StrokeCap.Round),
                 )
             }
             ObstacleType.STORM_CLOUD -> {
@@ -341,14 +358,15 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                         color = Color(0xFF90CAF9).copy(alpha = 1f - prog),
                         start = Offset(rx, ry),
                         end = Offset(rx - 2f * s, ry + 8f * s),
-                        strokeWidth = 2.4f * s, cap = StrokeCap.Round
+                        strokeWidth = 2.4f * s,
+                        cap = StrokeCap.Round,
                     )
                 }
                 drawRoundRect(
                     color = Color(0xFF546E7A),
                     topLeft = Offset(ob.x, top + ob.h * 0.25f),
                     size = Size(ob.w, ob.h * 0.55f),
-                    cornerRadius = CornerRadius(ob.h * 0.27f)
+                    cornerRadius = CornerRadius(ob.h * 0.27f),
                 )
                 drawCircle(Color(0xFF78909C), ob.h * 0.33f, Offset(ob.x + ob.w * 0.3f, top + ob.h * 0.3f))
                 drawCircle(Color(0xFF78909C), ob.h * 0.4f, Offset(ob.x + ob.w * 0.62f, top + ob.h * 0.26f))
@@ -357,33 +375,36 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                     Color(0xFF263238),
                     Offset(ob.x + ob.w * 0.26f, top + ob.h * 0.42f),
                     Offset(ob.x + ob.w * 0.40f, top + ob.h * 0.52f),
-                    strokeWidth = 2.4f * s, cap = StrokeCap.Round
+                    strokeWidth = 2.4f * s,
+                    cap = StrokeCap.Round,
                 )
                 drawLine(
                     Color(0xFF263238),
                     Offset(ob.x + ob.w * 0.74f, top + ob.h * 0.42f),
                     Offset(ob.x + ob.w * 0.60f, top + ob.h * 0.52f),
-                    strokeWidth = 2.4f * s, cap = StrokeCap.Round
+                    strokeWidth = 2.4f * s,
+                    cap = StrokeCap.Round,
                 )
                 // 闪电
-                val bolt = Path().apply {
-                    val bx = ob.x + ob.w * 0.5f
-                    val by = top + ob.h * 0.72f
-                    moveTo(bx + 6f * s, by)
-                    lineTo(bx - 8f * s, by + 16f * s)
-                    lineTo(bx, by + 16f * s)
-                    lineTo(bx - 6f * s, by + 30f * s)
-                    lineTo(bx + 8f * s, by + 12f * s)
-                    lineTo(bx + 1f * s, by + 12f * s)
-                    close()
-                }
+                val bolt =
+                    Path().apply {
+                        val bx = ob.x + ob.w * 0.5f
+                        val by = top + ob.h * 0.72f
+                        moveTo(bx + 6f * s, by)
+                        lineTo(bx - 8f * s, by + 16f * s)
+                        lineTo(bx, by + 16f * s)
+                        lineTo(bx - 6f * s, by + 30f * s)
+                        lineTo(bx + 8f * s, by + 12f * s)
+                        lineTo(bx + 1f * s, by + 12f * s)
+                        close()
+                    }
                 drawPath(bolt, Color(0xFFFFD54F))
             }
         }
     }
 }
 
-/* ---------------- 粒子 / 飘分 ---------------- */
+// ---------------- 粒子 / 飘分 ----------------
 
 private fun DrawScope.drawParticles(game: BearGame) {
     val s = game.s
@@ -393,7 +414,7 @@ private fun DrawScope.drawParticles(game: BearGame) {
             color = p.color,
             radius = 5f * s * (k * 0.6f + 0.4f),
             center = Offset(p.x, p.y),
-            alpha = k
+            alpha = k,
         )
     }
 }
@@ -406,12 +427,16 @@ private fun DrawScope.drawFloatTexts(game: BearGame) {
     }
 }
 
-/* ---------------- 小熊 ---------------- */
+// ---------------- 小熊 ----------------
+
 /**
  * 跑酷小熊姿态计算：跑步=帧动画（步频切帧）+ 起伏摇滚；起跳=跳帧 + 前倾拉伸；
  * 落地=挤压回弹；二段跳=前空翻；死亡=翻滚淡出 + 眩晕星星。绘制走 [drawGameBear]。
  */
-private fun DrawScope.drawAnimatedBear(game: BearGame, sprites: BearSprites) {
+private fun DrawScope.drawAnimatedBear(
+    game: BearGame,
+    sprites: BearSprites,
+) {
     val s = game.s
     val bs = game.bearSize
     val cx = game.bearX + bs / 2
@@ -429,56 +454,63 @@ private fun DrawScope.drawAnimatedBear(game: BearGame, sprites: BearSprites) {
         if (alpha <= 0f) return
     }
     val airborne = !game.grounded && !dead
-    val tilt = if (airborne) {
-        (game.bearVY / (1400f * s)).coerceIn(-1f, 1f) * 14f
-    } else if (!dead) {
-        sin(game.runPhase) * 3f // 跑步重心轻微摇摆
-    } else {
-        0f
-    }
+    val tilt =
+        if (airborne) {
+            (game.bearVY / (1400f * s)).coerceIn(-1f, 1f) * 14f
+        } else if (!dead) {
+            sin(game.runPhase) * 3f // 跑步重心轻微摇摆
+        } else {
+            0f
+        }
     // 二段跳前空翻：0.55s 转满一圈
-    val flip = if (game.flipT >= 0f) {
-        val k = (game.flipT / 0.55f).coerceIn(0f, 1f)
-        val e = if (k < 0.5f) 2f * k * k else 1f - (-2f * k + 2f) * (-2f * k + 2f) / 2f
-        e * 360f
-    } else {
-        0f
-    }
+    val flip =
+        if (game.flipT >= 0f) {
+            val k = (game.flipT / 0.55f).coerceIn(0f, 1f)
+            val e = if (k < 0.5f) 2f * k * k else 1f - (-2f * k + 2f) * (-2f * k + 2f) / 2f
+            e * 360f
+        } else {
+            0f
+        }
     // 空中拉伸 / 落地挤压
-    val stretch = if (airborne && game.flipT < 0f) {
-        1f + min(abs(game.bearVY) / (2200f * s), 0.13f)
-    } else {
-        1f
-    }
-    val squash = if (game.squashT in 0f..0.16f) {
-        val k = game.squashT / 0.16f
-        0.80f + 0.20f * (1f - (1f - k) * (1f - k))
-    } else {
-        1f
-    }
+    val stretch =
+        if (airborne && game.flipT < 0f) {
+            1f + min(abs(game.bearVY) / (2200f * s), 0.13f)
+        } else {
+            1f
+        }
+    val squash =
+        if (game.squashT in 0f..0.16f) {
+            val k = game.squashT / 0.16f
+            0.80f + 0.20f * (1f - (1f - k) * (1f - k))
+        } else {
+            1f
+        }
     // 帧选择：上升跳帧、下落下落帧、落地触地帧、地面六拍跑步循环
-    val frame = when {
-        dead -> BearFrame.FALL
-        airborne && game.bearVY < 0f -> BearFrame.JUMP
-        airborne -> BearFrame.FALL
-        game.squashT in 0f..0.16f -> BearFrame.LAND
-        else -> runCycleFrame(game.runPhase)
-    }
+    val frame =
+        when {
+            dead -> BearFrame.FALL
+            airborne && game.bearVY < 0f -> BearFrame.JUMP
+            airborne -> BearFrame.FALL
+            game.squashT in 0f..0.16f -> BearFrame.LAND
+            else -> runCycleFrame(game.runPhase)
+        }
 
     // 地面软阴影：跳得越高越淡越小
     if (!dead) {
         val hFrac = ((game.groundY - (game.bearY + bs)) / (280f * s)).coerceIn(0f, 1f)
         drawOval(
             color = Color(0xFF1A2A12),
-            topLeft = Offset(
-                cx - bs * 0.42f * (1f - 0.35f * hFrac),
-                game.groundY - bs * 0.085f * (1f - 0.35f * hFrac)
-            ),
-            size = Size(
-                bs * 0.84f * (1f - 0.35f * hFrac),
-                bs * 0.17f * (1f - 0.35f * hFrac)
-            ),
-            alpha = 0.16f * (1f - 0.6f * hFrac)
+            topLeft =
+                Offset(
+                    cx - bs * 0.42f * (1f - 0.35f * hFrac),
+                    game.groundY - bs * 0.085f * (1f - 0.35f * hFrac),
+                ),
+            size =
+                Size(
+                    bs * 0.84f * (1f - 0.35f * hFrac),
+                    bs * 0.17f * (1f - 0.35f * hFrac),
+                ),
+            alpha = 0.16f * (1f - 0.6f * hFrac),
         )
     }
 
@@ -487,14 +519,15 @@ private fun DrawScope.drawAnimatedBear(game: BearGame, sprites: BearSprites) {
         centerX = cx,
         centerY = cy,
         bs = bs,
-        pose = BearPose(
-            time = game.time,
-            dead = dead,
-            frame = frame,
-            bodyTilt = tilt + tumble + flip,
-            scaleX = (2f - stretch) * (1f + (1f - squash) * 0.8f),
-            scaleY = stretch * squash,
-            alpha = alpha
-        )
+        pose =
+            BearPose(
+                time = game.time,
+                dead = dead,
+                frame = frame,
+                bodyTilt = tilt + tumble + flip,
+                scaleX = (2f - stretch) * (1f + (1f - squash) * 0.8f),
+                scaleY = stretch * squash,
+                alpha = alpha,
+            ),
     )
 }

@@ -1,6 +1,8 @@
 package com.xiaoxiong.weather.ui.weather
 
 import android.Manifest
+import android.app.Activity
+import android.app.Application
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -44,9 +46,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
-import android.app.Activity
-import android.app.Application
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
@@ -58,20 +57,22 @@ import com.xiaoxiong.weather.ui.settings.SettingsScreen
 import com.xiaoxiong.weather.ui.settings.TodayCardsSettingsScreen
 import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(
     settingsStore: AppSettingsStore,
-    viewModel: WeatherViewModel? = null
+    viewModel: WeatherViewModel? = null,
 ) {
     val app = LocalContext.current.applicationContext as Application
-    val resolvedViewModel = viewModel ?: composeViewModel(
-        factory = remember(app) { WeatherViewModelFactory(app) }
-    )
+    val resolvedViewModel =
+        viewModel ?: composeViewModel(
+            factory = remember(app) { WeatherViewModelFactory(app) },
+        )
     WeatherScreenContent(
         settingsStore = settingsStore,
-        viewModel = resolvedViewModel
+        viewModel = resolvedViewModel,
     )
 }
 
@@ -79,7 +80,7 @@ fun WeatherScreen(
 @Composable
 private fun WeatherScreenContent(
     settingsStore: AppSettingsStore,
-    viewModel: WeatherViewModel
+    viewModel: WeatherViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
@@ -99,28 +100,31 @@ private fun WeatherScreenContent(
     // 等 DataStore 真实值读出前不渲染隐私门，避免老用户冷启动闪一下
     var privacyGateResolved by remember { mutableStateOf(false) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { result ->
-        val locationGranted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        viewModel.onPermissionResult(locationGranted)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            result[Manifest.permission.POST_NOTIFICATIONS]?.let { granted ->
-                viewModel.onNotificationPermissionResult(granted)
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) { result ->
+            val locationGranted =
+                result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                    result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            viewModel.onPermissionResult(locationGranted)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                result[Manifest.permission.POST_NOTIFICATIONS]?.let { granted ->
+                    viewModel.onNotificationPermissionResult(granted)
+                }
             }
         }
-    }
 
     fun requestRuntimePermissionsIfNeeded() {
         if (!viewModel.consumeRuntimePermissionRequest()) return
-        val permissions = buildList {
-            add(Manifest.permission.ACCESS_FINE_LOCATION)
-            add(Manifest.permission.ACCESS_COARSE_LOCATION)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }.toTypedArray()
+        val permissions =
+            buildList {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    add(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }.toTypedArray()
         permissionLauncher.launch(permissions)
     }
 
@@ -154,7 +158,7 @@ private fun WeatherScreenContent(
                 onDebugUnlocked = {
                     viewModel.enableDebugMode()
                     overlay = OverlayScreen.Debug
-                }
+                },
             )
             return
         }
@@ -162,7 +166,7 @@ private fun WeatherScreenContent(
             TodayCardsSettingsScreen(
                 settingsStore = settingsStore,
                 scope = scope,
-                onBack = { overlay = OverlayScreen.Settings }
+                onBack = { overlay = OverlayScreen.Settings },
             )
             return
         }
@@ -182,7 +186,7 @@ private fun WeatherScreenContent(
                     viewModel.exitDebugMode()
                     overlay = OverlayScreen.None
                 },
-                onClearOverride = viewModel::clearDebugOverride
+                onClearOverride = viewModel::clearDebugOverride,
             )
             return
         }
@@ -202,15 +206,16 @@ private fun WeatherScreenContent(
             },
             // 不同意则退出 App：合规要求给用户提供明确的拒绝路径
             onDecline = { (context as? Activity)?.finish() },
-            onReadPrivacy = { overlay = OverlayScreen.Privacy }
+            onReadPrivacy = { overlay = OverlayScreen.Privacy },
         )
     }
 
-    val tabs = listOf(
-        TabItem(stringResource(R.string.tab_today), Icons.Default.WbSunny),
-        TabItem(stringResource(R.string.tab_hourly), Icons.Default.Schedule),
-        TabItem(stringResource(R.string.tab_daily), Icons.Default.CalendarMonth)
-    )
+    val tabs =
+        listOf(
+            TabItem(stringResource(R.string.tab_today), Icons.Default.WbSunny),
+            TabItem(stringResource(R.string.tab_hourly), Icons.Default.Schedule),
+            TabItem(stringResource(R.string.tab_daily), Icons.Default.CalendarMonth),
+        )
 
     LaunchedEffect(state.errorMessage) {
         val message = state.errorMessage ?: return@LaunchedEffect
@@ -227,15 +232,17 @@ private fun WeatherScreenContent(
     val favorite = viewModel.isFavorite(state.selectedCity, favorites)
     // 折线图横向拖动选点时，暂时关闭左右翻页，避免手势被 Pager 抢走
     var pagerScrollEnabled by remember { mutableStateOf(true) }
-    val onChartDragStateChange = remember {
-        { dragging: Boolean -> pagerScrollEnabled = !dragging }
-    }
+    val onChartDragStateChange =
+        remember {
+            { dragging: Boolean -> pagerScrollEnabled = !dragging }
+        }
 
     // 整屏背景跟随当前天气场景/昼夜渐变；无数据时传 null 回落静态渐变
     val bgCurrent = state.weather?.current
-    val bgSceneCode = bgCurrent?.let {
-        WeatherCodes.displayCode(it.weatherCode, WeatherCodes.intensityPrecipMmPerHour(it))
-    }
+    val bgSceneCode =
+        bgCurrent?.let {
+            WeatherCodes.displayCode(it.weatherCode, WeatherCodes.intensityPrecipMmPerHour(it))
+        }
 
     CompositionLocalProvider(LocalTemperatureUnit provides appSettings.temperatureUnit) {
         // 放在温度单位 Provider 内，分享卡片才能跟设置一致（°C / °F）
@@ -243,7 +250,7 @@ private fun WeatherScreenContent(
             state.weather?.let { weather ->
                 ShareWeatherCardDialog(
                     snapshot = weather,
-                    onDismiss = { showShareCard = false }
+                    onDismiss = { showShareCard = false },
                 )
             } ?: run { showShareCard = false }
         }
@@ -251,7 +258,7 @@ private fun WeatherScreenContent(
         AppScreenBackground(
             modifier = Modifier.fillMaxSize(),
             sceneCode = bgSceneCode,
-            isDay = bgCurrent?.isDay
+            isDay = bgCurrent?.isDay,
         ) {
             Scaffold(
                 containerColor = Color.Transparent,
@@ -265,20 +272,20 @@ private fun WeatherScreenContent(
                                 permissionLauncher.launch(
                                     arrayOf(
                                         Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
+                                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                                    ),
                                 )
                             }
                         },
                         onToggleFavorite = viewModel::toggleFavorite,
                         onShare = { showShareCard = true },
-                        onOpenSettings = { overlay = OverlayScreen.Settings }
+                        onOpenSettings = { overlay = OverlayScreen.Settings },
                     )
                 },
                 bottomBar = {
                     NavigationBar(
                         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                        tonalElevation = 0.dp
+                        tonalElevation = 0.dp,
                     ) {
                         tabs.forEachIndexed { index, tab ->
                             NavigationBarItem(
@@ -287,17 +294,18 @@ private fun WeatherScreenContent(
                                     scope.launch { pagerState.animateScrollToPage(index) }
                                 },
                                 icon = { Icon(tab.icon, contentDescription = tab.title) },
-                                label = { Text(tab.title) }
+                                label = { Text(tab.title) },
                             )
                         }
                     }
                 },
-                snackbarHost = { SnackbarHost(snackbarHostState) }
+                snackbarHost = { SnackbarHost(snackbarHostState) },
             ) { innerPadding ->
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
                 ) {
                     SearchHeader(
                         query = state.query,
@@ -312,38 +320,43 @@ private fun WeatherScreenContent(
                             focusManager.clearFocus()
                             viewModel.selectCity(city)
                         },
-                        onClearRecent = viewModel::clearRecentCities
+                        onClearRecent = viewModel::clearRecentCities,
                     )
 
                     if (state.debugEnabled) {
                         DebugModeBanner(
                             onOpenEditor = { overlay = OverlayScreen.Debug },
-                            onExit = viewModel::exitDebugMode
+                            onExit = viewModel::exitDebugMode,
                         )
                     }
 
                     PullToRefreshBox(
                         isRefreshing = state.isLoadingWeather || state.isLocating,
                         onRefresh = viewModel::refresh,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
                     ) {
                         if ((state.isLoadingWeather || state.isLocating) && state.weather == null) {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = 56.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(top = 56.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
                                     stringResource(
-                                        if (state.isLocating) R.string.loading_locate
-                                        else R.string.loading_weather
+                                        if (state.isLocating) {
+                                            R.string.loading_locate
+                                        } else {
+                                            R.string.loading_weather
+                                        },
                                     ),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         } else {
@@ -352,27 +365,30 @@ private fun WeatherScreenContent(
                                 state = pagerState,
                                 modifier = Modifier.fillMaxSize(),
                                 beyondViewportPageCount = 0,
-                                userScrollEnabled = pagerScrollEnabled
+                                userScrollEnabled = pagerScrollEnabled,
                             ) { page ->
                                 when (page) {
-                                    0 -> TodayPage(
-                                        weather = state.weather,
-                                        isOffline = state.isOffline,
-                                        lastUpdatedText = state.lastUpdatedText,
-                                        radarMapRepository = viewModel.radarMapRepository,
-                                        cardLayout = appSettings.todayCards
-                                    )
-                                    1 -> HourlyPage(
-                                        weather = state.weather,
-                                        isOffline = state.isOffline,
-                                        lastUpdatedText = state.lastUpdatedText,
-                                        onChartDragStateChange = onChartDragStateChange
-                                    )
-                                    else -> DailyPage(
-                                        weather = state.weather,
-                                        isOffline = state.isOffline,
-                                        lastUpdatedText = state.lastUpdatedText
-                                    )
+                                    0 ->
+                                        TodayPage(
+                                            weather = state.weather,
+                                            isOffline = state.isOffline,
+                                            lastUpdatedText = state.lastUpdatedText,
+                                            radarMapRepository = viewModel.radarMapRepository,
+                                            cardLayout = appSettings.todayCards,
+                                        )
+                                    1 ->
+                                        HourlyPage(
+                                            weather = state.weather,
+                                            isOffline = state.isOffline,
+                                            lastUpdatedText = state.lastUpdatedText,
+                                            onChartDragStateChange = onChartDragStateChange,
+                                        )
+                                    else ->
+                                        DailyPage(
+                                            weather = state.weather,
+                                            isOffline = state.isOffline,
+                                            lastUpdatedText = state.lastUpdatedText,
+                                        )
                                 }
                             }
                         }
@@ -388,7 +404,7 @@ private fun WeatherScreenContent(
             sceneCode = bgSceneCode,
             isDay = bgCurrent?.isDay,
             pagerState = pagerState,
-            scope = scope
+            scope = scope,
         )
     }
 }

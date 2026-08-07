@@ -11,7 +11,6 @@ import org.junit.Test
 import java.util.Locale
 
 class WeatherCodesTest {
-
     @Before
     fun setLocale() {
         Locale.setDefault(Locale.US)
@@ -49,17 +48,19 @@ class WeatherCodesTest {
 
     @Test
     fun intensityPrecipMmPerHour_usesStoredHourlyBucket() {
-        val current = com.xiaoxiong.weather.data.CurrentWeather(
-            time = "2026-08-04T12:00",
-            precipitationMm = 0.5, // 短窗口原始值，分档忽略
-            precipitationIntervalSeconds = 900,
-            precipitationRateMmPerHour = 7.0 // 整点小时桶
-        )
+        val current =
+            com.xiaoxiong.weather.data.CurrentWeather(
+                time = "2026-08-04T12:00",
+                precipitationMm = 0.5, // 短窗口原始值，分档忽略
+                precipitationIntervalSeconds = 900,
+                precipitationRateMmPerHour = 7.0, // 整点小时桶
+            )
         assertEquals(7.0, WeatherCodes.intensityPrecipMmPerHour(current)!!, 1e-6)
         assertNull(
             WeatherCodes.intensityPrecipMmPerHour(
-                com.xiaoxiong.weather.data.CurrentWeather(time = "2026-08-04T12:00")
-            )
+                com.xiaoxiong.weather.data
+                    .CurrentWeather(time = "2026-08-04T12:00"),
+            ),
         )
     }
 
@@ -115,7 +116,7 @@ class WeatherCodesTest {
         assertEquals(WeatherCodes.SnowIntensity.BLIZZARD, WeatherCodes.snowIntensity(71, 5.5))
         assertEquals(
             WeatherCodes.SnowIntensity.BLIZZARD,
-            WeatherCodes.snowIntensity(71, 0.2, dailyPrecipSumMm = 10.0)
+            WeatherCodes.snowIntensity(71, 0.2, dailyPrecipSumMm = 10.0),
         )
         assertEquals(WeatherCodes.SnowIntensity.NONE, WeatherCodes.snowIntensity(61, 3.0))
     }
@@ -139,7 +140,7 @@ class WeatherCodesTest {
         assertEquals("🌧️", WeatherCodes.emoji(WeatherCodes.displayCode(3, 0.5)))
         assertEquals(
             WeatherLauncherIcon.Style.RAINY,
-            WeatherLauncherIcon.fromWeather(3, 0.5)
+            WeatherLauncherIcon.fromWeather(3, 0.5),
         )
 
         assertEquals(63, WeatherCodes.displayCode(0, 2.0))

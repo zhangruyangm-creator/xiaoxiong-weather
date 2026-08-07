@@ -34,23 +34,23 @@ import com.xiaoxiong.weather.data.HourlyWeather
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.theme.AccentCoral
-import com.xiaoxiong.weather.util.parseFlexibleDateTime
 import com.xiaoxiong.weather.util.formatHourLabel
 import com.xiaoxiong.weather.util.formatTemperature
 import com.xiaoxiong.weather.util.indexOfCurrentHour
 import com.xiaoxiong.weather.util.isSameHour
+import com.xiaoxiong.weather.util.parseFlexibleDateTime
 
 @Composable
 internal fun HourlyPage(
     weather: WeatherSnapshot?,
     isOffline: Boolean,
     lastUpdatedText: String?,
-    onChartDragStateChange: (Boolean) -> Unit = {}
+    onChartDragStateChange: (Boolean) -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (weather == null) {
             item { EmptyHint(stringResource(R.string.hourly_empty)) }
@@ -63,26 +63,26 @@ internal fun HourlyPage(
             SectionHeader(
                 title = stringResource(R.string.hourly_section_title),
                 subtitle = stringResource(R.string.hourly_section_sub),
-                icon = Icons.Filled.Schedule
+                icon = Icons.Filled.Schedule,
             )
         }
         item {
             PrecipitationBarChart(
                 hourly = weather.hourly,
-                currentTime = weather.current.time
+                currentTime = weather.current.time,
             )
         }
         item {
             HourlyStrip(
                 hourly = weather.hourly,
-                currentTime = weather.current.time
+                currentTime = weather.current.time,
             )
         }
         item {
             HourlyChartSection(
                 hourly = weather.hourly,
                 currentTime = weather.current.time,
-                onDragStateChange = onChartDragStateChange
+                onDragStateChange = onChartDragStateChange,
             )
         }
     }
@@ -91,15 +91,17 @@ internal fun HourlyPage(
 @Composable
 internal fun HourlyStrip(
     hourly: List<HourlyWeather>,
-    currentTime: String
+    currentTime: String,
 ) {
-    val currentIndex = remember(hourly, currentTime) {
-        indexOfCurrentHour(hourly.map { it.time }, currentTime)
-            .coerceIn(0, (hourly.size - 1).coerceAtLeast(0))
-    }
-    val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = currentIndex
-    )
+    val currentIndex =
+        remember(hourly, currentTime) {
+            indexOfCurrentHour(hourly.map { it.time }, currentTime)
+                .coerceIn(0, (hourly.size - 1).coerceAtLeast(0))
+        }
+    val listState =
+        rememberLazyListState(
+            initialFirstVisibleItemIndex = currentIndex,
+        )
     LaunchedEffect(hourly, currentTime, currentIndex) {
         if (hourly.isEmpty()) return@LaunchedEffect
         listState.scrollToItem(currentIndex)
@@ -107,62 +109,67 @@ internal fun HourlyStrip(
 
     val labelNow = stringResource(R.string.label_now)
     val humidityNa = stringResource(R.string.humidity_short_na)
-    val nowBrush = remember {
-        Brush.verticalGradient(listOf(AccentCoral.copy(alpha = 0.9f), AccentCoral))
-    }
+    val nowBrush =
+        remember {
+            Brush.verticalGradient(listOf(AccentCoral.copy(alpha = 0.9f), AccentCoral))
+        }
     val surface = MaterialTheme.colorScheme.surface
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val idleBrush = remember(surface, surfaceVariant) {
-        Brush.verticalGradient(
-            listOf(surface, surfaceVariant.copy(alpha = 0.65f))
-        )
-    }
+    val idleBrush =
+        remember(surface, surfaceVariant) {
+            Brush.verticalGradient(
+                listOf(surface, surfaceVariant.copy(alpha = 0.65f)),
+            )
+        }
     val tempUnit = LocalTemperatureUnit.current
 
     LazyRow(
         state = listState,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(
             items = hourly,
-            key = { it.time }
+            key = { it.time },
         ) { item ->
             val isNow = isSameHour(item.time, currentTime)
             Column(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(if (isNow) nowBrush else idleBrush)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(if (isNow) nowBrush else idleBrush)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 val fg = if (isNow) Color.White else MaterialTheme.colorScheme.onSurface
                 Text(
                     text = if (isNow) labelNow else formatHourLabel(item.time),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = fg
+                    color = fg,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 WeatherIcon(
                     code = item.weatherCode,
                     isDay = parseFlexibleDateTime(item.time)?.hour?.let { it in 6..18 } ?: true,
                     modifier = Modifier.size(28.dp),
-                    precipMmPerHour = item.precipitationMm
+                    precipMmPerHour = item.precipitationMm,
                 )
                 Text(
                     formatTemperature(item.temperatureC, tempUnit),
                     fontWeight = FontWeight.SemiBold,
-                    color = fg
+                    color = fg,
                 )
                 Text(
-                    text = item.humidityPercent?.let { stringResource(R.string.humidity_short, it) }
-                        ?: humidityNa,
+                    text =
+                        item.humidityPercent?.let { stringResource(R.string.humidity_short, it) }
+                            ?: humidityNa,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isNow) {
-                        Color.White.copy(alpha = 0.9f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    color =
+                        if (isNow) {
+                            Color.White.copy(alpha = 0.9f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                 )
             }
         }

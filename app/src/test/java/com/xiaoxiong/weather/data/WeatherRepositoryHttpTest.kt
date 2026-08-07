@@ -19,7 +19,6 @@ import org.mockito.Mockito
 import java.util.concurrent.TimeUnit
 
 class WeatherRepositoryHttpTest {
-
     private lateinit var server: MockWebServer
     private lateinit var repository: WeatherRepository
 
@@ -28,18 +27,21 @@ class WeatherRepositoryHttpTest {
         server = MockWebServer()
         server.start()
         val base = server.url("v1").toString().trimEnd('/')
-        val client = OkHttpClient.Builder()
-            .connectTimeout(2, TimeUnit.SECONDS)
-            .readTimeout(2, TimeUnit.SECONDS)
-            .build()
-        repository = WeatherRepository(
-            resources = mockResources(),
-            client = client,
-            searchClient = client,
-            geocodingBase = base,
-            forecastBase = base,
-            airQualityBase = base
-        )
+        val client =
+            OkHttpClient
+                .Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(2, TimeUnit.SECONDS)
+                .build()
+        repository =
+            WeatherRepository(
+                resources = mockResources(),
+                client = client,
+                searchClient = client,
+                geocodingBase = base,
+                forecastBase = base,
+                airQualityBase = base,
+            )
     }
 
     @After
@@ -54,7 +56,10 @@ class WeatherRepositoryHttpTest {
         return resources
     }
 
-    private fun pathDispatcher(forecast: MockResponse, air: MockResponse): Dispatcher =
+    private fun pathDispatcher(
+        forecast: MockResponse,
+        air: MockResponse,
+    ): Dispatcher =
         object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 val path = request.path ?: return MockResponse().setResponseCode(404)
@@ -67,128 +72,139 @@ class WeatherRepositoryHttpTest {
         }
 
     @Test
-    fun searchCities_httpError_throwsAppErrorHttp() = runBlocking {
-        server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+    fun searchCities_httpError_throwsAppErrorHttp() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
 
-        try {
-            repository.searchCities("Jinan")
-            throw AssertionError("expected AppError.Http")
-        } catch (e: AppError.Http) {
-            assertEquals(503, e.code)
+            try {
+                repository.searchCities("Jinan")
+                throw AssertionError("expected AppError.Http")
+            } catch (e: AppError.Http) {
+                assertEquals(503, e.code)
+            }
         }
-    }
 
     @Test
-    fun searchCities_success_parsesResults() = runBlocking {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody(
-                    """
-                    {
-                      "results": [
+    fun searchCities_success_parsesResults() =
+        runBlocking {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(
+                        """
                         {
-                          "id": 1,
-                          "name": "济南",
-                          "latitude": 36.65,
-                          "longitude": 117.12,
-                          "country": "中国",
-                          "admin1": "山东"
+                          "results": [
+                            {
+                              "id": 1,
+                              "name": "济南",
+                              "latitude": 36.65,
+                              "longitude": 117.12,
+                              "country": "中国",
+                              "admin1": "山东"
+                            }
+                          ]
                         }
-                      ]
-                    }
-                    """.trimIndent()
+                        """.trimIndent(),
+                    ),
+            )
+
+            val cities = repository.searchCities("Jinan")
+            assertEquals(1, cities.size)
+            assertEquals("济南", cities[0].name)
+            assertEquals(36.65, cities[0].latitude, 0.001)
+            val recorded = server.takeRequest()
+            assertTrue(recorded.path!!.contains("search"))
+            assertEquals("Jinan", recorded.requestUrl?.queryParameter("name"))
+        }
+
+    @Test
+    fun fetchWeather_success_mapsSnapshotAndGeneratesAlerts() =
+        runBlocking {
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(200).setBody(FORECAST_JSON),
+                    air = MockResponse().setResponseCode(200).setBody(AIR_JSON),
                 )
-        )
 
-        val cities = repository.searchCities("Jinan")
-        assertEquals(1, cities.size)
-        assertEquals("济南", cities[0].name)
-        assertEquals(36.65, cities[0].latitude, 0.001)
-        val recorded = server.takeRequest()
-        assertTrue(recorded.path!!.contains("search"))
-        assertEquals("Jinan", recorded.requestUrl?.queryParameter("name"))
-    }
+            val snapshot = repository.fetchWeather(WeatherFixtures.city("济南"))
 
-    @Test
-    fun fetchWeather_success_mapsSnapshotAndGeneratesAlerts() = runBlocking {
-        server.dispatcher = pathDispatcher(
-            forecast = MockResponse().setResponseCode(200).setBody(FORECAST_JSON),
-            air = MockResponse().setResponseCode(200).setBody(AIR_JSON)
-        )
+            assertEquals(22.0, snapshot.current.temperatureC)
+            assertEquals(95, snapshot.current.weatherCode)
+            assertEquals(21.0, snapshot.current.apparentTemperatureC)
+            assertEquals(60, snapshot.current.humidityPercent)
+            assertTrue(snapshot.current.isDay == true)
+            assertEquals(6, snapshot.hourly.size)
+            assertEquals(7, snapshot.daily.size)
+            assertEquals(50.0, snapshot.elevationMeters)
+            assertEquals("Asia/Shanghai", snapshot.timezone)
 
-        val snapshot = repository.fetchWeather(WeatherFixtures.city("济南"))
+            assertEquals(75, snapshot.airQuality?.europeanAqi)
+            assertEquals(9.0, snapshot.airQuality?.uvIndex)
+            assertEquals(35.0, snapshot.airQuality?.pm25)
 
-        assertEquals(22.0, snapshot.current.temperatureC)
-        assertEquals(95, snapshot.current.weatherCode)
-        assertEquals(21.0, snapshot.current.apparentTemperatureC)
-        assertEquals(60, snapshot.current.humidityPercent)
-        assertTrue(snapshot.current.isDay == true)
-        assertEquals(6, snapshot.hourly.size)
-        assertEquals(7, snapshot.daily.size)
-        assertEquals(50.0, snapshot.elevationMeters)
-        assertEquals("Asia/Shanghai", snapshot.timezone)
+            assertTrue(snapshot.alerts.any { it.kind == AlertKind.STORM })
+            assertTrue(snapshot.alerts.any { it.kind == AlertKind.UV })
 
-        assertEquals(75, snapshot.airQuality?.europeanAqi)
-        assertEquals(9.0, snapshot.airQuality?.uvIndex)
-        assertEquals(35.0, snapshot.airQuality?.pm25)
-
-        assertTrue(snapshot.alerts.any { it.kind == AlertKind.STORM })
-        assertTrue(snapshot.alerts.any { it.kind == AlertKind.UV })
-
-        assertNotNull(snapshot.advice)
-        assertEquals(8, snapshot.lifeIndices.size)
-        assertEquals(2, server.requestCount)
-    }
-
-    @Test
-    fun fetchWeather_airQualityFailure_returnsSnapshotWithNullAir() = runBlocking {
-        server.dispatcher = pathDispatcher(
-            forecast = MockResponse().setResponseCode(200).setBody(FORECAST_JSON),
-            air = MockResponse().setResponseCode(500).setBody("boom")
-        )
-
-        val snapshot = repository.fetchWeather(WeatherFixtures.city("济南"))
-
-        assertNull(snapshot.airQuality)
-        assertEquals(22.0, snapshot.current.temperatureC)
-        assertEquals(95, snapshot.current.weatherCode)
-        assertTrue(snapshot.alerts.any { it.kind == AlertKind.STORM })
-    }
-
-    @Test
-    fun fetchWeather_forecastHttpError_throwsAppErrorHttp() = runBlocking {
-        server.dispatcher = pathDispatcher(
-            forecast = MockResponse().setResponseCode(503).setBody("unavailable"),
-            air = MockResponse().setResponseCode(200).setBody(AIR_JSON)
-        )
-
-        try {
-            repository.fetchWeather(WeatherFixtures.city("济南"))
-            throw AssertionError("expected AppError.Http")
-        } catch (e: AppError.Http) {
-            assertEquals(503, e.code)
+            assertNotNull(snapshot.advice)
+            assertEquals(8, snapshot.lifeIndices.size)
+            assertEquals(2, server.requestCount)
         }
-    }
 
     @Test
-    fun fetchWeather_forecastMalformed_throwsAppErrorDataFormat() = runBlocking {
-        server.dispatcher = pathDispatcher(
-            forecast = MockResponse().setResponseCode(200).setBody("not-json"),
-            air = MockResponse().setResponseCode(200).setBody(AIR_JSON)
-        )
+    fun fetchWeather_airQualityFailure_returnsSnapshotWithNullAir() =
+        runBlocking {
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(200).setBody(FORECAST_JSON),
+                    air = MockResponse().setResponseCode(500).setBody("boom"),
+                )
 
-        try {
-            repository.fetchWeather(WeatherFixtures.city("济南"))
-            throw AssertionError("expected AppError.DataFormat")
-        } catch (e: AppError.DataFormat) {
-            // 类型化错误：UI 可据此展示「数据异常」而非技术堆栈
-            assertNotNull(e.cause)
+            val snapshot = repository.fetchWeather(WeatherFixtures.city("济南"))
+
+            assertNull(snapshot.airQuality)
+            assertEquals(22.0, snapshot.current.temperatureC)
+            assertEquals(95, snapshot.current.weatherCode)
+            assertTrue(snapshot.alerts.any { it.kind == AlertKind.STORM })
         }
-    }
+
+    @Test
+    fun fetchWeather_forecastHttpError_throwsAppErrorHttp() =
+        runBlocking {
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(503).setBody("unavailable"),
+                    air = MockResponse().setResponseCode(200).setBody(AIR_JSON),
+                )
+
+            try {
+                repository.fetchWeather(WeatherFixtures.city("济南"))
+                throw AssertionError("expected AppError.Http")
+            } catch (e: AppError.Http) {
+                assertEquals(503, e.code)
+            }
+        }
+
+    @Test
+    fun fetchWeather_forecastMalformed_throwsAppErrorDataFormat() =
+        runBlocking {
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(200).setBody("not-json"),
+                    air = MockResponse().setResponseCode(200).setBody(AIR_JSON),
+                )
+
+            try {
+                repository.fetchWeather(WeatherFixtures.city("济南"))
+                throw AssertionError("expected AppError.DataFormat")
+            } catch (e: AppError.DataFormat) {
+                // 类型化错误：UI 可据此展示「数据异常」而非技术堆栈
+                assertNotNull(e.cause)
+            }
+        }
 
     companion object {
-        private val FORECAST_JSON = """
+        private val FORECAST_JSON =
+            """
             {
               "latitude": 36.65,
               "longitude": 117.12,
@@ -234,9 +250,10 @@ class WeatherRepositoryHttpTest {
                 "wind_speed_10m_max": [20.0,15.0,15.0,15.0,15.0,15.0,15.0]
               }
             }
-        """.trimIndent()
+            """.trimIndent()
 
-        private val AIR_JSON = """
+        private val AIR_JSON =
+            """
             {
               "latitude": 36.65,
               "longitude": 117.12,
@@ -253,6 +270,6 @@ class WeatherRepositoryHttpTest {
                 "ozone": 60.0
               }
             }
-        """.trimIndent()
+            """.trimIndent()
     }
 }

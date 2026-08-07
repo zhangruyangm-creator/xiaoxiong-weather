@@ -3,7 +3,6 @@ package com.xiaoxiong.weather.ui.weather
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,7 +43,7 @@ import kotlin.math.max
 private data class PrecipBar(
     val item: HourlyWeather,
     val isFuture: Boolean,
-    val isNow: Boolean
+    val isNow: Boolean,
 )
 
 /**
@@ -54,117 +53,128 @@ private data class PrecipBar(
 fun PrecipitationBarChart(
     hourly: List<HourlyWeather>,
     currentTime: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val bars = remember(hourly, currentTime) {
-        buildPrecipBars(hourly, currentTime)
-    }
+    val bars =
+        remember(hourly, currentTime) {
+            buildPrecipBars(hourly, currentTime)
+        }
 
     SoftCard(modifier = modifier.fillMaxWidth()) {
         SectionHeader(
             title = stringResource(R.string.precip_chart_title),
             subtitle = stringResource(R.string.precip_chart_sub),
-            icon = Icons.Filled.WaterDrop
+            icon = Icons.Filled.WaterDrop,
         )
         Spacer(modifier = Modifier.height(8.dp))
 
         if (bars.isEmpty()) {
             Text(
                 stringResource(R.string.precip_chart_empty),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             return@SoftCard
         }
 
-        val maxPrecip = remember(bars) {
-            max(bars.maxOf { it.item.precipitationMm ?: 0.0 }, 0.5)
-        }
-        val (pastTotal, futureTotal, pastCount, futureCount) = remember(bars) {
-            var pastSum = 0.0
-            var futureSum = 0.0
-            var pastN = 0
-            var futureN = 0
-            for (bar in bars) {
-                val mm = bar.item.precipitationMm ?: 0.0
-                if (bar.isFuture) {
-                    futureSum += mm
-                    futureN++
-                } else {
-                    pastSum += mm
-                    pastN++
-                }
+        val maxPrecip =
+            remember(bars) {
+                max(bars.maxOf { it.item.precipitationMm ?: 0.0 }, 0.5)
             }
-            Quad(pastSum, futureSum, pastN, futureN)
-        }
-        val summary = buildString {
-            append(
-                if (pastTotal <= 0.01) {
-                    stringResource(R.string.precip_past_dry)
-                } else {
-                    stringResource(R.string.precip_past_mm, pastTotal)
+        val (pastTotal, futureTotal, pastCount, futureCount) =
+            remember(bars) {
+                var pastSum = 0.0
+                var futureSum = 0.0
+                var pastN = 0
+                var futureN = 0
+                for (bar in bars) {
+                    val mm = bar.item.precipitationMm ?: 0.0
+                    if (bar.isFuture) {
+                        futureSum += mm
+                        futureN++
+                    } else {
+                        pastSum += mm
+                        pastN++
+                    }
                 }
-            )
-            append(" · ")
-            append(
-                if (futureTotal <= 0.01) {
-                    stringResource(R.string.precip_future_dry)
-                } else {
-                    stringResource(R.string.precip_future_mm, futureTotal)
-                }
-            )
-        }
+                Quad(pastSum, futureSum, pastN, futureN)
+            }
+        val summary =
+            buildString {
+                append(
+                    if (pastTotal <= 0.01) {
+                        stringResource(R.string.precip_past_dry)
+                    } else {
+                        stringResource(R.string.precip_past_mm, pastTotal)
+                    },
+                )
+                append(" · ")
+                append(
+                    if (futureTotal <= 0.01) {
+                        stringResource(R.string.precip_future_dry)
+                    } else {
+                        stringResource(R.string.precip_future_mm, futureTotal)
+                    },
+                )
+            }
 
         Text(
             text = summary,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        val pastBrush = remember {
-            Brush.verticalGradient(listOf(SoftTeal, SkyBlue))
-        }
-        val futureBrush = remember {
-            Brush.verticalGradient(listOf(Color(0xFFFFB74D), AccentCoral))
-        }
+        val pastBrush =
+            remember {
+                Brush.verticalGradient(listOf(SoftTeal, SkyBlue))
+            }
+        val futureBrush =
+            remember {
+                Brush.verticalGradient(listOf(Color(0xFFFFB74D), AccentCoral))
+            }
         val labelNow = stringResource(R.string.label_now)
         val axisColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
         val labelArgb = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
         val valueArgb = MaterialTheme.colorScheme.onSurface.toArgb()
         val nowMarkerArgb = MaterialTheme.colorScheme.error.toArgb()
-        val axisLabelPaint = remember(labelArgb) {
-            android.graphics.Paint().apply {
-                color = labelArgb
-                textSize = 26f
-                isAntiAlias = true
+        val axisLabelPaint =
+            remember(labelArgb) {
+                android.graphics.Paint().apply {
+                    color = labelArgb
+                    textSize = 26f
+                    isAntiAlias = true
+                }
             }
-        }
-        val valuePaint = remember(valueArgb) {
-            android.graphics.Paint().apply {
-                color = valueArgb
-                textSize = 22f
-                textAlign = android.graphics.Paint.Align.CENTER
-                isAntiAlias = true
-                isFakeBoldText = true
+        val valuePaint =
+            remember(valueArgb) {
+                android.graphics.Paint().apply {
+                    color = valueArgb
+                    textSize = 22f
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                    isFakeBoldText = true
+                }
             }
-        }
-        val hourPaint = remember {
-            android.graphics.Paint().apply {
-                textSize = 22f
-                textAlign = android.graphics.Paint.Align.CENTER
-                isAntiAlias = true
+        val hourPaint =
+            remember {
+                android.graphics.Paint().apply {
+                    textSize = 22f
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                }
             }
-        }
 
-        val precipA11yDesc = stringResource(
-            R.string.cd_precip_chart,
-            String.format(Locale.US, "%.1f", maxPrecip)
-        )
+        val precipA11yDesc =
+            stringResource(
+                R.string.cd_precip_chart,
+                String.format(Locale.US, "%.1f", maxPrecip),
+            )
         Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(190.dp)
-                .semantics { contentDescription = precipA11yDesc }
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(190.dp)
+                    .semantics { contentDescription = precipA11yDesc },
         ) {
             val leftPad = 40.dp.toPx()
             val rightPad = 8.dp.toPx()
@@ -184,28 +194,29 @@ fun PrecipitationBarChart(
                     color = axisColor,
                     start = Offset(leftPad, y),
                     end = Offset(size.width - rightPad, y),
-                    strokeWidth = 1f
+                    strokeWidth = 1f,
                 )
                 drawContext.canvas.nativeCanvas.drawText(
                     String.format(Locale.US, "%.1f", value),
                     4f,
                     y + 10f,
-                    axisLabelPaint
+                    axisLabelPaint,
                 )
             }
 
             bars.forEachIndexed { index, bar ->
                 val precip = (bar.item.precipitationMm ?: 0.0).coerceAtLeast(0.0)
-                val h = ((precip / maxPrecip) * chartH).toFloat().coerceAtLeast(
-                    if (precip > 0) 4.dp.toPx() else 0f
-                )
+                val h =
+                    ((precip / maxPrecip) * chartH).toFloat().coerceAtLeast(
+                        if (precip > 0) 4.dp.toPx() else 0f,
+                    )
                 val x = leftPad + index * (barWidth + gap)
                 val y = topPad + chartH - h
                 drawRoundRect(
                     brush = if (bar.isFuture) futureBrush else pastBrush,
                     topLeft = Offset(x, y),
                     size = Size(barWidth, h.coerceAtLeast(0f)),
-                    cornerRadius = corner
+                    cornerRadius = corner,
                 )
 
                 if (precip > 0.01) {
@@ -213,7 +224,7 @@ fun PrecipitationBarChart(
                         String.format(Locale.US, "%.1f", precip),
                         x + barWidth / 2,
                         y - 6.dp.toPx(),
-                        valuePaint
+                        valuePaint,
                     )
                 }
 
@@ -224,7 +235,7 @@ fun PrecipitationBarChart(
                     hourLabel,
                     x + barWidth / 2,
                     size.height - 4.dp.toPx(),
-                    hourPaint
+                    hourPaint,
                 )
             }
         }
@@ -233,7 +244,7 @@ fun PrecipitationBarChart(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             LegendSwatch(SkyBlue, stringResource(R.string.precip_legend_past))
             LegendSwatch(AccentCoral, stringResource(R.string.precip_legend_future))
@@ -241,7 +252,7 @@ fun PrecipitationBarChart(
             Text(
                 text = stringResource(R.string.precip_bar_counts, pastCount, futureCount),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -251,46 +262,52 @@ private data class Quad(
     val pastTotal: Double,
     val futureTotal: Double,
     val pastCount: Int,
-    val futureCount: Int
+    val futureCount: Int,
 )
 
 private fun buildPrecipBars(
     hourly: List<HourlyWeather>,
-    currentTime: String
+    currentTime: String,
 ): List<PrecipBar> {
     val currentIndex = indexOfCurrentHour(hourly.map { it.time }, currentTime)
     if (currentIndex < 0 || hourly.isEmpty()) return emptyList()
 
     val pastSlice = hourly.take(currentIndex + 1).takeLast(6)
     val pastStart = currentIndex - pastSlice.lastIndex
-    val pastBars = pastSlice.mapIndexed { idx, item ->
-        PrecipBar(
-            item = item,
-            isFuture = false,
-            isNow = pastStart + idx == currentIndex
-        )
-    }
-    val futureBars = hourly
-        .drop(currentIndex + 1)
-        .take(8)
-        .map { PrecipBar(item = it, isFuture = true, isNow = false) }
+    val pastBars =
+        pastSlice.mapIndexed { idx, item ->
+            PrecipBar(
+                item = item,
+                isFuture = false,
+                isNow = pastStart + idx == currentIndex,
+            )
+        }
+    val futureBars =
+        hourly
+            .drop(currentIndex + 1)
+            .take(8)
+            .map { PrecipBar(item = it, isFuture = true, isNow = false) }
     return pastBars + futureBars
 }
 
 @Composable
-private fun LegendSwatch(color: Color, label: String) {
+private fun LegendSwatch(
+    color: Color,
+    label: String,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Spacer(
-            modifier = Modifier
-                .width(12.dp)
-                .height(10.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(color)
+            modifier =
+                Modifier
+                    .width(12.dp)
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(color),
         )
         Text(
             text = "  $label",
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
         )
     }
 }

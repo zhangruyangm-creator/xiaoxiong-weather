@@ -40,32 +40,36 @@ fun AppScreenBackground(
     modifier: Modifier = Modifier,
     sceneCode: Int? = null,
     isDay: Boolean? = null,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f
     // 有天气数据时，整屏背景跟随场景取色（低透明度，保证卡片可读）；
     // 无数据时保持原来的静态渐变
     val sceneStyle = sceneCode?.let { weatherSceneStyle(it, isDay, dark) }
-    val topTarget = if (sceneStyle != null) {
-        sceneStyle.gradient[0].copy(alpha = if (dark) 0.34f else 0.28f)
-    } else {
-        scheme.primary.copy(alpha = 0.18f)
-    }
-    val midTarget = if (sceneStyle != null) {
-        sceneStyle.gradient.getOrElse(1) { sceneStyle.gradient[0] }
-            .copy(alpha = if (dark) 0.14f else 0.10f)
-    } else {
-        scheme.surfaceVariant.copy(alpha = 0.55f)
-    }
+    val topTarget =
+        if (sceneStyle != null) {
+            sceneStyle.gradient[0].copy(alpha = if (dark) 0.34f else 0.28f)
+        } else {
+            scheme.primary.copy(alpha = 0.18f)
+        }
+    val midTarget =
+        if (sceneStyle != null) {
+            sceneStyle.gradient
+                .getOrElse(1) { sceneStyle.gradient[0] }
+                .copy(alpha = if (dark) 0.14f else 0.10f)
+        } else {
+            scheme.surfaceVariant.copy(alpha = 0.55f)
+        }
     val bottomTarget = scheme.background
     val top by animateColorAsState(topTarget, tween(1200), label = "bgTop")
     val mid by animateColorAsState(midTarget, tween(1200), label = "bgMid")
     val bottom by animateColorAsState(bottomTarget, tween(1200), label = "bgBottom")
     Box(
-        modifier = modifier.background(
-            Brush.verticalGradient(listOf(top, mid, bottom))
-        )
+        modifier =
+            modifier.background(
+                Brush.verticalGradient(listOf(top, mid, bottom)),
+            ),
     ) {
         content()
     }
@@ -74,29 +78,28 @@ fun AppScreenBackground(
 @Composable
 fun SoftCard(
     modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f
     CompositionLocalProvider(LocalContentColor provides scheme.onSurface) {
         Column(
-            modifier = modifier
-                .shadow(
-                    elevation = if (dark) 2.dp else 8.dp,
-                    shape = RoundedCornerShape(22.dp),
-                    clip = false,
-                    ambientColor = if (dark) Color.Black.copy(alpha = 0.35f) else Color.Black,
-                    spotColor = if (dark) Color.Black.copy(alpha = 0.45f) else Color.Black
-                )
-                .clip(RoundedCornerShape(22.dp))
-                .background(scheme.surface)
-                .border(
-                    width = 1.dp,
-                    color = scheme.outline.copy(alpha = if (dark) 0.35f else 0.55f),
-                    shape = RoundedCornerShape(22.dp)
-                )
-                .padding(16.dp),
-            content = content
+            modifier =
+                modifier
+                    .shadow(
+                        elevation = if (dark) 2.dp else 8.dp,
+                        shape = RoundedCornerShape(22.dp),
+                        clip = false,
+                        ambientColor = if (dark) Color.Black.copy(alpha = 0.35f) else Color.Black,
+                        spotColor = if (dark) Color.Black.copy(alpha = 0.45f) else Color.Black,
+                    ).clip(RoundedCornerShape(22.dp))
+                    .background(scheme.surface)
+                    .border(
+                        width = 1.dp,
+                        color = scheme.outline.copy(alpha = if (dark) 0.35f else 0.55f),
+                        shape = RoundedCornerShape(22.dp),
+                    ).padding(16.dp),
+            content = content,
         )
     }
 }
@@ -105,38 +108,38 @@ fun SoftCard(
 fun SectionHeader(
     title: String,
     subtitle: String? = null,
-    icon: ImageVector? = null
+    icon: ImageVector? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         if (icon != null) {
             Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                scheme.primary.copy(alpha = 0.22f),
-                                scheme.secondary.copy(alpha = 0.16f)
-                            )
-                        )
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = scheme.primary.copy(alpha = 0.18f),
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    scheme.primary.copy(alpha = 0.22f),
+                                    scheme.secondary.copy(alpha = 0.16f),
+                                ),
+                            ),
+                        ).border(
+                            width = 1.dp,
+                            color = scheme.primary.copy(alpha = 0.18f),
+                            shape = RoundedCornerShape(12.dp),
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = scheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -146,13 +149,13 @@ fun SectionHeader(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = scheme.onSurface
+                color = scheme.onSurface,
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.labelMedium,
-                    color = scheme.onSurfaceVariant
+                    color = scheme.onSurfaceVariant,
                 )
             }
         }
@@ -165,37 +168,40 @@ fun FrostedMetricTile(
     value: String,
     modifier: Modifier = Modifier,
     contentColor: Color,
-    mutedColor: Color
+    mutedColor: Color,
 ) {
     // 深色字场景用深色半透明底，浅色字用白色玻璃，避免暗色模式对比失调
-    val glass = if (contentColor.luminance() < 0.45f) {
-        Color.Black.copy(alpha = 0.10f)
-    } else {
-        Color.White.copy(alpha = 0.18f)
-    }
-    val stroke = if (contentColor.luminance() < 0.45f) {
-        Color.Black.copy(alpha = 0.12f)
-    } else {
-        Color.White.copy(alpha = 0.22f)
-    }
+    val glass =
+        if (contentColor.luminance() < 0.45f) {
+            Color.Black.copy(alpha = 0.10f)
+        } else {
+            Color.White.copy(alpha = 0.18f)
+        }
+    val stroke =
+        if (contentColor.luminance() < 0.45f) {
+            Color.Black.copy(alpha = 0.12f)
+        } else {
+            Color.White.copy(alpha = 0.22f)
+        }
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(glass)
-            .border(1.dp, stroke, RoundedCornerShape(16.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(glass)
+                .border(1.dp, stroke, RoundedCornerShape(16.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = mutedColor
+            color = mutedColor,
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            color = contentColor
+            color = contentColor,
         )
     }
 }
@@ -205,51 +211,57 @@ fun QualityBar(
     label: String,
     valueText: String,
     progress: Float,
-    barColor: Color
+    barColor: Color,
 ) {
     val onSurface = MaterialTheme.colorScheme.onSurface
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 label,
                 style = MaterialTheme.typography.labelLarge,
-                color = onSurface
+                color = onSurface,
             )
             Text(
                 valueText,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = onSurface
+                color = onSurface,
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress.coerceIn(0f, 1f))
+            modifier =
+                Modifier
+                    .fillMaxWidth()
                     .height(8.dp)
                     .clip(CircleShape)
-                    .background(barColor)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .height(8.dp)
+                        .clip(CircleShape)
+                        .background(barColor),
             )
         }
     }
 }
 
 @Composable
-fun StatusDot(color: Color, modifier: Modifier = Modifier) {
+fun StatusDot(
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = modifier
-            .size(8.dp)
-            .clip(CircleShape)
-            .background(color)
+        modifier =
+            modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color),
     )
 }

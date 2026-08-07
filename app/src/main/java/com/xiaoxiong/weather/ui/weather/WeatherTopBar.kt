@@ -34,39 +34,41 @@ internal fun WeatherTopBar(
     onLocate: () -> Unit,
     onToggleFavorite: () -> Unit,
     onShare: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
 ) {
     TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Transparent,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            actionIconContentColor = MaterialTheme.colorScheme.onSurface
-        ),
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                actionIconContentColor = MaterialTheme.colorScheme.onSurface,
+            ),
         title = {
             Column {
                 Text(
                     stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 val updated = state.lastUpdatedText
-                val subtitle = when {
-                    state.isOffline && updated != null ->
-                        stringResource(R.string.subtitle_offline_updated, updated)
-                    updated != null && state.usingCurrentLocation ->
-                        stringResource(R.string.subtitle_location_updated, updated)
-                    updated != null ->
-                        stringResource(R.string.subtitle_updated_refresh, updated)
-                    state.usingCurrentLocation ->
-                        stringResource(R.string.subtitle_current_location)
-                    else -> stringResource(R.string.subtitle_search_world)
-                }
+                val subtitle =
+                    when {
+                        state.isOffline && updated != null ->
+                            stringResource(R.string.subtitle_offline_updated, updated)
+                        updated != null && state.usingCurrentLocation ->
+                            stringResource(R.string.subtitle_location_updated, updated)
+                        updated != null ->
+                            stringResource(R.string.subtitle_updated_refresh, updated)
+                        state.usingCurrentLocation ->
+                            stringResource(R.string.subtitle_current_location)
+                        else -> stringResource(R.string.subtitle_search_world)
+                    }
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -74,44 +76,52 @@ internal fun WeatherTopBar(
             Row(
                 modifier = Modifier.padding(end = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RoundAction(onClick = onLocate) {
                     Icon(
                         Icons.Default.MyLocation,
-                        contentDescription = stringResource(R.string.cd_locate)
+                        contentDescription = stringResource(R.string.cd_locate),
                     )
                 }
                 RoundAction(
                     onClick = onToggleFavorite,
-                    enabled = state.selectedCity != null
+                    enabled = state.selectedCity != null,
                 ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Remove else Icons.Filled.Add,
-                        contentDescription = stringResource(
-                            if (isFavorite) R.string.cd_favorite_remove
-                            else R.string.cd_favorite_add
-                        ),
-                        tint = if (isFavorite) AccentCoral
-                        else MaterialTheme.colorScheme.onSurface
+                        contentDescription =
+                            stringResource(
+                                if (isFavorite) {
+                                    R.string.cd_favorite_remove
+                                } else {
+                                    R.string.cd_favorite_add
+                                },
+                            ),
+                        tint =
+                            if (isFavorite) {
+                                AccentCoral
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                     )
                 }
                 RoundAction(
                     onClick = onShare,
-                    enabled = state.weather != null
+                    enabled = state.weather != null,
                 ) {
                     Icon(
                         Icons.Default.Share,
-                        contentDescription = stringResource(R.string.cd_share)
+                        contentDescription = stringResource(R.string.cd_share),
                     )
                 }
                 RoundAction(onClick = onOpenSettings) {
                     Icon(
                         Icons.Default.Settings,
-                        contentDescription = stringResource(R.string.cd_settings)
+                        contentDescription = stringResource(R.string.cd_settings),
                     )
                 }
             }
-        }
+        },
     )
 }

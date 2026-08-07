@@ -29,46 +29,49 @@ import org.junit.runner.RunWith
 @LargeTest
 @RunWith(AndroidJUnit4::class)
 class WeatherSmokeTest {
+    private val beijing =
+        City(
+            id = 1816670,
+            name = "北京",
+            latitude = 39.9042,
+            longitude = 116.4074,
+            country = "中国",
+            admin1 = "北京",
+        )
 
-    private val beijing = City(
-        id = 1816670,
-        name = "北京",
-        latitude = 39.9042,
-        longitude = 116.4074,
-        country = "中国",
-        admin1 = "北京"
-    )
-
-    private val seedSettingsRule = object : TestWatcher() {
-        override fun starting(description: Description) {
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
-            runBlocking {
-                val container = context.appContainer()
-                container.settingsStore.setPrivacyAccepted(true)
-                // 降低冒烟对 GPS 的依赖，固定落到北京
-                container.settingsStore.setPreferLocationOnLaunch(false)
-                container.selectedCityStore.save(beijing, useLocation = false)
+    private val seedSettingsRule =
+        object : TestWatcher() {
+            override fun starting(description: Description) {
+                val context = InstrumentationRegistry.getInstrumentation().targetContext
+                runBlocking {
+                    val container = context.appContainer()
+                    container.settingsStore.setPrivacyAccepted(true)
+                    // 降低冒烟对 GPS 的依赖，固定落到北京
+                    container.settingsStore.setPreferLocationOnLaunch(false)
+                    container.selectedCityStore.save(beijing, useLocation = false)
+                }
             }
         }
-    }
 
-    private val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
-        *buildList {
-            add(Manifest.permission.ACCESS_FINE_LOCATION)
-            add(Manifest.permission.ACCESS_COARSE_LOCATION)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }.toTypedArray()
-    )
+    private val permissionRule: GrantPermissionRule =
+        GrantPermissionRule.grant(
+            *buildList {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    add(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }.toTypedArray(),
+        )
 
     private val composeRule = createAndroidComposeRule<MainActivity>()
 
     @get:Rule
-    val rules: RuleChain = RuleChain
-        .outerRule(seedSettingsRule)
-        .around(permissionRule)
-        .around(composeRule)
+    val rules: RuleChain =
+        RuleChain
+            .outerRule(seedSettingsRule)
+            .around(permissionRule)
+            .around(composeRule)
 
     @Test
     fun mainShell_showsBrandAndBottomTabs() {
@@ -85,7 +88,8 @@ class WeatherSmokeTest {
         dismissPrivacyIfNeeded()
         waitForText("小熊天气")
         composeRule.waitUntil(timeoutMillis = 20_000) {
-            composeRule.onAllNodesWithText("北京", substring = true)
+            composeRule
+                .onAllNodesWithText("北京", substring = true)
                 .fetchSemanticsNodes()
                 .isNotEmpty()
         }
@@ -143,7 +147,10 @@ class WeatherSmokeTest {
         }
     }
 
-    private fun waitForText(text: String, timeoutMs: Long = 15_000) {
+    private fun waitForText(
+        text: String,
+        timeoutMs: Long = 15_000,
+    ) {
         composeRule.waitUntil(timeoutMillis = timeoutMs) {
             composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
         }

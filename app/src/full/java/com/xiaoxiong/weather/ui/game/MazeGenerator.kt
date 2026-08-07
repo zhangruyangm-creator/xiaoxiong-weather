@@ -6,14 +6,15 @@ import kotlin.random.Random
 const val MAZE_HANDCRAFTED_COUNT = 12
 const val MAZE_CAMPAIGN_SIZE = 60
 
-private val GEN_TITLES = mapOf(
-    MazeTheme.GARDEN to listOf("蜂语小径", "青草迷阵", "阳光裂谷", "花粉走廊", "绿篱深处"),
-    MazeTheme.RAIN to listOf("雨幕回廊", "积水深巷", "伞下迷宫", "潮汐石路", "檐滴曲径"),
-    MazeTheme.SNOW to listOf("霜晶洞穴", "雪狐足迹", "冰棱栈道", "白雾林间", "寒星地宫"),
-    MazeTheme.NIGHT to listOf("暗星回旋", "月影地牢", "夜枭密道", "银河裂隙", "寂静星井"),
-    MazeTheme.FESTIVAL to listOf("灯火迷城", "爆竹暗道", "锦缎曲坊", "年兽巢穴", "喜糖迷宫"),
-    MazeTheme.CLOUD to listOf("云絮迷宫", "风筝栈道", "虹桥密径", "天阶回廊", "浮岛迷阵")
-)
+private val GEN_TITLES =
+    mapOf(
+        MazeTheme.GARDEN to listOf("蜂语小径", "青草迷阵", "阳光裂谷", "花粉走廊", "绿篱深处"),
+        MazeTheme.RAIN to listOf("雨幕回廊", "积水深巷", "伞下迷宫", "潮汐石路", "檐滴曲径"),
+        MazeTheme.SNOW to listOf("霜晶洞穴", "雪狐足迹", "冰棱栈道", "白雾林间", "寒星地宫"),
+        MazeTheme.NIGHT to listOf("暗星回旋", "月影地牢", "夜枭密道", "银河裂隙", "寂静星井"),
+        MazeTheme.FESTIVAL to listOf("灯火迷城", "爆竹暗道", "锦缎曲坊", "年兽巢穴", "喜糖迷宫"),
+        MazeTheme.CLOUD to listOf("云絮迷宫", "风筝栈道", "虹桥密径", "天阶回廊", "浮岛迷阵"),
+    )
 
 /**
  * 选关列表所需的轻量信息（不生成迷宫，O(1) 可得）。
@@ -23,7 +24,7 @@ data class MazeLevelMeta(
     val id: Int,
     val titleZh: String,
     val titleEn: String,
-    val theme: MazeTheme
+    val theme: MazeTheme,
 )
 
 /**
@@ -62,16 +63,17 @@ fun generateMazeLevel(
     seed: Long,
     id: Int,
     difficulty: Int,
-    themeOverride: MazeTheme? = null
+    themeOverride: MazeTheme? = null,
 ): MazeLevel {
     repeat(24) { attempt ->
-        val level = generateMazeLevelOnce(
-            seed = seed xor (attempt.toLong() * 0x9E3779B97F4A7C15UL.toLong()),
-            id = id,
-            difficulty = difficulty,
-            themeOverride = themeOverride,
-            allowIce = true
-        )
+        val level =
+            generateMazeLevelOnce(
+                seed = seed xor (attempt.toLong() * 0x9E3779B97F4A7C15UL.toLong()),
+                id = id,
+                difficulty = difficulty,
+                themeOverride = themeOverride,
+                allowIce = true,
+            )
         if (mazeMapSolvable(level.map)) return level
     }
     // 兜底：无冰面，极大概率可解
@@ -80,7 +82,7 @@ fun generateMazeLevel(
         id = id,
         difficulty = difficulty,
         themeOverride = themeOverride,
-        allowIce = false
+        allowIce = false,
     )
 }
 
@@ -89,7 +91,7 @@ private fun generateMazeLevelOnce(
     id: Int,
     difficulty: Int,
     themeOverride: MazeTheme?,
-    allowIce: Boolean
+    allowIce: Boolean,
 ): MazeLevel {
     val rng = Random(seed)
     val theme = themeOverride ?: MazeTheme.entries[id % MazeTheme.entries.size]
@@ -100,14 +102,21 @@ private fun generateMazeLevelOnce(
 
     val g = Array(rows) { CharArray(cols) { '#' } }
 
-    fun carve(r: Int, c: Int) {
+    fun carve(
+        r: Int,
+        c: Int,
+    ) {
         g[r][c] = '.'
     }
 
     // 递归回溯：只在奇数格落脚
     val dr = intArrayOf(-2, 2, 0, 0)
     val dc = intArrayOf(0, 0, -2, 2)
-    fun dfs(r: Int, c: Int) {
+
+    fun dfs(
+        r: Int,
+        c: Int,
+    ) {
         carve(r, c)
         val order = intArrayOf(0, 1, 2, 3).also { it.shuffle(rng) }
         for (i in order) {
@@ -133,7 +142,10 @@ private fun generateMazeLevelOnce(
     }
 
     // 非墙邻格数：等于 1 即死胡同
-    fun openNeighborCount(r: Int, c: Int): Int {
+    fun openNeighborCount(
+        r: Int,
+        c: Int,
+    ): Int {
         var n = 0
         val d4 = listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
         for ((dr, dc) in d4) {
@@ -145,7 +157,10 @@ private fun generateMazeLevelOnce(
     }
 
     // BFS 距离
-    fun bfsDist(sr: Int, sc: Int): Array<IntArray> {
+    fun bfsDist(
+        sr: Int,
+        sc: Int,
+    ): Array<IntArray> {
         val dist = Array(rows) { IntArray(cols) { -1 } }
         val q = ArrayDeque<Pair<Int, Int>>()
         dist[sr][sc] = 0
@@ -180,9 +195,12 @@ private fun generateMazeLevelOnce(
     }
     g[exit.first][exit.second] = 'E'
 
-    val open = floors().filter { (r, c) ->
-        g[r][c] == '.' && distFromStart[r][c] >= 0
-    }.shuffled(rng).toMutableList()
+    val open =
+        floors()
+            .filter { (r, c) ->
+                g[r][c] == '.' && distFromStart[r][c] >= 0
+            }.shuffled(rng)
+            .toMutableList()
 
     // 蜂蜜：随难度增多
     val honeyCount = (2 + difficulty / 4).coerceIn(2, 10)
@@ -208,31 +226,34 @@ private fun generateMazeLevelOnce(
     if (difficulty >= 4 && open.size >= 3) {
         // 只选真死胡同（唯一开放邻格）：锁落在唯一通路上才锁得住蜂蜜，
         // 岔路口随机放锁会被从另一侧绕开
-        val candidates = open.filter { (r, c) ->
-            distFromStart[r][c] >= 4 && openNeighborCount(r, c) == 1
-        }
+        val candidates =
+            open.filter { (r, c) ->
+                distFromStart[r][c] >= 4 && openNeighborCount(r, c) == 1
+            }
         if (candidates.isNotEmpty()) {
             val (hr, hc) = candidates.first()
             open.remove(hr to hc)
             g[hr][hc] = 'H'
             // 在通向它的一格放锁：取离它最近的开放邻格
-            val neigh = listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
-                .map { (dr, dc) -> hr + dr to hc + dc }
-                .filter { (r, c) ->
-                    r in 0 until rows && c in 0 until cols && g[r][c] == '.'
-                }
+            val neigh =
+                listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
+                    .map { (dr, dc) -> hr + dr to hc + dc }
+                    .filter { (r, c) ->
+                        r in 0 until rows && c in 0 until cols && g[r][c] == '.'
+                    }
             if (neigh.isNotEmpty()) {
                 val (lr, lc) = neigh.random(rng)
                 open.remove(lr to lc)
                 g[lr][lc] = 'L'
                 val lockDist = distFromStart[lr][lc]
                 // 钥匙必须在锁的起点侧；找不到则整组撤回（与第二把锁一致）
-                val keySpot = open.firstOrNull { (r, c) ->
-                    val d = distFromStart[r][c]
-                    d in 2 until lockDist.coerceAtLeast(3)
-                } ?: open.firstOrNull { (r, c) ->
-                    distFromStart[r][c] in 1 until lockDist
-                }
+                val keySpot =
+                    open.firstOrNull { (r, c) ->
+                        val d = distFromStart[r][c]
+                        d in 2 until lockDist.coerceAtLeast(3)
+                    } ?: open.firstOrNull { (r, c) ->
+                        distFromStart[r][c] in 1 until lockDist
+                    }
                 if (keySpot != null) {
                     open.remove(keySpot)
                     g[keySpot.first][keySpot.second] = 'K'
@@ -249,29 +270,32 @@ private fun generateMazeLevelOnce(
         }
         // 高难度第二把锁：同样保证钥匙在锁的起点侧，避免死关
         if (difficulty >= 10 && open.size >= 4) {
-            val candidates2 = open.filter { (r, c) ->
-                distFromStart[r][c] >= 5 && openNeighborCount(r, c) == 1
-            }
+            val candidates2 =
+                open.filter { (r, c) ->
+                    distFromStart[r][c] >= 5 && openNeighborCount(r, c) == 1
+                }
             if (candidates2.isNotEmpty()) {
                 val (hr, hc) = candidates2.first()
                 open.remove(hr to hc)
                 g[hr][hc] = 'H'
-                val neigh = listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
-                    .map { (dr, dc) -> hr + dr to hc + dc }
-                    .filter { (r, c) ->
-                        r in 0 until rows && c in 0 until cols && g[r][c] == '.'
-                    }
+                val neigh =
+                    listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
+                        .map { (dr, dc) -> hr + dr to hc + dc }
+                        .filter { (r, c) ->
+                            r in 0 until rows && c in 0 until cols && g[r][c] == '.'
+                        }
                 if (neigh.isNotEmpty()) {
                     val (lr, lc) = neigh.random(rng)
                     open.remove(lr to lc)
                     g[lr][lc] = 'L'
                     val lockDist = distFromStart[lr][lc]
-                    val keySpot = open.firstOrNull { (r, c) ->
-                        val d = distFromStart[r][c]
-                        d in 2 until lockDist.coerceAtLeast(3)
-                    } ?: open.firstOrNull { (r, c) ->
-                        distFromStart[r][c] in 1 until lockDist
-                    }
+                    val keySpot =
+                        open.firstOrNull { (r, c) ->
+                            val d = distFromStart[r][c]
+                            d in 2 until lockDist.coerceAtLeast(3)
+                        } ?: open.firstOrNull { (r, c) ->
+                            distFromStart[r][c] in 1 until lockDist
+                        }
                     if (keySpot != null) {
                         open.remove(keySpot)
                         g[keySpot.first][keySpot.second] = 'K'
@@ -310,11 +334,13 @@ private fun generateMazeLevelOnce(
             val r = rng.nextInt(1, rows - 1)
             val c = rng.nextInt(1, cols - 1)
             if (g[r][c] == '#') {
-                val nOpen = listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
-                    .count { (dr, dc) ->
-                        val nr = r + dr; val nc = c + dc
-                        nr in 0 until rows && nc in 0 until cols && g[nr][nc] != '#'
-                    }
+                val nOpen =
+                    listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
+                        .count { (dr, dc) ->
+                            val nr = r + dr
+                            val nc = c + dc
+                            nr in 0 until rows && nc in 0 until cols && g[nr][nc] != '#'
+                        }
                 if (nOpen >= 2) g[r][c] = '.'
             }
         }
@@ -334,6 +360,6 @@ private fun generateMazeLevelOnce(
         titleEn = "Maze $id",
         theme = theme,
         moveBudget = budget,
-        map = map
+        map = map,
     )
 }

@@ -19,7 +19,10 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
     for (r in 0 until rows) {
         for (c in 0 until cols) {
             when (val ch = g[r][c]) {
-                'S' -> { sr = r; sc = c }
+                'S' -> {
+                    sr = r
+                    sc = c
+                }
                 'H' -> honeys.add(r to c)
                 'K' -> keyCells.add(r to c)
                 'L' -> lockCells.add(r to c)
@@ -36,14 +39,22 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
     val lockIndex = lockCells.withIndex().associate { (i, p) -> p to i }
     val allHoneyMask = if (honeys.isEmpty()) 0 else (1 shl honeys.size) - 1
 
-    fun walkable(r: Int, c: Int, keys: Int, lockOpen: Int): Boolean {
+    fun walkable(
+        r: Int,
+        c: Int,
+        keys: Int,
+        lockOpen: Int,
+    ): Boolean {
         if (r !in 0 until rows || c !in 0 until cols) return false
         return when (g[r][c]) {
             '#' -> false
             'L' -> {
                 val idx = lockIndex[r to c]
-                if (idx != null && (lockOpen and (1 shl idx)) != 0) true
-                else keys > 0
+                if (idx != null && (lockOpen and (1 shl idx)) != 0) {
+                    true
+                } else {
+                    keys > 0
+                }
             }
             else -> true
         }
@@ -58,7 +69,7 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
         keyMask0: Int,
         lockOpen0: Int,
         dr: Int,
-        dc: Int
+        dc: Int,
     ): IntArray? {
         var r = r0
         var c = c0
@@ -104,9 +115,10 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
                         sliding = false
                     }
                 }
-                'E' -> if (honey == allHoneyMask) {
-                    return intArrayOf(r, c, keys, honey, keyMask, lockOpen, 1)
-                }
+                'E' ->
+                    if (honey == allHoneyMask) {
+                        return intArrayOf(r, c, keys, honey, keyMask, lockOpen, 1)
+                    }
             }
             if (!sliding) break
             val sr2 = r + dr
@@ -129,7 +141,7 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
         keys: Int,
         honey: Int,
         keyMask: Int,
-        lockOpen: Int
+        lockOpen: Int,
     ): Long =
         (r.toLong() shl 48) or
             (c.toLong() shl 40) or
@@ -154,10 +166,17 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
         val lockOpen = (st and 0xFFF).toInt()
         if (g[r][c] == 'E' && honey == allHoneyMask) return true
         for (i in 0 until 4) {
-            val next = step(
-                r, c, keys, honey, keyMask, lockOpen,
-                dirs[i * 2], dirs[i * 2 + 1]
-            ) ?: continue
+            val next =
+                step(
+                    r,
+                    c,
+                    keys,
+                    honey,
+                    keyMask,
+                    lockOpen,
+                    dirs[i * 2],
+                    dirs[i * 2 + 1],
+                ) ?: continue
             if (next[6] == 1) return true
             val p = pack(next[0], next[1], next[2], next[3], next[4], next[5])
             if (seen.add(p)) q.add(p)

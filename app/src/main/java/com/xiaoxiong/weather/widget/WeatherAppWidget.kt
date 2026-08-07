@@ -41,12 +41,15 @@ import com.xiaoxiong.weather.MainActivity
 import com.xiaoxiong.weather.R
 
 class WeatherAppWidget : GlanceAppWidget() {
+    override val sizeMode: SizeMode =
+        SizeMode.Responsive(
+            setOf(SIZE_SMALL, SIZE_MEDIUM, SIZE_WIDE, SIZE_TALL),
+        )
 
-    override val sizeMode: SizeMode = SizeMode.Responsive(
-        setOf(SIZE_SMALL, SIZE_MEDIUM, SIZE_WIDE, SIZE_TALL)
-    )
-
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
+    override suspend fun provideGlance(
+        context: Context,
+        id: GlanceId,
+    ) {
         val ui = WeatherWidgetData.load(context)
         provideContent {
             GlanceTheme {
@@ -71,23 +74,25 @@ class WeatherAppWidgetReceiver : GlanceAppWidgetReceiver() {
 private fun WeatherWidgetContent(ui: WeatherWidgetUi?) {
     val context = LocalContext.current
     val size = LocalSize.current
-    val openApp = actionStartActivity(
-        Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-    )
+    val openApp =
+        actionStartActivity(
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+        )
     val showWide = size.width >= 260.dp
     val showTall = size.height >= 180.dp
     val showCompact = size.width < 150.dp && size.height < 150.dp
 
     Column(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .cornerRadius(20.dp)
-            .background(ColorProvider(Color(0xFF2F80ED)))
-            .padding(if (showCompact) 10.dp else 14.dp)
-            .clickable(openApp),
-        verticalAlignment = Alignment.Top
+        modifier =
+            GlanceModifier
+                .fillMaxSize()
+                .cornerRadius(20.dp)
+                .background(ColorProvider(Color(0xFF2F80ED)))
+                .padding(if (showCompact) 10.dp else 14.dp)
+                .clickable(openApp),
+        verticalAlignment = Alignment.Top,
     ) {
         if (ui == null) {
             EmptyWidgetBody()
@@ -119,11 +124,12 @@ private fun WeatherWidgetContent(ui: WeatherWidgetUi?) {
                 Spacer(modifier = GlanceModifier.height(8.dp))
                 Text(
                     text = ui.tipText,
-                    style = TextStyle(
-                        color = ColorProvider(Color(0xFFDCEBFF)),
-                        fontSize = 11.sp
-                    ),
-                    maxLines = 2
+                    style =
+                        TextStyle(
+                            color = ColorProvider(Color(0xFFDCEBFF)),
+                            fontSize = 11.sp,
+                        ),
+                    maxLines = 2,
                 )
             }
         }
@@ -135,31 +141,33 @@ private fun EmptyWidgetBody() {
     val ctx = LocalContext.current
     Row(
         modifier = GlanceModifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
             provider = ImageProvider(R.drawable.ic_launcher_bear_sunny),
             contentDescription = ctx.getString(R.string.app_name),
             modifier = GlanceModifier.size(44.dp),
-            contentScale = ContentScale.Fit
+            contentScale = ContentScale.Fit,
         )
         Spacer(modifier = GlanceModifier.width(10.dp))
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 text = ctx.getString(R.string.app_name),
-                style = TextStyle(
-                    color = ColorProvider(Color.White),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                style =
+                    TextStyle(
+                        color = ColorProvider(Color.White),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
             )
             Spacer(modifier = GlanceModifier.height(4.dp))
             Text(
                 text = ctx.getString(R.string.widget_empty),
-                style = TextStyle(
-                    color = ColorProvider(Color(0xFFE3F2FD)),
-                    fontSize = 12.sp
-                )
+                style =
+                    TextStyle(
+                        color = ColorProvider(Color(0xFFE3F2FD)),
+                        fontSize = 12.sp,
+                    ),
             )
         }
     }
@@ -170,94 +178,104 @@ private fun CompactWidgetBody(ui: WeatherWidgetUi) {
     Column(
         modifier = GlanceModifier.fillMaxSize(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Image(
             provider = ImageProvider(ui.bearRes),
             contentDescription = ui.description,
             modifier = GlanceModifier.size(36.dp),
-            contentScale = ContentScale.Fit
+            contentScale = ContentScale.Fit,
         )
         Spacer(modifier = GlanceModifier.height(4.dp))
         Text(
             text = ui.temperatureText,
-            style = TextStyle(
-                color = ColorProvider(Color.White),
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold
-            ),
-            maxLines = 1
+            style =
+                TextStyle(
+                    color = ColorProvider(Color.White),
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+            maxLines = 1,
         )
         Text(
             text = ui.cityName,
-            style = TextStyle(
-                color = ColorProvider(Color(0xFFE8F4FF)),
-                fontSize = 11.sp
-            ),
-            maxLines = 1
+            style =
+                TextStyle(
+                    color = ColorProvider(Color(0xFFE8F4FF)),
+                    fontSize = 11.sp,
+                ),
+            maxLines = 1,
         )
     }
 }
 
 @Composable
-private fun MainWidgetHeader(ui: WeatherWidgetUi, largeTemp: Boolean) {
+private fun MainWidgetHeader(
+    ui: WeatherWidgetUi,
+    largeTemp: Boolean,
+) {
     Row(
         modifier = GlanceModifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
             provider = ImageProvider(ui.bearRes),
             contentDescription = ui.description,
             modifier = GlanceModifier.size(if (largeTemp) 56.dp else 52.dp),
-            contentScale = ContentScale.Fit
+            contentScale = ContentScale.Fit,
         )
         Spacer(modifier = GlanceModifier.width(10.dp))
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 text = ui.cityName,
-                style = TextStyle(
-                    color = ColorProvider(Color(0xFFE8F4FF)),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                maxLines = 1
+                style =
+                    TextStyle(
+                        color = ColorProvider(Color(0xFFE8F4FF)),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                    ),
+                maxLines = 1,
             )
             Spacer(modifier = GlanceModifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = ui.temperatureText,
-                    style = TextStyle(
-                        color = ColorProvider(Color.White),
-                        fontSize = if (largeTemp) 32.sp else 30.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    style =
+                        TextStyle(
+                            color = ColorProvider(Color.White),
+                            fontSize = if (largeTemp) 32.sp else 30.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
                 )
                 Spacer(modifier = GlanceModifier.width(6.dp))
                 Text(
                     text = ui.emoji,
-                    style = TextStyle(fontSize = 20.sp)
+                    style = TextStyle(fontSize = 20.sp),
                 )
             }
             Text(
                 text = "${ui.description} · ${ui.highLowText}",
-                style = TextStyle(
-                    color = ColorProvider(Color(0xFFDCEBFF)),
-                    fontSize = 12.sp
-                ),
-                maxLines = 1
+                style =
+                    TextStyle(
+                        color = ColorProvider(Color(0xFFDCEBFF)),
+                        fontSize = 12.sp,
+                    ),
+                maxLines = 1,
             )
             Spacer(modifier = GlanceModifier.height(4.dp))
             Text(
-                text = if (ui.isOfflineHint) {
-                    LocalContext.current.getString(R.string.widget_cache_prefix, ui.updatedText)
-                } else {
-                    ui.updatedText
-                },
-                style = TextStyle(
-                    color = ColorProvider(Color(0xFFB3D4FC)),
-                    fontSize = 11.sp
-                ),
-                maxLines = 1
+                text =
+                    if (ui.isOfflineHint) {
+                        LocalContext.current.getString(R.string.widget_cache_prefix, ui.updatedText)
+                    } else {
+                        ui.updatedText
+                    },
+                style =
+                    TextStyle(
+                        color = ColorProvider(Color(0xFFB3D4FC)),
+                        fontSize = 11.sp,
+                    ),
+                maxLines = 1,
             )
         }
     }
@@ -266,34 +284,37 @@ private fun MainWidgetHeader(ui: WeatherWidgetUi, largeTemp: Boolean) {
 @Composable
 private fun TomorrowRow(ui: WeatherWidgetUi) {
     Row(
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .cornerRadius(12.dp)
-            .background(ColorProvider(Color(0x332156D9)))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            GlanceModifier
+                .fillMaxWidth()
+                .cornerRadius(12.dp)
+                .background(ColorProvider(Color(0x332156D9)))
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = ui.tomorrowLabel,
-            style = TextStyle(
-                color = ColorProvider(Color.White),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            style =
+                TextStyle(
+                    color = ColorProvider(Color.White),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
         )
         Spacer(modifier = GlanceModifier.width(8.dp))
         Text(
             text = ui.tomorrowEmoji,
-            style = TextStyle(fontSize = 14.sp)
+            style = TextStyle(fontSize = 14.sp),
         )
         Spacer(modifier = GlanceModifier.width(6.dp))
         Text(
             text = "${ui.tomorrowDescription} · ${ui.tomorrowHighLowText}",
-            style = TextStyle(
-                color = ColorProvider(Color(0xFFDCEBFF)),
-                fontSize = 12.sp
-            ),
-            maxLines = 1
+            style =
+                TextStyle(
+                    color = ColorProvider(Color(0xFFDCEBFF)),
+                    fontSize = 12.sp,
+                ),
+            maxLines = 1,
         )
     }
 }
@@ -302,33 +323,35 @@ private fun TomorrowRow(ui: WeatherWidgetUi) {
 private fun HourlyStrip(hours: List<WeatherWidgetHourUi>) {
     Row(
         modifier = GlanceModifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         hours.take(5).forEach { hour ->
             Column(
                 modifier = GlanceModifier.defaultWeight(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     text = hour.label,
-                    style = TextStyle(
-                        color = ColorProvider(Color(0xFFB3D4FC)),
-                        fontSize = 10.sp
-                    ),
-                    maxLines = 1
+                    style =
+                        TextStyle(
+                            color = ColorProvider(Color(0xFFB3D4FC)),
+                            fontSize = 10.sp,
+                        ),
+                    maxLines = 1,
                 )
                 Text(
                     text = hour.emoji,
-                    style = TextStyle(fontSize = 12.sp)
+                    style = TextStyle(fontSize = 12.sp),
                 )
                 Text(
                     text = hour.tempText,
-                    style = TextStyle(
-                        color = ColorProvider(Color.White),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    maxLines = 1
+                    style =
+                        TextStyle(
+                            color = ColorProvider(Color.White),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                    maxLines = 1,
                 )
             }
         }

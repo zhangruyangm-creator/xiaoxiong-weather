@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class LocationWeatherCoordinator(
     private val locationHelper: LocationHelper,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) : LocationSession {
     private val requestId = AtomicInteger(0)
     private var job: Job? = null
@@ -28,31 +28,32 @@ class LocationWeatherCoordinator(
     override fun locate(
         onResolved: (City) -> Unit,
         onError: (Throwable) -> Unit,
-        onPlaceUpdated: (City) -> Unit
+        onPlaceUpdated: (City) -> Unit,
     ) {
         val locateId = requestId.incrementAndGet()
         job?.cancel()
-        job = scope.launch {
-            try {
-                val location = locationHelper.resolveCurrentCoordinates()
-                if (locateId != requestId.get()) return@launch
-                val quick = locationHelper.provisionalCity(location)
-                onResolved(quick)
+        job =
+            scope.launch {
+                try {
+                    val location = locationHelper.resolveCurrentCoordinates()
+                    if (locateId != requestId.get()) return@launch
+                    val quick = locationHelper.provisionalCity(location)
+                    onResolved(quick)
 
-                val refined = locationHelper.refineCityPlaceName(quick)
-                if (locateId != requestId.get()) return@launch
-                if (refined.name != quick.name ||
-                    refined.admin1 != quick.admin1 ||
-                    refined.admin2 != quick.admin2
-                ) {
-                    onPlaceUpdated(refined)
+                    val refined = locationHelper.refineCityPlaceName(quick)
+                    if (locateId != requestId.get()) return@launch
+                    if (refined.name != quick.name ||
+                        refined.admin1 != quick.admin1 ||
+                        refined.admin2 != quick.admin2
+                    ) {
+                        onPlaceUpdated(refined)
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (locateId != requestId.get()) return@launch
+                    onError(e)
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (locateId != requestId.get()) return@launch
-                onError(e)
             }
-        }
     }
 }

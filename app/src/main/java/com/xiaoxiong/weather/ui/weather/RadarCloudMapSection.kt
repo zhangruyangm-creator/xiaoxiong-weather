@@ -33,21 +33,22 @@ internal enum class PrecipMapMode { RADAR, CLOUD }
 fun RadarCloudMapSection(
     snapshot: WeatherSnapshot,
     repository: RadarMapRepository,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val resources = context.resources
     val city = snapshot.city
-    val outlook = remember(snapshot.current, snapshot.hourly, resources.configuration) {
-        RadarPrecipOutlook.from(resources, snapshot.current, snapshot.hourly)
-    }
+    val outlook =
+        remember(snapshot.current, snapshot.hourly, resources.configuration) {
+            RadarPrecipOutlook.from(resources, snapshot.current, snapshot.hourly)
+        }
     var mapMode by remember { mutableStateOf(PrecipMapMode.RADAR) }
 
     SoftCard(modifier = modifier.fillMaxWidth()) {
         SectionHeader(
             title = stringResource(R.string.radar_title),
             subtitle = stringResource(R.string.radar_sub),
-            icon = Icons.Filled.Cloud
+            icon = Icons.Filled.Cloud,
         )
         Spacer(modifier = Modifier.height(12.dp))
         RadarSituationStrip(outlook = outlook)
@@ -55,7 +56,7 @@ fun RadarCloudMapSection(
         Text(
             text = stringResource(outlook.messageRes),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -63,19 +64,21 @@ fun RadarCloudMapSection(
                 selected = mapMode == PrecipMapMode.RADAR,
                 onClick = { mapMode = PrecipMapMode.RADAR },
                 label = { Text(stringResource(R.string.map_tab_radar)) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                colors =
+                    FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
             )
             FilterChip(
                 selected = mapMode == PrecipMapMode.CLOUD,
                 onClick = { mapMode = PrecipMapMode.CLOUD },
                 label = { Text(stringResource(R.string.map_tab_cloud)) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                colors =
+                    FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
@@ -84,7 +87,7 @@ fun RadarCloudMapSection(
                 LiveRadarPane(
                     city = city,
                     repository = repository,
-                    timezoneId = snapshot.timezone
+                    timezoneId = snapshot.timezone,
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 RadarIntensityLegend()

@@ -35,7 +35,10 @@ class WeatherApp : Application() {
         CrashReporting.init(this)
         appScope.launch {
             ChinaCityCatalog.init(this@WeatherApp)
-            val hours = container.settingsStore.getOnce().backgroundRefreshInterval.hours
+            val hours =
+                container.settingsStore
+                    .getOnce()
+                    .backgroundRefreshInterval.hours
             WeatherRefreshWorker.enqueue(this@WeatherApp, intervalHours = hours)
         }
     }

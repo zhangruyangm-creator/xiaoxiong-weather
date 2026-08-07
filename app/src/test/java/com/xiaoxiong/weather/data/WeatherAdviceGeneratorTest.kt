@@ -7,7 +7,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class WeatherAdviceGeneratorTest {
-
     @Test
     fun clothing_byFeelsLikeBands() {
         assertEquals(R.string.advice_clothing_hot, WeatherAdviceGenerator.clothingRes(33.0))
@@ -23,18 +22,18 @@ class WeatherAdviceGeneratorTest {
     fun rainTip_nowUpcomingAndSnow() {
         assertEquals(
             R.string.advice_rain_now,
-            WeatherAdviceGenerator.rainTipRes(61, 1.0, upcomingPrecip = false)
+            WeatherAdviceGenerator.rainTipRes(61, 1.0, upcomingPrecip = false),
         )
         assertNull(
-            WeatherAdviceGenerator.rainTipRes(61, 0.0, upcomingPrecip = false)
+            WeatherAdviceGenerator.rainTipRes(61, 0.0, upcomingPrecip = false),
         )
         assertEquals(
             R.string.advice_rain_snow,
-            WeatherAdviceGenerator.rainTipRes(71, 0.0, upcomingPrecip = false)
+            WeatherAdviceGenerator.rainTipRes(71, 0.0, upcomingPrecip = false),
         )
         assertEquals(
             R.string.advice_rain_soon,
-            WeatherAdviceGenerator.rainTipRes(0, 0.0, upcomingPrecip = true)
+            WeatherAdviceGenerator.rainTipRes(0, 0.0, upcomingPrecip = true),
         )
         assertNull(WeatherAdviceGenerator.rainTipRes(0, 0.0, upcomingPrecip = false))
     }
@@ -54,14 +53,14 @@ class WeatherAdviceGeneratorTest {
         val current = WeatherFixtures.current(weatherCode = 0, temperatureC = 22.0)
         assertEquals(
             R.string.advice_clothing_mild,
-            WeatherAdviceGenerator.clothingRes(current.apparentTemperatureC ?: current.temperatureC)
+            WeatherAdviceGenerator.clothingRes(current.apparentTemperatureC ?: current.temperatureC),
         )
         assertNull(
             WeatherAdviceGenerator.rainTipRes(
                 current.weatherCode,
                 current.precipitationMm,
-                upcomingPrecip = false
-            )
+                upcomingPrecip = false,
+            ),
         )
         assertNull(WeatherAdviceGenerator.uvTipRes(null))
         assertNull(WeatherAdviceGenerator.windTipRes(current.windSpeedKmh))

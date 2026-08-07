@@ -13,27 +13,35 @@ import kotlinx.serialization.json.Json
 
 private val Context.selectedCityDataStore by preferencesDataStore("weather_selected_city")
 
-class SelectedCityStore(private val context: Context) : SelectedCitySource {
+class SelectedCityStore(
+    private val context: Context,
+) : SelectedCitySource {
     private val cityKey = stringPreferencesKey("city_json")
     private val useLocationKey = booleanPreferencesKey("use_location")
     private val json = Json { ignoreUnknownKeys = true }
 
-    val selectedCity: Flow<PersistedSelection?> = context.selectedCityDataStore.data.map { prefs ->
-        val raw = prefs[cityKey] ?: return@map null
-        val city = runCatching { json.decodeFromString(CityDto.serializer(), raw) }.getOrNull()
-            ?: return@map null
-        PersistedSelection(
-            city = city.toCity(),
-            useLocation = prefs[useLocationKey] == true
-        )
-    }
-
-    override suspend fun save(city: City, useLocation: Boolean) {
-        context.selectedCityDataStore.edit { prefs ->
-            prefs[cityKey] = json.encodeToString(
-                CityDto.serializer(),
-                CityDto.from(city.copy(isCurrentLocation = false))
+    val selectedCity: Flow<PersistedSelection?> =
+        context.selectedCityDataStore.data.map { prefs ->
+            val raw = prefs[cityKey] ?: return@map null
+            val city =
+                runCatching { json.decodeFromString(CityDto.serializer(), raw) }.getOrNull()
+                    ?: return@map null
+            PersistedSelection(
+                city = city.toCity(),
+                useLocation = prefs[useLocationKey] == true,
             )
+        }
+
+    override suspend fun save(
+        city: City,
+        useLocation: Boolean,
+    ) {
+        context.selectedCityDataStore.edit { prefs ->
+            prefs[cityKey] =
+                json.encodeToString(
+                    CityDto.serializer(),
+                    CityDto.from(city.copy(isCurrentLocation = false)),
+                )
             prefs[useLocationKey] = useLocation
         }
     }
@@ -42,7 +50,7 @@ class SelectedCityStore(private val context: Context) : SelectedCitySource {
 
     data class PersistedSelection(
         val city: City,
-        val useLocation: Boolean
+        val useLocation: Boolean,
     )
 
     @Serializable
@@ -53,20 +61,21 @@ class SelectedCityStore(private val context: Context) : SelectedCitySource {
         val longitude: Double,
         val country: String? = null,
         val admin1: String? = null,
-        val admin2: String? = null
+        val admin2: String? = null,
     ) {
         fun toCity() = City(id, name, latitude, longitude, country, admin1, admin2, false)
 
         companion object {
-            fun from(city: City) = CityDto(
-                id = city.id,
-                name = city.name,
-                latitude = city.latitude,
-                longitude = city.longitude,
-                country = city.country,
-                admin1 = city.admin1,
-                admin2 = city.admin2
-            )
+            fun from(city: City) =
+                CityDto(
+                    id = city.id,
+                    name = city.name,
+                    latitude = city.latitude,
+                    longitude = city.longitude,
+                    country = city.country,
+                    admin1 = city.admin1,
+                    admin2 = city.admin2,
+                )
         }
     }
 }

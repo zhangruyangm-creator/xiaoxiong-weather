@@ -22,7 +22,9 @@ import java.util.concurrent.TimeUnit
 /**
  * 轻量手动 DI：共用 OkHttp 连接池 / 磁盘缓存 / Repository / Store。
  */
-class AppContainer(context: Context) {
+class AppContainer(
+    context: Context,
+) {
     private val appContext = context.applicationContext
 
     private val httpCache by lazy {
@@ -31,7 +33,8 @@ class AppContainer(context: Context) {
 
     /** 共享连接池 + 磁盘缓存 + GET 重试；搜索/雷达用 newBuilder 派生 */
     val httpClient by lazy {
-        OkHttpClient.Builder()
+        OkHttpClient
+            .Builder()
             .cache(httpCache)
             .addInterceptor(RetryInterceptor())
             .connectTimeout(20, TimeUnit.SECONDS)
@@ -41,7 +44,8 @@ class AppContainer(context: Context) {
     }
 
     val searchHttpClient by lazy {
-        httpClient.newBuilder()
+        httpClient
+            .newBuilder()
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(5, TimeUnit.SECONDS)
             .callTimeout(6, TimeUnit.SECONDS)
@@ -49,7 +53,8 @@ class AppContainer(context: Context) {
     }
 
     val radarHttpClient by lazy {
-        httpClient.newBuilder()
+        httpClient
+            .newBuilder()
             .connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(12, TimeUnit.SECONDS)
             .build()
@@ -62,7 +67,7 @@ class AppContainer(context: Context) {
             resources = appContext.resources,
             client = httpClient,
             searchClient = searchHttpClient,
-            json = json
+            json = json,
         )
     }
 
@@ -82,10 +87,9 @@ class AppContainer(context: Context) {
     val citySearchUseCase by lazy {
         CitySearchUseCase(
             repository = weatherRepository,
-            locationHelper = locationHelper
+            locationHelper = locationHelper,
         )
     }
 }
 
-fun Context.appContainer(): AppContainer =
-    (applicationContext as WeatherApp).container
+fun Context.appContainer(): AppContainer = (applicationContext as WeatherApp).container

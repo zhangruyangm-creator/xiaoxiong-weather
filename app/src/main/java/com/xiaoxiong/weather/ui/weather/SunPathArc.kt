@@ -61,7 +61,7 @@ internal fun SunPathArc(
     sunsetLabel: String,
     onDate: LocalDate = LocalDate.now(),
     onTime: LocalTime = LocalTime.now(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f
@@ -69,63 +69,73 @@ internal fun SunPathArc(
     val nightArc = if (dark) Color(0xFF90CAF9) else Color(0xFF5C6BC0)
     val horizon = scheme.onSurface.copy(alpha = 0.28f)
     val track = scheme.onSurface.copy(alpha = 0.12f)
-    val skyTop = if (phase?.isDay != false) {
-        if (dark) Color(0x44FFB74D) else Color(0x33FFCC80)
-    } else {
-        if (dark) Color(0x335C6BC0) else Color(0x225C6BC0)
-    }
+    val skyTop =
+        if (phase?.isDay != false) {
+            if (dark) Color(0x44FFB74D) else Color(0x33FFCC80)
+        } else {
+            if (dark) Color(0x335C6BC0) else Color(0x225C6BC0)
+        }
     val skyBottom = Color.Transparent
-    val bearMoment = remember(phase, onDate, onTime) {
-        sunPathBearMoment(phase, onDate, onTime)
-    }
+    val bearMoment =
+        remember(phase, onDate, onTime) {
+            sunPathBearMoment(phase, onDate, onTime)
+        }
     val holiday = remember(bearMoment, onDate) { holidayBearOverride(onDate, bearMoment) }
-    val bearRes = remember(bearMoment, onDate, holiday) {
-        holiday?.bearResFor(onDate) ?: bearMoment.bearResFor(onDate)
-    }
-    val bearCaptionRes = remember(bearMoment, onDate, holiday) {
-        holiday?.captionResFor(onDate) ?: bearMoment.captionResFor(onDate)
-    }
+    val bearRes =
+        remember(bearMoment, onDate, holiday) {
+            holiday?.bearResFor(onDate) ?: bearMoment.bearResFor(onDate)
+        }
+    val bearCaptionRes =
+        remember(bearMoment, onDate, holiday) {
+            holiday?.captionResFor(onDate) ?: bearMoment.captionResFor(onDate)
+        }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(132.dp)
-                .padding(horizontal = 8.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(132.dp)
+                    .padding(horizontal = 8.dp),
         ) {
             Canvas(modifier = Modifier.fillMaxWidth().height(132.dp)) {
                 val padX = 28.dp.toPx()
                 val padTop = 16.dp.toPx()
                 val nightDepth = 26.dp.toPx()
                 val padBottom = nightDepth + 10.dp.toPx()
-                val diameter = (size.width - padX * 2)
-                    .coerceAtMost(2f * (size.height - padTop - padBottom))
+                val diameter =
+                    (size.width - padX * 2)
+                        .coerceAtMost(2f * (size.height - padTop - padBottom))
                 val radius = diameter / 2f
                 val cx = size.width / 2f
                 val cy = padTop + radius
-                val oval = Rect(
-                    offset = Offset(cx - radius, cy - radius),
-                    size = Size(diameter, diameter)
-                )
-                val nightOval = Rect(
-                    left = cx - radius,
-                    top = cy - nightDepth,
-                    right = cx + radius,
-                    bottom = cy + nightDepth
-                )
+                val oval =
+                    Rect(
+                        offset = Offset(cx - radius, cy - radius),
+                        size = Size(diameter, diameter),
+                    )
+                val nightOval =
+                    Rect(
+                        left = cx - radius,
+                        top = cy - nightDepth,
+                        right = cx + radius,
+                        bottom = cy + nightDepth,
+                    )
 
-                val skyPath = Path().apply {
-                    moveTo(cx - radius, cy)
-                    arcTo(oval, 180f, 180f, forceMoveTo = false)
-                    close()
-                }
+                val skyPath =
+                    Path().apply {
+                        moveTo(cx - radius, cy)
+                        arcTo(oval, 180f, 180f, forceMoveTo = false)
+                        close()
+                    }
                 drawPath(
                     path = skyPath,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(skyTop, skyBottom),
-                        startY = cy - radius,
-                        endY = cy
-                    )
+                    brush =
+                        Brush.verticalGradient(
+                            colors = listOf(skyTop, skyBottom),
+                            startY = cy - radius,
+                            endY = cy,
+                        ),
                 )
 
                 drawArc(
@@ -135,7 +145,7 @@ internal fun SunPathArc(
                     useCenter = false,
                     topLeft = oval.topLeft,
                     size = oval.size,
-                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
                 )
                 drawArc(
                     color = track.copy(alpha = 0.7f),
@@ -144,7 +154,7 @@ internal fun SunPathArc(
                     useCenter = false,
                     topLeft = nightOval.topLeft,
                     size = nightOval.size,
-                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
                 )
 
                 val p = phase?.progress?.coerceIn(0f, 1f)
@@ -157,13 +167,14 @@ internal fun SunPathArc(
                             useCenter = false,
                             topLeft = oval.topLeft,
                             size = oval.size,
-                            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+                            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
                         )
                         val angle = Math.PI - p * Math.PI
-                        val marker = Offset(
-                            x = cx + radius * cos(angle).toFloat(),
-                            y = cy - radius * sin(angle).toFloat()
-                        )
+                        val marker =
+                            Offset(
+                                x = cx + radius * cos(angle).toFloat(),
+                                y = cy - radius * sin(angle).toFloat(),
+                            )
                         drawCircle(color = dayArc.copy(alpha = 0.28f), radius = 16.dp.toPx(), center = marker)
                         drawCircle(color = dayArc, radius = 9.dp.toPx(), center = marker)
                         drawCircle(color = Color.White.copy(alpha = 0.85f), radius = 3.5.dp.toPx(), center = marker)
@@ -175,19 +186,20 @@ internal fun SunPathArc(
                             useCenter = false,
                             topLeft = nightOval.topLeft,
                             size = nightOval.size,
-                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
                         )
                         val angle = p * Math.PI
-                        val marker = Offset(
-                            x = cx + radius * cos(angle).toFloat(),
-                            y = cy + nightDepth * sin(angle).toFloat()
-                        )
+                        val marker =
+                            Offset(
+                                x = cx + radius * cos(angle).toFloat(),
+                                y = cy + nightDepth * sin(angle).toFloat(),
+                            )
                         drawCircle(color = nightArc.copy(alpha = 0.3f), radius = 14.dp.toPx(), center = marker)
                         drawCircle(color = nightArc, radius = 8.dp.toPx(), center = marker)
                         drawCircle(
                             color = Color.White.copy(alpha = 0.55f),
                             radius = 3.dp.toPx(),
-                            center = marker + Offset(2.dp.toPx(), -1.5.dp.toPx())
+                            center = marker + Offset(2.dp.toPx(), -1.5.dp.toPx()),
                         )
                     }
                 }
@@ -196,7 +208,7 @@ internal fun SunPathArc(
                     color = horizon,
                     start = Offset(cx - radius - 4.dp.toPx(), cy),
                     end = Offset(cx + radius + 4.dp.toPx(), cy),
-                    strokeWidth = 1.5.dp.toPx()
+                    strokeWidth = 1.5.dp.toPx(),
                 )
                 drawCircle(color = dayArc.copy(alpha = 0.7f), radius = 4.dp.toPx(), center = Offset(cx - radius, cy))
                 drawCircle(color = dayArc.copy(alpha = 0.7f), radius = 4.dp.toPx(), center = Offset(cx + radius, cy))
@@ -204,39 +216,40 @@ internal fun SunPathArc(
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(horizontalAlignment = Alignment.Start, modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.sunrise),
                     style = MaterialTheme.typography.labelMedium,
-                    color = scheme.onSurfaceVariant
+                    color = scheme.onSurfaceVariant,
                 )
                 Text(
                     text = sunriseLabel,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = scheme.onSurface
+                    color = scheme.onSurface,
                 )
             }
             SunPathBearChip(
                 bearRes = bearRes,
-                caption = stringResource(bearCaptionRes)
+                caption = stringResource(bearCaptionRes),
             )
             Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.sunset),
                     style = MaterialTheme.typography.labelMedium,
-                    color = scheme.onSurfaceVariant
+                    color = scheme.onSurfaceVariant,
                 )
                 Text(
                     text = sunsetLabel,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = scheme.onSurface
+                    color = scheme.onSurface,
                 )
             }
         }
@@ -247,7 +260,7 @@ internal fun SunPathArc(
 @Composable
 private fun SunPathBearChip(
     @DrawableRes bearRes: Int,
-    caption: String
+    caption: String,
 ) {
     var enlarged by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(18.dp)
@@ -255,30 +268,31 @@ private fun SunPathBearChip(
     val enlargeLabel = stringResource(R.string.sun_bear_enlarge)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(148.dp)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f), shape)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(),
-                role = Role.Button,
-                onClickLabel = enlargeLabel,
-                onClick = { enlarged = true }
-            )
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+        modifier =
+            Modifier
+                .width(148.dp)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f), shape)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple(),
+                    role = Role.Button,
+                    onClickLabel = enlargeLabel,
+                    onClick = { enlarged = true },
+                ).padding(horizontal = 8.dp, vertical = 8.dp),
     ) {
         Image(
             painter = painterResource(bearRes),
             contentDescription = caption,
             contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(imageShape)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.35f))
-                .border(1.5.dp, Color.White.copy(alpha = 0.55f), imageShape)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(imageShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.35f))
+                    .border(1.5.dp, Color.White.copy(alpha = 0.55f), imageShape),
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
@@ -287,14 +301,14 @@ private fun SunPathBearChip(
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
     if (enlarged) {
         SunPathBearEnlargedDialog(
             caption = caption,
             bearRes = bearRes,
-            onDismiss = { enlarged = false }
+            onDismiss = { enlarged = false },
         )
     }
 }
@@ -303,38 +317,40 @@ private fun SunPathBearChip(
 private fun SunPathBearEnlargedDialog(
     caption: String,
     @DrawableRes bearRes: Int,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val cardShape = RoundedCornerShape(28.dp)
     val imageShape = RoundedCornerShape(22.dp)
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
             shape = cardShape,
             color = scheme.surface,
             tonalElevation = 6.dp,
-            modifier = Modifier
-                .padding(horizontal = 28.dp)
-                .widthIn(max = 360.dp)
-                .fillMaxWidth()
+            modifier =
+                Modifier
+                    .padding(horizontal = 28.dp)
+                    .widthIn(max = 360.dp)
+                    .fillMaxWidth(),
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp)
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
             ) {
                 Image(
                     painter = painterResource(bearRes),
                     contentDescription = caption,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(imageShape)
-                        .border(1.5.dp, scheme.outline.copy(alpha = 0.2f), imageShape)
-                        .background(scheme.surfaceVariant.copy(alpha = 0.35f))
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(imageShape)
+                            .border(1.5.dp, scheme.outline.copy(alpha = 0.2f), imageShape)
+                            .background(scheme.surfaceVariant.copy(alpha = 0.35f)),
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
@@ -342,7 +358,7 @@ private fun SunPathBearEnlargedDialog(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = scheme.onSurface,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
             }
         }

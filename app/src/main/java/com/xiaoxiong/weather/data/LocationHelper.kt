@@ -31,20 +31,24 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-class LocationHelper(private val context: Context) : LocationPermissionSource {
+class LocationHelper(
+    private val context: Context,
+) : LocationPermissionSource {
     private val placeCachePrefs by lazy {
         context.applicationContext.getSharedPreferences(PLACE_CACHE_PREFS, Context.MODE_PRIVATE)
     }
 
     override fun hasLocationPermission(): Boolean {
-        val fine = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        val coarse = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+        val fine =
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+        val coarse =
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
         return fine || coarse
     }
 
@@ -53,20 +57,22 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
      * UI 主路径请用 [resolveCurrentCoordinates] + [provisionalCity] / [refineCityPlaceName]。
      */
     @SuppressLint("MissingPermission")
-    suspend fun resolveCurrentCity(): City = withContext(Dispatchers.IO) {
-        val location = resolveCurrentCoordinates()
-        refineCityPlaceName(provisionalCity(location))
-    }
+    suspend fun resolveCurrentCity(): City =
+        withContext(Dispatchers.IO) {
+            val location = resolveCurrentCoordinates()
+            refineCityPlaceName(provisionalCity(location))
+        }
 
     /** 只解析坐标，不逆地理——拿到即可拉天气。 */
     @SuppressLint("MissingPermission")
-    suspend fun resolveCurrentCoordinates(): Location = withContext(Dispatchers.IO) {
-        if (!hasLocationPermission()) {
-            error(context.getString(R.string.error_need_location_permission))
+    suspend fun resolveCurrentCoordinates(): Location =
+        withContext(Dispatchers.IO) {
+            if (!hasLocationPermission()) {
+                error(context.getString(R.string.error_need_location_permission))
+            }
+            withTimeoutOrNull(LOCATION_OUTER_MS) { awaitLocation() }
+                ?: error(context.getString(R.string.error_locate_timeout))
         }
-        withTimeoutOrNull(LOCATION_OUTER_MS) { awaitLocation() }
-            ?: error(context.getString(R.string.error_locate_timeout))
-    }
 
     /** 先用缓存地名或「当前位置」，立刻可开天气。 */
     fun provisionalCity(location: Location): City {
@@ -75,35 +81,42 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
     }
 
     /** 补全/刷新地名；失败则原样返回。 */
-    suspend fun refineCityPlaceName(city: City): City = withContext(Dispatchers.IO) {
-        val place = withTimeoutOrNull(GEOCODER_BUDGET_MS) {
-            reverseGeocode(city.latitude, city.longitude)
-        } ?: return@withContext city
-        city.copy(
-            name = place.name,
-            admin1 = place.admin1,
-            admin2 = place.admin2,
-            country = place.country,
-            isCurrentLocation = true
+    suspend fun refineCityPlaceName(city: City): City =
+        withContext(Dispatchers.IO) {
+            val place =
+                withTimeoutOrNull(GEOCODER_BUDGET_MS) {
+                    reverseGeocode(city.latitude, city.longitude)
+                } ?: return@withContext city
+            city.copy(
+                name = place.name,
+                admin1 = place.admin1,
+                admin2 = place.admin2,
+                country = place.country,
+                isCurrentLocation = true,
+            )
+        }
+
+    private fun provisionalPlaceName(location: Location): PlaceName =
+        PlaceName(
+            name = context.getString(R.string.location_current),
+            admin1 = String.format(Locale.US, "%.2f, %.2f", location.latitude, location.longitude),
+            country = null,
         )
-    }
 
-    private fun provisionalPlaceName(location: Location): PlaceName = PlaceName(
-        name = context.getString(R.string.location_current),
-        admin1 = String.format(Locale.US, "%.2f, %.2f", location.latitude, location.longitude),
-        country = null
-    )
-
-    private fun cityFrom(location: Location, placeName: PlaceName): City = City(
-        id = (("loc-${location.latitude}-${location.longitude}").hashCode()).toLong(),
-        name = placeName.name,
-        latitude = location.latitude,
-        longitude = location.longitude,
-        country = placeName.country,
-        admin1 = placeName.admin1,
-        admin2 = placeName.admin2,
-        isCurrentLocation = true
-    )
+    private fun cityFrom(
+        location: Location,
+        placeName: PlaceName,
+    ): City =
+        City(
+            id = (("loc-${location.latitude}-${location.longitude}").hashCode()).toLong(),
+            name = placeName.name,
+            latitude = location.latitude,
+            longitude = location.longitude,
+            country = placeName.country,
+            admin1 = placeName.admin1,
+            admin2 = placeName.admin2,
+            isCurrentLocation = true,
+        )
 
     /**
      * 国内优先系统 LocationManager（NETWORK/GPS）。
@@ -117,7 +130,8 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
             return it
         }
         if (isPlayServicesAvailable()) {
-            runCatching { peekFusedLastKnown() }.getOrNull()
+            runCatching { peekFusedLastKnown() }
+                .getOrNull()
                 ?.takeIf { isAcceptableFix(it, now, FRESH_LAST_KNOWN_MS) }
                 ?.let { return it }
         }
@@ -129,7 +143,8 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
     }
 
     private fun isPlayServicesAvailable(): Boolean =
-        GoogleApiAvailability.getInstance()
+        GoogleApiAvailability
+            .getInstance()
             .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
 
     @SuppressLint("MissingPermission")
@@ -152,19 +167,26 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
         val client = LocationServices.getFusedLocationProviderClient(context)
         val last = awaitTaskOrNull(client.lastLocation)
         val now = System.currentTimeMillis()
-        val request = CurrentLocationRequest.Builder()
-            .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
-            .setMaxUpdateAgeMillis(FUSED_MAX_UPDATE_AGE_MS)
-            .build()
-        val fresh = withTimeoutOrNull(waitMs) {
-            awaitTaskOrNull(client.getCurrentLocation(request, null))
-        }
+        val request =
+            CurrentLocationRequest
+                .Builder()
+                .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+                .setMaxUpdateAgeMillis(FUSED_MAX_UPDATE_AGE_MS)
+                .build()
+        val fresh =
+            withTimeoutOrNull(waitMs) {
+                awaitTaskOrNull(client.getCurrentLocation(request, null))
+            }
         if (fresh != null) return fresh
         if (last != null && now - last.time < MAX_LAST_KNOWN_AGE_MS) return last
         return null
     }
 
-    private fun isAcceptableFix(location: Location, now: Long, maxAgeMs: Long): Boolean {
+    private fun isAcceptableFix(
+        location: Location,
+        now: Long,
+        maxAgeMs: Long,
+    ): Boolean {
         if (now - location.time >= maxAgeMs) return false
         if (!location.hasAccuracy()) return true // 无精度信息时仍可用作城市级
         return location.accuracy <= ACCEPTABLE_ACCURACY_M
@@ -172,32 +194,35 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
 
     private suspend fun <T> awaitTaskOrNull(task: Task<T>): T? =
         suspendCancellableCoroutine { cont ->
-            task.addOnSuccessListener { result ->
-                if (cont.isActive) cont.resume(result)
-            }.addOnFailureListener {
-                if (cont.isActive) cont.resume(null)
-            }
+            task
+                .addOnSuccessListener { result ->
+                    if (cont.isActive) cont.resume(result)
+                }.addOnFailureListener {
+                    if (cont.isActive) cont.resume(null)
+                }
         }
 
     @SuppressLint("MissingPermission")
     private suspend fun awaitLocationSystem(): Location? =
         suspendCancellableCoroutine { cont ->
             val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-            val providers = listOf(
-                LocationManager.NETWORK_PROVIDER,
-                LocationManager.GPS_PROVIDER
-            ).filter { manager.isProviderEnabled(it) }
+            val providers =
+                listOf(
+                    LocationManager.NETWORK_PROVIDER,
+                    LocationManager.GPS_PROVIDER,
+                ).filter { manager.isProviderEnabled(it) }
 
             if (providers.isEmpty()) {
                 cont.resumeWithException(
-                    IllegalStateException(context.getString(R.string.error_locate_disabled))
+                    IllegalStateException(context.getString(R.string.error_locate_disabled)),
                 )
                 return@suspendCancellableCoroutine
             }
 
-            val last = providers
-                .mapNotNull { manager.getLastKnownLocation(it) }
-                .maxWithOrNull(compareBy<Location> { locationScore(it) })
+            val last =
+                providers
+                    .mapNotNull { manager.getLastKnownLocation(it) }
+                    .maxWithOrNull(compareBy<Location> { locationScore(it) })
 
             val now = System.currentTimeMillis()
             // 足够新且城市级精度即可直接用
@@ -217,32 +242,39 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
                 }
             }
 
-            val listener = object : LocationListener {
-                override fun onLocationChanged(location: Location) {
-                    val prev = bestRef.get()
-                    if (prev == null || locationScore(location) > locationScore(prev)) {
-                        bestRef.set(location)
+            val listener =
+                object : LocationListener {
+                    override fun onLocationChanged(location: Location) {
+                        val prev = bestRef.get()
+                        if (prev == null || locationScore(location) > locationScore(prev)) {
+                            bestRef.set(location)
+                        }
+                        // 公里级精度即可结束（天气城市粒度）；不必干等 GPS 精修到 150m
+                        val current = bestRef.get()
+                        if (current != null && isAcceptableFix(current, System.currentTimeMillis(), MAX_LAST_KNOWN_AGE_MS)) {
+                            providers.forEach { manager.removeUpdates(this) }
+                            handler.removeCallbacksAndMessages(null)
+                            finish(current)
+                        }
                     }
-                    // 公里级精度即可结束（天气城市粒度）；不必干等 GPS 精修到 150m
-                    val current = bestRef.get()
-                    if (current != null && isAcceptableFix(current, System.currentTimeMillis(), MAX_LAST_KNOWN_AGE_MS)) {
-                        providers.forEach { manager.removeUpdates(this) }
-                        handler.removeCallbacksAndMessages(null)
-                        finish(current)
-                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onStatusChanged(
+                        provider: String?,
+                        status: Int,
+                        extras: Bundle?,
+                    ) = Unit
+
+                    override fun onProviderEnabled(provider: String) = Unit
+
+                    override fun onProviderDisabled(provider: String) = Unit
                 }
 
-                @Deprecated("Deprecated in Java")
-                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
-
-                override fun onProviderEnabled(provider: String) = Unit
-                override fun onProviderDisabled(provider: String) = Unit
-            }
-
-            val timeoutRunnable = Runnable {
-                providers.forEach { manager.removeUpdates(listener) }
-                finish(bestRef.get())
-            }
+            val timeoutRunnable =
+                Runnable {
+                    providers.forEach { manager.removeUpdates(listener) }
+                    finish(bestRef.get())
+                }
 
             providers.forEach { provider ->
                 manager.requestLocationUpdates(
@@ -250,7 +282,7 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
                     0L,
                     0f,
                     listener,
-                    Looper.getMainLooper()
+                    Looper.getMainLooper(),
                 )
             }
             handler.postDelayed(timeoutRunnable, LOCATION_WAIT_MS)
@@ -273,14 +305,17 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
         val name: String,
         val admin1: String?,
         val admin2: String? = null,
-        val country: String?
+        val country: String?,
     )
 
     /**
      * 正向地理编码：补足 Open-Meteo 搜不到的中国县级市/县城。
      * 天气接口只需经纬度，名称优先用系统返回的中文地名。
      */
-    suspend fun searchPlaces(query: String, maxResults: Int = 4): List<City> =
+    suspend fun searchPlaces(
+        query: String,
+        maxResults: Int = 4,
+    ): List<City> =
         withContext(Dispatchers.IO) {
             // 部分机型 Geocoder 回调永不返回，必须整体限时
             withTimeoutOrNull(GEOCODER_SEARCH_TIMEOUT_MS) {
@@ -292,57 +327,66 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
                 val queries = listOf(trimmed, "${trimmed}市")
                 val addresses = ArrayList<Address>(maxResults)
                 for (q in queries) {
-                    val batch = runCatching { forwardGeocode(geocoder, q, maxResults) }
-                        .getOrDefault(emptyList())
+                    val batch =
+                        runCatching { forwardGeocode(geocoder, q, maxResults) }
+                            .getOrDefault(emptyList())
                     addresses += batch
                     if (addresses.isNotEmpty()) break
                 }
-                addresses.mapNotNull { address ->
-                    val lat = address.latitude
-                    val lon = address.longitude
-                    if (lat == 0.0 && lon == 0.0) return@mapNotNull null
-                    val name = bestMatchingPlaceName(address, trimmed) ?: return@mapNotNull null
-                    City(
-                        id = ("geo-$lat-$lon-$name").hashCode().toLong(),
-                        name = name,
-                        latitude = lat,
-                        longitude = lon,
-                        country = address.countryName,
-                        admin1 = address.adminArea,
-                        admin2 = listOfNotNull(address.subAdminArea, address.locality)
-                            .firstOrNull {
-                                !WeatherRepository.normalizePlaceQuery(it)
-                                    .equals(
-                                        WeatherRepository.normalizePlaceQuery(name),
-                                        ignoreCase = true
-                                    )
-                            }
-                    )
-                }.distinctBy {
-                    "${"%.2f".format(Locale.US, it.latitude)},${"%.2f".format(Locale.US, it.longitude)}"
-                }
+                addresses
+                    .mapNotNull { address ->
+                        val lat = address.latitude
+                        val lon = address.longitude
+                        if (lat == 0.0 && lon == 0.0) return@mapNotNull null
+                        val name = bestMatchingPlaceName(address, trimmed) ?: return@mapNotNull null
+                        City(
+                            id = ("geo-$lat-$lon-$name").hashCode().toLong(),
+                            name = name,
+                            latitude = lat,
+                            longitude = lon,
+                            country = address.countryName,
+                            admin1 = address.adminArea,
+                            admin2 =
+                                listOfNotNull(address.subAdminArea, address.locality)
+                                    .firstOrNull {
+                                        !WeatherRepository
+                                            .normalizePlaceQuery(it)
+                                            .equals(
+                                                WeatherRepository.normalizePlaceQuery(name),
+                                                ignoreCase = true,
+                                            )
+                                    },
+                        )
+                    }.distinctBy {
+                        "${"%.2f".format(Locale.US, it.latitude)},${"%.2f".format(Locale.US, it.longitude)}"
+                    }
             }.orEmpty()
         }
 
     /**
      * 中国地址里 locality 经常是地级市。搜索县城时应优先选带查询字的层级。
      */
-    private fun bestMatchingPlaceName(address: Address, query: String): String? {
+    private fun bestMatchingPlaceName(
+        address: Address,
+        query: String,
+    ): String? {
         val normalizedQuery = WeatherRepository.normalizePlaceQuery(query)
-        val candidates = listOfNotNull(
-            address.featureName,
-            address.subLocality,
-            address.subAdminArea,
-            address.locality,
-            address.thoroughfare,
-            address.adminArea
-        ).filter { it.isNotBlank() && !it.matches(Regex("^\\d+$")) }
+        val candidates =
+            listOfNotNull(
+                address.featureName,
+                address.subLocality,
+                address.subAdminArea,
+                address.locality,
+                address.thoroughfare,
+                address.adminArea,
+            ).filter { it.isNotBlank() && !it.matches(Regex("^\\d+$")) }
 
-        val matched = candidates.firstOrNull { candidate ->
-            val n = WeatherRepository.normalizePlaceQuery(candidate)
-            n.contains(normalizedQuery, ignoreCase = true) ||
-                normalizedQuery.contains(n, ignoreCase = true)
-        }
+        val matched =
+            candidates.firstOrNull { candidate ->
+                val n = WeatherRepository.normalizePlaceQuery(candidate)
+                n.contains(normalizedQuery, ignoreCase = true) ||
+                    normalizedQuery.contains(n, ignoreCase = true)
+            }
         if (matched != null) return matched
 
         // 海外 / 港澳台：系统常回英文名，无法与中文查询字面匹配
@@ -358,9 +402,9 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
     private suspend fun forwardGeocode(
         geocoder: Geocoder,
         query: String,
-        maxResults: Int
-    ): List<Address> {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        maxResults: Int,
+    ): List<Address> =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // 单次回调也加超时，防止 getFromLocationName 永不回调
             withTimeoutOrNull(GEOCODER_ONCE_TIMEOUT_MS) {
                 suspendCancellableCoroutine { cont ->
@@ -383,47 +427,55 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
             @Suppress("DEPRECATION")
             geocoder.getFromLocationName(query, maxResults).orEmpty()
         }
-    }
 
     /**
      * 仅用系统 Geocoder（免费、随用户量扩展无第三方配额）。
      * 同网格结果本地缓存，避免反复逆地理。
      */
-    private suspend fun reverseGeocode(lat: Double, lon: Double): PlaceName =
+    private suspend fun reverseGeocode(
+        lat: Double,
+        lon: Double,
+    ): PlaceName =
         withContext(Dispatchers.IO) {
             readCachedPlace(lat, lon)?.let { return@withContext it }
 
             val fromSystem = reverseGeocodeSystem(lat, lon)
-            val place = fromSystem ?: PlaceName(
-                name = context.getString(R.string.location_current),
-                admin1 = String.format(Locale.US, "%.2f, %.2f", lat, lon),
-                country = null
-            )
+            val place =
+                fromSystem ?: PlaceName(
+                    name = context.getString(R.string.location_current),
+                    admin1 = String.format(Locale.US, "%.2f, %.2f", lat, lon),
+                    country = null,
+                )
             writeCachedPlace(lat, lon, place)
             place
         }
 
-    private suspend fun reverseGeocodeSystem(lat: Double, lon: Double): PlaceName? {
+    private suspend fun reverseGeocodeSystem(
+        lat: Double,
+        lon: Double,
+    ): PlaceName? {
         if (!Geocoder.isPresent()) return null
         val geocoder = Geocoder(context, Locale.CHINA)
-        val addresses: List<Address> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            withTimeoutOrNull(GEOCODER_ONCE_TIMEOUT_MS) {
-                suspendCancellableCoroutine { cont ->
-                    val completed = AtomicBoolean(false)
-                    geocoder.getFromLocation(lat, lon, 5) { list ->
-                        if (completed.compareAndSet(false, true) && cont.isActive) {
-                            cont.resume(list)
+        val addresses: List<Address> =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                withTimeoutOrNull(GEOCODER_ONCE_TIMEOUT_MS) {
+                    suspendCancellableCoroutine { cont ->
+                        val completed = AtomicBoolean(false)
+                        geocoder.getFromLocation(lat, lon, 5) { list ->
+                            if (completed.compareAndSet(false, true) && cont.isActive) {
+                                cont.resume(list)
+                            }
                         }
+                        cont.invokeOnCancellation { completed.set(true) }
                     }
-                    cont.invokeOnCancellation { completed.set(true) }
-                }
-            }.orEmpty()
-        } else {
-            @Suppress("DEPRECATION")
-            geocoder.getFromLocation(lat, lon, 5).orEmpty()
-        }
+                }.orEmpty()
+            } else {
+                @Suppress("DEPRECATION")
+                geocoder.getFromLocation(lat, lon, 5).orEmpty()
+            }
         if (addresses.isEmpty()) return null
-        return addresses.mapNotNull { placeFromAddress(it) }
+        return addresses
+            .mapNotNull { placeFromAddress(it) }
             .maxByOrNull { placeFineness(it.name) }
     }
 
@@ -437,70 +489,83 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
         val fromLine = districtFromAddressLines(address)
 
         // 中国：优先区/县，再县级市，最后才用地级市
-        val district = listOfNotNull(subLocality, fromLine, subAdmin, feature)
-            .firstOrNull { isDistrictLike(it) && !samePlace(it, admin1) }
+        val district =
+            listOfNotNull(subLocality, fromLine, subAdmin, feature)
+                .firstOrNull { isDistrictLike(it) && !samePlace(it, admin1) }
 
-        val countyLevelCity = listOfNotNull(subAdmin, feature)
-            .firstOrNull {
-                isCityLike(it) &&
-                    !samePlace(it, locality) &&
-                    !samePlace(it, admin1) &&
-                    !isTooSpecific(it)
+        val countyLevelCity =
+            listOfNotNull(subAdmin, feature)
+                .firstOrNull {
+                    isCityLike(it) &&
+                        !samePlace(it, locality) &&
+                        !samePlace(it, admin1) &&
+                        !isTooSpecific(it)
+                }
+
+        val name =
+            when {
+                district != null -> district
+                countyLevelCity != null -> countyLevelCity
+                locality != null -> locality
+                feature != null && !isTooSpecific(feature) -> feature
+                admin1 != null -> admin1
+                else -> return null
             }
 
-        val name = when {
-            district != null -> district
-            countyLevelCity != null -> countyLevelCity
-            locality != null -> locality
-            feature != null && !isTooSpecific(feature) -> feature
-            admin1 != null -> admin1
-            else -> return null
-        }
-
-        val admin2 = when {
-            // 名称为区县时，把地级市放进 admin2，展示为「历下区, 济南市, 山东省」
-            !samePlace(name, locality) && locality != null -> locality
-            !samePlace(name, subAdmin) && subAdmin != null && isCityLike(subAdmin) -> subAdmin
-            else -> null
-        }
+        val admin2 =
+            when {
+                // 名称为区县时，把地级市放进 admin2，展示为「历下区, 济南市, 山东省」
+                !samePlace(name, locality) && locality != null -> locality
+                !samePlace(name, subAdmin) && subAdmin != null && isCityLike(subAdmin) -> subAdmin
+                else -> null
+            }
 
         return PlaceName(
             name = name,
             admin1 = admin1,
             admin2 = admin2,
-            country = address.countryName
+            country = address.countryName,
         )
     }
 
     private fun districtFromAddressLines(address: Address): String? {
         val max = address.maxAddressLineIndex
         if (max < 0) return null
-        val joined = buildString {
-            for (i in 0..max) {
-                val line = address.getAddressLine(i) ?: continue
-                append(line)
+        val joined =
+            buildString {
+                for (i in 0..max) {
+                    val line = address.getAddressLine(i) ?: continue
+                    append(line)
+                }
             }
-        }
         if (joined.isBlank()) return null
         // 先匹配更长后缀，避免「自治区」被拆成「区」
-        val match = DISTRICT_IN_LINE.findAll(joined)
-            .map { it.value }
-            .lastOrNull { candidate ->
-                !candidate.endsWith("自治区") &&
-                    !candidate.endsWith("市区") &&
-                    !isTooSpecific(candidate)
-            }
+        val match =
+            DISTRICT_IN_LINE
+                .findAll(joined)
+                .map { it.value }
+                .lastOrNull { candidate ->
+                    !candidate.endsWith("自治区") &&
+                        !candidate.endsWith("市区") &&
+                        !isTooSpecific(candidate)
+                }
         return cleanPlace(match)
     }
 
-    private fun gridKey(lat: Double, lon: Double): String {
+    private fun gridKey(
+        lat: Double,
+        lon: Double,
+    ): String {
         // ≈1km 网格，同区反复定位可复用缓存
         val gLat = (lat * 100.0).toInt()
         val gLon = (lon * 100.0).toInt()
         return "$gLat,$gLon"
     }
 
-    private fun readCachedPlace(lat: Double, lon: Double): PlaceName? {
+    private fun readCachedPlace(
+        lat: Double,
+        lon: Double,
+    ): PlaceName? {
         val raw = placeCachePrefs.getString(gridKey(lat, lon), null) ?: return null
         val parts = raw.split('\u001f')
         if (parts.size < 4) return null
@@ -510,18 +575,23 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
             name = parts[0],
             admin1 = parts[1].ifBlank { null },
             admin2 = parts[2].ifBlank { null },
-            country = parts.getOrNull(4)?.ifBlank { null }
+            country = parts.getOrNull(4)?.ifBlank { null },
         )
     }
 
-    private fun writeCachedPlace(lat: Double, lon: Double, place: PlaceName) {
-        val value = listOf(
-            place.name,
-            place.admin1.orEmpty(),
-            place.admin2.orEmpty(),
-            System.currentTimeMillis().toString(),
-            place.country.orEmpty()
-        ).joinToString("\u001f")
+    private fun writeCachedPlace(
+        lat: Double,
+        lon: Double,
+        place: PlaceName,
+    ) {
+        val value =
+            listOf(
+                place.name,
+                place.admin1.orEmpty(),
+                place.admin2.orEmpty(),
+                System.currentTimeMillis().toString(),
+                place.country.orEmpty(),
+            ).joinToString("\u001f")
         placeCachePrefs.edit().putString(gridKey(lat, lon), value).apply()
     }
 
@@ -531,9 +601,13 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
         return trimmed
     }
 
-    private fun samePlace(a: String?, b: String?): Boolean {
+    private fun samePlace(
+        a: String?,
+        b: String?,
+    ): Boolean {
         if (a.isNullOrBlank() || b.isNullOrBlank()) return false
-        return WeatherRepository.normalizePlaceQuery(a)
+        return WeatherRepository
+            .normalizePlaceQuery(a)
             .equals(WeatherRepository.normalizePlaceQuery(b), ignoreCase = true)
     }
 
@@ -568,12 +642,13 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
             n.contains("附近")
     }
 
-    private fun placeFineness(name: String): Int = when {
-        name.endsWith("镇") || name.endsWith("乡") || name.endsWith("苏木") -> 40
-        isDistrictLike(name) -> 30
-        isCityLike(name) -> 20
-        else -> 10
-    }
+    private fun placeFineness(name: String): Int =
+        when {
+            name.endsWith("镇") || name.endsWith("乡") || name.endsWith("苏木") -> 40
+            isDistrictLike(name) -> 30
+            isCityLike(name) -> 20
+            else -> 10
+        }
 
     companion object {
         /** last-known 可直接采用的新鲜度（城市天气） */
@@ -581,10 +656,13 @@ class LocationHelper(private val context: Context) : LocationPermissionSource {
         private const val MAX_LAST_KNOWN_AGE_MS = 30 * 60 * 1000L
         private const val LOCATION_WAIT_MS = 4_000L
         private const val LOCATION_OUTER_MS = 6_000L
+
         /** Fused 兜底 getCurrentLocation 短超时，避免国产机假 GMS 长卡 */
         private const val FUSED_FALLBACK_WAIT_MS = 2_000L
+
         /** Fused 允许复用最近一次结果的年龄 */
         private const val FUSED_MAX_UPDATE_AGE_MS = 60_000L
+
         /** 城市级天气：1km 精度足够，不必等 GPS 精修到 150m */
         private const val ACCEPTABLE_ACCURACY_M = 1_000f
         private const val GEOCODER_BUDGET_MS = 3_000L

@@ -15,13 +15,13 @@ import java.time.temporal.ChronoUnit
  */
 data class SunPathPhase(
     val isDay: Boolean,
-    val progress: Float
+    val progress: Float,
 )
 
 /** 轨迹旁小熊生活片刻（专用活动插画）。 */
 enum class SunPathBearMoment(
     @param:StringRes val captionRes: Int,
-    @param:DrawableRes private vararg val bearVariants: Int
+    @param:DrawableRes private vararg val bearVariants: Int,
 ) {
     /** 工作日晨练：多项运动按日独立轮换（与傍晚锻炼互不绑定）。 */
     MORNING_EXERCISE(
@@ -35,7 +35,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_exercise_bike,
         R.drawable.ic_sun_bear_exercise_soccer,
         R.drawable.ic_sun_bear_exercise_yoga,
-        R.drawable.ic_sun_bear_exercise_taichi
+        R.drawable.ic_sun_bear_exercise_taichi,
     ),
     MORNING_OUT(
         R.string.sun_bear_morning_out,
@@ -43,8 +43,9 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_morning_metro,
         R.drawable.ic_sun_bear_morning_bus,
         R.drawable.ic_sun_bear_morning_taxi,
-        R.drawable.ic_sun_bear_morning_drive
+        R.drawable.ic_sun_bear_morning_drive,
     ),
+
     /** 插画由 [workDayBearRes] 按工种选取，此处仅占位。 */
     WORK_MORNING(R.string.sun_bear_work_morning, R.drawable.ic_sun_bear_work_morning),
     LUNCH(
@@ -58,10 +59,12 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_lunch_7,
         R.drawable.ic_sun_bear_lunch_8,
         R.drawable.ic_sun_bear_lunch_9,
-        R.drawable.ic_sun_bear_lunch_10
+        R.drawable.ic_sun_bear_lunch_10,
     ),
+
     /** 插画由 [workDayBearRes] 按工种选取，此处仅占位。 */
     WORK_AFTERNOON(R.string.sun_bear_work_afternoon, R.drawable.ic_sun_bear_work_afternoon),
+
     /** 工作日下午茶：咖啡 / 茶 / 奶茶 / 果汁 / 热可可 / 点心，按日轮换。 */
     AFTERNOON_TEA(
         R.string.sun_bear_afternoon_tea,
@@ -70,7 +73,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_tea_milk,
         R.drawable.ic_sun_bear_tea_juice,
         R.drawable.ic_sun_bear_tea_cocoa,
-        R.drawable.ic_sun_bear_tea_dessert
+        R.drawable.ic_sun_bear_tea_dessert,
     ),
     HEAD_HOME(
         R.string.sun_bear_head_home,
@@ -78,8 +81,9 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_home_metro,
         R.drawable.ic_sun_bear_home_bus,
         R.drawable.ic_sun_bear_home_taxi,
-        R.drawable.ic_sun_bear_home_drive
+        R.drawable.ic_sun_bear_home_drive,
     ),
+
     /** 工作日傍晚锻炼：与晨练共用运动池，但按日独立抽取。 */
     EVENING_EXERCISE(
         R.string.sun_bear_evening_exercise,
@@ -92,7 +96,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_exercise_bike,
         R.drawable.ic_sun_bear_exercise_soccer,
         R.drawable.ic_sun_bear_exercise_yoga,
-        R.drawable.ic_sun_bear_exercise_taichi
+        R.drawable.ic_sun_bear_exercise_taichi,
     ),
     WEEKEND_MORNING(
         R.string.sun_bear_weekend_morning,
@@ -100,7 +104,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_weekend_morning_2,
         R.drawable.ic_sun_bear_weekend_morning_3,
         R.drawable.ic_sun_bear_weekend_morning_4,
-        R.drawable.ic_sun_bear_weekend_morning_5
+        R.drawable.ic_sun_bear_weekend_morning_5,
     ),
     WEEKEND_EXPLORE(
         R.string.sun_bear_weekend_explore,
@@ -108,7 +112,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_weekend_explore_2,
         R.drawable.ic_sun_bear_weekend_explore_3,
         R.drawable.ic_sun_bear_weekend_explore_4,
-        R.drawable.ic_sun_bear_weekend_explore_5
+        R.drawable.ic_sun_bear_weekend_explore_5,
     ),
     WEEKEND_AFTERNOON(
         R.string.sun_bear_weekend_afternoon,
@@ -116,7 +120,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_weekend_afternoon_2,
         R.drawable.ic_sun_bear_weekend_afternoon_3,
         R.drawable.ic_sun_bear_weekend_afternoon_4,
-        R.drawable.ic_sun_bear_weekend_afternoon_5
+        R.drawable.ic_sun_bear_weekend_afternoon_5,
     ),
     WEEKEND_RETURN(
         R.string.sun_bear_weekend_return,
@@ -124,7 +128,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_weekend_return_2,
         R.drawable.ic_sun_bear_weekend_return_3,
         R.drawable.ic_sun_bear_weekend_return_4,
-        R.drawable.ic_sun_bear_weekend_return_5
+        R.drawable.ic_sun_bear_weekend_return_5,
     ),
     DINNER(
         R.string.sun_bear_dinner,
@@ -137,7 +141,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_dinner_7,
         R.drawable.ic_sun_bear_dinner_8,
         R.drawable.ic_sun_bear_dinner_9,
-        R.drawable.ic_sun_bear_dinner_10
+        R.drawable.ic_sun_bear_dinner_10,
     ),
     EVENING(
         R.string.sun_bear_evening,
@@ -149,7 +153,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_evening_music,
         R.drawable.ic_sun_bear_evening_knit,
         R.drawable.ic_sun_bear_evening_diary,
-        R.drawable.ic_sun_bear_evening_pet
+        R.drawable.ic_sun_bear_evening_pet,
     ),
     SLEEP(
         R.string.sun_bear_sleep,
@@ -165,14 +169,15 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_sleep_sofa,
         R.drawable.ic_sun_bear_sleep_train,
         R.drawable.ic_sun_bear_sleep_igloo,
-        R.drawable.ic_sun_bear_sleep_treehouse
+        R.drawable.ic_sun_bear_sleep_treehouse,
     ),
     ALMOST_DAWN(
         R.string.sun_bear_almost_dawn,
         R.drawable.ic_sun_bear_almost_dawn,
         R.drawable.ic_sun_bear_almost_dawn_2,
-        R.drawable.ic_sun_bear_almost_dawn_3
-    );
+        R.drawable.ic_sun_bear_almost_dawn_3,
+    ),
+    ;
 
     /** 按自然日稳定选取插画，当天不变、隔天可换。 */
     @DrawableRes
@@ -195,28 +200,30 @@ enum class SunPathBearMoment(
     fun captionResFor(date: LocalDate): Int {
         when (this) {
             AFTERNOON_TEA -> {
-                val captions = intArrayOf(
-                    R.string.sun_bear_tea_coffee,
-                    R.string.sun_bear_tea_tea,
-                    R.string.sun_bear_tea_milk,
-                    R.string.sun_bear_tea_juice,
-                    R.string.sun_bear_tea_cocoa,
-                    R.string.sun_bear_tea_dessert
-                )
+                val captions =
+                    intArrayOf(
+                        R.string.sun_bear_tea_coffee,
+                        R.string.sun_bear_tea_tea,
+                        R.string.sun_bear_tea_milk,
+                        R.string.sun_bear_tea_juice,
+                        R.string.sun_bear_tea_cocoa,
+                        R.string.sun_bear_tea_dessert,
+                    )
                 return captions[dailyVariantIndex(date, name, captions.size)]
             }
             EVENING -> {
-                val captions = intArrayOf(
-                    R.string.sun_bear_evening_tea,
-                    R.string.sun_bear_evening_game,
-                    R.string.sun_bear_evening_book,
-                    R.string.sun_bear_evening_phone,
-                    R.string.sun_bear_evening_tv,
-                    R.string.sun_bear_evening_music,
-                    R.string.sun_bear_evening_knit,
-                    R.string.sun_bear_evening_diary,
-                    R.string.sun_bear_evening_pet
-                )
+                val captions =
+                    intArrayOf(
+                        R.string.sun_bear_evening_tea,
+                        R.string.sun_bear_evening_game,
+                        R.string.sun_bear_evening_book,
+                        R.string.sun_bear_evening_phone,
+                        R.string.sun_bear_evening_tv,
+                        R.string.sun_bear_evening_music,
+                        R.string.sun_bear_evening_knit,
+                        R.string.sun_bear_evening_diary,
+                        R.string.sun_bear_evening_pet,
+                    )
                 return captions[dailyVariantIndex(date, name, captions.size)]
             }
             MORNING_OUT -> return COMMUTE_OUT_CAPTIONS[commuteIndex(date)]
@@ -229,40 +236,46 @@ enum class SunPathBearMoment(
 }
 
 /** 走路 / 地铁 / 公交 / 打车 / 开车；上下班共用同一天索引。 */
-private val COMMUTE_OUT_DRAWABLES = intArrayOf(
-    R.drawable.ic_sun_bear_morning_out,
-    R.drawable.ic_sun_bear_morning_metro,
-    R.drawable.ic_sun_bear_morning_bus,
-    R.drawable.ic_sun_bear_morning_taxi,
-    R.drawable.ic_sun_bear_morning_drive
-)
-private val COMMUTE_HOME_DRAWABLES = intArrayOf(
-    R.drawable.ic_sun_bear_head_home,
-    R.drawable.ic_sun_bear_home_metro,
-    R.drawable.ic_sun_bear_home_bus,
-    R.drawable.ic_sun_bear_home_taxi,
-    R.drawable.ic_sun_bear_home_drive
-)
-private val COMMUTE_OUT_CAPTIONS = intArrayOf(
-    R.string.sun_bear_commute_walk_out,
-    R.string.sun_bear_commute_metro_out,
-    R.string.sun_bear_commute_bus_out,
-    R.string.sun_bear_commute_taxi_out,
-    R.string.sun_bear_commute_drive_out
-)
-private val COMMUTE_HOME_CAPTIONS = intArrayOf(
-    R.string.sun_bear_commute_walk_home,
-    R.string.sun_bear_commute_metro_home,
-    R.string.sun_bear_commute_bus_home,
-    R.string.sun_bear_commute_taxi_home,
-    R.string.sun_bear_commute_drive_home
-)
+private val COMMUTE_OUT_DRAWABLES =
+    intArrayOf(
+        R.drawable.ic_sun_bear_morning_out,
+        R.drawable.ic_sun_bear_morning_metro,
+        R.drawable.ic_sun_bear_morning_bus,
+        R.drawable.ic_sun_bear_morning_taxi,
+        R.drawable.ic_sun_bear_morning_drive,
+    )
+private val COMMUTE_HOME_DRAWABLES =
+    intArrayOf(
+        R.drawable.ic_sun_bear_head_home,
+        R.drawable.ic_sun_bear_home_metro,
+        R.drawable.ic_sun_bear_home_bus,
+        R.drawable.ic_sun_bear_home_taxi,
+        R.drawable.ic_sun_bear_home_drive,
+    )
+private val COMMUTE_OUT_CAPTIONS =
+    intArrayOf(
+        R.string.sun_bear_commute_walk_out,
+        R.string.sun_bear_commute_metro_out,
+        R.string.sun_bear_commute_bus_out,
+        R.string.sun_bear_commute_taxi_out,
+        R.string.sun_bear_commute_drive_out,
+    )
+private val COMMUTE_HOME_CAPTIONS =
+    intArrayOf(
+        R.string.sun_bear_commute_walk_home,
+        R.string.sun_bear_commute_metro_home,
+        R.string.sun_bear_commute_bus_home,
+        R.string.sun_bear_commute_taxi_home,
+        R.string.sun_bear_commute_drive_home,
+    )
 
-private fun commuteIndex(date: LocalDate): Int =
-    dailyVariantIndex(date, "COMMUTE", COMMUTE_OUT_DRAWABLES.size)
+private fun commuteIndex(date: LocalDate): Int = dailyVariantIndex(date, "COMMUTE", COMMUTE_OUT_DRAWABLES.size)
 
 @DrawableRes
-private fun commuteBearRes(moment: SunPathBearMoment, date: LocalDate): Int {
+private fun commuteBearRes(
+    moment: SunPathBearMoment,
+    date: LocalDate,
+): Int {
     val i = commuteIndex(date)
     return when (moment) {
         SunPathBearMoment.HEAD_HOME -> COMMUTE_HOME_DRAWABLES[i]
@@ -271,89 +284,100 @@ private fun commuteBearRes(moment: SunPathBearMoment, date: LocalDate): Int {
 }
 
 /** 跑步 / 篮球 / 乒乓 / 单杠 / 羽毛球 / 跳绳 / 骑行 / 足球 / 瑜伽 / 太极；晨练与傍晚各自按日抽取。 */
-private val EXERCISE_DRAWABLES = intArrayOf(
-    R.drawable.ic_sun_bear_exercise_run,
-    R.drawable.ic_sun_bear_exercise_basketball,
-    R.drawable.ic_sun_bear_exercise_pingpong,
-    R.drawable.ic_sun_bear_exercise_bar,
-    R.drawable.ic_sun_bear_exercise_badminton,
-    R.drawable.ic_sun_bear_exercise_jumprope,
-    R.drawable.ic_sun_bear_exercise_bike,
-    R.drawable.ic_sun_bear_exercise_soccer,
-    R.drawable.ic_sun_bear_exercise_yoga,
-    R.drawable.ic_sun_bear_exercise_taichi
-)
-private val EXERCISE_MORNING_CAPTIONS = intArrayOf(
-    R.string.sun_bear_exercise_run_morning,
-    R.string.sun_bear_exercise_basketball_morning,
-    R.string.sun_bear_exercise_pingpong_morning,
-    R.string.sun_bear_exercise_bar_morning,
-    R.string.sun_bear_exercise_badminton_morning,
-    R.string.sun_bear_exercise_jumprope_morning,
-    R.string.sun_bear_exercise_bike_morning,
-    R.string.sun_bear_exercise_soccer_morning,
-    R.string.sun_bear_exercise_yoga_morning,
-    R.string.sun_bear_exercise_taichi_morning
-)
-private val EXERCISE_EVENING_CAPTIONS = intArrayOf(
-    R.string.sun_bear_exercise_run_evening,
-    R.string.sun_bear_exercise_basketball_evening,
-    R.string.sun_bear_exercise_pingpong_evening,
-    R.string.sun_bear_exercise_bar_evening,
-    R.string.sun_bear_exercise_badminton_evening,
-    R.string.sun_bear_exercise_jumprope_evening,
-    R.string.sun_bear_exercise_bike_evening,
-    R.string.sun_bear_exercise_soccer_evening,
-    R.string.sun_bear_exercise_yoga_evening,
-    R.string.sun_bear_exercise_taichi_evening
-)
+private val EXERCISE_DRAWABLES =
+    intArrayOf(
+        R.drawable.ic_sun_bear_exercise_run,
+        R.drawable.ic_sun_bear_exercise_basketball,
+        R.drawable.ic_sun_bear_exercise_pingpong,
+        R.drawable.ic_sun_bear_exercise_bar,
+        R.drawable.ic_sun_bear_exercise_badminton,
+        R.drawable.ic_sun_bear_exercise_jumprope,
+        R.drawable.ic_sun_bear_exercise_bike,
+        R.drawable.ic_sun_bear_exercise_soccer,
+        R.drawable.ic_sun_bear_exercise_yoga,
+        R.drawable.ic_sun_bear_exercise_taichi,
+    )
+private val EXERCISE_MORNING_CAPTIONS =
+    intArrayOf(
+        R.string.sun_bear_exercise_run_morning,
+        R.string.sun_bear_exercise_basketball_morning,
+        R.string.sun_bear_exercise_pingpong_morning,
+        R.string.sun_bear_exercise_bar_morning,
+        R.string.sun_bear_exercise_badminton_morning,
+        R.string.sun_bear_exercise_jumprope_morning,
+        R.string.sun_bear_exercise_bike_morning,
+        R.string.sun_bear_exercise_soccer_morning,
+        R.string.sun_bear_exercise_yoga_morning,
+        R.string.sun_bear_exercise_taichi_morning,
+    )
+private val EXERCISE_EVENING_CAPTIONS =
+    intArrayOf(
+        R.string.sun_bear_exercise_run_evening,
+        R.string.sun_bear_exercise_basketball_evening,
+        R.string.sun_bear_exercise_pingpong_evening,
+        R.string.sun_bear_exercise_bar_evening,
+        R.string.sun_bear_exercise_badminton_evening,
+        R.string.sun_bear_exercise_jumprope_evening,
+        R.string.sun_bear_exercise_bike_evening,
+        R.string.sun_bear_exercise_soccer_evening,
+        R.string.sun_bear_exercise_yoga_evening,
+        R.string.sun_bear_exercise_taichi_evening,
+    )
 
-private fun exerciseIndex(date: LocalDate, moment: SunPathBearMoment): Int =
-    dailyVariantIndex(date, moment.name, EXERCISE_DRAWABLES.size)
+private fun exerciseIndex(
+    date: LocalDate,
+    moment: SunPathBearMoment,
+): Int = dailyVariantIndex(date, moment.name, EXERCISE_DRAWABLES.size)
 
 /** 办公室上午/下午各一张；其他工种当天上下午同一张。 */
-private val WORK_FIELD_JOBS = intArrayOf(
-    R.drawable.ic_sun_bear_work_brick,
-    R.drawable.ic_sun_bear_work_delivery,
-    R.drawable.ic_sun_bear_work_factory,
-    R.drawable.ic_sun_bear_work_chef,
-    R.drawable.ic_sun_bear_work_farm,
-    R.drawable.ic_sun_bear_work_courier,
-    R.drawable.ic_sun_bear_work_shop,
-    R.drawable.ic_sun_bear_work_mechanic,
-    R.drawable.ic_sun_bear_work_teacher,
-    R.drawable.ic_sun_bear_work_nurse,
-    R.drawable.ic_sun_bear_work_firefighter,
-    R.drawable.ic_sun_bear_work_driver,
-    R.drawable.ic_sun_bear_work_barista,
-    R.drawable.ic_sun_bear_work_fisher,
-    R.drawable.ic_sun_bear_work_warehouse,
-    R.drawable.ic_sun_bear_work_cleaner,
-    R.drawable.ic_sun_bear_work_barber,
-    R.drawable.ic_sun_bear_work_scientist,
-    R.drawable.ic_sun_bear_work_gardener,
-    R.drawable.ic_sun_bear_work_painter,
-    R.drawable.ic_sun_bear_work_baker,
-    R.drawable.ic_sun_bear_work_guard
-)
+private val WORK_FIELD_JOBS =
+    intArrayOf(
+        R.drawable.ic_sun_bear_work_brick,
+        R.drawable.ic_sun_bear_work_delivery,
+        R.drawable.ic_sun_bear_work_factory,
+        R.drawable.ic_sun_bear_work_chef,
+        R.drawable.ic_sun_bear_work_farm,
+        R.drawable.ic_sun_bear_work_courier,
+        R.drawable.ic_sun_bear_work_shop,
+        R.drawable.ic_sun_bear_work_mechanic,
+        R.drawable.ic_sun_bear_work_teacher,
+        R.drawable.ic_sun_bear_work_nurse,
+        R.drawable.ic_sun_bear_work_firefighter,
+        R.drawable.ic_sun_bear_work_driver,
+        R.drawable.ic_sun_bear_work_barista,
+        R.drawable.ic_sun_bear_work_fisher,
+        R.drawable.ic_sun_bear_work_warehouse,
+        R.drawable.ic_sun_bear_work_cleaner,
+        R.drawable.ic_sun_bear_work_barber,
+        R.drawable.ic_sun_bear_work_scientist,
+        R.drawable.ic_sun_bear_work_gardener,
+        R.drawable.ic_sun_bear_work_painter,
+        R.drawable.ic_sun_bear_work_baker,
+        R.drawable.ic_sun_bear_work_guard,
+    )
 
 /**
  * 按天抽工种：0 = 办公室（上午/下午换图），其余为现场工种（全天同一张）。
  */
 @DrawableRes
-internal fun workDayBearRes(date: LocalDate, afternoon: Boolean): Int {
+internal fun workDayBearRes(
+    date: LocalDate,
+    afternoon: Boolean,
+): Int {
     val kindCount = 1 + WORK_FIELD_JOBS.size
     val kind = dailyVariantIndex(date, "WORK_DAY", kindCount)
     return if (kind == 0) {
-        if (afternoon) R.drawable.ic_sun_bear_work_afternoon
-        else R.drawable.ic_sun_bear_work_morning
+        if (afternoon) {
+            R.drawable.ic_sun_bear_work_afternoon
+        } else {
+            R.drawable.ic_sun_bear_work_morning
+        }
     } else {
         WORK_FIELD_JOBS[kind - 1]
     }
 }
 
-fun isWeekend(date: LocalDate): Boolean =
-    date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY
+fun isWeekend(date: LocalDate): Boolean = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY
 
 /**
  * 小熊生活片刻按**钟点**划分（午饭/晚饭不跟着日照进度跑，避免夏天 10 点就吃午饭）。
@@ -362,7 +386,7 @@ fun isWeekend(date: LocalDate): Boolean =
 fun sunPathBearMoment(
     phase: SunPathPhase?,
     date: LocalDate = LocalDate.now(),
-    time: LocalTime = LocalTime.now()
+    time: LocalTime = LocalTime.now(),
 ): SunPathBearMoment {
     if (phase == null) {
         return if (isWeekend(date)) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_EXERCISE
@@ -380,7 +404,10 @@ fun sunPathBearMoment(
  * → 下午忙；另插下午茶(15:00–16:30) → 回家通勤(17:30–18:30) → 傍晚锻炼(18:30后至日落)。
  * 周末仍用周末片刻，不拆通勤/锻炼。
  */
-private fun dayBearMoment(date: LocalDate, minutes: Int): SunPathBearMoment {
+private fun dayBearMoment(
+    date: LocalDate,
+    minutes: Int,
+): SunPathBearMoment {
     val weekend = isWeekend(date)
     return when {
         minutes < 8 * 60 ->
@@ -407,7 +434,10 @@ private fun dayBearMoment(date: LocalDate, minutes: Int): SunPathBearMoment {
  * 再晚饭(~20:00前) → 歇一会儿(~23:00前) → 睡觉 → 临近天亮。
  * 夏天日落晚时，通勤/锻炼多半已在白天完成，入夜会较快落到晚饭。
  */
-private fun nightBearMoment(date: LocalDate, minutes: Int): SunPathBearMoment {
+private fun nightBearMoment(
+    date: LocalDate,
+    minutes: Int,
+): SunPathBearMoment {
     val weekend = isWeekend(date)
     return when {
         minutes in (5 * 60) until (9 * 60) -> SunPathBearMoment.ALMOST_DAWN
@@ -420,7 +450,11 @@ private fun nightBearMoment(date: LocalDate, minutes: Int): SunPathBearMoment {
 }
 
 /** 同一天、同一场景索引固定，避免重组时乱跳。 */
-internal fun dailyVariantIndex(date: LocalDate, salt: String, size: Int): Int {
+internal fun dailyVariantIndex(
+    date: LocalDate,
+    salt: String,
+    size: Int,
+): Int {
     if (size <= 1) return 0
     var h = date.toEpochDay()
     h = h * 31L + salt.hashCode()
@@ -430,7 +464,7 @@ internal fun dailyVariantIndex(date: LocalDate, salt: String, size: Int): Int {
 fun sunPathPhase(
     now: LocalDateTime,
     sunrise: LocalDateTime,
-    sunset: LocalDateTime
+    sunset: LocalDateTime,
 ): SunPathPhase? {
     if (!sunset.isAfter(sunrise)) return null
     val dayTotal = ChronoUnit.SECONDS.between(sunrise, sunset).coerceAtLeast(1)

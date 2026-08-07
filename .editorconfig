@@ -1,0 +1,13 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+# Compose 组件函数必须大写开头（Compose 编译器按名称识别组件），
+# 这是 ktlint 的 function-naming 规则需要忽略的合法例外。
+ktlint_function_naming_ignore_when_annotated_with = Composable

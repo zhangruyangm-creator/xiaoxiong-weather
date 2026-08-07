@@ -41,7 +41,7 @@ import kotlin.random.Random
 internal data class RadarEchoDot(
     val angleDeg: Float,
     val radiusFrac: Float,
-    val sizeDp: Float
+    val sizeDp: Float,
 )
 
 /**
@@ -52,52 +52,57 @@ internal fun RadarScanLoadingOverlay(
     cityName: String,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
-    @StringRes detailRes: Int = R.string.radar_scan_detail
+    @StringRes detailRes: Int = R.string.radar_scan_detail,
 ) {
     val transition = rememberInfiniteTransition(label = "radar-scan")
     val sweep by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "sweep"
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 2400, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "sweep",
     )
     val pulse by transition.animateFloat(
         initialValue = 0.55f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 1200, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "pulse",
     )
-    val echoes = remember {
-        List(7) {
-            RadarEchoDot(
-                angleDeg = Random.nextFloat() * 360f,
-                radiusFrac = 0.22f + Random.nextFloat() * 0.55f,
-                sizeDp = 3.5f + Random.nextFloat() * 4f
-            )
+    val echoes =
+        remember {
+            List(7) {
+                RadarEchoDot(
+                    angleDeg = Random.nextFloat() * 360f,
+                    radiusFrac = 0.22f + Random.nextFloat() * 0.55f,
+                    sizeDp = 3.5f + Random.nextFloat() * 4f,
+                )
+            }
         }
-    }
     val gridColor = Color(0xFF3D8BFF).copy(alpha = 0.35f)
     val beamColor = SoftTeal
     val glowColor = Color(0xFF56CCF2)
 
     Box(
-        modifier = modifier.background(
-            Brush.radialGradient(
-                colors = listOf(Color(0xFF243B55), Color(0xFF141E30), Color(0xFF0B1220))
-            )
-        ),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier.background(
+                Brush.radialGradient(
+                    colors = listOf(Color(0xFF243B55), Color(0xFF141E30), Color(0xFF0B1220)),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
     ) {
         Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (compact) 28.dp else 20.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(if (compact) 28.dp else 20.dp),
         ) {
             val cx = size.width / 2f
             val cy = size.height / 2f
@@ -105,16 +110,18 @@ internal fun RadarScanLoadingOverlay(
 
             // 外圈光晕
             drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        glowColor.copy(alpha = 0.14f * pulse),
-                        Color.Transparent
+                brush =
+                    Brush.radialGradient(
+                        colors =
+                            listOf(
+                                glowColor.copy(alpha = 0.14f * pulse),
+                                Color.Transparent,
+                            ),
+                        center = Offset(cx, cy),
+                        radius = maxR,
                     ),
-                    center = Offset(cx, cy),
-                    radius = maxR
-                ),
                 radius = maxR,
-                center = Offset(cx, cy)
+                center = Offset(cx, cy),
             )
 
             // 同心圆环
@@ -123,7 +130,7 @@ internal fun RadarScanLoadingOverlay(
                     color = gridColor.copy(alpha = 0.22f + i * 0.04f),
                     radius = maxR * i / 4f,
                     center = Offset(cx, cy),
-                    style = Stroke(width = 1.5.dp.toPx())
+                    style = Stroke(width = 1.5.dp.toPx()),
                 )
             }
             // 十字准星
@@ -131,13 +138,13 @@ internal fun RadarScanLoadingOverlay(
                 color = gridColor.copy(alpha = 0.35f),
                 start = Offset(cx - maxR, cy),
                 end = Offset(cx + maxR, cy),
-                strokeWidth = 1.dp.toPx()
+                strokeWidth = 1.dp.toPx(),
             )
             drawLine(
                 color = gridColor.copy(alpha = 0.35f),
                 start = Offset(cx, cy - maxR),
                 end = Offset(cx, cy + maxR),
-                strokeWidth = 1.dp.toPx()
+                strokeWidth = 1.dp.toPx(),
             )
 
             // 扫掠扇形（用多条半透明线近似）
@@ -154,7 +161,7 @@ internal fun RadarScanLoadingOverlay(
                         start = Offset(cx, cy),
                         end = Offset(ex, ey),
                         strokeWidth = 3.dp.toPx(),
-                        cap = StrokeCap.Round
+                        cap = StrokeCap.Round,
                     )
                 }
                 // 主扫射线
@@ -163,17 +170,18 @@ internal fun RadarScanLoadingOverlay(
                     start = Offset(cx, cy),
                     end = Offset(cx + maxR, cy),
                     strokeWidth = 2.dp.toPx(),
-                    cap = StrokeCap.Round
+                    cap = StrokeCap.Round,
                 )
             }
 
             // 回波点：扫到附近时更亮
             echoes.forEach { echo ->
                 val delta = ((sweep - echo.angleDeg + 540f) % 360f)
-                val lit = when {
-                    delta < 40f -> 1f - delta / 40f
-                    else -> 0.18f
-                }
+                val lit =
+                    when {
+                        delta < 40f -> 1f - delta / 40f
+                        else -> 0.18f
+                    }
                 val rad = maxR * echo.radiusFrac
                 val radAng = Math.toRadians(echo.angleDeg.toDouble())
                 val x = cx + rad * cos(radAng).toFloat()
@@ -181,7 +189,7 @@ internal fun RadarScanLoadingOverlay(
                 drawCircle(
                     color = beamColor.copy(alpha = 0.25f + 0.65f * lit),
                     radius = echo.sizeDp.dp.toPx() * (0.75f + 0.4f * lit),
-                    center = Offset(x, y)
+                    center = Offset(x, y),
                 )
             }
 
@@ -189,47 +197,50 @@ internal fun RadarScanLoadingOverlay(
             drawCircle(
                 color = AccentCoral.copy(alpha = 0.3f),
                 radius = 10.dp.toPx() * pulse,
-                center = Offset(cx, cy)
+                center = Offset(cx, cy),
             )
             drawCircle(
                 color = AccentCoral,
                 radius = 4.5.dp.toPx(),
-                center = Offset(cx, cy)
+                center = Offset(cx, cy),
             )
             drawCircle(
                 color = Color.White.copy(alpha = 0.9f),
                 radius = 4.5.dp.toPx(),
                 center = Offset(cx, cy),
-                style = Stroke(width = 1.5.dp.toPx())
+                style = Stroke(width = 1.5.dp.toPx()),
             )
         }
 
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = if (compact) 12.dp else 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = if (compact) 12.dp else 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = if (compact) {
-                    stringResource(R.string.radar_scan_sync)
-                } else {
-                    stringResource(R.string.radar_scan_city, cityName)
-                },
+                text =
+                    if (compact) {
+                        stringResource(R.string.radar_scan_sync)
+                    } else {
+                        stringResource(R.string.radar_scan_city, cityName)
+                    },
                 color = Color.White.copy(alpha = 0.92f),
-                style = if (compact) {
-                    MaterialTheme.typography.labelLarge
-                } else {
-                    MaterialTheme.typography.titleSmall
-                },
-                fontWeight = FontWeight.SemiBold
+                style =
+                    if (compact) {
+                        MaterialTheme.typography.labelLarge
+                    } else {
+                        MaterialTheme.typography.titleSmall
+                    },
+                fontWeight = FontWeight.SemiBold,
             )
             if (!compact) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = stringResource(detailRes),
                     color = Color.White.copy(alpha = 0.65f),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium,
                 )
             }
         }

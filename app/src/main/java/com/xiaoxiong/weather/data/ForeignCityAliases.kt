@@ -20,11 +20,16 @@ object ForeignCityAliases {
         }
     }
 
-    private fun load(resources: Resources): Map<String, String> = runCatching {
-        val text = resources.assets.open("foreign_city_aliases.json")
-            .bufferedReader(Charsets.UTF_8)
-            .use { it.readText() }
-        Json.parseToJsonElement(text).jsonObject
-            .mapValues { (_, value) -> value.jsonPrimitive.content }
-    }.getOrDefault(emptyMap())
+    private fun load(resources: Resources): Map<String, String> =
+        runCatching {
+            val text =
+                resources.assets
+                    .open("foreign_city_aliases.json")
+                    .bufferedReader(Charsets.UTF_8)
+                    .use { it.readText() }
+            Json
+                .parseToJsonElement(text)
+                .jsonObject
+                .mapValues { (_, value) -> value.jsonPrimitive.content }
+        }.getOrDefault(emptyMap())
 }

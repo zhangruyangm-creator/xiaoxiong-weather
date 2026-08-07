@@ -15,29 +15,36 @@ import kotlinx.coroutines.flow.map
 private val Context.appSettingsDataStore by preferencesDataStore("app_settings_v1")
 
 enum class ThemeMode {
-    SYSTEM, LIGHT, DARK
+    SYSTEM,
+    LIGHT,
+    DARK,
 }
 
 enum class TemperatureUnit {
-    CELSIUS, FAHRENHEIT
+    CELSIUS,
+    FAHRENHEIT,
 }
 
 /** 仅影响本 App 的 Compose 字号，不改系统设置。 */
-enum class AppFontScale(@StringRes val labelRes: Int) {
+enum class AppFontScale(
+    @StringRes val labelRes: Int,
+) {
     FOLLOW_SYSTEM(R.string.font_follow_system),
     SMALL(R.string.font_small),
     STANDARD(R.string.font_standard),
     LARGE(R.string.font_large),
-    EXTRA_LARGE(R.string.font_extra_large);
+    EXTRA_LARGE(R.string.font_extra_large),
+    ;
 
     /** @param systemFontScale 系统当前 fontScale */
-    fun resolve(systemFontScale: Float): Float = when (this) {
-        FOLLOW_SYSTEM -> systemFontScale.coerceIn(0.85f, 1.45f)
-        SMALL -> 0.90f
-        STANDARD -> 1.0f
-        LARGE -> 1.12f
-        EXTRA_LARGE -> 1.25f
-    }
+    fun resolve(systemFontScale: Float): Float =
+        when (this) {
+            FOLLOW_SYSTEM -> systemFontScale.coerceIn(0.85f, 1.45f)
+            SMALL -> 0.90f
+            STANDARD -> 1.0f
+            LARGE -> 1.12f
+            EXTRA_LARGE -> 1.25f
+        }
 }
 
 data class AppSettings(
@@ -48,31 +55,38 @@ data class AppSettings(
     val preferLocationOnLaunch: Boolean = true,
     val privacyAccepted: Boolean = false,
     val backgroundRefreshInterval: BackgroundRefreshInterval = BackgroundRefreshInterval.HOURS_3,
-    val todayCards: List<TodayCardPref> = TodayCardLayout.DEFAULT
+    val todayCards: List<TodayCardPref> = TodayCardLayout.DEFAULT,
 )
 
-class AppSettingsStore(private val context: Context) : AppSettingsSource {
-    override val settings: Flow<AppSettings> = context.appSettingsDataStore.data.map { prefs ->
-        AppSettings(
-            notificationsEnabled = prefs[KEY_NOTIFICATIONS] ?: true,
-            temperatureUnit = prefs[KEY_TEMP_UNIT]?.let {
-                runCatching { TemperatureUnit.valueOf(it) }.getOrDefault(TemperatureUnit.CELSIUS)
-            } ?: TemperatureUnit.CELSIUS,
-            themeMode = prefs[KEY_THEME]?.let {
-                runCatching { ThemeMode.valueOf(it) }.getOrDefault(ThemeMode.SYSTEM)
-            } ?: ThemeMode.SYSTEM,
-            // 默认「标准」：避免系统超大字体导致布局裁切；需要时可改跟随系统
-            fontScale = prefs[KEY_FONT_SCALE]?.let {
-                runCatching { AppFontScale.valueOf(it) }.getOrDefault(AppFontScale.STANDARD)
-            } ?: AppFontScale.STANDARD,
-            preferLocationOnLaunch = prefs[KEY_PREFER_LOCATION] ?: true,
-            privacyAccepted = prefs[KEY_PRIVACY] ?: false,
-            backgroundRefreshInterval = BackgroundRefreshInterval.fromHours(
-                prefs[KEY_BG_REFRESH_HOURS] ?: WeatherRefreshPolicy.BACKGROUND_HOURS
-            ),
-            todayCards = TodayCardLayout.decode(prefs[KEY_TODAY_CARDS])
-        )
-    }
+class AppSettingsStore(
+    private val context: Context,
+) : AppSettingsSource {
+    override val settings: Flow<AppSettings> =
+        context.appSettingsDataStore.data.map { prefs ->
+            AppSettings(
+                notificationsEnabled = prefs[KEY_NOTIFICATIONS] ?: true,
+                temperatureUnit =
+                    prefs[KEY_TEMP_UNIT]?.let {
+                        runCatching { TemperatureUnit.valueOf(it) }.getOrDefault(TemperatureUnit.CELSIUS)
+                    } ?: TemperatureUnit.CELSIUS,
+                themeMode =
+                    prefs[KEY_THEME]?.let {
+                        runCatching { ThemeMode.valueOf(it) }.getOrDefault(ThemeMode.SYSTEM)
+                    } ?: ThemeMode.SYSTEM,
+                // 默认「标准」：避免系统超大字体导致布局裁切；需要时可改跟随系统
+                fontScale =
+                    prefs[KEY_FONT_SCALE]?.let {
+                        runCatching { AppFontScale.valueOf(it) }.getOrDefault(AppFontScale.STANDARD)
+                    } ?: AppFontScale.STANDARD,
+                preferLocationOnLaunch = prefs[KEY_PREFER_LOCATION] ?: true,
+                privacyAccepted = prefs[KEY_PRIVACY] ?: false,
+                backgroundRefreshInterval =
+                    BackgroundRefreshInterval.fromHours(
+                        prefs[KEY_BG_REFRESH_HOURS] ?: WeatherRefreshPolicy.BACKGROUND_HOURS,
+                    ),
+                todayCards = TodayCardLayout.decode(prefs[KEY_TODAY_CARDS]),
+            )
+        }
 
     override suspend fun getOnce(): AppSettings = settings.first()
 

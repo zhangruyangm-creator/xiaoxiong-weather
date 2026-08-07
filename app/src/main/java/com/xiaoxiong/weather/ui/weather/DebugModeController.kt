@@ -21,10 +21,11 @@ internal class DebugModeController(
     private val app: Application,
     private val store: DebugWeatherSource,
     private val onState: ((WeatherUiState) -> WeatherUiState) -> Unit,
-    private val republishWeather: suspend () -> Unit
+    private val republishWeather: suspend () -> Unit,
 ) {
-    val state: StateFlow<DebugWeatherState> = store.state
-        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), DebugWeatherState())
+    val state: StateFlow<DebugWeatherState> =
+        store.state
+            .stateIn(scope, SharingStarted.WhileSubscribed(5_000), DebugWeatherState())
 
     /** 调试开关/覆盖变化时同步 debugEnabled，并按最新覆盖重新发布天气。 */
     fun start() {

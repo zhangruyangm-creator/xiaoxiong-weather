@@ -63,7 +63,7 @@ import com.xiaoxiong.weather.util.weatherCodeDescription
 internal fun DailyPage(
     weather: WeatherSnapshot?,
     isOffline: Boolean,
-    lastUpdatedText: String?
+    lastUpdatedText: String?,
 ) {
     val todayLabel = stringResource(R.string.label_today)
     val tempUnit = LocalTemperatureUnit.current
@@ -71,14 +71,15 @@ internal fun DailyPage(
     var expandedDate by remember(weather?.city?.id, weather?.daily?.firstOrNull()?.date) {
         mutableStateOf<String?>(null)
     }
-    val weekBounds = remember(weather?.daily) {
-        weather?.daily?.let { weekTemperatureBounds(it) }
-    }
+    val weekBounds =
+        remember(weather?.daily) {
+            weather?.daily?.let { weekTemperatureBounds(it) }
+        }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (weather == null) {
             item { EmptyHint(stringResource(R.string.daily_empty)) }
@@ -91,12 +92,12 @@ internal fun DailyPage(
             SectionHeader(
                 title = stringResource(R.string.daily_section_title),
                 subtitle = stringResource(R.string.daily_section_sub),
-                icon = Icons.Filled.CalendarMonth
+                icon = Icons.Filled.CalendarMonth,
             )
         }
         itemsIndexed(
             items = weather.daily,
-            key = { _, day -> day.date }
+            key = { _, day -> day.date },
         ) { index, day ->
             DailyDayCard(
                 day = day,
@@ -109,14 +110,14 @@ internal fun DailyPage(
                 expanded = expandedDate == day.date,
                 onToggleExpand = {
                     expandedDate = if (expandedDate == day.date) null else day.date
-                }
+                },
             )
         }
         item {
             SeasonTipsSection(
                 city = weather.city,
                 referenceIsoTime = weather.current.time,
-                elevationMeters = weather.elevationMeters
+                elevationMeters = weather.elevationMeters,
             )
         }
         item { Spacer(modifier = Modifier.height(4.dp)) }
@@ -133,55 +134,57 @@ private fun DailyDayCard(
     weekMinC: Double?,
     weekMaxC: Double?,
     expanded: Boolean,
-    onToggleExpand: () -> Unit
+    onToggleExpand: () -> Unit,
 ) {
-    val style = remember(day.weatherCode, appDark) {
-        weatherSceneStyle(day.weatherCode, isDay = true, appDark = appDark)
-    }
-    val cardBrush = remember(style.gradient) {
-        Brush.linearGradient(style.gradient)
-    }
-    val accentBrush = remember(style.gradient) {
-        Brush.horizontalGradient(
-            listOf(
-                style.gradient.first().copy(alpha = 0.95f),
-                style.gradient.last().copy(alpha = 0.75f)
+    val style =
+        remember(day.weatherCode, appDark) {
+            weatherSceneStyle(day.weatherCode, isDay = true, appDark = appDark)
+        }
+    val cardBrush =
+        remember(style.gradient) {
+            Brush.linearGradient(style.gradient)
+        }
+    val accentBrush =
+        remember(style.gradient) {
+            Brush.horizontalGradient(
+                listOf(
+                    style.gradient.first().copy(alpha = 0.95f),
+                    style.gradient.last().copy(alpha = 0.75f),
+                ),
             )
-        )
-    }
+        }
     val trackColor = style.contentColor.copy(alpha = 0.22f)
     val shape = RoundedCornerShape(if (isToday) 24.dp else 20.dp)
-    val expandLabel = stringResource(
-        if (expanded) R.string.daily_collapse else R.string.daily_expand
-    )
+    val expandLabel =
+        stringResource(
+            if (expanded) R.string.daily_collapse else R.string.daily_expand,
+        )
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = if (isToday) 10.dp else 5.dp,
-                shape = shape,
-                clip = false,
-                ambientColor = style.gradient.first().copy(alpha = 0.35f),
-                spotColor = style.gradient.last().copy(alpha = 0.4f)
-            )
-            .clip(shape)
-            .background(cardBrush)
-            .border(
-                width = if (isToday) 1.5.dp else 1.dp,
-                color = Color.White.copy(alpha = if (isToday) 0.42f else 0.22f),
-                shape = shape
-            )
-            .clickable(
-                role = Role.Button,
-                onClickLabel = expandLabel,
-                onClick = onToggleExpand
-            )
-            .padding(horizontal = 14.dp, vertical = 14.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = if (isToday) 10.dp else 5.dp,
+                    shape = shape,
+                    clip = false,
+                    ambientColor = style.gradient.first().copy(alpha = 0.35f),
+                    spotColor = style.gradient.last().copy(alpha = 0.4f),
+                ).clip(shape)
+                .background(cardBrush)
+                .border(
+                    width = if (isToday) 1.5.dp else 1.dp,
+                    color = Color.White.copy(alpha = if (isToday) 0.42f else 0.22f),
+                    shape = shape,
+                ).clickable(
+                    role = Role.Button,
+                    onClickLabel = expandLabel,
+                    onClick = onToggleExpand,
+                ).padding(horizontal = 14.dp, vertical = 14.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -189,14 +192,14 @@ private fun DailyDayCard(
                         text = if (isToday) todayLabel else formatDateLabel(day.date),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = style.contentColor
+                        color = style.contentColor,
                     )
                     if (isToday) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = formatDateLabel(day.date),
                             style = MaterialTheme.typography.labelMedium,
-                            color = style.mutedContentColor
+                            color = style.mutedContentColor,
                         )
                     }
                 }
@@ -204,22 +207,23 @@ private fun DailyDayCard(
                 Text(
                     text = weatherCodeDescription(day.weatherCode),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = style.mutedContentColor
+                    color = style.mutedContentColor,
                 )
             }
 
             Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.18f))
-                    .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f))
+                        .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape),
+                contentAlignment = Alignment.Center,
             ) {
                 WeatherIcon(
                     code = day.weatherCode,
                     isDay = true,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(34.dp),
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
@@ -227,7 +231,7 @@ private fun DailyDayCard(
                 imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                 contentDescription = expandLabel,
                 tint = style.contentColor.copy(alpha = 0.9f),
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(22.dp),
             )
         }
 
@@ -236,13 +240,13 @@ private fun DailyDayCard(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 text = formatTemperature(day.tempMinC, tempUnit),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = style.mutedContentColor
+                color = style.mutedContentColor,
             )
             DailyTempRangeBar(
                 minC = day.tempMinC,
@@ -251,13 +255,13 @@ private fun DailyDayCard(
                 weekMaxC = weekMaxC,
                 trackColor = trackColor,
                 fillBrush = accentBrush,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Text(
                 text = formatTemperature(day.tempMaxC, tempUnit),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = style.contentColor
+                color = style.contentColor,
             )
         }
 
@@ -268,29 +272,29 @@ private fun DailyDayCard(
         val uv = day.uvIndexMax?.let { "%.1f".format(it) } ?: "--"
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DailyMetaChip(
                 label = stringResource(R.string.daily_chip_precip, precip),
                 contentColor = style.contentColor,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             DailyMetaChip(
                 label = stringResource(R.string.daily_chip_prob, prob),
                 contentColor = style.contentColor,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             DailyMetaChip(
                 label = stringResource(R.string.daily_chip_uv, uv),
                 contentColor = style.contentColor,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
 
         AnimatedVisibility(
             visible = expanded,
             enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
+            exit = shrinkVertically() + fadeOut(),
         ) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -299,24 +303,24 @@ private fun DailyDayCard(
                 val wind = day.windMaxKmh?.let { "%.0f km/h".format(it) } ?: "--"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     DailyMetaChip(
                         label = stringResource(R.string.daily_detail_sunrise, sunrise),
                         contentColor = style.contentColor,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     DailyMetaChip(
                         label = stringResource(R.string.daily_detail_sunset, sunset),
                         contentColor = style.contentColor,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 DailyMetaChip(
                     label = stringResource(R.string.daily_detail_wind, wind),
                     contentColor = style.contentColor,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -331,34 +335,37 @@ private fun DailyTempRangeBar(
     weekMaxC: Double?,
     trackColor: Color,
     fillBrush: Brush,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val range = if (weekMinC != null && weekMaxC != null) {
-        weekAlignedTempBarRange(minC, maxC, weekMinC, weekMaxC)
-    } else {
-        // 无周界时退回「日较差宽度」示意
-        val min = minC ?: 0.0
-        val max = maxC ?: min
-        val span = (max - min).coerceAtLeast(1.0)
-        val fraction = (span / 18.0).toFloat().coerceIn(0.28f, 1f)
-        DailyTempBarRange(start = 0f, end = fraction)
-    }
+    val range =
+        if (weekMinC != null && weekMaxC != null) {
+            weekAlignedTempBarRange(minC, maxC, weekMinC, weekMaxC)
+        } else {
+            // 无周界时退回「日较差宽度」示意
+            val min = minC ?: 0.0
+            val max = maxC ?: min
+            val span = (max - min).coerceAtLeast(1.0)
+            val fraction = (span / 18.0).toFloat().coerceIn(0.28f, 1f)
+            DailyTempBarRange(start = 0f, end = fraction)
+        }
 
     BoxWithConstraints(
-        modifier = modifier
-            .height(8.dp)
-            .clip(CircleShape)
-            .background(trackColor)
+        modifier =
+            modifier
+                .height(8.dp)
+                .clip(CircleShape)
+                .background(trackColor),
     ) {
         val barWidth = maxWidth * range.width
         val startPad = maxWidth * range.start
         Box(
-            modifier = Modifier
-                .padding(start = startPad)
-                .width(barWidth)
-                .fillMaxHeight()
-                .clip(CircleShape)
-                .background(fillBrush)
+            modifier =
+                Modifier
+                    .padding(start = startPad)
+                    .width(barWidth)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(fillBrush),
         )
     }
 }
@@ -367,22 +374,23 @@ private fun DailyTempRangeBar(
 private fun DailyMetaChip(
     label: String,
     contentColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.16f))
-            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 8.dp, vertical = 7.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.16f))
+                .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                .padding(horizontal = 8.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
             color = contentColor.copy(alpha = 0.95f),
-            maxLines = 1
+            maxLines = 1,
         )
     }
 }

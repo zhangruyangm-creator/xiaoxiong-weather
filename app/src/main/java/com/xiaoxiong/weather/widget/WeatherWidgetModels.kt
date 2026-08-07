@@ -5,7 +5,7 @@ import androidx.annotation.DrawableRes
 data class WeatherWidgetHourUi(
     val label: String,
     val tempText: String,
-    val emoji: String
+    val emoji: String,
 )
 
 data class WeatherWidgetUi(
@@ -22,5 +22,5 @@ data class WeatherWidgetUi(
     val tomorrowEmoji: String = "",
     val tomorrowDescription: String = "",
     val hours: List<WeatherWidgetHourUi> = emptyList(),
-    val tipText: String = ""
+    val tipText: String = "",
 )
