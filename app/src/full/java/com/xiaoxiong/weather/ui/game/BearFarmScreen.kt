@@ -413,13 +413,19 @@ fun BearFarmScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(fx.skyTop), Color(fx.skyBottom))
+                    skyGradient(Color(fx.skyTop), Color(fx.skyBottom))
                 )
             )
     ) {
         // 氛围装饰
         Canvas(modifier = Modifier.fillMaxSize()) {
             @Suppress("UNUSED_EXPRESSION") frame
+            // 地平线光晕：位于画面上部天空区域
+            drawHorizonGlow(
+                size.height * 0.32f,
+                midColor(Color(fx.skyTop), Color.White),
+                size.height * 0.30f
+            )
             drawFarmAtmosphere(weather, farm.time)
         }
 
@@ -680,14 +686,13 @@ private fun FarmPlotVisual(
                 )
             }
             5 -> {
-                // 枯萎：作物 emoji 灰化歪倒 + 枯萎花标记
-                Text(
-                    crop?.emoji ?: "🥀",
-                    fontSize = 34.sp,
-                    modifier = Modifier.graphicsLayer {
-                        alpha = 0.35f
-                        rotationZ = 12f
-                    }
+                // 枯萎：自绘作物灰化歪倒 + 枯萎花标记
+                FarmCropCanvas(
+                    crop = crop,
+                    stage = plot.stage,
+                    progress = 1f,
+                    wilted = true,
+                    modifier = Modifier.fillMaxSize()
                 )
                 Text(
                     "🥀",
@@ -699,12 +704,6 @@ private fun FarmPlotVisual(
             }
             else -> {
                 val c = crop ?: return
-                val emojiSize = when (plot.stage) {
-                    1 -> 20.sp
-                    2 -> 26.sp
-                    3 -> 32.sp
-                    else -> 40.sp
-                }
                 // 生长中：进度环
                 if (plot.stage in 1..3) {
                     Canvas(
@@ -750,18 +749,48 @@ private fun FarmPlotVisual(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(c.emoji, fontSize = emojiSize)
+                        FarmCropCanvas(
+                            crop = c,
+                            stage = plot.stage,
+                            progress = 1f,
+                            wilted = false,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 } else {
-                    // 种子阶段把 emoji 往下沉，像埋在土里
-                    Text(
-                        c.emoji,
-                        fontSize = emojiSize,
-                        modifier = Modifier.offset(y = if (plot.stage == 1) 12.dp else 0.dp)
-                    )
+                    // 种子/发芽/成长：自绘植株，种子阶段整体下移像埋在土里
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .offset(y = if (plot.stage == 1) 12.dp else 0.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FarmCropCanvas(
+                            crop = c,
+                            stage = plot.stage,
+                            progress = plot.stageProgress,
+                            wilted = false,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+/** 自绘作物画布：把绘制委托给 [drawFarmCrop]。 */
+@Composable
+private fun FarmCropCanvas(
+    crop: CropDef?,
+    stage: Int,
+    progress: Float,
+    wilted: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val c = crop ?: return@Canvas
+        drawFarmCrop(c, stage, progress, wilted)
     }
 }
 

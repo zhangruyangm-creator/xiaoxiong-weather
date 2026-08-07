@@ -101,6 +101,12 @@ private fun DrawScope.drawSky(game: BearGame, isDay: Boolean) {
         drawCircle(Color(0xFFE8E3B0), 4.5f * s, Offset(cx + 9f * s, cy + 7f * s))
         drawCircle(Color(0xFFE8E3B0), 3.5f * s, Offset(cx + 2f * s, cy - 12f * s))
     }
+    // 地平线光晕
+    drawHorizonGlow(
+        game.groundY,
+        if (isDay) Color(0xFFFFE082) else Color(0xFFB0C4DE),
+        size.height * 0.12f
+    )
 }
 
 /* ---------------- 远景 ---------------- */

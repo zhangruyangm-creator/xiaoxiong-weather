@@ -121,6 +121,8 @@ private class MazeGame {
     var clearStars by mutableIntStateOf(0)
     /** 站在出口但蜂蜜未收齐时的提示剩余时间（秒）。 */
     var needHoneyHintT by mutableFloatStateOf(0f)
+    /** 最后一罐蜂蜜被收集时的 [time]（秒）；-1 表示本关还没有记录（出口直接视为全开）。 */
+    var lastHoneyAt = -1f
 
     // 平滑移动插值：从 (fromR,fromC) → (bearR,bearC)
     var fromR = 0
@@ -193,6 +195,7 @@ private class MazeGame {
         cleared = false
         clearStars = 0
         needHoneyHintT = 0f
+        lastHoneyAt = -1f
         sliding = false
         moveT = 1f
         facing = MazeDir.RIGHT
@@ -262,6 +265,8 @@ private class MazeGame {
             MazeTile.HONEY -> {
                 grid[bearR][bearC] = MazeCell(MazeTile.FLOOR)
                 honeyLeft = (honeyLeft - 1).coerceAtLeast(0)
+                // 收齐最后一罐：记录此刻时间，出口门从这一秒开始播开启动画
+                if (honeyLeft == 0) lastHoneyAt = time
                 haptic = true
             }
             MazeTile.KEY -> {
@@ -608,7 +613,7 @@ private fun MazePlayField(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(style.skyTop, style.skyBottom)))
+            .background(Brush.verticalGradient(skyGradient(style.skyTop, style.skyBottom)))
     ) {
         Canvas(
             modifier = Modifier
@@ -804,6 +809,12 @@ private fun DrawScope.drawMazeWorld(game: MazeGame, sprites: BearSprites, style:
     val ox = (size.width - boardW) / 2f
     val oy = hudTop + (availH - boardH) / 2f
 
+    // 天空地平线光晕：位于棋盘上方天空带，让背景更立体
+    val horizonY = oy - cell * 0.5f
+    if (horizonY > 0f) {
+        drawHorizonGlow(horizonY, midColor(style.skyBottom, Color.White), size.height * 0.16f)
+    }
+
     // 主题氛围装饰
     drawThemeFx(game, style)
 
@@ -905,17 +916,39 @@ private fun DrawScope.drawCell(
     val pad = cell * 0.06f
     when (tile.tile) {
         MazeTile.WALL -> {
+            // 墙体底部阴影（右下）
+            drawRoundRect(
+                Color.Black.copy(alpha = 0.22f),
+                Offset(x + pad * 0.55f, y + pad * 0.55f),
+                Size(cell - pad * 0.5f, cell - pad * 0.5f),
+                CornerRadius(cell * 0.12f)
+            )
+            // 墙身
             drawRoundRect(
                 style.wall,
                 Offset(x + pad * 0.3f, y + pad * 0.3f),
                 Size(cell - pad * 0.6f, cell - pad * 0.6f),
                 CornerRadius(cell * 0.12f)
             )
+            // 顶部受光面
             drawRoundRect(
                 style.wallTop,
                 Offset(x + pad, y + pad),
-                Size(cell - pad * 2, cell * 0.35f),
+                Size(cell - pad * 2, cell * 0.34f),
                 CornerRadius(cell * 0.08f)
+            )
+            // 砖缝：两条细横线压暗，做出立体分层
+            drawLine(
+                Color.Black.copy(alpha = 0.10f),
+                Offset(x + pad * 1.6f, y + pad + cell * 0.52f),
+                Offset(x + cell - pad * 1.6f, y + pad + cell * 0.52f),
+                strokeWidth = 1.5f
+            )
+            drawLine(
+                Color.Black.copy(alpha = 0.07f),
+                Offset(x + pad * 1.6f, y + pad + cell * 0.78f),
+                Offset(x + cell - pad * 1.6f, y + pad + cell * 0.78f),
+                strokeWidth = 1.5f
             )
         }
         else -> {
@@ -925,6 +958,20 @@ private fun DrawScope.drawCell(
                 Offset(x + pad * 0.5f, y + pad * 0.5f),
                 Size(cell - pad, cell - pad),
                 CornerRadius(cell * 0.1f)
+            )
+            // 地板四周内阴影，增强格子边界立体感
+            drawRoundRect(
+                Color.Black.copy(alpha = 0.06f),
+                Offset(x + pad * 0.5f, y + pad * 0.5f),
+                Size(cell - pad, cell - pad),
+                CornerRadius(cell * 0.1f),
+                style = Stroke(width = 1.5f)
+            )
+            // 轻量纹理：左上高光小角
+            drawCircle(
+                Color.White.copy(alpha = 0.10f),
+                cell * 0.08f,
+                Offset(x + pad + cell * 0.16f, y + pad + cell * 0.18f)
             )
         }
     }
@@ -1018,17 +1065,54 @@ private fun DrawScope.drawCell(
         }
         MazeTile.EXIT -> {
             val open = game.honeyLeft == 0
-            val door = if (open) Color(0xFF66BB6A) else Color(0xFF90A4AE)
+            // 门框：深色立柱 + 门楣
+            val frameC = Color(0xFF6A7A6E)
             drawRoundRect(
-                door,
-                Offset(cx - cell * 0.28f, cy - cell * 0.32f),
-                Size(cell * 0.56f, cell * 0.6f),
-                CornerRadius(cell * 0.08f)
+                frameC,
+                Offset(cx - cell * 0.32f, cy - cell * 0.34f),
+                Size(cell * 0.08f, cell * 0.66f),
+                CornerRadius(cell * 0.03f)
             )
-            drawCircle(Color(0xFFFFF176), cell * 0.07f, Offset(cx + cell * 0.14f, cy))
+            drawRoundRect(
+                frameC,
+                Offset(cx + cell * 0.24f, cy - cell * 0.34f),
+                Size(cell * 0.08f, cell * 0.66f),
+                CornerRadius(cell * 0.03f)
+            )
+            drawRoundRect(
+                frameC.copy(alpha = 0.85f),
+                Offset(cx - cell * 0.32f, cy - cell * 0.42f),
+                Size(cell * 0.64f, cell * 0.10f),
+                CornerRadius(cell * 0.04f)
+            )
+            // 门扇：开启时向上滑动淡出，关闭时实心
+            val openT = if (open) {
+                doorOpenProgress(game.time, game.lastHoneyAt)
+            } else {
+                0f
+            }
+            val doorCol = if (open) Color(0xFF66BB6A) else Color(0xFF90A4AE)
+            if (openT < 1f) {
+                val dy = -openT * cell * 0.42f
+                drawRoundRect(
+                    doorCol.copy(alpha = 1f - openT * 0.5f),
+                    Offset(cx - cell * 0.28f, cy - cell * 0.32f + dy),
+                    Size(cell * 0.56f, cell * 0.6f),
+                    CornerRadius(cell * 0.08f)
+                )
+                drawCircle(Color(0xFFFFF176), cell * 0.07f, Offset(cx + cell * 0.14f, cy + dy))
+            }
             if (open) {
+                // 门洞发光：脉动光环
                 val pulse = 0.5f + 0.5f * sin(game.time * 3f)
-                drawCircle(Color(0xFFA5D6A7).copy(alpha = 0.4f * pulse), cell * 0.4f, Offset(cx, cy))
+                drawCircle(Color(0xFFA5D6A7).copy(alpha = 0.40f + 0.2f * pulse), cell * 0.42f, Offset(cx, cy))
+                // 门洞内侧亮光
+                drawRoundRect(
+                    Color(0xFFC8E6C9).copy(alpha = 0.5f),
+                    Offset(cx - cell * 0.26f, cy - cell * 0.30f),
+                    Size(cell * 0.52f, cell * 0.56f),
+                    CornerRadius(cell * 0.06f)
+                )
             }
         }
         MazeTile.START -> {
@@ -1036,6 +1120,13 @@ private fun DrawScope.drawCell(
         }
         else -> Unit
     }
+}
+
+/** 出口开门动画进度 0..1：从最后一罐蜂蜜被收集的 [lastHoneyAt] 起，1 秒内平滑开门。 */
+internal fun doorOpenProgress(time: Float, lastHoneyAt: Float): Float {
+    if (lastHoneyAt < 0f) return 1f // 本关无蜂蜜，出口直接视为全开
+    val t = (time - lastHoneyAt).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t) // smoothstep：开头慢、中间快、结尾缓
 }
 
 private fun DrawScope.drawMazeBear(

@@ -672,6 +672,8 @@ private fun DrawScope.drawJumpWorld(game: StarJumpGame, sprites: BearSprites) {
     val (skyTop, skyBottom) = skyColors(alt)
 
     drawRect(Brush.verticalGradient(listOf(skyTop, skyBottom)))
+    // 底部柔光：模拟云海/地平线反射，任何高度都增强层次
+    drawHorizonGlow(h * 0.88f, midColor(skyBottom, Color.White), h * 0.18f)
 
     // 星星（哈希星空：视差 0.5，无需存状态）
     val starAlpha = ((alt - 0.9f) / 0.7f).coerceIn(0f, 1f)
