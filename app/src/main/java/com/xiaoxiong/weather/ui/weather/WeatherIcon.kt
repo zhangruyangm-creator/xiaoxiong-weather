@@ -1,8 +1,8 @@
 package com.xiaoxiong.weather.ui.weather
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -52,209 +52,205 @@ fun WeatherIcon(
     precipMmPerHour: Double? = null,
 ) {
     val scene = weatherSceneOf(code, isDay)
-    // drawWithCache：图标是纯静态绘制，缓存绘制指令——只有 code/isDay 变化才重建，
-    // 列表滚动/重组时不再重复执行全部 path 绘制
-    modifier.drawWithCache {
-        onDrawBehind {
-            val u = size.minDimension
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            when (scene) {
-                WeatherScene.CLEAR ->
-                    if (isDay) {
-                        drawSun(Offset(cx, cy), radius = 0.23f * u, rayInner = 0.32f * u, rayOuter = 0.43f * u, rayWidth = 0.05f * u)
-                    } else {
-                        drawMoon(Offset(cx - 0.05f * u, cy + 0.05f * u), r = 0.27f * u)
-                        drawStar(Offset(cx + 0.30f * u, cy - 0.28f * u), 0.07f * u)
-                        drawStar(Offset(cx - 0.36f * u, cy - 0.30f * u), 0.05f * u)
-                    }
-
-                WeatherScene.PARTLY_CLOUDY -> {
-                    if (isDay) {
-                        drawSun(
-                            Offset(cx - 0.19f * u, cy - 0.19f * u),
-                            radius = 0.155f * u,
-                            rayInner = 0.23f * u,
-                            rayOuter = 0.30f * u,
-                            rayWidth =
-                                0.042f * u,
-                        )
-                    } else {
-                        drawMoon(Offset(cx - 0.20f * u, cy - 0.20f * u), r = 0.14f * u)
-                    }
-                    drawCloud(cx + 0.10f * u, cy + 0.10f * u, 0.72f * u)
+    Canvas(modifier = modifier) {
+        val u = size.minDimension
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        when (scene) {
+            WeatherScene.CLEAR ->
+                if (isDay) {
+                    drawSun(Offset(cx, cy), radius = 0.23f * u, rayInner = 0.32f * u, rayOuter = 0.43f * u, rayWidth = 0.05f * u)
+                } else {
+                    drawMoon(Offset(cx - 0.05f * u, cy + 0.05f * u), r = 0.27f * u)
+                    drawStar(Offset(cx + 0.30f * u, cy - 0.28f * u), 0.07f * u)
+                    drawStar(Offset(cx - 0.36f * u, cy - 0.30f * u), 0.05f * u)
                 }
 
-                WeatherScene.OVERCAST -> {
-                    drawCloud(cx - 0.08f * u, cy - 0.13f * u, 0.62f * u, storm = true)
-                    drawCloud(cx + 0.08f * u, cy + 0.06f * u, 0.78f * u)
+            WeatherScene.PARTLY_CLOUDY -> {
+                if (isDay) {
+                    drawSun(
+                        Offset(cx - 0.19f * u, cy - 0.19f * u),
+                        radius = 0.155f * u,
+                        rayInner = 0.23f * u,
+                        rayOuter = 0.30f * u,
+                        rayWidth =
+                            0.042f * u,
+                    )
+                } else {
+                    drawMoon(Offset(cx - 0.20f * u, cy - 0.20f * u), r = 0.14f * u)
                 }
+                drawCloud(cx + 0.10f * u, cy + 0.10f * u, 0.72f * u)
+            }
 
-                // 纯雾线（无云）：三条横向渐隐线，左右缘错落，任何底色上都干净
-                WeatherScene.FOG -> {
-                    val xs = listOf(-0.28f to 0.20f, -0.20f to 0.28f, -0.26f to 0.16f)
-                    val ys = listOf(-0.16f, 0f, 0.16f)
-                    val ws = listOf(0.05f, 0.06f, 0.05f)
-                    xs.forEachIndexed { i, (x0, x1) ->
-                        val sx = cx + x0 * u
-                        val ex = cx + x1 * u
-                        val ly = cy + ys[i] * u
-                        drawLine(
-                            brush =
-                                Brush.horizontalGradient(
-                                    0f to FogGray.copy(alpha = 0f),
-                                    0.18f to FogGray,
-                                    0.82f to FogGray,
-                                    1f to FogGray.copy(alpha = 0f),
-                                    startX = sx,
-                                    endX = ex,
-                                ),
-                            start = Offset(sx, ly),
-                            end = Offset(ex, ly),
-                            strokeWidth = ws[i] * u,
-                            cap = StrokeCap.Round,
-                        )
-                    }
-                }
+            WeatherScene.OVERCAST -> {
+                drawCloud(cx - 0.08f * u, cy - 0.13f * u, 0.62f * u, storm = true)
+                drawCloud(cx + 0.08f * u, cy + 0.06f * u, 0.78f * u)
+            }
 
-                // 降水全部收在云宽度（±0.31u）之内，从云底（≈cy+0.06u）下方开始
-                WeatherScene.DRIZZLE -> {
-                    drawCloud(cx, cy - 0.10f * u, 0.80f * u)
-                    drawDrops(
-                        cx,
-                        cy + 0.13f * u,
-                        u,
-                        listOf(-0.21f to 0.075f, -0.07f to 0.075f, 0.07f to 0.075f, 0.21f to 0.075f),
+            // 纯雾线（无云）：三条横向渐隐线，左右缘错落，任何底色上都干净
+            WeatherScene.FOG -> {
+                val xs = listOf(-0.28f to 0.20f, -0.20f to 0.28f, -0.26f to 0.16f)
+                val ys = listOf(-0.16f, 0f, 0.16f)
+                val ws = listOf(0.05f, 0.06f, 0.05f)
+                xs.forEachIndexed { i, (x0, x1) ->
+                    val sx = cx + x0 * u
+                    val ex = cx + x1 * u
+                    val ly = cy + ys[i] * u
+                    drawLine(
+                        brush =
+                            Brush.horizontalGradient(
+                                0f to FogGray.copy(alpha = 0f),
+                                0.18f to FogGray,
+                                0.82f to FogGray,
+                                1f to FogGray.copy(alpha = 0f),
+                                startX = sx,
+                                endX = ex,
+                            ),
+                        start = Offset(sx, ly),
+                        end = Offset(ex, ly),
+                        strokeWidth = ws[i] * u,
+                        cap = StrokeCap.Round,
                     )
                 }
+            }
 
-                // 雨按实测雨强分档：小雨 2 滴 / 中雨 3 滴 / 大雨 4 滴+风暴云 / 暴雨 5 滴+风暴云；
-                // 无速率数据时按场景回落（RAIN→中雨，HEAVY_RAIN→大雨）
-                WeatherScene.RAIN, WeatherScene.HEAVY_RAIN -> {
-                    val level = precipMmPerHour?.let { WeatherCodes.rainIntensity(it) }
-                    val storm =
-                        when (level) {
-                            WeatherCodes.RainIntensity.HEAVY,
-                            WeatherCodes.RainIntensity.TORRENTIAL,
-                            WeatherCodes.RainIntensity.VIOLENT,
-                            -> true
-                            null -> scene == WeatherScene.HEAVY_RAIN
-                            else -> false
-                        }
-                    val drops =
-                        when (level) {
-                            WeatherCodes.RainIntensity.NONE,
-                            WeatherCodes.RainIntensity.LIGHT,
-                            ->
-                                listOf(-0.10f to 0.12f, 0.10f to 0.12f)
-                            WeatherCodes.RainIntensity.MODERATE ->
-                                listOf(-0.16f to 0.15f, 0f to 0.15f, 0.16f to 0.15f)
-                            WeatherCodes.RainIntensity.HEAVY ->
-                                listOf(-0.22f to 0.16f, -0.07f to 0.12f, 0.07f to 0.16f, 0.22f to 0.12f)
-                            WeatherCodes.RainIntensity.TORRENTIAL,
-                            WeatherCodes.RainIntensity.VIOLENT,
-                            ->
-                                listOf(-0.24f to 0.17f, -0.12f to 0.12f, 0f to 0.17f, 0.12f to 0.12f, 0.24f to 0.17f)
-                            null ->
-                                if (scene == WeatherScene.HEAVY_RAIN) {
-                                    listOf(-0.22f to 0.16f, -0.07f to 0.12f, 0.07f to 0.16f, 0.22f to 0.12f)
-                                } else {
-                                    listOf(-0.16f to 0.15f, 0f to 0.15f, 0.16f to 0.15f)
-                                }
-                        }
-                    drawCloud(
-                        cx,
-                        cy - (if (storm) 0.12f else 0.10f) * u,
-                        (if (storm) 0.82f else 0.80f) * u,
-                        storm = storm,
-                    )
-                    drawDrops(cx, cy + 0.13f * u, u, drops)
-                }
+            // 降水全部收在云宽度（±0.31u）之内，从云底（≈cy+0.06u）下方开始
+            WeatherScene.DRIZZLE -> {
+                drawCloud(cx, cy - 0.10f * u, 0.80f * u)
+                drawDrops(
+                    cx,
+                    cy + 0.13f * u,
+                    u,
+                    listOf(-0.21f to 0.075f, -0.07f to 0.075f, 0.07f to 0.075f, 0.21f to 0.075f),
+                )
+            }
 
-                WeatherScene.FREEZING_RAIN -> {
-                    drawCloud(cx, cy - 0.10f * u, 0.80f * u)
-                    drawDrops(
-                        cx - 0.09f * u,
-                        cy + 0.13f * u,
-                        u,
-                        listOf(-0.09f to 0.13f, 0.07f to 0.13f),
-                    )
-                    drawSnowflake(Offset(cx + 0.17f * u, cy + 0.21f * u), 0.105f * u)
-                }
-
-                // 雪同套分档：小雪 2 小晶 / 中雪 2 晶 / 大雪 3 晶+风暴云 / 暴雪 3 大晶+风暴云
-                WeatherScene.SNOW, WeatherScene.HEAVY_SNOW -> {
-                    val level = precipMmPerHour?.let { WeatherCodes.snowIntensity(code, it) }
-                    val storm =
-                        when (level) {
-                            WeatherCodes.SnowIntensity.HEAVY,
-                            WeatherCodes.SnowIntensity.BLIZZARD,
-                            -> true
-                            null -> scene == WeatherScene.HEAVY_SNOW
-                            else -> false
-                        }
-                    drawCloud(cx, cy - 0.11f * u, 0.80f * u, storm = storm)
+            // 雨按实测雨强分档：小雨 2 滴 / 中雨 3 滴 / 大雨 4 滴+风暴云 / 暴雨 5 滴+风暴云；
+            // 无速率数据时按场景回落（RAIN→中雨，HEAVY_RAIN→大雨）
+            WeatherScene.RAIN, WeatherScene.HEAVY_RAIN -> {
+                val level = precipMmPerHour?.let { WeatherCodes.rainIntensity(it) }
+                val storm =
                     when (level) {
-                        WeatherCodes.SnowIntensity.NONE,
-                        WeatherCodes.SnowIntensity.LIGHT,
-                        -> {
-                            drawSnowflake(Offset(cx - 0.10f * u, cy + 0.20f * u), 0.075f * u)
-                            drawSnowflake(Offset(cx + 0.12f * u, cy + 0.24f * u), 0.06f * u)
-                        }
+                        WeatherCodes.RainIntensity.HEAVY,
+                        WeatherCodes.RainIntensity.TORRENTIAL,
+                        WeatherCodes.RainIntensity.VIOLENT,
+                        -> true
+                        null -> scene == WeatherScene.HEAVY_RAIN
+                        else -> false
+                    }
+                val drops =
+                    when (level) {
+                        WeatherCodes.RainIntensity.NONE,
+                        WeatherCodes.RainIntensity.LIGHT,
+                        ->
+                            listOf(-0.10f to 0.12f, 0.10f to 0.12f)
+                        WeatherCodes.RainIntensity.MODERATE ->
+                            listOf(-0.16f to 0.15f, 0f to 0.15f, 0.16f to 0.15f)
+                        WeatherCodes.RainIntensity.HEAVY ->
+                            listOf(-0.22f to 0.16f, -0.07f to 0.12f, 0.07f to 0.16f, 0.22f to 0.12f)
+                        WeatherCodes.RainIntensity.TORRENTIAL,
+                        WeatherCodes.RainIntensity.VIOLENT,
+                        ->
+                            listOf(-0.24f to 0.17f, -0.12f to 0.12f, 0f to 0.17f, 0.12f to 0.12f, 0.24f to 0.17f)
+                        null ->
+                            if (scene == WeatherScene.HEAVY_RAIN) {
+                                listOf(-0.22f to 0.16f, -0.07f to 0.12f, 0.07f to 0.16f, 0.22f to 0.12f)
+                            } else {
+                                listOf(-0.16f to 0.15f, 0f to 0.15f, 0.16f to 0.15f)
+                            }
+                    }
+                drawCloud(
+                    cx,
+                    cy - (if (storm) 0.12f else 0.10f) * u,
+                    (if (storm) 0.82f else 0.80f) * u,
+                    storm = storm,
+                )
+                drawDrops(cx, cy + 0.13f * u, u, drops)
+            }
 
-                        WeatherCodes.SnowIntensity.HEAVY -> {
+            WeatherScene.FREEZING_RAIN -> {
+                drawCloud(cx, cy - 0.10f * u, 0.80f * u)
+                drawDrops(
+                    cx - 0.09f * u,
+                    cy + 0.13f * u,
+                    u,
+                    listOf(-0.09f to 0.13f, 0.07f to 0.13f),
+                )
+                drawSnowflake(Offset(cx + 0.17f * u, cy + 0.21f * u), 0.105f * u)
+            }
+
+            // 雪同套分档：小雪 2 小晶 / 中雪 2 晶 / 大雪 3 晶+风暴云 / 暴雪 3 大晶+风暴云
+            WeatherScene.SNOW, WeatherScene.HEAVY_SNOW -> {
+                val level = precipMmPerHour?.let { WeatherCodes.snowIntensity(code, it) }
+                val storm =
+                    when (level) {
+                        WeatherCodes.SnowIntensity.HEAVY,
+                        WeatherCodes.SnowIntensity.BLIZZARD,
+                        -> true
+                        null -> scene == WeatherScene.HEAVY_SNOW
+                        else -> false
+                    }
+                drawCloud(cx, cy - 0.11f * u, 0.80f * u, storm = storm)
+                when (level) {
+                    WeatherCodes.SnowIntensity.NONE,
+                    WeatherCodes.SnowIntensity.LIGHT,
+                    -> {
+                        drawSnowflake(Offset(cx - 0.10f * u, cy + 0.20f * u), 0.075f * u)
+                        drawSnowflake(Offset(cx + 0.12f * u, cy + 0.24f * u), 0.06f * u)
+                    }
+
+                    WeatherCodes.SnowIntensity.HEAVY -> {
+                        drawSnowflake(Offset(cx - 0.20f * u, cy + 0.18f * u), 0.08f * u)
+                        drawSnowflake(Offset(cx, cy + 0.26f * u), 0.095f * u)
+                        drawSnowflake(Offset(cx + 0.20f * u, cy + 0.18f * u), 0.08f * u)
+                    }
+
+                    // 暴雪：两排 5 片错落，靠密度与大雪区分（单靠放大在小尺寸下看不出）
+                    WeatherCodes.SnowIntensity.BLIZZARD -> {
+                        drawSnowflake(Offset(cx - 0.22f * u, cy + 0.15f * u), 0.075f * u)
+                        drawSnowflake(Offset(cx, cy + 0.15f * u), 0.075f * u)
+                        drawSnowflake(Offset(cx + 0.22f * u, cy + 0.15f * u), 0.075f * u)
+                        drawSnowflake(Offset(cx - 0.11f * u, cy + 0.30f * u), 0.065f * u)
+                        drawSnowflake(Offset(cx + 0.11f * u, cy + 0.30f * u), 0.065f * u)
+                    }
+
+                    else -> {
+                        // MODERATE 或无数据：SNOW→中雪两片，HEAVY_SNOW→大雪三片
+                        if (level == null && scene == WeatherScene.HEAVY_SNOW) {
                             drawSnowflake(Offset(cx - 0.20f * u, cy + 0.18f * u), 0.08f * u)
                             drawSnowflake(Offset(cx, cy + 0.26f * u), 0.095f * u)
                             drawSnowflake(Offset(cx + 0.20f * u, cy + 0.18f * u), 0.08f * u)
-                        }
-
-                        // 暴雪：两排 5 片错落，靠密度与大雪区分（单靠放大在小尺寸下看不出）
-                        WeatherCodes.SnowIntensity.BLIZZARD -> {
-                            drawSnowflake(Offset(cx - 0.22f * u, cy + 0.15f * u), 0.075f * u)
-                            drawSnowflake(Offset(cx, cy + 0.15f * u), 0.075f * u)
-                            drawSnowflake(Offset(cx + 0.22f * u, cy + 0.15f * u), 0.075f * u)
-                            drawSnowflake(Offset(cx - 0.11f * u, cy + 0.30f * u), 0.065f * u)
-                            drawSnowflake(Offset(cx + 0.11f * u, cy + 0.30f * u), 0.065f * u)
-                        }
-
-                        else -> {
-                            // MODERATE 或无数据：SNOW→中雪两片，HEAVY_SNOW→大雪三片
-                            if (level == null && scene == WeatherScene.HEAVY_SNOW) {
-                                drawSnowflake(Offset(cx - 0.20f * u, cy + 0.18f * u), 0.08f * u)
-                                drawSnowflake(Offset(cx, cy + 0.26f * u), 0.095f * u)
-                                drawSnowflake(Offset(cx + 0.20f * u, cy + 0.18f * u), 0.08f * u)
-                            } else {
-                                drawSnowflake(Offset(cx - 0.14f * u, cy + 0.20f * u), 0.09f * u)
-                                drawSnowflake(Offset(cx + 0.13f * u, cy + 0.24f * u), 0.075f * u)
-                            }
+                        } else {
+                            drawSnowflake(Offset(cx - 0.14f * u, cy + 0.20f * u), 0.09f * u)
+                            drawSnowflake(Offset(cx + 0.13f * u, cy + 0.24f * u), 0.075f * u)
                         }
                     }
                 }
-
-                WeatherScene.THUNDER -> {
-                    drawCloud(cx, cy - 0.14f * u, 0.80f * u, storm = true)
-                    drawBolt(cx, cy + 0.0f * u, u)
-                }
-
-                WeatherScene.HAIL -> {
-                    drawCloud(cx, cy - 0.10f * u, 0.80f * u)
-                    listOf(-0.17f, 0f, 0.17f).forEach { dx ->
-                        val center = Offset(cx + dx * u, cy + 0.19f * u)
-                        drawCircle(
-                            brush =
-                                Brush.radialGradient(
-                                    listOf(Color.White, RainBottom),
-                                    center = center,
-                                    radius = 0.072f * u,
-                                ),
-                            radius = 0.072f * u,
-                            center = center,
-                        )
-                    }
-                }
-
-                WeatherScene.UNKNOWN -> drawThermometer(cx, cy, u)
             }
+
+            WeatherScene.THUNDER -> {
+                drawCloud(cx, cy - 0.14f * u, 0.80f * u, storm = true)
+                drawBolt(cx, cy + 0.0f * u, u)
+            }
+
+            WeatherScene.HAIL -> {
+                drawCloud(cx, cy - 0.10f * u, 0.80f * u)
+                listOf(-0.17f, 0f, 0.17f).forEach { dx ->
+                    val center = Offset(cx + dx * u, cy + 0.19f * u)
+                    drawCircle(
+                        brush =
+                            Brush.radialGradient(
+                                listOf(Color.White, RainBottom),
+                                center = center,
+                                radius = 0.072f * u,
+                            ),
+                        radius = 0.072f * u,
+                        center = center,
+                    )
+                }
+            }
+
+            WeatherScene.UNKNOWN -> drawThermometer(cx, cy, u)
         }
     }
 }
