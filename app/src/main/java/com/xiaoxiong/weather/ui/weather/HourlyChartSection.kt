@@ -261,11 +261,30 @@ fun HourlyChartSection(
                         val down = awaitFirstDown(requireUnconsumed = false)
                         selectAt(down.position.x)
                         onDragStateChange(true)
+                        var lockedToAxis: Boolean? = null
                         try {
                             drag(down.id) { change ->
-                                selectAt(change.position.x)
-                                if (change.positionChange() != Offset.Zero) {
-                                    change.consume()
+                                val delta = change.positionChange()
+                                if (delta != Offset.Zero) {
+                                    val axis = lockedToAxis ?: run {
+                                        // 首次明显位移决定手势走向：水平→选时间，垂直→交给外层滚动
+                                        val h = abs(delta.x)
+                                        val v = abs(delta.y)
+                                        if (h > 2f && h > v) {
+                                            true
+                                        } else if (v > 2f && v > h) {
+                                            false
+                                        } else {
+                                            null
+                                        }
+                                    }
+                                    lockedToAxis = axis
+                                    if (axis == true) {
+                                        // 水平拖拽：继续选时间并消费位移
+                                        selectAt(change.position.x)
+                                        change.consume()
+                                    }
+                                    // 垂直拖拽：不 consume，让事件继续流向外层页面的滚动容器
                                 }
                             }
                         } finally {

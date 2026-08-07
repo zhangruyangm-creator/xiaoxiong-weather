@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -515,12 +516,16 @@ private fun MazeLevelSelect(
             color = Color(0xFF2A4A6A),
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
         )
+        val gridState = rememberLazyGridState()
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Fixed(3),
-            contentPadding = PaddingValues(4.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxSize()
+            contentPadding = PaddingValues(8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
         ) {
             items(MAZE_CAMPAIGN_SIZE) { i ->
                 // 生成关含可解性 BFS，缓存避免滚动/重组时在主线程反复生成
@@ -537,7 +542,7 @@ private fun MazeLevelSelect(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(vertical = 14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(

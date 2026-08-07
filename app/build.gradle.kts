@@ -31,8 +31,8 @@ android {
         applicationId = "com.xiaoxiong.weather"
         minSdk = 26
         targetSdk = 37
-        versionCode = 26
-        versionName = "1.4.2"
+        versionCode = 27
+        versionName = "1.4.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

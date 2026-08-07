@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -26,6 +27,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -56,6 +62,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -596,18 +603,20 @@ private fun FarmPlotCell(
         colors = CardDefaults.cardColors(containerColor = soilColor),
         modifier = Modifier.aspectRatio(1f)
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawPlotContent(plot, crop)
-            }
-            // 状态角标
+        Box(modifier = Modifier.fillMaxSize()) {
+            FarmPlotVisual(
+                plot = plot,
+                crop = crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            // 状态角标：杂草 / 害虫
             Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(3.dp)
             ) {
-                if (plot.weed) Text("🌿", fontSize = 11.sp)
-                if (plot.bug) Text("🐛", fontSize = 11.sp)
+                if (plot.weed) Text("🌿", fontSize = 13.sp)
+                if (plot.bug) Text("🐛", fontSize = 13.sp)
             }
             if (plot.stage in 1..4) {
                 // 水分条
@@ -634,81 +643,162 @@ private fun FarmPlotCell(
                     )
                 }
             }
+            // 成熟标识
             if (plot.stage == 4) {
                 Text(
-                    "✓",
+                    "✨",
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(2.dp),
-                    color = Color(0xFFFFF176),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 13.sp
                 )
             }
         }
     }
 }
 
-private fun DrawScope.drawPlotContent(plot: FarmPlotState, crop: CropDef?) {
-    val cx = size.width / 2
-    val cy = size.height / 2
-    when (plot.stage) {
-        0 -> {
-            // 垄沟
-            drawRoundRect(
-                Color.Black.copy(alpha = 0.12f),
-                Offset(size.width * 0.15f, size.height * 0.55f),
-                Size(size.width * 0.7f, size.height * 0.12f),
-                CornerRadius(4f)
-            )
+/** 田地格子主体：土壤 + 按阶段渲染的作物（用作物 emoji 让玩家一眼认出种的是什么）。 */
+@Composable
+private fun FarmPlotVisual(
+    plot: FarmPlotState,
+    crop: CropDef?,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        // 土壤纹理
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawSoilBase(plot)
         }
-        5 -> {
-            drawCircle(Color(0xFF795548), size.minDimension * 0.12f, Offset(cx, cy))
-            drawLine(
-                Color(0xFF5D4037),
-                Offset(cx, cy),
-                Offset(cx, cy - size.height * 0.25f),
-                strokeWidth = 3f
-            )
-        }
-        else -> {
-            val c = crop ?: return
-            val leaf = Color(c.leafColor)
-            val body = Color(c.color)
-            when (plot.stage) {
-                1 -> { // 种子
-                    drawCircle(Color(0xFF6D4C41), size.minDimension * 0.08f, Offset(cx, cy + size.height * 0.1f))
-                }
-                2 -> { // 芽
-                    drawLine(leaf, Offset(cx, cy + size.height * 0.15f), Offset(cx, cy - size.height * 0.05f), strokeWidth = 3f)
-                    drawCircle(leaf, size.minDimension * 0.08f, Offset(cx - size.width * 0.08f, cy - size.height * 0.02f))
-                    drawCircle(leaf, size.minDimension * 0.08f, Offset(cx + size.width * 0.08f, cy - size.height * 0.02f))
-                }
-                3 -> { // 成长
-                    drawLine(leaf, Offset(cx, cy + size.height * 0.2f), Offset(cx, cy - size.height * 0.15f), strokeWidth = 4f)
-                    drawCircle(leaf, size.minDimension * 0.14f, Offset(cx, cy - size.height * 0.05f))
-                    drawCircle(body.copy(alpha = 0.7f), size.minDimension * 0.08f, Offset(cx, cy - size.height * 0.12f))
-                }
-                4 -> { // 成熟
-                    drawLine(leaf, Offset(cx, cy + size.height * 0.22f), Offset(cx, cy - size.height * 0.05f), strokeWidth = 4f)
-                    drawCircle(leaf, size.minDimension * 0.12f, Offset(cx - size.width * 0.12f, cy))
-                    drawCircle(leaf, size.minDimension * 0.12f, Offset(cx + size.width * 0.12f, cy))
-                    drawCircle(body, size.minDimension * 0.18f, Offset(cx, cy - size.height * 0.12f))
-                    drawCircle(Color.White.copy(alpha = 0.35f), size.minDimension * 0.05f, Offset(cx - size.width * 0.04f, cy - size.height * 0.16f))
-                }
-            }
-            // 进度环
-            if (plot.stage in 1..3) {
-                drawArc(
-                    Color.White.copy(alpha = 0.55f),
-                    startAngle = -90f,
-                    sweepAngle = 360f * plot.stageProgress,
-                    useCenter = false,
-                    topLeft = Offset(size.width * 0.12f, size.height * 0.12f),
-                    size = Size(size.width * 0.76f, size.height * 0.76f),
-                    style = Stroke(width = 2.5f)
+        when (plot.stage) {
+            0 -> {
+                // 空地：垄沟 + 播种提示
+                Text(
+                    "＋",
+                    color = Color.White.copy(alpha = 0.55f),
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Light
                 )
             }
+            5 -> {
+                // 枯萎：作物 emoji 灰化歪倒 + 枯萎花标记
+                Text(
+                    crop?.emoji ?: "🥀",
+                    fontSize = 34.sp,
+                    modifier = Modifier.graphicsLayer {
+                        alpha = 0.35f
+                        rotationZ = 12f
+                    }
+                )
+                Text(
+                    "🥀",
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 4.dp)
+                )
+            }
+            else -> {
+                val c = crop ?: return
+                val emojiSize = when (plot.stage) {
+                    1 -> 20.sp
+                    2 -> 26.sp
+                    3 -> 32.sp
+                    else -> 40.sp
+                }
+                // 生长中：进度环
+                if (plot.stage in 1..3) {
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(6.dp)
+                    ) {
+                        drawArc(
+                            Color.White.copy(alpha = 0.6f),
+                            startAngle = -90f,
+                            sweepAngle = 360f * plot.stageProgress,
+                            useCenter = false,
+                            style = Stroke(width = 2.5f)
+                        )
+                    }
+                }
+                if (plot.stage == 4) {
+                    // 成熟：金色光晕 + 呼吸缩放
+                    val transition = rememberInfiniteTransition(label = "ripe")
+                    val pulse by transition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 650),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "pulse"
+                    )
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawCircle(
+                            Color(0xFFFFF59D).copy(alpha = 0.10f + 0.12f * pulse),
+                            radius = size.minDimension * 0.44f,
+                            center = center
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                val s = 1f + 0.10f * pulse
+                                scaleX = s
+                                scaleY = s
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(c.emoji, fontSize = emojiSize)
+                    }
+                } else {
+                    // 种子阶段把 emoji 往下沉，像埋在土里
+                    Text(
+                        c.emoji,
+                        fontSize = emojiSize,
+                        modifier = Modifier.offset(y = if (plot.stage == 1) 12.dp else 0.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawSoilBase(plot: FarmPlotState) {
+    val w = size.width
+    val h = size.height
+    when (plot.stage) {
+        0 -> {
+            // 空地：多道垄沟 + 少量土粒
+            val furrow = Color.Black.copy(alpha = 0.12f)
+            for (i in 0..2) {
+                val y = h * (0.28f + i * 0.22f)
+                drawRoundRect(
+                    furrow,
+                    Offset(w * 0.12f, y),
+                    Size(w * 0.76f, h * 0.08f),
+                    CornerRadius(3f)
+                )
+            }
+            drawCircle(Color.White.copy(alpha = 0.07f), w * 0.028f, Offset(w * 0.2f, h * 0.45f))
+            drawCircle(Color.White.copy(alpha = 0.07f), w * 0.022f, Offset(w * 0.78f, h * 0.62f))
+            drawCircle(Color.White.copy(alpha = 0.07f), w * 0.026f, Offset(w * 0.55f, h * 0.75f))
+        }
+        else -> {
+            // 已翻整的土垄（作物根部）
+            drawRoundRect(
+                Color(0xFF3E2723).copy(alpha = 0.16f),
+                Offset(w * 0.10f, h * 0.62f),
+                Size(w * 0.80f, h * 0.22f),
+                CornerRadius(12f)
+            )
+            drawRoundRect(
+                Color.White.copy(alpha = 0.08f),
+                Offset(w * 0.14f, h * 0.60f),
+                Size(w * 0.72f, h * 0.10f),
+                CornerRadius(6f)
+            )
         }
     }
 }
