@@ -16,6 +16,33 @@ private val GEN_TITLES = mapOf(
 )
 
 /**
+ * 选关列表所需的轻量信息（不生成迷宫，O(1) 可得）。
+ * 只有真正开始游玩某一关时才调用 [mazeCampaignLevel] 生成完整地图。
+ */
+data class MazeLevelMeta(
+    val id: Int,
+    val titleZh: String,
+    val titleEn: String,
+    val theme: MazeTheme
+)
+
+/**
+ * 取选关列表元数据：手写关直接读常量，生成关只按 id 推主题与标题，
+ * 避免进入选关界面就批量生成全部关卡。
+ */
+fun mazeCampaignMeta(index: Int): MazeLevelMeta {
+    val i = index.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1)
+    if (i < MAZE_HANDCRAFTED.size) {
+        val lv = MAZE_HANDCRAFTED[i]
+        return MazeLevelMeta(lv.id, lv.titleZh, lv.titleEn, lv.theme)
+    }
+    val id = i + 1
+    val theme = MazeTheme.entries[id % MazeTheme.entries.size]
+    val titles = GEN_TITLES[theme] ?: listOf("迷雾迷宫")
+    return MazeLevelMeta(id, titles[id % titles.size], "Maze $id", theme)
+}
+
+/**
  * 取战役关卡：0..11 手写，12..59 用固定种子生成（同一关永远同一张图）。
  */
 fun mazeCampaignLevel(index: Int): MazeLevel {
