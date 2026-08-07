@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#B8E4F0</color>
+    <color name="ic_launcher_bg_sunny">#FFE9A8</color>
+    <color name="ic_launcher_bg_few_clouds">#F5E0B0</color>
+    <color name="ic_launcher_bg_few_clouds_night">#334260</color>
+    <color name="ic_launcher_bg_clear_night">#2C3A5A</color>
+    <color name="ic_launcher_bg_partly_cloudy_night">#3A4664</color>
+    <color name="ic_launcher_bg_drizzle">#C5D8E4</color>
+    <color name="ic_launcher_bg_rainy">#A9C7D8</color>
+    <color name="ic_launcher_bg_moderate_rain">#93B4C8</color>
+    <color name="ic_launcher_bg_heavy_rain">#7E9BB0</color>
+    <color name="ic_launcher_bg_violent_rain">#5F7A90</color>
+    <color name="ic_launcher_bg_extreme_rain">#3A4550</color>
+    <color name="ic_launcher_bg_snowy">#E8F4FF</color>
+    <color name="ic_launcher_bg_moderate_snow">#D7E8F6</color>
+    <color name="ic_launcher_bg_heavy_snow">#C5D9EC</color>
+    <color name="ic_launcher_bg_blizzard">#9BB0C4</color>
+    <color name="ic_launcher_bg_freezing_rain">#A8C8D8</color>
+    <color name="ic_launcher_bg_cloudy">#C9D2DC</color>
+    <color name="ic_launcher_bg_partly_cloudy">#B8D9F0</color>
+    <color name="ic_launcher_bg_storm">#9EACC4</color>
+    <color name="ic_launcher_bg_foggy">#E8EEF2</color>
+    <color name="ic_launcher_bg_hail">#B8C9DA</color>
+</resources>

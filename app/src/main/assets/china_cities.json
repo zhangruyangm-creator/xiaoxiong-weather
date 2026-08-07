@@ -1,0 +1,10085 @@
+[
+  {
+    "name": "北京",
+    "admin1": "北京",
+    "lat": 39.9042,
+    "lon": 116.4074,
+    "aliases": [
+      "北京市",
+      "beijing"
+    ]
+  },
+  {
+    "name": "天津",
+    "admin1": "天津",
+    "lat": 39.3434,
+    "lon": 117.3616,
+    "aliases": [
+      "天津市",
+      "tianjin"
+    ]
+  },
+  {
+    "name": "上海",
+    "admin1": "上海",
+    "lat": 31.2304,
+    "lon": 121.4737,
+    "aliases": [
+      "上海市",
+      "shanghai"
+    ]
+  },
+  {
+    "name": "重庆",
+    "admin1": "重庆",
+    "lat": 29.563,
+    "lon": 106.5516,
+    "aliases": [
+      "重庆市",
+      "chongqing"
+    ]
+  },
+  {
+    "name": "石家庄",
+    "admin1": "河北",
+    "lat": 38.0428,
+    "lon": 114.5149,
+    "aliases": [
+      "石家庄市",
+      "shijiazhuang"
+    ],
+    "admin2": "石家庄市"
+  },
+  {
+    "name": "唐山",
+    "admin1": "河北",
+    "lat": 39.63,
+    "lon": 118.18,
+    "aliases": [
+      "唐山市",
+      "tangshan"
+    ],
+    "admin2": "唐山市"
+  },
+  {
+    "name": "秦皇岛",
+    "admin1": "河北",
+    "lat": 39.935,
+    "lon": 119.6,
+    "aliases": [
+      "秦皇岛市",
+      "qinhuangdao"
+    ],
+    "admin2": "秦皇岛市"
+  },
+  {
+    "name": "邯郸",
+    "admin1": "河北",
+    "lat": 36.6256,
+    "lon": 114.539,
+    "aliases": [
+      "邯郸市",
+      "handan"
+    ],
+    "admin2": "邯郸市"
+  },
+  {
+    "name": "邢台",
+    "admin1": "河北",
+    "lat": 37.0706,
+    "lon": 114.504,
+    "aliases": [
+      "邢台市",
+      "xingtai"
+    ],
+    "admin2": "邢台市"
+  },
+  {
+    "name": "保定",
+    "admin1": "河北",
+    "lat": 38.873,
+    "lon": 115.464,
+    "aliases": [
+      "保定市",
+      "baoding"
+    ],
+    "admin2": "保定市"
+  },
+  {
+    "name": "张家口",
+    "admin1": "河北",
+    "lat": 40.811,
+    "lon": 114.884,
+    "aliases": [
+      "张家口市",
+      "zhangjiakou"
+    ],
+    "admin2": "张家口市"
+  },
+  {
+    "name": "承德",
+    "admin1": "河北",
+    "lat": 40.951,
+    "lon": 117.963,
+    "aliases": [
+      "承德市",
+      "chengde"
+    ],
+    "admin2": "承德市"
+  },
+  {
+    "name": "沧州",
+    "admin1": "河北",
+    "lat": 38.304,
+    "lon": 116.839,
+    "aliases": [
+      "沧州市",
+      "cangzhou"
+    ],
+    "admin2": "沧州市"
+  },
+  {
+    "name": "廊坊",
+    "admin1": "河北",
+    "lat": 39.538,
+    "lon": 116.684,
+    "aliases": [
+      "廊坊市",
+      "langfang"
+    ],
+    "admin2": "廊坊市"
+  },
+  {
+    "name": "衡水",
+    "admin1": "河北",
+    "lat": 37.739,
+    "lon": 115.67,
+    "aliases": [
+      "衡水市",
+      "hengshui"
+    ],
+    "admin2": "衡水市"
+  },
+  {
+    "name": "定州",
+    "admin1": "河北",
+    "lat": 38.516,
+    "lon": 114.99,
+    "aliases": [
+      "定州市",
+      "dingzhou"
+    ],
+    "admin2": "保定市"
+  },
+  {
+    "name": "辛集",
+    "admin1": "河北",
+    "lat": 37.943,
+    "lon": 115.218,
+    "aliases": [
+      "辛集市",
+      "xinji"
+    ],
+    "admin2": "石家庄市"
+  },
+  {
+    "name": "迁安",
+    "admin1": "河北",
+    "lat": 39.999,
+    "lon": 118.701,
+    "aliases": [
+      "迁安市",
+      "qianan"
+    ],
+    "admin2": "唐山市"
+  },
+  {
+    "name": "遵化",
+    "admin1": "河北",
+    "lat": 40.189,
+    "lon": 117.966,
+    "aliases": [
+      "遵化市",
+      "zunhua"
+    ],
+    "admin2": "唐山市"
+  },
+  {
+    "name": "霸州",
+    "admin1": "河北",
+    "lat": 39.125,
+    "lon": 116.392,
+    "aliases": [
+      "霸州市",
+      "bazhou"
+    ],
+    "admin2": "廊坊市"
+  },
+  {
+    "name": "三河",
+    "admin1": "河北",
+    "lat": 39.983,
+    "lon": 117.078,
+    "aliases": [
+      "三河市",
+      "sanhe"
+    ],
+    "admin2": "廊坊市"
+  },
+  {
+    "name": "黄骅",
+    "admin1": "河北",
+    "lat": 38.37,
+    "lon": 117.33,
+    "aliases": [
+      "黄骅市",
+      "huanghua"
+    ],
+    "admin2": "沧州市"
+  },
+  {
+    "name": "任丘",
+    "admin1": "河北",
+    "lat": 38.712,
+    "lon": 116.097,
+    "aliases": [
+      "任丘市",
+      "renqiu"
+    ],
+    "admin2": "沧州市"
+  },
+  {
+    "name": "河间",
+    "admin1": "河北",
+    "lat": 38.445,
+    "lon": 116.1,
+    "aliases": [
+      "河间市",
+      "hejian"
+    ],
+    "admin2": "沧州市"
+  },
+  {
+    "name": "深州",
+    "admin1": "河北",
+    "lat": 38.001,
+    "lon": 115.56,
+    "aliases": [
+      "深州市",
+      "shenzhou"
+    ],
+    "admin2": "衡水市"
+  },
+  {
+    "name": "武安",
+    "admin1": "河北",
+    "lat": 36.697,
+    "lon": 114.204,
+    "aliases": [
+      "武安市",
+      "wuan"
+    ],
+    "admin2": "邯郸市"
+  },
+  {
+    "name": "南宫",
+    "admin1": "河北",
+    "lat": 37.358,
+    "lon": 115.409,
+    "aliases": [
+      "南宫市",
+      "nangong"
+    ],
+    "admin2": "邢台市"
+  },
+  {
+    "name": "沙河",
+    "admin1": "河北",
+    "lat": 36.855,
+    "lon": 114.503,
+    "aliases": [
+      "沙河市",
+      "shahe"
+    ],
+    "admin2": "邢台市"
+  },
+  {
+    "name": "涿州",
+    "admin1": "河北",
+    "lat": 39.486,
+    "lon": 115.974,
+    "aliases": [
+      "涿州市",
+      "zhuozhou"
+    ],
+    "admin2": "保定市"
+  },
+  {
+    "name": "安国",
+    "admin1": "河北",
+    "lat": 38.418,
+    "lon": 115.327,
+    "aliases": [
+      "安国市",
+      "anguo"
+    ],
+    "admin2": "保定市"
+  },
+  {
+    "name": "高碑店",
+    "admin1": "河北",
+    "lat": 39.327,
+    "lon": 115.874,
+    "aliases": [
+      "高碑店市",
+      "gaobeidian"
+    ],
+    "admin2": "保定市"
+  },
+  {
+    "name": "雄安",
+    "admin1": "河北",
+    "lat": 38.95,
+    "lon": 115.91,
+    "aliases": [
+      "雄安市",
+      "xiongan"
+    ],
+    "admin2": "保定市"
+  },
+  {
+    "name": "太原",
+    "admin1": "山西",
+    "lat": 37.8706,
+    "lon": 112.5489,
+    "aliases": [
+      "太原市",
+      "taiyuan"
+    ],
+    "admin2": "太原市"
+  },
+  {
+    "name": "大同",
+    "admin1": "山西",
+    "lat": 40.0768,
+    "lon": 113.3001,
+    "aliases": [
+      "大同市",
+      "datong"
+    ],
+    "admin2": "大同市"
+  },
+  {
+    "name": "阳泉",
+    "admin1": "山西",
+    "lat": 37.856,
+    "lon": 113.58,
+    "aliases": [
+      "阳泉市",
+      "yangquan"
+    ],
+    "admin2": "阳泉市"
+  },
+  {
+    "name": "长治",
+    "admin1": "山西",
+    "lat": 36.195,
+    "lon": 113.116,
+    "aliases": [
+      "长治市",
+      "changzhi"
+    ],
+    "admin2": "长治市"
+  },
+  {
+    "name": "晋城",
+    "admin1": "山西",
+    "lat": 35.491,
+    "lon": 112.852,
+    "aliases": [
+      "晋城市",
+      "jincheng"
+    ],
+    "admin2": "晋城市"
+  },
+  {
+    "name": "朔州",
+    "admin1": "山西",
+    "lat": 39.331,
+    "lon": 112.433,
+    "aliases": [
+      "朔州",
+      "shuozhou"
+    ],
+    "admin2": "朔州市"
+  },
+  {
+    "name": "晋中",
+    "admin1": "山西",
+    "lat": 37.687,
+    "lon": 112.753,
+    "aliases": [
+      "晋中市",
+      "jinzhong"
+    ],
+    "admin2": "晋中市"
+  },
+  {
+    "name": "运城",
+    "admin1": "山西",
+    "lat": 35.026,
+    "lon": 111.007,
+    "aliases": [
+      "运城市",
+      "yuncheng"
+    ],
+    "admin2": "运城市"
+  },
+  {
+    "name": "忻州",
+    "admin1": "山西",
+    "lat": 38.416,
+    "lon": 112.734,
+    "aliases": [
+      "忻州",
+      "xinzhou"
+    ],
+    "admin2": "忻州市"
+  },
+  {
+    "name": "临汾",
+    "admin1": "山西",
+    "lat": 36.088,
+    "lon": 111.519,
+    "aliases": [
+      "临汾市",
+      "linfen"
+    ],
+    "admin2": "临汾市"
+  },
+  {
+    "name": "吕梁",
+    "admin1": "山西",
+    "lat": 37.518,
+    "lon": 111.134,
+    "aliases": [
+      "吕梁市",
+      "lvliang"
+    ],
+    "admin2": "吕梁市"
+  },
+  {
+    "name": "呼和浩特",
+    "admin1": "内蒙古",
+    "lat": 40.841,
+    "lon": 111.752,
+    "aliases": [
+      "呼和浩特市",
+      "huhehaote",
+      "hohhot"
+    ],
+    "admin2": "呼和浩特市"
+  },
+  {
+    "name": "包头",
+    "admin1": "内蒙古",
+    "lat": 40.657,
+    "lon": 109.84,
+    "aliases": [
+      "包头市",
+      "baotou"
+    ],
+    "admin2": "包头市"
+  },
+  {
+    "name": "乌海",
+    "admin1": "内蒙古",
+    "lat": 39.655,
+    "lon": 106.794,
+    "aliases": [
+      "乌海市",
+      "wuhai"
+    ],
+    "admin2": "乌海市"
+  },
+  {
+    "name": "赤峰",
+    "admin1": "内蒙古",
+    "lat": 42.257,
+    "lon": 118.887,
+    "aliases": [
+      "赤峰市",
+      "chifeng"
+    ],
+    "admin2": "赤峰市"
+  },
+  {
+    "name": "通辽",
+    "admin1": "内蒙古",
+    "lat": 43.617,
+    "lon": 122.263,
+    "aliases": [
+      "通辽市",
+      "tongliao"
+    ],
+    "admin2": "通辽市"
+  },
+  {
+    "name": "鄂尔多斯",
+    "admin1": "内蒙古",
+    "lat": 39.608,
+    "lon": 109.781,
+    "aliases": [
+      "鄂尔多斯市",
+      "eerduosi"
+    ],
+    "admin2": "鄂尔多斯市"
+  },
+  {
+    "name": "呼伦贝尔",
+    "admin1": "内蒙古",
+    "lat": 49.212,
+    "lon": 119.766,
+    "aliases": [
+      "呼伦贝尔市",
+      "hulunbeier"
+    ],
+    "admin2": "呼伦贝尔市"
+  },
+  {
+    "name": "巴彦淖尔",
+    "admin1": "内蒙古",
+    "lat": 40.743,
+    "lon": 107.388,
+    "aliases": [
+      "巴彦淖尔市",
+      "bayannaoer"
+    ],
+    "admin2": "巴彦淖尔市"
+  },
+  {
+    "name": "乌兰察布",
+    "admin1": "内蒙古",
+    "lat": 41.034,
+    "lon": 113.114,
+    "aliases": [
+      "乌兰察布市",
+      "wulanchabu"
+    ],
+    "admin2": "乌兰察布市"
+  },
+  {
+    "name": "沈阳",
+    "admin1": "辽宁",
+    "lat": 41.8057,
+    "lon": 123.4315,
+    "aliases": [
+      "沈阳市",
+      "shenyang"
+    ],
+    "admin2": "沈阳市"
+  },
+  {
+    "name": "大连",
+    "admin1": "辽宁",
+    "lat": 38.914,
+    "lon": 121.6147,
+    "aliases": [
+      "大连市",
+      "dalian"
+    ],
+    "admin2": "大连市"
+  },
+  {
+    "name": "鞍山",
+    "admin1": "辽宁",
+    "lat": 41.108,
+    "lon": 122.994,
+    "aliases": [
+      "鞍山市",
+      "anshan"
+    ],
+    "admin2": "鞍山市"
+  },
+  {
+    "name": "抚顺",
+    "admin1": "辽宁",
+    "lat": 41.881,
+    "lon": 123.957,
+    "aliases": [
+      "抚顺市",
+      "fushun"
+    ],
+    "admin2": "抚顺市"
+  },
+  {
+    "name": "本溪",
+    "admin1": "辽宁",
+    "lat": 41.294,
+    "lon": 123.771,
+    "aliases": [
+      "本溪市",
+      "benxi"
+    ],
+    "admin2": "本溪市"
+  },
+  {
+    "name": "丹东",
+    "admin1": "辽宁",
+    "lat": 40.129,
+    "lon": 124.383,
+    "aliases": [
+      "丹东市",
+      "dandong"
+    ],
+    "admin2": "丹东市"
+  },
+  {
+    "name": "锦州",
+    "admin1": "辽宁",
+    "lat": 41.095,
+    "lon": 121.127,
+    "aliases": [
+      "锦州",
+      "jinzhou"
+    ],
+    "admin2": "锦州市"
+  },
+  {
+    "name": "营口",
+    "admin1": "辽宁",
+    "lat": 40.667,
+    "lon": 122.235,
+    "aliases": [
+      "营口市",
+      "yingkou"
+    ],
+    "admin2": "营口市"
+  },
+  {
+    "name": "阜新",
+    "admin1": "辽宁",
+    "lat": 42.022,
+    "lon": 121.67,
+    "aliases": [
+      "阜新市",
+      "fuxin"
+    ],
+    "admin2": "阜新市"
+  },
+  {
+    "name": "辽阳",
+    "admin1": "辽宁",
+    "lat": 41.268,
+    "lon": 123.172,
+    "aliases": [
+      "辽阳市",
+      "liaoyang"
+    ],
+    "admin2": "辽阳市"
+  },
+  {
+    "name": "盘锦",
+    "admin1": "辽宁",
+    "lat": 41.12,
+    "lon": 122.071,
+    "aliases": [
+      "盘锦市",
+      "panjin"
+    ],
+    "admin2": "盘锦市"
+  },
+  {
+    "name": "铁岭",
+    "admin1": "辽宁",
+    "lat": 42.286,
+    "lon": 123.842,
+    "aliases": [
+      "铁岭市",
+      "tieling"
+    ],
+    "admin2": "铁岭市"
+  },
+  {
+    "name": "朝阳",
+    "admin1": "辽宁",
+    "lat": 41.573,
+    "lon": 120.451,
+    "aliases": [
+      "朝阳市",
+      "chaoyang"
+    ],
+    "admin2": "朝阳市"
+  },
+  {
+    "name": "葫芦岛",
+    "admin1": "辽宁",
+    "lat": 40.711,
+    "lon": 120.837,
+    "aliases": [
+      "葫芦岛市",
+      "huludao"
+    ],
+    "admin2": "葫芦岛市"
+  },
+  {
+    "name": "长春",
+    "admin1": "吉林",
+    "lat": 43.8171,
+    "lon": 125.3235,
+    "aliases": [
+      "长春市",
+      "changchun"
+    ],
+    "admin2": "长春市"
+  },
+  {
+    "name": "吉林",
+    "admin1": "吉林",
+    "lat": 43.838,
+    "lon": 126.549,
+    "aliases": [
+      "吉林市",
+      "jilin"
+    ],
+    "admin2": "吉林市"
+  },
+  {
+    "name": "四平",
+    "admin1": "吉林",
+    "lat": 43.167,
+    "lon": 124.351,
+    "aliases": [
+      "四平市",
+      "siping"
+    ],
+    "admin2": "四平市"
+  },
+  {
+    "name": "辽源",
+    "admin1": "吉林",
+    "lat": 42.888,
+    "lon": 125.144,
+    "aliases": [
+      "辽源市",
+      "liaoyuan"
+    ],
+    "admin2": "辽源市"
+  },
+  {
+    "name": "通化",
+    "admin1": "吉林",
+    "lat": 41.728,
+    "lon": 125.94,
+    "aliases": [
+      "通化市",
+      "tonghua"
+    ],
+    "admin2": "通化市"
+  },
+  {
+    "name": "白山",
+    "admin1": "吉林",
+    "lat": 41.944,
+    "lon": 126.428,
+    "aliases": [
+      "白山市",
+      "baishan"
+    ],
+    "admin2": "白山市"
+  },
+  {
+    "name": "松原",
+    "admin1": "吉林",
+    "lat": 45.142,
+    "lon": 124.825,
+    "aliases": [
+      "松原市",
+      "songyuan"
+    ],
+    "admin2": "松原市"
+  },
+  {
+    "name": "白城",
+    "admin1": "吉林",
+    "lat": 45.62,
+    "lon": 122.839,
+    "aliases": [
+      "白城市",
+      "baicheng"
+    ],
+    "admin2": "白城市"
+  },
+  {
+    "name": "延吉",
+    "admin1": "吉林",
+    "lat": 42.891,
+    "lon": 129.509,
+    "aliases": [
+      "延吉市",
+      "yanji"
+    ],
+    "admin2": "延边州"
+  },
+  {
+    "name": "哈尔滨",
+    "admin1": "黑龙江",
+    "lat": 45.8038,
+    "lon": 126.534,
+    "aliases": [
+      "哈尔滨市",
+      "haerbin"
+    ],
+    "admin2": "哈尔滨市"
+  },
+  {
+    "name": "齐齐哈尔",
+    "admin1": "黑龙江",
+    "lat": 47.354,
+    "lon": 123.918,
+    "aliases": [
+      "齐齐哈尔市",
+      "qiqihaer"
+    ],
+    "admin2": "齐齐哈尔市"
+  },
+  {
+    "name": "鸡西",
+    "admin1": "黑龙江",
+    "lat": 45.295,
+    "lon": 130.969,
+    "aliases": [
+      "鸡西市",
+      "jixi"
+    ],
+    "admin2": "鸡西市"
+  },
+  {
+    "name": "鹤岗",
+    "admin1": "黑龙江",
+    "lat": 47.35,
+    "lon": 130.298,
+    "aliases": [
+      "鹤岗市",
+      "hegang"
+    ],
+    "admin2": "鹤岗市"
+  },
+  {
+    "name": "双鸭山",
+    "admin1": "黑龙江",
+    "lat": 46.643,
+    "lon": 131.159,
+    "aliases": [
+      "双鸭山市",
+      "shuangyashan"
+    ],
+    "admin2": "双鸭山市"
+  },
+  {
+    "name": "大庆",
+    "admin1": "黑龙江",
+    "lat": 46.59,
+    "lon": 125.104,
+    "aliases": [
+      "大庆市",
+      "daqing"
+    ],
+    "admin2": "大庆市"
+  },
+  {
+    "name": "伊春",
+    "admin1": "黑龙江",
+    "lat": 47.728,
+    "lon": 128.841,
+    "aliases": [
+      "伊春市",
+      "yichun"
+    ],
+    "admin2": "伊春市"
+  },
+  {
+    "name": "佳木斯",
+    "admin1": "黑龙江",
+    "lat": 46.8,
+    "lon": 130.319,
+    "aliases": [
+      "佳木斯市",
+      "jiamusi"
+    ],
+    "admin2": "佳木斯市"
+  },
+  {
+    "name": "七台河",
+    "admin1": "黑龙江",
+    "lat": 45.771,
+    "lon": 131.003,
+    "aliases": [
+      "七台河市",
+      "qitaihe"
+    ],
+    "admin2": "七台河市"
+  },
+  {
+    "name": "牡丹江",
+    "admin1": "黑龙江",
+    "lat": 44.552,
+    "lon": 129.633,
+    "aliases": [
+      "牡丹江市",
+      "mudanjiang"
+    ],
+    "admin2": "牡丹江市"
+  },
+  {
+    "name": "黑河",
+    "admin1": "黑龙江",
+    "lat": 50.245,
+    "lon": 127.529,
+    "aliases": [
+      "黑河市",
+      "heihe"
+    ],
+    "admin2": "黑河市"
+  },
+  {
+    "name": "绥化",
+    "admin1": "黑龙江",
+    "lat": 46.637,
+    "lon": 126.969,
+    "aliases": [
+      "绥化市",
+      "suihua"
+    ],
+    "admin2": "绥化市"
+  },
+  {
+    "name": "南京",
+    "admin1": "江苏",
+    "lat": 32.0603,
+    "lon": 118.7969,
+    "aliases": [
+      "南京市",
+      "nanjing"
+    ],
+    "admin2": "南京市"
+  },
+  {
+    "name": "无锡",
+    "admin1": "江苏",
+    "lat": 31.491,
+    "lon": 120.312,
+    "aliases": [
+      "无锡市",
+      "wuxi"
+    ],
+    "admin2": "无锡市"
+  },
+  {
+    "name": "徐州",
+    "admin1": "江苏",
+    "lat": 34.205,
+    "lon": 117.284,
+    "aliases": [
+      "徐州",
+      "xuzhou"
+    ],
+    "admin2": "徐州市"
+  },
+  {
+    "name": "常州",
+    "admin1": "江苏",
+    "lat": 31.811,
+    "lon": 119.974,
+    "aliases": [
+      "常州",
+      "changzhou"
+    ],
+    "admin2": "常州市"
+  },
+  {
+    "name": "苏州",
+    "admin1": "江苏",
+    "lat": 31.2989,
+    "lon": 120.5853,
+    "aliases": [
+      "苏州",
+      "suzhou"
+    ],
+    "admin2": "苏州市"
+  },
+  {
+    "name": "南通",
+    "admin1": "江苏",
+    "lat": 32.016,
+    "lon": 120.895,
+    "aliases": [
+      "南通市",
+      "nantong"
+    ],
+    "admin2": "南通市"
+  },
+  {
+    "name": "连云港",
+    "admin1": "江苏",
+    "lat": 34.6,
+    "lon": 119.178,
+    "aliases": [
+      "连云港市",
+      "lianyungang"
+    ],
+    "admin2": "连云港市"
+  },
+  {
+    "name": "淮安",
+    "admin1": "江苏",
+    "lat": 33.597,
+    "lon": 119.021,
+    "aliases": [
+      "淮安市",
+      "huaian"
+    ],
+    "admin2": "淮安市"
+  },
+  {
+    "name": "盐城",
+    "admin1": "江苏",
+    "lat": 33.378,
+    "lon": 120.14,
+    "aliases": [
+      "盐城市",
+      "yancheng"
+    ],
+    "admin2": "盐城市"
+  },
+  {
+    "name": "扬州",
+    "admin1": "江苏",
+    "lat": 32.393,
+    "lon": 119.421,
+    "aliases": [
+      "扬州",
+      "yangzhou"
+    ],
+    "admin2": "扬州市"
+  },
+  {
+    "name": "镇江",
+    "admin1": "江苏",
+    "lat": 32.188,
+    "lon": 119.452,
+    "aliases": [
+      "镇江市",
+      "zhenjiang"
+    ],
+    "admin2": "镇江市"
+  },
+  {
+    "name": "泰州",
+    "admin1": "江苏",
+    "lat": 32.484,
+    "lon": 119.915,
+    "aliases": [
+      "泰州",
+      "taizhou"
+    ],
+    "admin2": "泰州市"
+  },
+  {
+    "name": "宿迁",
+    "admin1": "江苏",
+    "lat": 33.963,
+    "lon": 118.275,
+    "aliases": [
+      "宿迁市",
+      "suqian"
+    ],
+    "admin2": "宿迁市"
+  },
+  {
+    "name": "昆山",
+    "admin1": "江苏",
+    "lat": 31.385,
+    "lon": 120.981,
+    "aliases": [
+      "昆山市",
+      "kunshan"
+    ],
+    "admin2": "苏州市"
+  },
+  {
+    "name": "常熟",
+    "admin1": "江苏",
+    "lat": 31.656,
+    "lon": 120.752,
+    "aliases": [
+      "常熟市",
+      "changshu"
+    ],
+    "admin2": "苏州市"
+  },
+  {
+    "name": "张家港",
+    "admin1": "江苏",
+    "lat": 31.875,
+    "lon": 120.556,
+    "aliases": [
+      "张家港市",
+      "zhangjiagang"
+    ],
+    "admin2": "苏州市"
+  },
+  {
+    "name": "太仓",
+    "admin1": "江苏",
+    "lat": 31.459,
+    "lon": 121.13,
+    "aliases": [
+      "太仓市",
+      "taicang"
+    ],
+    "admin2": "苏州市"
+  },
+  {
+    "name": "江阴",
+    "admin1": "江苏",
+    "lat": 31.92,
+    "lon": 120.285,
+    "aliases": [
+      "江阴市",
+      "jiangyin"
+    ],
+    "admin2": "无锡市"
+  },
+  {
+    "name": "宜兴",
+    "admin1": "江苏",
+    "lat": 31.34,
+    "lon": 119.823,
+    "aliases": [
+      "宜兴市",
+      "yixing"
+    ],
+    "admin2": "无锡市"
+  },
+  {
+    "name": "溧阳",
+    "admin1": "江苏",
+    "lat": 31.416,
+    "lon": 119.484,
+    "aliases": [
+      "溧阳市",
+      "liyang"
+    ],
+    "admin2": "常州市"
+  },
+  {
+    "name": "丹阳",
+    "admin1": "江苏",
+    "lat": 32.009,
+    "lon": 119.606,
+    "aliases": [
+      "丹阳市",
+      "danyang"
+    ],
+    "admin2": "镇江市"
+  },
+  {
+    "name": "扬中",
+    "admin1": "江苏",
+    "lat": 32.237,
+    "lon": 119.797,
+    "aliases": [
+      "扬中市",
+      "yangzhong"
+    ],
+    "admin2": "镇江市"
+  },
+  {
+    "name": "句容",
+    "admin1": "江苏",
+    "lat": 31.945,
+    "lon": 119.168,
+    "aliases": [
+      "句容市",
+      "jurong"
+    ],
+    "admin2": "镇江市"
+  },
+  {
+    "name": "启东",
+    "admin1": "江苏",
+    "lat": 31.808,
+    "lon": 121.655,
+    "aliases": [
+      "启东市",
+      "qidong"
+    ],
+    "admin2": "南通市"
+  },
+  {
+    "name": "如皋",
+    "admin1": "江苏",
+    "lat": 32.372,
+    "lon": 120.574,
+    "aliases": [
+      "如皋市",
+      "rugao"
+    ],
+    "admin2": "南通市"
+  },
+  {
+    "name": "东台",
+    "admin1": "江苏",
+    "lat": 32.853,
+    "lon": 120.32,
+    "aliases": [
+      "东台市",
+      "dongtai"
+    ],
+    "admin2": "盐城市"
+  },
+  {
+    "name": "兴化",
+    "admin1": "江苏",
+    "lat": 32.911,
+    "lon": 119.852,
+    "aliases": [
+      "兴化市",
+      "xinghua"
+    ],
+    "admin2": "泰州市"
+  },
+  {
+    "name": "靖江",
+    "admin1": "江苏",
+    "lat": 32.016,
+    "lon": 120.277,
+    "aliases": [
+      "靖江市",
+      "jingjiang"
+    ],
+    "admin2": "泰州市"
+  },
+  {
+    "name": "泰兴",
+    "admin1": "江苏",
+    "lat": 32.172,
+    "lon": 120.012,
+    "aliases": [
+      "泰兴市",
+      "taixing"
+    ],
+    "admin2": "泰州市"
+  },
+  {
+    "name": "仪征",
+    "admin1": "江苏",
+    "lat": 32.272,
+    "lon": 119.185,
+    "aliases": [
+      "仪征市",
+      "yizheng"
+    ],
+    "admin2": "扬州市"
+  },
+  {
+    "name": "高邮",
+    "admin1": "江苏",
+    "lat": 32.781,
+    "lon": 119.443,
+    "aliases": [
+      "高邮市",
+      "gaoyou"
+    ],
+    "admin2": "扬州市"
+  },
+  {
+    "name": "邳州",
+    "admin1": "江苏",
+    "lat": 34.338,
+    "lon": 117.963,
+    "aliases": [
+      "邳州",
+      "pizhou"
+    ],
+    "admin2": "徐州市"
+  },
+  {
+    "name": "新沂",
+    "admin1": "江苏",
+    "lat": 34.369,
+    "lon": 118.355,
+    "aliases": [
+      "新沂市",
+      "xinyi"
+    ],
+    "admin2": "徐州市"
+  },
+  {
+    "name": "杭州",
+    "admin1": "浙江",
+    "lat": 30.2741,
+    "lon": 120.1551,
+    "aliases": [
+      "杭州",
+      "hangzhou"
+    ],
+    "admin2": "杭州市"
+  },
+  {
+    "name": "宁波",
+    "admin1": "浙江",
+    "lat": 29.8683,
+    "lon": 121.544,
+    "aliases": [
+      "宁波市",
+      "ningbo"
+    ],
+    "admin2": "宁波市"
+  },
+  {
+    "name": "温州",
+    "admin1": "浙江",
+    "lat": 27.994,
+    "lon": 120.699,
+    "aliases": [
+      "温州",
+      "wenzhou"
+    ],
+    "admin2": "温州市"
+  },
+  {
+    "name": "嘉兴",
+    "admin1": "浙江",
+    "lat": 30.746,
+    "lon": 120.755,
+    "aliases": [
+      "嘉兴市",
+      "jiaxing"
+    ],
+    "admin2": "嘉兴市"
+  },
+  {
+    "name": "湖州",
+    "admin1": "浙江",
+    "lat": 30.894,
+    "lon": 120.087,
+    "aliases": [
+      "湖州",
+      "huzhou"
+    ],
+    "admin2": "湖州市"
+  },
+  {
+    "name": "绍兴",
+    "admin1": "浙江",
+    "lat": 30.03,
+    "lon": 120.58,
+    "aliases": [
+      "绍兴市",
+      "shaoxing"
+    ],
+    "admin2": "绍兴市"
+  },
+  {
+    "name": "金华",
+    "admin1": "浙江",
+    "lat": 29.079,
+    "lon": 119.647,
+    "aliases": [
+      "金华市",
+      "jinhua"
+    ],
+    "admin2": "金华市"
+  },
+  {
+    "name": "衢州",
+    "admin1": "浙江",
+    "lat": 28.97,
+    "lon": 118.859,
+    "aliases": [
+      "衢州",
+      "quzhou"
+    ],
+    "admin2": "衢州市"
+  },
+  {
+    "name": "舟山",
+    "admin1": "浙江",
+    "lat": 29.985,
+    "lon": 122.207,
+    "aliases": [
+      "舟山市",
+      "zhoushan"
+    ],
+    "admin2": "舟山市"
+  },
+  {
+    "name": "台州",
+    "admin1": "浙江",
+    "lat": 28.656,
+    "lon": 121.421,
+    "aliases": [
+      "台州",
+      "taizhou"
+    ],
+    "admin2": "台州市"
+  },
+  {
+    "name": "丽水",
+    "admin1": "浙江",
+    "lat": 28.467,
+    "lon": 119.923,
+    "aliases": [
+      "丽水市",
+      "lishui"
+    ],
+    "admin2": "丽水市"
+  },
+  {
+    "name": "余姚",
+    "admin1": "浙江",
+    "lat": 30.037,
+    "lon": 121.154,
+    "aliases": [
+      "余姚市",
+      "yuyao"
+    ],
+    "admin2": "宁波市"
+  },
+  {
+    "name": "慈溪",
+    "admin1": "浙江",
+    "lat": 30.17,
+    "lon": 121.266,
+    "aliases": [
+      "慈溪市",
+      "cixi"
+    ],
+    "admin2": "宁波市"
+  },
+  {
+    "name": "瑞安",
+    "admin1": "浙江",
+    "lat": 27.778,
+    "lon": 120.655,
+    "aliases": [
+      "瑞安市",
+      "ruian"
+    ],
+    "admin2": "温州市"
+  },
+  {
+    "name": "乐清",
+    "admin1": "浙江",
+    "lat": 28.113,
+    "lon": 120.986,
+    "aliases": [
+      "乐清市",
+      "yueqing"
+    ],
+    "admin2": "温州市"
+  },
+  {
+    "name": "海宁",
+    "admin1": "浙江",
+    "lat": 30.511,
+    "lon": 120.681,
+    "aliases": [
+      "海宁市",
+      "haining"
+    ],
+    "admin2": "嘉兴市"
+  },
+  {
+    "name": "平湖",
+    "admin1": "浙江",
+    "lat": 30.676,
+    "lon": 121.016,
+    "aliases": [
+      "平湖市",
+      "pinghu"
+    ],
+    "admin2": "嘉兴市"
+  },
+  {
+    "name": "桐乡",
+    "admin1": "浙江",
+    "lat": 30.631,
+    "lon": 120.564,
+    "aliases": [
+      "桐乡市",
+      "tongxiang"
+    ],
+    "admin2": "嘉兴市"
+  },
+  {
+    "name": "诸暨",
+    "admin1": "浙江",
+    "lat": 29.714,
+    "lon": 120.246,
+    "aliases": [
+      "诸暨市",
+      "zhuji"
+    ],
+    "admin2": "绍兴市"
+  },
+  {
+    "name": "嵊州",
+    "admin1": "浙江",
+    "lat": 29.588,
+    "lon": 120.822,
+    "aliases": [
+      "嵊州",
+      "shengzhou"
+    ],
+    "admin2": "绍兴市"
+  },
+  {
+    "name": "兰溪",
+    "admin1": "浙江",
+    "lat": 29.209,
+    "lon": 119.46,
+    "aliases": [
+      "兰溪市",
+      "lanxi"
+    ],
+    "admin2": "金华市"
+  },
+  {
+    "name": "义乌",
+    "admin1": "浙江",
+    "lat": 29.307,
+    "lon": 120.075,
+    "aliases": [
+      "义乌市",
+      "yiwu"
+    ],
+    "admin2": "金华市"
+  },
+  {
+    "name": "东阳",
+    "admin1": "浙江",
+    "lat": 29.289,
+    "lon": 120.242,
+    "aliases": [
+      "东阳市",
+      "dongyang"
+    ],
+    "admin2": "金华市"
+  },
+  {
+    "name": "永康",
+    "admin1": "浙江",
+    "lat": 28.888,
+    "lon": 120.047,
+    "aliases": [
+      "永康市",
+      "yongkang"
+    ],
+    "admin2": "金华市"
+  },
+  {
+    "name": "江山",
+    "admin1": "浙江",
+    "lat": 28.737,
+    "lon": 118.627,
+    "aliases": [
+      "江山市",
+      "jiangshan"
+    ],
+    "admin2": "衢州市"
+  },
+  {
+    "name": "温岭",
+    "admin1": "浙江",
+    "lat": 28.373,
+    "lon": 121.385,
+    "aliases": [
+      "温岭市",
+      "wenling"
+    ],
+    "admin2": "台州市"
+  },
+  {
+    "name": "临海",
+    "admin1": "浙江",
+    "lat": 28.858,
+    "lon": 121.145,
+    "aliases": [
+      "临海市",
+      "linhai"
+    ],
+    "admin2": "台州市"
+  },
+  {
+    "name": "玉环",
+    "admin1": "浙江",
+    "lat": 28.136,
+    "lon": 121.232,
+    "aliases": [
+      "玉环市",
+      "yuhuan"
+    ],
+    "admin2": "台州市"
+  },
+  {
+    "name": "龙泉",
+    "admin1": "浙江",
+    "lat": 28.075,
+    "lon": 119.142,
+    "aliases": [
+      "龙泉市",
+      "longquan"
+    ],
+    "admin2": "丽水市"
+  },
+  {
+    "name": "合肥",
+    "admin1": "安徽",
+    "lat": 31.8206,
+    "lon": 117.2272,
+    "aliases": [
+      "合肥市",
+      "hefei"
+    ],
+    "admin2": "合肥市"
+  },
+  {
+    "name": "芜湖",
+    "admin1": "安徽",
+    "lat": 31.352,
+    "lon": 118.433,
+    "aliases": [
+      "芜湖市",
+      "wuhu"
+    ],
+    "admin2": "芜湖市"
+  },
+  {
+    "name": "蚌埠",
+    "admin1": "安徽",
+    "lat": 32.916,
+    "lon": 117.389,
+    "aliases": [
+      "蚌埠市",
+      "bengbu"
+    ],
+    "admin2": "蚌埠市"
+  },
+  {
+    "name": "淮南",
+    "admin1": "安徽",
+    "lat": 32.625,
+    "lon": 117.018,
+    "aliases": [
+      "淮南市",
+      "huainan"
+    ],
+    "admin2": "淮南市"
+  },
+  {
+    "name": "马鞍山",
+    "admin1": "安徽",
+    "lat": 31.67,
+    "lon": 118.507,
+    "aliases": [
+      "马鞍山市",
+      "maanshan"
+    ],
+    "admin2": "马鞍山市"
+  },
+  {
+    "name": "淮北",
+    "admin1": "安徽",
+    "lat": 33.955,
+    "lon": 116.798,
+    "aliases": [
+      "淮北市",
+      "huaibei"
+    ],
+    "admin2": "淮北市"
+  },
+  {
+    "name": "铜陵",
+    "admin1": "安徽",
+    "lat": 30.945,
+    "lon": 117.811,
+    "aliases": [
+      "铜陵市",
+      "tongling"
+    ],
+    "admin2": "铜陵市"
+  },
+  {
+    "name": "安庆",
+    "admin1": "安徽",
+    "lat": 30.543,
+    "lon": 117.054,
+    "aliases": [
+      "安庆市",
+      "anqing"
+    ],
+    "admin2": "安庆市"
+  },
+  {
+    "name": "黄山",
+    "admin1": "安徽",
+    "lat": 29.715,
+    "lon": 118.337,
+    "aliases": [
+      "黄山市",
+      "huangshan"
+    ],
+    "admin2": "黄山市"
+  },
+  {
+    "name": "滁州",
+    "admin1": "安徽",
+    "lat": 32.317,
+    "lon": 118.316,
+    "aliases": [
+      "滁州",
+      "chuzhou"
+    ],
+    "admin2": "滁州市"
+  },
+  {
+    "name": "阜阳",
+    "admin1": "安徽",
+    "lat": 32.89,
+    "lon": 115.814,
+    "aliases": [
+      "阜阳市",
+      "fuyang"
+    ],
+    "admin2": "阜阳市"
+  },
+  {
+    "name": "宿州",
+    "admin1": "安徽",
+    "lat": 33.646,
+    "lon": 116.964,
+    "aliases": [
+      "宿州",
+      "suzhou"
+    ],
+    "admin2": "宿州市"
+  },
+  {
+    "name": "六安",
+    "admin1": "安徽",
+    "lat": 31.736,
+    "lon": 116.507,
+    "aliases": [
+      "六安市",
+      "luan"
+    ],
+    "admin2": "六安市"
+  },
+  {
+    "name": "亳州",
+    "admin1": "安徽",
+    "lat": 33.869,
+    "lon": 115.778,
+    "aliases": [
+      "亳州",
+      "bozhou"
+    ],
+    "admin2": "亳州市"
+  },
+  {
+    "name": "池州",
+    "admin1": "安徽",
+    "lat": 30.665,
+    "lon": 117.491,
+    "aliases": [
+      "池州",
+      "chizhou"
+    ],
+    "admin2": "池州市"
+  },
+  {
+    "name": "宣城",
+    "admin1": "安徽",
+    "lat": 30.941,
+    "lon": 118.759,
+    "aliases": [
+      "宣城市",
+      "xuancheng"
+    ],
+    "admin2": "宣城市"
+  },
+  {
+    "name": "福州",
+    "admin1": "福建",
+    "lat": 26.0745,
+    "lon": 119.2965,
+    "aliases": [
+      "福州",
+      "fuzhou"
+    ],
+    "admin2": "福州市"
+  },
+  {
+    "name": "厦门",
+    "admin1": "福建",
+    "lat": 24.4798,
+    "lon": 118.0894,
+    "aliases": [
+      "厦门市",
+      "xiamen"
+    ],
+    "admin2": "厦门市"
+  },
+  {
+    "name": "莆田",
+    "admin1": "福建",
+    "lat": 25.454,
+    "lon": 119.008,
+    "aliases": [
+      "莆田市",
+      "putian"
+    ],
+    "admin2": "莆田市"
+  },
+  {
+    "name": "三明",
+    "admin1": "福建",
+    "lat": 26.264,
+    "lon": 117.639,
+    "aliases": [
+      "三明市",
+      "sanming"
+    ],
+    "admin2": "三明市"
+  },
+  {
+    "name": "泉州",
+    "admin1": "福建",
+    "lat": 24.874,
+    "lon": 118.676,
+    "aliases": [
+      "泉州",
+      "quanzhou"
+    ],
+    "admin2": "泉州市"
+  },
+  {
+    "name": "漳州",
+    "admin1": "福建",
+    "lat": 24.513,
+    "lon": 117.647,
+    "aliases": [
+      "漳州",
+      "zhangzhou"
+    ],
+    "admin2": "漳州市"
+  },
+  {
+    "name": "南平",
+    "admin1": "福建",
+    "lat": 26.642,
+    "lon": 118.178,
+    "aliases": [
+      "南平市",
+      "nanping"
+    ],
+    "admin2": "南平市"
+  },
+  {
+    "name": "龙岩",
+    "admin1": "福建",
+    "lat": 25.076,
+    "lon": 117.017,
+    "aliases": [
+      "龙岩市",
+      "longyan"
+    ],
+    "admin2": "龙岩市"
+  },
+  {
+    "name": "宁德",
+    "admin1": "福建",
+    "lat": 26.666,
+    "lon": 119.548,
+    "aliases": [
+      "宁德市",
+      "ningde"
+    ],
+    "admin2": "宁德市"
+  },
+  {
+    "name": "石狮",
+    "admin1": "福建",
+    "lat": 24.732,
+    "lon": 118.648,
+    "aliases": [
+      "石狮市",
+      "shishi"
+    ],
+    "admin2": "泉州市"
+  },
+  {
+    "name": "晋江",
+    "admin1": "福建",
+    "lat": 24.782,
+    "lon": 118.552,
+    "aliases": [
+      "晋江市",
+      "jinjiang"
+    ],
+    "admin2": "泉州市"
+  },
+  {
+    "name": "南安",
+    "admin1": "福建",
+    "lat": 24.96,
+    "lon": 118.386,
+    "aliases": [
+      "南安市",
+      "nanan"
+    ],
+    "admin2": "泉州市"
+  },
+  {
+    "name": "福清",
+    "admin1": "福建",
+    "lat": 25.72,
+    "lon": 119.384,
+    "aliases": [
+      "福清市",
+      "fuqing"
+    ],
+    "admin2": "福州市"
+  },
+  {
+    "name": "南昌",
+    "admin1": "江西",
+    "lat": 28.682,
+    "lon": 115.858,
+    "aliases": [
+      "南昌市",
+      "nanchang"
+    ],
+    "admin2": "南昌市"
+  },
+  {
+    "name": "景德镇",
+    "admin1": "江西",
+    "lat": 29.269,
+    "lon": 117.178,
+    "aliases": [
+      "景德镇市",
+      "jingdezhen"
+    ],
+    "admin2": "景德镇市"
+  },
+  {
+    "name": "萍乡",
+    "admin1": "江西",
+    "lat": 27.623,
+    "lon": 113.854,
+    "aliases": [
+      "萍乡市",
+      "pingxiang"
+    ],
+    "admin2": "萍乡市"
+  },
+  {
+    "name": "九江",
+    "admin1": "江西",
+    "lat": 29.705,
+    "lon": 116.001,
+    "aliases": [
+      "九江市",
+      "jiujiang"
+    ],
+    "admin2": "九江市"
+  },
+  {
+    "name": "新余",
+    "admin1": "江西",
+    "lat": 27.818,
+    "lon": 114.917,
+    "aliases": [
+      "新余市",
+      "xinyu"
+    ],
+    "admin2": "新余市"
+  },
+  {
+    "name": "鹰潭",
+    "admin1": "江西",
+    "lat": 28.26,
+    "lon": 117.069,
+    "aliases": [
+      "鹰潭市",
+      "yingtan"
+    ],
+    "admin2": "鹰潭市"
+  },
+  {
+    "name": "赣州",
+    "admin1": "江西",
+    "lat": 25.845,
+    "lon": 114.935,
+    "aliases": [
+      "赣州",
+      "ganzhou"
+    ],
+    "admin2": "赣州市"
+  },
+  {
+    "name": "吉安",
+    "admin1": "江西",
+    "lat": 27.113,
+    "lon": 114.987,
+    "aliases": [
+      "吉安市",
+      "jian"
+    ],
+    "admin2": "吉安市"
+  },
+  {
+    "name": "宜春",
+    "admin1": "江西",
+    "lat": 27.804,
+    "lon": 114.416,
+    "aliases": [
+      "宜春市",
+      "yichun"
+    ],
+    "admin2": "宜春市"
+  },
+  {
+    "name": "抚州",
+    "admin1": "江西",
+    "lat": 27.949,
+    "lon": 116.358,
+    "aliases": [
+      "抚州",
+      "fuzhou"
+    ],
+    "admin2": "抚州市"
+  },
+  {
+    "name": "上饶",
+    "admin1": "江西",
+    "lat": 28.455,
+    "lon": 117.943,
+    "aliases": [
+      "上饶市",
+      "shangrao"
+    ],
+    "admin2": "上饶市"
+  },
+  {
+    "name": "济南",
+    "admin1": "山东",
+    "lat": 36.6512,
+    "lon": 117.1201,
+    "aliases": [
+      "济南市",
+      "jinan"
+    ],
+    "admin2": "济南市"
+  },
+  {
+    "name": "青岛",
+    "admin1": "山东",
+    "lat": 36.0671,
+    "lon": 120.3826,
+    "aliases": [
+      "青岛市",
+      "qingdao"
+    ],
+    "admin2": "青岛市"
+  },
+  {
+    "name": "淄博",
+    "admin1": "山东",
+    "lat": 36.8131,
+    "lon": 118.0549,
+    "aliases": [
+      "淄博市",
+      "zibo"
+    ],
+    "admin2": "淄博市"
+  },
+  {
+    "name": "枣庄",
+    "admin1": "山东",
+    "lat": 34.8107,
+    "lon": 117.3237,
+    "aliases": [
+      "枣庄市",
+      "zaozhuang"
+    ],
+    "admin2": "枣庄市"
+  },
+  {
+    "name": "东营",
+    "admin1": "山东",
+    "lat": 37.4346,
+    "lon": 118.6746,
+    "aliases": [
+      "东营市",
+      "dongying"
+    ],
+    "admin2": "东营市"
+  },
+  {
+    "name": "烟台",
+    "admin1": "山东",
+    "lat": 37.4638,
+    "lon": 121.4479,
+    "aliases": [
+      "烟台市",
+      "yantai"
+    ],
+    "admin2": "烟台市"
+  },
+  {
+    "name": "潍坊",
+    "admin1": "山东",
+    "lat": 36.7069,
+    "lon": 119.1619,
+    "aliases": [
+      "潍坊市",
+      "weifang"
+    ],
+    "admin2": "潍坊市"
+  },
+  {
+    "name": "济宁",
+    "admin1": "山东",
+    "lat": 35.4154,
+    "lon": 116.5872,
+    "aliases": [
+      "济宁市",
+      "jining"
+    ],
+    "admin2": "济宁市"
+  },
+  {
+    "name": "泰安",
+    "admin1": "山东",
+    "lat": 36.2,
+    "lon": 117.087,
+    "aliases": [
+      "泰安市",
+      "taian"
+    ],
+    "admin2": "泰安市"
+  },
+  {
+    "name": "威海",
+    "admin1": "山东",
+    "lat": 37.5131,
+    "lon": 122.1201,
+    "aliases": [
+      "威海市",
+      "weihai"
+    ],
+    "admin2": "威海市"
+  },
+  {
+    "name": "日照",
+    "admin1": "山东",
+    "lat": 35.4167,
+    "lon": 119.5269,
+    "aliases": [
+      "日照市",
+      "rizhao"
+    ],
+    "admin2": "日照市"
+  },
+  {
+    "name": "临沂",
+    "admin1": "山东",
+    "lat": 35.1041,
+    "lon": 118.3564,
+    "aliases": [
+      "临沂市",
+      "linyi"
+    ],
+    "admin2": "临沂市"
+  },
+  {
+    "name": "德州",
+    "admin1": "山东",
+    "lat": 37.4355,
+    "lon": 116.3575,
+    "aliases": [
+      "德州",
+      "dezhou"
+    ],
+    "admin2": "德州市"
+  },
+  {
+    "name": "聊城",
+    "admin1": "山东",
+    "lat": 36.4567,
+    "lon": 115.9854,
+    "aliases": [
+      "聊城市",
+      "liaocheng"
+    ],
+    "admin2": "聊城市"
+  },
+  {
+    "name": "滨州",
+    "admin1": "山东",
+    "lat": 37.3835,
+    "lon": 117.9707,
+    "aliases": [
+      "滨州",
+      "binzhou"
+    ],
+    "admin2": "滨州市"
+  },
+  {
+    "name": "菏泽",
+    "admin1": "山东",
+    "lat": 35.2336,
+    "lon": 115.4807,
+    "aliases": [
+      "菏泽市",
+      "heze"
+    ],
+    "admin2": "菏泽市"
+  },
+  {
+    "name": "诸城",
+    "admin1": "山东",
+    "lat": 35.9957,
+    "lon": 119.3971,
+    "aliases": [
+      "诸城市",
+      "密州",
+      "zhucheng"
+    ],
+    "admin2": "潍坊市"
+  },
+  {
+    "name": "高密",
+    "admin1": "山东",
+    "lat": 36.3833,
+    "lon": 119.7528,
+    "aliases": [
+      "高密市",
+      "gaomi"
+    ],
+    "admin2": "潍坊市"
+  },
+  {
+    "name": "寿光",
+    "admin1": "山东",
+    "lat": 36.8555,
+    "lon": 118.7908,
+    "aliases": [
+      "寿光市",
+      "shouguang"
+    ],
+    "admin2": "潍坊市"
+  },
+  {
+    "name": "青州",
+    "admin1": "山东",
+    "lat": 36.6847,
+    "lon": 118.4797,
+    "aliases": [
+      "青州",
+      "qingzhou"
+    ],
+    "admin2": "潍坊市"
+  },
+  {
+    "name": "安丘",
+    "admin1": "山东",
+    "lat": 36.4785,
+    "lon": 119.2189,
+    "aliases": [
+      "安丘市",
+      "anqiu"
+    ],
+    "admin2": "潍坊市"
+  },
+  {
+    "name": "昌邑",
+    "admin1": "山东",
+    "lat": 36.8588,
+    "lon": 119.3985,
+    "aliases": [
+      "昌邑市",
+      "changyi"
+    ],
+    "admin2": "潍坊市"
+  },
+  {
+    "name": "荣成",
+    "admin1": "山东",
+    "lat": 37.1652,
+    "lon": 122.4867,
+    "aliases": [
+      "荣成市",
+      "rongcheng"
+    ],
+    "admin2": "威海市"
+  },
+  {
+    "name": "乳山",
+    "admin1": "山东",
+    "lat": 36.9197,
+    "lon": 121.5402,
+    "aliases": [
+      "乳山市",
+      "rushan"
+    ],
+    "admin2": "威海市"
+  },
+  {
+    "name": "龙口",
+    "admin1": "山东",
+    "lat": 37.6571,
+    "lon": 120.5283,
+    "aliases": [
+      "龙口市",
+      "longkou"
+    ],
+    "admin2": "烟台市"
+  },
+  {
+    "name": "莱州",
+    "admin1": "山东",
+    "lat": 37.177,
+    "lon": 119.9422,
+    "aliases": [
+      "莱州",
+      "laizhou"
+    ],
+    "admin2": "烟台市"
+  },
+  {
+    "name": "招远",
+    "admin1": "山东",
+    "lat": 37.3554,
+    "lon": 120.4341,
+    "aliases": [
+      "招远市",
+      "zhaoyuan"
+    ],
+    "admin2": "烟台市"
+  },
+  {
+    "name": "栖霞",
+    "admin1": "山东",
+    "lat": 37.3055,
+    "lon": 120.8497,
+    "aliases": [
+      "栖霞市",
+      "qixia"
+    ],
+    "admin2": "烟台市"
+  },
+  {
+    "name": "海阳",
+    "admin1": "山东",
+    "lat": 36.7762,
+    "lon": 121.1684,
+    "aliases": [
+      "海阳市",
+      "haiyang"
+    ],
+    "admin2": "烟台市"
+  },
+  {
+    "name": "莱阳",
+    "admin1": "山东",
+    "lat": 36.9788,
+    "lon": 120.7115,
+    "aliases": [
+      "莱阳市",
+      "laiyang"
+    ],
+    "admin2": "烟台市"
+  },
+  {
+    "name": "胶州",
+    "admin1": "山东",
+    "lat": 36.2647,
+    "lon": 120.0335,
+    "aliases": [
+      "胶州",
+      "jiaozhou"
+    ],
+    "admin2": "青岛市"
+  },
+  {
+    "name": "平度",
+    "admin1": "山东",
+    "lat": 36.7764,
+    "lon": 119.9884,
+    "aliases": [
+      "平度市",
+      "pingdu"
+    ],
+    "admin2": "青岛市"
+  },
+  {
+    "name": "莱西",
+    "admin1": "山东",
+    "lat": 36.8881,
+    "lon": 120.5262,
+    "aliases": [
+      "莱西市",
+      "laixi"
+    ],
+    "admin2": "青岛市"
+  },
+  {
+    "name": "滕州",
+    "admin1": "山东",
+    "lat": 35.1142,
+    "lon": 117.164,
+    "aliases": [
+      "滕州",
+      "tengzhou"
+    ],
+    "admin2": "枣庄市"
+  },
+  {
+    "name": "邹城",
+    "admin1": "山东",
+    "lat": 35.4053,
+    "lon": 116.9734,
+    "aliases": [
+      "邹城市",
+      "zoucheng"
+    ],
+    "admin2": "济宁市"
+  },
+  {
+    "name": "曲阜",
+    "admin1": "山东",
+    "lat": 35.5819,
+    "lon": 116.9865,
+    "aliases": [
+      "曲阜市",
+      "qufu"
+    ],
+    "admin2": "济宁市"
+  },
+  {
+    "name": "邹平",
+    "admin1": "山东",
+    "lat": 36.8629,
+    "lon": 117.7431,
+    "aliases": [
+      "邹平市",
+      "zouping"
+    ],
+    "admin2": "滨州市"
+  },
+  {
+    "name": "肥城",
+    "admin1": "山东",
+    "lat": 36.1856,
+    "lon": 116.768,
+    "aliases": [
+      "肥城市",
+      "feicheng"
+    ],
+    "admin2": "泰安市"
+  },
+  {
+    "name": "新泰",
+    "admin1": "山东",
+    "lat": 35.909,
+    "lon": 117.7679,
+    "aliases": [
+      "新泰市",
+      "xintai"
+    ],
+    "admin2": "泰安市"
+  },
+  {
+    "name": "临清",
+    "admin1": "山东",
+    "lat": 36.8383,
+    "lon": 115.7049,
+    "aliases": [
+      "临清市",
+      "linqing"
+    ],
+    "admin2": "聊城市"
+  },
+  {
+    "name": "乐陵",
+    "admin1": "山东",
+    "lat": 37.7299,
+    "lon": 117.2317,
+    "aliases": [
+      "乐陵市",
+      "leling"
+    ],
+    "admin2": "德州市"
+  },
+  {
+    "name": "禹城",
+    "admin1": "山东",
+    "lat": 36.9339,
+    "lon": 116.638,
+    "aliases": [
+      "禹城市",
+      "yucheng"
+    ],
+    "admin2": "德州市"
+  },
+  {
+    "name": "郑州",
+    "admin1": "河南",
+    "lat": 34.7466,
+    "lon": 113.6254,
+    "aliases": [
+      "郑州",
+      "zhengzhou"
+    ],
+    "admin2": "郑州市"
+  },
+  {
+    "name": "开封",
+    "admin1": "河南",
+    "lat": 34.797,
+    "lon": 114.307,
+    "aliases": [
+      "开封市",
+      "kaifeng"
+    ],
+    "admin2": "开封市"
+  },
+  {
+    "name": "洛阳",
+    "admin1": "河南",
+    "lat": 34.6197,
+    "lon": 112.454,
+    "aliases": [
+      "洛阳市",
+      "luoyang"
+    ],
+    "admin2": "洛阳市"
+  },
+  {
+    "name": "平顶山",
+    "admin1": "河南",
+    "lat": 33.766,
+    "lon": 113.193,
+    "aliases": [
+      "平顶山市",
+      "pingdingshan"
+    ],
+    "admin2": "平顶山市"
+  },
+  {
+    "name": "安阳",
+    "admin1": "河南",
+    "lat": 36.098,
+    "lon": 114.392,
+    "aliases": [
+      "安阳市",
+      "anyang"
+    ],
+    "admin2": "安阳市"
+  },
+  {
+    "name": "鹤壁",
+    "admin1": "河南",
+    "lat": 35.748,
+    "lon": 114.297,
+    "aliases": [
+      "鹤壁市",
+      "hebi"
+    ],
+    "admin2": "鹤壁市"
+  },
+  {
+    "name": "新乡",
+    "admin1": "河南",
+    "lat": 35.303,
+    "lon": 113.927,
+    "aliases": [
+      "新乡市",
+      "xinxiang"
+    ],
+    "admin2": "新乡市"
+  },
+  {
+    "name": "焦作",
+    "admin1": "河南",
+    "lat": 35.215,
+    "lon": 113.242,
+    "aliases": [
+      "焦作市",
+      "jiaozuo"
+    ],
+    "admin2": "焦作市"
+  },
+  {
+    "name": "濮阳",
+    "admin1": "河南",
+    "lat": 35.762,
+    "lon": 115.029,
+    "aliases": [
+      "濮阳市",
+      "puyang"
+    ],
+    "admin2": "濮阳市"
+  },
+  {
+    "name": "许昌",
+    "admin1": "河南",
+    "lat": 34.036,
+    "lon": 113.852,
+    "aliases": [
+      "许昌市",
+      "xuchang"
+    ],
+    "admin2": "许昌市"
+  },
+  {
+    "name": "漯河",
+    "admin1": "河南",
+    "lat": 33.581,
+    "lon": 114.017,
+    "aliases": [
+      "漯河市",
+      "luohe"
+    ],
+    "admin2": "漯河市"
+  },
+  {
+    "name": "三门峡",
+    "admin1": "河南",
+    "lat": 34.772,
+    "lon": 111.2,
+    "aliases": [
+      "三门峡市",
+      "sanmenxia"
+    ],
+    "admin2": "三门峡市"
+  },
+  {
+    "name": "南阳",
+    "admin1": "河南",
+    "lat": 32.99,
+    "lon": 112.528,
+    "aliases": [
+      "南阳市",
+      "nanyang"
+    ],
+    "admin2": "南阳市"
+  },
+  {
+    "name": "商丘",
+    "admin1": "河南",
+    "lat": 34.415,
+    "lon": 115.65,
+    "aliases": [
+      "商丘市",
+      "shangqiu"
+    ],
+    "admin2": "商丘市"
+  },
+  {
+    "name": "信阳",
+    "admin1": "河南",
+    "lat": 32.147,
+    "lon": 114.091,
+    "aliases": [
+      "信阳市",
+      "xinyang"
+    ],
+    "admin2": "信阳市"
+  },
+  {
+    "name": "周口",
+    "admin1": "河南",
+    "lat": 33.626,
+    "lon": 114.697,
+    "aliases": [
+      "周口市",
+      "zhoukou"
+    ],
+    "admin2": "周口市"
+  },
+  {
+    "name": "驻马店",
+    "admin1": "河南",
+    "lat": 33.012,
+    "lon": 114.022,
+    "aliases": [
+      "驻马店市",
+      "zhumadian"
+    ],
+    "admin2": "驻马店市"
+  },
+  {
+    "name": "济源",
+    "admin1": "河南",
+    "lat": 35.067,
+    "lon": 112.602,
+    "aliases": [
+      "济源市",
+      "jiyuan"
+    ],
+    "admin2": "济源市"
+  },
+  {
+    "name": "巩义",
+    "admin1": "河南",
+    "lat": 34.748,
+    "lon": 113.022,
+    "aliases": [
+      "巩义市",
+      "gongyi"
+    ],
+    "admin2": "郑州市"
+  },
+  {
+    "name": "荥阳",
+    "admin1": "河南",
+    "lat": 34.788,
+    "lon": 113.383,
+    "aliases": [
+      "荥阳市",
+      "xingyang"
+    ],
+    "admin2": "郑州市"
+  },
+  {
+    "name": "新密",
+    "admin1": "河南",
+    "lat": 34.539,
+    "lon": 113.391,
+    "aliases": [
+      "新密市",
+      "xinmi"
+    ],
+    "admin2": "郑州市"
+  },
+  {
+    "name": "新郑",
+    "admin1": "河南",
+    "lat": 34.396,
+    "lon": 113.736,
+    "aliases": [
+      "新郑市",
+      "xinzheng"
+    ],
+    "admin2": "郑州市"
+  },
+  {
+    "name": "登封",
+    "admin1": "河南",
+    "lat": 34.455,
+    "lon": 113.05,
+    "aliases": [
+      "登封市",
+      "dengfeng"
+    ],
+    "admin2": "郑州市"
+  },
+  {
+    "name": "禹州",
+    "admin1": "河南",
+    "lat": 34.141,
+    "lon": 113.488,
+    "aliases": [
+      "禹州",
+      "yuzhou"
+    ],
+    "admin2": "许昌市"
+  },
+  {
+    "name": "长葛",
+    "admin1": "河南",
+    "lat": 34.217,
+    "lon": 113.769,
+    "aliases": [
+      "长葛市",
+      "changge"
+    ],
+    "admin2": "许昌市"
+  },
+  {
+    "name": "灵宝",
+    "admin1": "河南",
+    "lat": 34.518,
+    "lon": 110.894,
+    "aliases": [
+      "灵宝市",
+      "lingbao"
+    ],
+    "admin2": "三门峡市"
+  },
+  {
+    "name": "项城",
+    "admin1": "河南",
+    "lat": 33.467,
+    "lon": 114.9,
+    "aliases": [
+      "项城市",
+      "xiangcheng"
+    ],
+    "admin2": "周口市"
+  },
+  {
+    "name": "永城",
+    "admin1": "河南",
+    "lat": 33.929,
+    "lon": 116.45,
+    "aliases": [
+      "永城市",
+      "yongcheng"
+    ],
+    "admin2": "商丘市"
+  },
+  {
+    "name": "邓州",
+    "admin1": "河南",
+    "lat": 32.688,
+    "lon": 112.087,
+    "aliases": [
+      "邓州",
+      "dengzhou"
+    ],
+    "admin2": "南阳市"
+  },
+  {
+    "name": "辉县",
+    "admin1": "河南",
+    "lat": 35.462,
+    "lon": 113.805,
+    "aliases": [
+      "huixian"
+    ],
+    "admin2": "新乡市"
+  },
+  {
+    "name": "卫辉",
+    "admin1": "河南",
+    "lat": 35.398,
+    "lon": 114.065,
+    "aliases": [
+      "卫辉市",
+      "weihui"
+    ],
+    "admin2": "新乡市"
+  },
+  {
+    "name": "沁阳",
+    "admin1": "河南",
+    "lat": 35.088,
+    "lon": 112.951,
+    "aliases": [
+      "沁阳市",
+      "qinyang"
+    ],
+    "admin2": "焦作市"
+  },
+  {
+    "name": "孟州",
+    "admin1": "河南",
+    "lat": 34.907,
+    "lon": 112.787,
+    "aliases": [
+      "孟州",
+      "mengzhou"
+    ],
+    "admin2": "焦作市"
+  },
+  {
+    "name": "武汉",
+    "admin1": "湖北",
+    "lat": 30.5928,
+    "lon": 114.3055,
+    "aliases": [
+      "武汉市",
+      "wuhan"
+    ],
+    "admin2": "武汉市"
+  },
+  {
+    "name": "黄石",
+    "admin1": "湖北",
+    "lat": 30.2,
+    "lon": 115.038,
+    "aliases": [
+      "黄石市",
+      "huangshi"
+    ],
+    "admin2": "黄石市"
+  },
+  {
+    "name": "十堰",
+    "admin1": "湖北",
+    "lat": 32.629,
+    "lon": 110.798,
+    "aliases": [
+      "十堰市",
+      "shiyan"
+    ],
+    "admin2": "十堰市"
+  },
+  {
+    "name": "宜昌",
+    "admin1": "湖北",
+    "lat": 30.702,
+    "lon": 111.286,
+    "aliases": [
+      "宜昌市",
+      "yichang"
+    ],
+    "admin2": "宜昌市"
+  },
+  {
+    "name": "襄阳",
+    "admin1": "湖北",
+    "lat": 32.009,
+    "lon": 112.144,
+    "aliases": [
+      "襄阳市",
+      "xiangyang"
+    ],
+    "admin2": "襄阳市"
+  },
+  {
+    "name": "鄂州",
+    "admin1": "湖北",
+    "lat": 30.391,
+    "lon": 114.895,
+    "aliases": [
+      "鄂州",
+      "ezhou"
+    ],
+    "admin2": "鄂州市"
+  },
+  {
+    "name": "荆门",
+    "admin1": "湖北",
+    "lat": 31.035,
+    "lon": 112.199,
+    "aliases": [
+      "荆门市",
+      "jingmen"
+    ],
+    "admin2": "荆门市"
+  },
+  {
+    "name": "孝感",
+    "admin1": "湖北",
+    "lat": 30.927,
+    "lon": 113.917,
+    "aliases": [
+      "孝感市",
+      "xiaogan"
+    ],
+    "admin2": "孝感市"
+  },
+  {
+    "name": "荆州",
+    "admin1": "湖北",
+    "lat": 30.335,
+    "lon": 112.239,
+    "aliases": [
+      "荆州",
+      "jingzhou"
+    ],
+    "admin2": "荆州市"
+  },
+  {
+    "name": "黄冈",
+    "admin1": "湖北",
+    "lat": 30.448,
+    "lon": 114.872,
+    "aliases": [
+      "黄冈市",
+      "huanggang"
+    ],
+    "admin2": "黄冈市"
+  },
+  {
+    "name": "咸宁",
+    "admin1": "湖北",
+    "lat": 29.841,
+    "lon": 114.322,
+    "aliases": [
+      "咸宁市",
+      "xianning"
+    ],
+    "admin2": "咸宁市"
+  },
+  {
+    "name": "随州",
+    "admin1": "湖北",
+    "lat": 31.69,
+    "lon": 113.383,
+    "aliases": [
+      "随州",
+      "suizhou"
+    ],
+    "admin2": "随州市"
+  },
+  {
+    "name": "恩施",
+    "admin1": "湖北",
+    "lat": 30.272,
+    "lon": 109.488,
+    "aliases": [
+      "恩施市",
+      "enshi"
+    ],
+    "admin2": "恩施州"
+  },
+  {
+    "name": "仙桃",
+    "admin1": "湖北",
+    "lat": 30.362,
+    "lon": 113.454,
+    "aliases": [
+      "仙桃市",
+      "xiantao"
+    ],
+    "admin2": "仙桃市"
+  },
+  {
+    "name": "潜江",
+    "admin1": "湖北",
+    "lat": 30.421,
+    "lon": 112.899,
+    "aliases": [
+      "潜江市",
+      "qianjiang"
+    ],
+    "admin2": "潜江市"
+  },
+  {
+    "name": "天门",
+    "admin1": "湖北",
+    "lat": 30.663,
+    "lon": 113.166,
+    "aliases": [
+      "天门市",
+      "tianmen"
+    ],
+    "admin2": "天门市"
+  },
+  {
+    "name": "长沙",
+    "admin1": "湖南",
+    "lat": 28.228,
+    "lon": 112.9388,
+    "aliases": [
+      "长沙市",
+      "changsha"
+    ],
+    "admin2": "长沙市"
+  },
+  {
+    "name": "株洲",
+    "admin1": "湖南",
+    "lat": 27.827,
+    "lon": 113.134,
+    "aliases": [
+      "株洲市",
+      "zhuzhou"
+    ],
+    "admin2": "株洲市"
+  },
+  {
+    "name": "湘潭",
+    "admin1": "湖南",
+    "lat": 27.83,
+    "lon": 112.944,
+    "aliases": [
+      "湘潭市",
+      "xiangtan"
+    ],
+    "admin2": "湘潭市"
+  },
+  {
+    "name": "衡阳",
+    "admin1": "湖南",
+    "lat": 26.894,
+    "lon": 112.572,
+    "aliases": [
+      "衡阳市",
+      "hengyang"
+    ],
+    "admin2": "衡阳市"
+  },
+  {
+    "name": "邵阳",
+    "admin1": "湖南",
+    "lat": 27.239,
+    "lon": 111.468,
+    "aliases": [
+      "邵阳市",
+      "shaoyang"
+    ],
+    "admin2": "邵阳市"
+  },
+  {
+    "name": "岳阳",
+    "admin1": "湖南",
+    "lat": 29.357,
+    "lon": 113.129,
+    "aliases": [
+      "岳阳市",
+      "yueyang"
+    ],
+    "admin2": "岳阳市"
+  },
+  {
+    "name": "常德",
+    "admin1": "湖南",
+    "lat": 29.032,
+    "lon": 111.699,
+    "aliases": [
+      "常德市",
+      "changde"
+    ],
+    "admin2": "常德市"
+  },
+  {
+    "name": "张家界",
+    "admin1": "湖南",
+    "lat": 29.117,
+    "lon": 110.479,
+    "aliases": [
+      "张家界市",
+      "zhangjiajie"
+    ],
+    "admin2": "张家界市"
+  },
+  {
+    "name": "益阳",
+    "admin1": "湖南",
+    "lat": 28.554,
+    "lon": 112.355,
+    "aliases": [
+      "益阳市",
+      "yiyang"
+    ],
+    "admin2": "益阳市"
+  },
+  {
+    "name": "郴州",
+    "admin1": "湖南",
+    "lat": 25.771,
+    "lon": 113.015,
+    "aliases": [
+      "郴州",
+      "chenzhou"
+    ],
+    "admin2": "郴州市"
+  },
+  {
+    "name": "永州",
+    "admin1": "湖南",
+    "lat": 26.42,
+    "lon": 111.613,
+    "aliases": [
+      "永州",
+      "yongzhou"
+    ],
+    "admin2": "永州市"
+  },
+  {
+    "name": "怀化",
+    "admin1": "湖南",
+    "lat": 27.55,
+    "lon": 109.978,
+    "aliases": [
+      "怀化市",
+      "huaihua"
+    ],
+    "admin2": "怀化市"
+  },
+  {
+    "name": "娄底",
+    "admin1": "湖南",
+    "lat": 27.7,
+    "lon": 111.994,
+    "aliases": [
+      "娄底市",
+      "loudi"
+    ],
+    "admin2": "娄底市"
+  },
+  {
+    "name": "吉首",
+    "admin1": "湖南",
+    "lat": 28.262,
+    "lon": 109.698,
+    "aliases": [
+      "吉首市",
+      "jishou"
+    ],
+    "admin2": "湘西州"
+  },
+  {
+    "name": "广州",
+    "admin1": "广东",
+    "lat": 23.1291,
+    "lon": 113.2644,
+    "aliases": [
+      "广州",
+      "guangzhou"
+    ],
+    "admin2": "广州市"
+  },
+  {
+    "name": "韶关",
+    "admin1": "广东",
+    "lat": 24.811,
+    "lon": 113.597,
+    "aliases": [
+      "韶关市",
+      "shaoguan"
+    ],
+    "admin2": "韶关市"
+  },
+  {
+    "name": "深圳",
+    "admin1": "广东",
+    "lat": 22.5431,
+    "lon": 114.0579,
+    "aliases": [
+      "深圳市",
+      "shenzhen"
+    ],
+    "admin2": "深圳市"
+  },
+  {
+    "name": "珠海",
+    "admin1": "广东",
+    "lat": 22.271,
+    "lon": 113.577,
+    "aliases": [
+      "珠海市",
+      "zhuhai"
+    ],
+    "admin2": "珠海市"
+  },
+  {
+    "name": "汕头",
+    "admin1": "广东",
+    "lat": 23.354,
+    "lon": 116.682,
+    "aliases": [
+      "汕头市",
+      "shantou"
+    ],
+    "admin2": "汕头市"
+  },
+  {
+    "name": "佛山",
+    "admin1": "广东",
+    "lat": 23.021,
+    "lon": 113.122,
+    "aliases": [
+      "佛山市",
+      "foshan"
+    ],
+    "admin2": "佛山市"
+  },
+  {
+    "name": "江门",
+    "admin1": "广东",
+    "lat": 22.579,
+    "lon": 113.082,
+    "aliases": [
+      "江门市",
+      "jiangmen"
+    ],
+    "admin2": "江门市"
+  },
+  {
+    "name": "湛江",
+    "admin1": "广东",
+    "lat": 21.271,
+    "lon": 110.359,
+    "aliases": [
+      "湛江市",
+      "zhanjiang"
+    ],
+    "admin2": "湛江市"
+  },
+  {
+    "name": "茂名",
+    "admin1": "广东",
+    "lat": 21.663,
+    "lon": 110.925,
+    "aliases": [
+      "茂名市",
+      "maoming"
+    ],
+    "admin2": "茂名市"
+  },
+  {
+    "name": "肇庆",
+    "admin1": "广东",
+    "lat": 23.047,
+    "lon": 112.465,
+    "aliases": [
+      "肇庆市",
+      "zhaoqing"
+    ],
+    "admin2": "肇庆市"
+  },
+  {
+    "name": "惠州",
+    "admin1": "广东",
+    "lat": 23.112,
+    "lon": 114.416,
+    "aliases": [
+      "惠州",
+      "huizhou"
+    ],
+    "admin2": "惠州市"
+  },
+  {
+    "name": "梅州",
+    "admin1": "广东",
+    "lat": 24.289,
+    "lon": 116.122,
+    "aliases": [
+      "梅州",
+      "meizhou"
+    ],
+    "admin2": "梅州市"
+  },
+  {
+    "name": "汕尾",
+    "admin1": "广东",
+    "lat": 22.786,
+    "lon": 115.375,
+    "aliases": [
+      "汕尾市",
+      "shanwei"
+    ],
+    "admin2": "汕尾市"
+  },
+  {
+    "name": "河源",
+    "admin1": "广东",
+    "lat": 23.744,
+    "lon": 114.697,
+    "aliases": [
+      "河源市",
+      "heyuan"
+    ],
+    "admin2": "河源市"
+  },
+  {
+    "name": "阳江",
+    "admin1": "广东",
+    "lat": 21.859,
+    "lon": 111.983,
+    "aliases": [
+      "阳江市",
+      "yangjiang"
+    ],
+    "admin2": "阳江市"
+  },
+  {
+    "name": "清远",
+    "admin1": "广东",
+    "lat": 23.682,
+    "lon": 113.056,
+    "aliases": [
+      "清远市",
+      "qingyuan"
+    ],
+    "admin2": "清远市"
+  },
+  {
+    "name": "东莞",
+    "admin1": "广东",
+    "lat": 23.021,
+    "lon": 113.752,
+    "aliases": [
+      "东莞市",
+      "dongguan"
+    ],
+    "admin2": "东莞市"
+  },
+  {
+    "name": "中山",
+    "admin1": "广东",
+    "lat": 22.517,
+    "lon": 113.393,
+    "aliases": [
+      "中山市",
+      "zhongshan"
+    ],
+    "admin2": "中山市"
+  },
+  {
+    "name": "潮州",
+    "admin1": "广东",
+    "lat": 23.657,
+    "lon": 116.623,
+    "aliases": [
+      "潮州",
+      "chaozhou"
+    ],
+    "admin2": "潮州市"
+  },
+  {
+    "name": "揭阳",
+    "admin1": "广东",
+    "lat": 23.55,
+    "lon": 116.373,
+    "aliases": [
+      "揭阳市",
+      "jieyang"
+    ],
+    "admin2": "揭阳市"
+  },
+  {
+    "name": "云浮",
+    "admin1": "广东",
+    "lat": 22.915,
+    "lon": 112.044,
+    "aliases": [
+      "云浮市",
+      "yunfu"
+    ],
+    "admin2": "云浮市"
+  },
+  {
+    "name": "普宁",
+    "admin1": "广东",
+    "lat": 23.297,
+    "lon": 116.166,
+    "aliases": [
+      "普宁市",
+      "puning"
+    ],
+    "admin2": "揭阳市"
+  },
+  {
+    "name": "陆丰",
+    "admin1": "广东",
+    "lat": 22.945,
+    "lon": 115.645,
+    "aliases": [
+      "陆丰市",
+      "lufeng"
+    ],
+    "admin2": "汕尾市"
+  },
+  {
+    "name": "台山",
+    "admin1": "广东",
+    "lat": 22.252,
+    "lon": 112.794,
+    "aliases": [
+      "台山市",
+      "taishan"
+    ],
+    "admin2": "江门市"
+  },
+  {
+    "name": "开平",
+    "admin1": "广东",
+    "lat": 22.376,
+    "lon": 112.698,
+    "aliases": [
+      "开平市",
+      "kaiping"
+    ],
+    "admin2": "江门市"
+  },
+  {
+    "name": "鹤山",
+    "admin1": "广东",
+    "lat": 22.765,
+    "lon": 112.964,
+    "aliases": [
+      "鹤山市",
+      "heshan"
+    ],
+    "admin2": "江门市"
+  },
+  {
+    "name": "恩平",
+    "admin1": "广东",
+    "lat": 22.183,
+    "lon": 112.305,
+    "aliases": [
+      "恩平市",
+      "enping"
+    ],
+    "admin2": "江门市"
+  },
+  {
+    "name": "廉江",
+    "admin1": "广东",
+    "lat": 21.61,
+    "lon": 110.286,
+    "aliases": [
+      "廉江市",
+      "lianjiang"
+    ],
+    "admin2": "湛江市"
+  },
+  {
+    "name": "雷州",
+    "admin1": "广东",
+    "lat": 20.914,
+    "lon": 110.097,
+    "aliases": [
+      "雷州",
+      "leizhou"
+    ],
+    "admin2": "湛江市"
+  },
+  {
+    "name": "吴川",
+    "admin1": "广东",
+    "lat": 21.442,
+    "lon": 110.778,
+    "aliases": [
+      "吴川市",
+      "wuchuan"
+    ],
+    "admin2": "湛江市"
+  },
+  {
+    "name": "高州",
+    "admin1": "广东",
+    "lat": 21.918,
+    "lon": 110.853,
+    "aliases": [
+      "高州",
+      "gaozhou"
+    ],
+    "admin2": "茂名市"
+  },
+  {
+    "name": "化州",
+    "admin1": "广东",
+    "lat": 21.664,
+    "lon": 110.64,
+    "aliases": [
+      "化州",
+      "huazhou"
+    ],
+    "admin2": "茂名市"
+  },
+  {
+    "name": "信宜",
+    "admin1": "广东",
+    "lat": 22.354,
+    "lon": 110.947,
+    "aliases": [
+      "信宜市",
+      "xinyi"
+    ],
+    "admin2": "茂名市"
+  },
+  {
+    "name": "四会",
+    "admin1": "广东",
+    "lat": 23.327,
+    "lon": 112.734,
+    "aliases": [
+      "四会市",
+      "sihui"
+    ],
+    "admin2": "肇庆市"
+  },
+  {
+    "name": "兴宁",
+    "admin1": "广东",
+    "lat": 24.138,
+    "lon": 115.731,
+    "aliases": [
+      "兴宁市",
+      "xingning"
+    ],
+    "admin2": "梅州市"
+  },
+  {
+    "name": "阳春",
+    "admin1": "广东",
+    "lat": 22.17,
+    "lon": 111.792,
+    "aliases": [
+      "阳春市",
+      "yangchun"
+    ],
+    "admin2": "阳江市"
+  },
+  {
+    "name": "英德",
+    "admin1": "广东",
+    "lat": 24.186,
+    "lon": 113.415,
+    "aliases": [
+      "英德市",
+      "yingde"
+    ],
+    "admin2": "清远市"
+  },
+  {
+    "name": "连州",
+    "admin1": "广东",
+    "lat": 24.781,
+    "lon": 112.377,
+    "aliases": [
+      "连州",
+      "lianzhou"
+    ],
+    "admin2": "清远市"
+  },
+  {
+    "name": "罗定",
+    "admin1": "广东",
+    "lat": 22.77,
+    "lon": 111.57,
+    "aliases": [
+      "罗定市",
+      "luoding"
+    ],
+    "admin2": "云浮市"
+  },
+  {
+    "name": "乐昌",
+    "admin1": "广东",
+    "lat": 25.13,
+    "lon": 113.347,
+    "aliases": [
+      "乐昌市",
+      "lechang"
+    ],
+    "admin2": "韶关市"
+  },
+  {
+    "name": "南雄",
+    "admin1": "广东",
+    "lat": 25.116,
+    "lon": 114.312,
+    "aliases": [
+      "南雄市",
+      "nanxiong"
+    ],
+    "admin2": "韶关市"
+  },
+  {
+    "name": "南宁",
+    "admin1": "广西",
+    "lat": 22.817,
+    "lon": 108.366,
+    "aliases": [
+      "南宁市",
+      "nanning"
+    ],
+    "admin2": "南宁市"
+  },
+  {
+    "name": "柳州",
+    "admin1": "广西",
+    "lat": 24.326,
+    "lon": 109.428,
+    "aliases": [
+      "柳州",
+      "liuzhou"
+    ],
+    "admin2": "柳州市"
+  },
+  {
+    "name": "桂林",
+    "admin1": "广西",
+    "lat": 25.274,
+    "lon": 110.299,
+    "aliases": [
+      "桂林市",
+      "guilin"
+    ],
+    "admin2": "桂林市"
+  },
+  {
+    "name": "梧州",
+    "admin1": "广西",
+    "lat": 23.477,
+    "lon": 111.279,
+    "aliases": [
+      "梧州",
+      "wuzhou"
+    ],
+    "admin2": "梧州市"
+  },
+  {
+    "name": "北海",
+    "admin1": "广西",
+    "lat": 21.481,
+    "lon": 109.12,
+    "aliases": [
+      "北海市",
+      "beihai"
+    ],
+    "admin2": "北海市"
+  },
+  {
+    "name": "防城港",
+    "admin1": "广西",
+    "lat": 21.687,
+    "lon": 108.354,
+    "aliases": [
+      "防城港市",
+      "fangchenggang"
+    ],
+    "admin2": "防城港市"
+  },
+  {
+    "name": "钦州",
+    "admin1": "广西",
+    "lat": 21.98,
+    "lon": 108.654,
+    "aliases": [
+      "钦州",
+      "qinzhou"
+    ],
+    "admin2": "钦州市"
+  },
+  {
+    "name": "贵港",
+    "admin1": "广西",
+    "lat": 23.112,
+    "lon": 109.599,
+    "aliases": [
+      "贵港市",
+      "guigang"
+    ],
+    "admin2": "贵港市"
+  },
+  {
+    "name": "玉林",
+    "admin1": "广西",
+    "lat": 22.636,
+    "lon": 110.181,
+    "aliases": [
+      "玉林市",
+      "yulin"
+    ],
+    "admin2": "玉林市"
+  },
+  {
+    "name": "百色",
+    "admin1": "广西",
+    "lat": 23.902,
+    "lon": 106.618,
+    "aliases": [
+      "百色市",
+      "baise"
+    ],
+    "admin2": "百色市"
+  },
+  {
+    "name": "贺州",
+    "admin1": "广西",
+    "lat": 24.404,
+    "lon": 111.552,
+    "aliases": [
+      "贺州",
+      "hezhou"
+    ],
+    "admin2": "贺州市"
+  },
+  {
+    "name": "河池",
+    "admin1": "广西",
+    "lat": 24.693,
+    "lon": 108.085,
+    "aliases": [
+      "河池市",
+      "hechi"
+    ],
+    "admin2": "河池市"
+  },
+  {
+    "name": "来宾",
+    "admin1": "广西",
+    "lat": 23.75,
+    "lon": 109.221,
+    "aliases": [
+      "来宾市",
+      "laibin"
+    ],
+    "admin2": "来宾市"
+  },
+  {
+    "name": "崇左",
+    "admin1": "广西",
+    "lat": 22.377,
+    "lon": 107.365,
+    "aliases": [
+      "崇左市",
+      "chongzuo"
+    ],
+    "admin2": "崇左市"
+  },
+  {
+    "name": "海口",
+    "admin1": "海南",
+    "lat": 20.044,
+    "lon": 110.199,
+    "aliases": [
+      "海口市",
+      "haikou"
+    ],
+    "admin2": "海口市"
+  },
+  {
+    "name": "三亚",
+    "admin1": "海南",
+    "lat": 18.253,
+    "lon": 109.512,
+    "aliases": [
+      "三亚市",
+      "sanya"
+    ],
+    "admin2": "三亚市"
+  },
+  {
+    "name": "儋州",
+    "admin1": "海南",
+    "lat": 19.521,
+    "lon": 109.581,
+    "aliases": [
+      "儋州",
+      "danzhou"
+    ],
+    "admin2": "儋州市"
+  },
+  {
+    "name": "成都",
+    "admin1": "四川",
+    "lat": 30.5728,
+    "lon": 104.0668,
+    "aliases": [
+      "成都市",
+      "chengdu"
+    ],
+    "admin2": "成都市"
+  },
+  {
+    "name": "自贡",
+    "admin1": "四川",
+    "lat": 29.339,
+    "lon": 104.778,
+    "aliases": [
+      "自贡市",
+      "zigong"
+    ],
+    "admin2": "自贡市"
+  },
+  {
+    "name": "攀枝花",
+    "admin1": "四川",
+    "lat": 26.582,
+    "lon": 101.719,
+    "aliases": [
+      "攀枝花市",
+      "panzhihua"
+    ],
+    "admin2": "攀枝花市"
+  },
+  {
+    "name": "泸州",
+    "admin1": "四川",
+    "lat": 28.872,
+    "lon": 105.442,
+    "aliases": [
+      "泸州",
+      "luzhou"
+    ],
+    "admin2": "泸州市"
+  },
+  {
+    "name": "德阳",
+    "admin1": "四川",
+    "lat": 31.127,
+    "lon": 104.398,
+    "aliases": [
+      "德阳市",
+      "deyang"
+    ],
+    "admin2": "德阳市"
+  },
+  {
+    "name": "绵阳",
+    "admin1": "四川",
+    "lat": 31.467,
+    "lon": 104.679,
+    "aliases": [
+      "绵阳市",
+      "mianyang"
+    ],
+    "admin2": "绵阳市"
+  },
+  {
+    "name": "广元",
+    "admin1": "四川",
+    "lat": 32.435,
+    "lon": 105.844,
+    "aliases": [
+      "广元市",
+      "guangyuan"
+    ],
+    "admin2": "广元市"
+  },
+  {
+    "name": "遂宁",
+    "admin1": "四川",
+    "lat": 30.533,
+    "lon": 105.593,
+    "aliases": [
+      "遂宁市",
+      "suining"
+    ],
+    "admin2": "遂宁市"
+  },
+  {
+    "name": "内江",
+    "admin1": "四川",
+    "lat": 29.58,
+    "lon": 105.058,
+    "aliases": [
+      "内江市",
+      "neijiang"
+    ],
+    "admin2": "内江市"
+  },
+  {
+    "name": "乐山",
+    "admin1": "四川",
+    "lat": 29.552,
+    "lon": 103.766,
+    "aliases": [
+      "乐山市",
+      "leshan"
+    ],
+    "admin2": "乐山市"
+  },
+  {
+    "name": "南充",
+    "admin1": "四川",
+    "lat": 30.837,
+    "lon": 106.111,
+    "aliases": [
+      "南充市",
+      "nanchong"
+    ],
+    "admin2": "南充市"
+  },
+  {
+    "name": "眉山",
+    "admin1": "四川",
+    "lat": 30.077,
+    "lon": 103.848,
+    "aliases": [
+      "眉山市",
+      "meishan"
+    ],
+    "admin2": "眉山市"
+  },
+  {
+    "name": "宜宾",
+    "admin1": "四川",
+    "lat": 28.752,
+    "lon": 104.643,
+    "aliases": [
+      "宜宾市",
+      "yibin"
+    ],
+    "admin2": "宜宾市"
+  },
+  {
+    "name": "广安",
+    "admin1": "四川",
+    "lat": 30.456,
+    "lon": 106.633,
+    "aliases": [
+      "广安市",
+      "guangan"
+    ],
+    "admin2": "广安市"
+  },
+  {
+    "name": "达州",
+    "admin1": "四川",
+    "lat": 31.209,
+    "lon": 107.502,
+    "aliases": [
+      "达州",
+      "dazhou"
+    ],
+    "admin2": "达州市"
+  },
+  {
+    "name": "雅安",
+    "admin1": "四川",
+    "lat": 30.01,
+    "lon": 103.041,
+    "aliases": [
+      "雅安市",
+      "yaan"
+    ],
+    "admin2": "雅安市"
+  },
+  {
+    "name": "巴中",
+    "admin1": "四川",
+    "lat": 31.868,
+    "lon": 106.747,
+    "aliases": [
+      "巴中市",
+      "bazhong"
+    ],
+    "admin2": "巴中市"
+  },
+  {
+    "name": "资阳",
+    "admin1": "四川",
+    "lat": 30.129,
+    "lon": 104.642,
+    "aliases": [
+      "资阳市",
+      "ziyang"
+    ],
+    "admin2": "资阳市"
+  },
+  {
+    "name": "西昌",
+    "admin1": "四川",
+    "lat": 27.895,
+    "lon": 102.264,
+    "aliases": [
+      "西昌市",
+      "xichang"
+    ],
+    "admin2": "凉山州"
+  },
+  {
+    "name": "贵阳",
+    "admin1": "贵州",
+    "lat": 26.647,
+    "lon": 106.63,
+    "aliases": [
+      "贵阳市",
+      "guiyang"
+    ],
+    "admin2": "贵阳市"
+  },
+  {
+    "name": "六盘水",
+    "admin1": "贵州",
+    "lat": 26.591,
+    "lon": 104.83,
+    "aliases": [
+      "六盘水市",
+      "liupanshui"
+    ],
+    "admin2": "六盘水市"
+  },
+  {
+    "name": "遵义",
+    "admin1": "贵州",
+    "lat": 27.725,
+    "lon": 106.927,
+    "aliases": [
+      "遵义市",
+      "zunyi"
+    ],
+    "admin2": "遵义市"
+  },
+  {
+    "name": "安顺",
+    "admin1": "贵州",
+    "lat": 26.253,
+    "lon": 105.932,
+    "aliases": [
+      "安顺市",
+      "anshun"
+    ],
+    "admin2": "安顺市"
+  },
+  {
+    "name": "毕节",
+    "admin1": "贵州",
+    "lat": 27.302,
+    "lon": 105.285,
+    "aliases": [
+      "毕节市",
+      "bijie"
+    ],
+    "admin2": "毕节市"
+  },
+  {
+    "name": "铜仁",
+    "admin1": "贵州",
+    "lat": 27.719,
+    "lon": 109.191,
+    "aliases": [
+      "铜仁市",
+      "tongren"
+    ],
+    "admin2": "铜仁市"
+  },
+  {
+    "name": "兴义",
+    "admin1": "贵州",
+    "lat": 25.092,
+    "lon": 104.896,
+    "aliases": [
+      "兴义市",
+      "xingyi"
+    ],
+    "admin2": "黔西南州"
+  },
+  {
+    "name": "凯里",
+    "admin1": "贵州",
+    "lat": 26.583,
+    "lon": 107.981,
+    "aliases": [
+      "凯里市",
+      "kaili"
+    ],
+    "admin2": "黔东南州"
+  },
+  {
+    "name": "都匀",
+    "admin1": "贵州",
+    "lat": 26.259,
+    "lon": 107.519,
+    "aliases": [
+      "都匀市",
+      "duyun"
+    ],
+    "admin2": "黔南州"
+  },
+  {
+    "name": "昆明",
+    "admin1": "云南",
+    "lat": 25.0389,
+    "lon": 102.7183,
+    "aliases": [
+      "昆明市",
+      "kunming"
+    ],
+    "admin2": "昆明市"
+  },
+  {
+    "name": "曲靖",
+    "admin1": "云南",
+    "lat": 25.491,
+    "lon": 103.796,
+    "aliases": [
+      "曲靖市",
+      "qujing"
+    ],
+    "admin2": "曲靖市"
+  },
+  {
+    "name": "玉溪",
+    "admin1": "云南",
+    "lat": 24.352,
+    "lon": 102.543,
+    "aliases": [
+      "玉溪市",
+      "yuxi"
+    ],
+    "admin2": "玉溪市"
+  },
+  {
+    "name": "保山",
+    "admin1": "云南",
+    "lat": 25.112,
+    "lon": 99.161,
+    "aliases": [
+      "保山市",
+      "baoshan"
+    ],
+    "admin2": "保山市"
+  },
+  {
+    "name": "昭通",
+    "admin1": "云南",
+    "lat": 27.338,
+    "lon": 103.717,
+    "aliases": [
+      "昭通市",
+      "zhaotong"
+    ],
+    "admin2": "昭通市"
+  },
+  {
+    "name": "丽江",
+    "admin1": "云南",
+    "lat": 26.855,
+    "lon": 100.227,
+    "aliases": [
+      "丽江市",
+      "lijiang"
+    ],
+    "admin2": "丽江市"
+  },
+  {
+    "name": "普洱",
+    "admin1": "云南",
+    "lat": 22.825,
+    "lon": 100.966,
+    "aliases": [
+      "普洱市",
+      "puer"
+    ],
+    "admin2": "普洱市"
+  },
+  {
+    "name": "临沧",
+    "admin1": "云南",
+    "lat": 23.884,
+    "lon": 100.087,
+    "aliases": [
+      "临沧市",
+      "lincang"
+    ],
+    "admin2": "临沧市"
+  },
+  {
+    "name": "楚雄",
+    "admin1": "云南",
+    "lat": 25.046,
+    "lon": 101.546,
+    "aliases": [
+      "楚雄市",
+      "chuxiong"
+    ],
+    "admin2": "楚雄州"
+  },
+  {
+    "name": "蒙自",
+    "admin1": "云南",
+    "lat": 23.396,
+    "lon": 103.365,
+    "aliases": [
+      "蒙自市",
+      "mengzi"
+    ],
+    "admin2": "红河州"
+  },
+  {
+    "name": "文山",
+    "admin1": "云南",
+    "lat": 23.369,
+    "lon": 104.244,
+    "aliases": [
+      "文山市",
+      "wenshan"
+    ],
+    "admin2": "文山州"
+  },
+  {
+    "name": "景洪",
+    "admin1": "云南",
+    "lat": 22.01,
+    "lon": 100.799,
+    "aliases": [
+      "景洪市",
+      "jinghong"
+    ],
+    "admin2": "西双版纳州"
+  },
+  {
+    "name": "大理",
+    "admin1": "云南",
+    "lat": 25.606,
+    "lon": 100.267,
+    "aliases": [
+      "大理市",
+      "dali"
+    ],
+    "admin2": "大理州"
+  },
+  {
+    "name": "芒市",
+    "admin1": "云南",
+    "lat": 24.436,
+    "lon": 98.588,
+    "aliases": [
+      "芒市市",
+      "mangshi"
+    ],
+    "admin2": "德宏州"
+  },
+  {
+    "name": "香格里拉",
+    "admin1": "云南",
+    "lat": 27.826,
+    "lon": 99.706,
+    "aliases": [
+      "香格里拉市",
+      "xianggelila"
+    ],
+    "admin2": "迪庆州"
+  },
+  {
+    "name": "拉萨",
+    "admin1": "西藏",
+    "lat": 29.652,
+    "lon": 91.172,
+    "aliases": [
+      "拉萨市",
+      "lasa"
+    ],
+    "admin2": "拉萨市"
+  },
+  {
+    "name": "日喀则",
+    "admin1": "西藏",
+    "lat": 29.267,
+    "lon": 88.88,
+    "aliases": [
+      "日喀则市",
+      "rikaze"
+    ],
+    "admin2": "日喀则市"
+  },
+  {
+    "name": "昌都",
+    "admin1": "西藏",
+    "lat": 31.137,
+    "lon": 97.172,
+    "aliases": [
+      "昌都市",
+      "changdu"
+    ],
+    "admin2": "昌都市"
+  },
+  {
+    "name": "林芝",
+    "admin1": "西藏",
+    "lat": 29.654,
+    "lon": 94.362,
+    "aliases": [
+      "林芝市",
+      "linzhi"
+    ],
+    "admin2": "林芝市"
+  },
+  {
+    "name": "山南",
+    "admin1": "西藏",
+    "lat": 29.237,
+    "lon": 91.773,
+    "aliases": [
+      "山南市",
+      "shannan"
+    ],
+    "admin2": "山南市"
+  },
+  {
+    "name": "那曲",
+    "admin1": "西藏",
+    "lat": 31.476,
+    "lon": 92.051,
+    "aliases": [
+      "那曲市",
+      "naqu"
+    ],
+    "admin2": "那曲市"
+  },
+  {
+    "name": "西安",
+    "admin1": "陕西",
+    "lat": 34.3416,
+    "lon": 108.9398,
+    "aliases": [
+      "西安市",
+      "xian",
+      "xi'an"
+    ],
+    "admin2": "西安市"
+  },
+  {
+    "name": "铜川",
+    "admin1": "陕西",
+    "lat": 34.897,
+    "lon": 108.945,
+    "aliases": [
+      "铜川市",
+      "tongchuan"
+    ],
+    "admin2": "铜川市"
+  },
+  {
+    "name": "宝鸡",
+    "admin1": "陕西",
+    "lat": 34.3619,
+    "lon": 107.237,
+    "aliases": [
+      "宝鸡市",
+      "baoji"
+    ],
+    "admin2": "宝鸡市"
+  },
+  {
+    "name": "咸阳",
+    "admin1": "陕西",
+    "lat": 34.329,
+    "lon": 108.709,
+    "aliases": [
+      "咸阳市",
+      "xianyang"
+    ],
+    "admin2": "咸阳市"
+  },
+  {
+    "name": "渭南",
+    "admin1": "陕西",
+    "lat": 34.499,
+    "lon": 109.51,
+    "aliases": [
+      "渭南市",
+      "weinan"
+    ],
+    "admin2": "渭南市"
+  },
+  {
+    "name": "延安",
+    "admin1": "陕西",
+    "lat": 36.585,
+    "lon": 109.49,
+    "aliases": [
+      "延安市",
+      "yanan"
+    ],
+    "admin2": "延安市"
+  },
+  {
+    "name": "汉中",
+    "admin1": "陕西",
+    "lat": 33.068,
+    "lon": 107.023,
+    "aliases": [
+      "汉中市",
+      "hanzhong"
+    ],
+    "admin2": "汉中市"
+  },
+  {
+    "name": "榆林",
+    "admin1": "陕西",
+    "lat": 38.285,
+    "lon": 109.735,
+    "aliases": [
+      "榆林市",
+      "yulin"
+    ],
+    "admin2": "榆林市"
+  },
+  {
+    "name": "安康",
+    "admin1": "陕西",
+    "lat": 32.685,
+    "lon": 109.029,
+    "aliases": [
+      "安康市",
+      "ankang"
+    ],
+    "admin2": "安康市"
+  },
+  {
+    "name": "商洛",
+    "admin1": "陕西",
+    "lat": 33.87,
+    "lon": 109.94,
+    "aliases": [
+      "商洛市",
+      "shangluo"
+    ],
+    "admin2": "商洛市"
+  },
+  {
+    "name": "兴平",
+    "admin1": "陕西",
+    "lat": 34.299,
+    "lon": 108.49,
+    "aliases": [
+      "兴平市",
+      "xingping"
+    ],
+    "admin2": "咸阳市"
+  },
+  {
+    "name": "韩城",
+    "admin1": "陕西",
+    "lat": 35.477,
+    "lon": 110.443,
+    "aliases": [
+      "韩城市",
+      "hancheng"
+    ],
+    "admin2": "渭南市"
+  },
+  {
+    "name": "华阴",
+    "admin1": "陕西",
+    "lat": 34.566,
+    "lon": 110.09,
+    "aliases": [
+      "华阴市",
+      "huayin"
+    ],
+    "admin2": "渭南市"
+  },
+  {
+    "name": "兰州",
+    "admin1": "甘肃",
+    "lat": 36.061,
+    "lon": 103.834,
+    "aliases": [
+      "兰州",
+      "lanzhou"
+    ],
+    "admin2": "兰州市"
+  },
+  {
+    "name": "嘉峪关",
+    "admin1": "甘肃",
+    "lat": 39.773,
+    "lon": 98.289,
+    "aliases": [
+      "嘉峪关市",
+      "jiayuguan"
+    ],
+    "admin2": "嘉峪关市"
+  },
+  {
+    "name": "金昌",
+    "admin1": "甘肃",
+    "lat": 38.52,
+    "lon": 102.188,
+    "aliases": [
+      "金昌市",
+      "jinchang"
+    ],
+    "admin2": "金昌市"
+  },
+  {
+    "name": "白银",
+    "admin1": "甘肃",
+    "lat": 36.545,
+    "lon": 104.138,
+    "aliases": [
+      "白银市",
+      "baiyin"
+    ],
+    "admin2": "白银市"
+  },
+  {
+    "name": "天水",
+    "admin1": "甘肃",
+    "lat": 34.581,
+    "lon": 105.725,
+    "aliases": [
+      "天水市",
+      "tianshui"
+    ],
+    "admin2": "天水市"
+  },
+  {
+    "name": "武威",
+    "admin1": "甘肃",
+    "lat": 37.928,
+    "lon": 102.638,
+    "aliases": [
+      "武威市",
+      "wuwei"
+    ],
+    "admin2": "武威市"
+  },
+  {
+    "name": "张掖",
+    "admin1": "甘肃",
+    "lat": 38.925,
+    "lon": 100.45,
+    "aliases": [
+      "张掖市",
+      "zhangye"
+    ],
+    "admin2": "张掖市"
+  },
+  {
+    "name": "平凉",
+    "admin1": "甘肃",
+    "lat": 35.543,
+    "lon": 106.684,
+    "aliases": [
+      "平凉市",
+      "pingliang"
+    ],
+    "admin2": "平凉市"
+  },
+  {
+    "name": "酒泉",
+    "admin1": "甘肃",
+    "lat": 39.744,
+    "lon": 98.511,
+    "aliases": [
+      "酒泉市",
+      "jiuquan"
+    ],
+    "admin2": "酒泉市"
+  },
+  {
+    "name": "庆阳",
+    "admin1": "甘肃",
+    "lat": 35.709,
+    "lon": 107.643,
+    "aliases": [
+      "庆阳市",
+      "qingyang"
+    ],
+    "admin2": "庆阳市"
+  },
+  {
+    "name": "定西",
+    "admin1": "甘肃",
+    "lat": 35.581,
+    "lon": 104.626,
+    "aliases": [
+      "定西市",
+      "dingxi"
+    ],
+    "admin2": "定西市"
+  },
+  {
+    "name": "陇南",
+    "admin1": "甘肃",
+    "lat": 33.401,
+    "lon": 104.922,
+    "aliases": [
+      "陇南市",
+      "longnan"
+    ],
+    "admin2": "陇南市"
+  },
+  {
+    "name": "临夏",
+    "admin1": "甘肃",
+    "lat": 35.601,
+    "lon": 103.211,
+    "aliases": [
+      "临夏市",
+      "linxia"
+    ],
+    "admin2": "临夏州"
+  },
+  {
+    "name": "合作",
+    "admin1": "甘肃",
+    "lat": 35.0,
+    "lon": 102.911,
+    "aliases": [
+      "合作市",
+      "hezuo"
+    ],
+    "admin2": "甘南州"
+  },
+  {
+    "name": "敦煌",
+    "admin1": "甘肃",
+    "lat": 40.141,
+    "lon": 94.662,
+    "aliases": [
+      "敦煌市",
+      "dunhuang"
+    ],
+    "admin2": "酒泉市"
+  },
+  {
+    "name": "西宁",
+    "admin1": "青海",
+    "lat": 36.617,
+    "lon": 101.778,
+    "aliases": [
+      "西宁市",
+      "xining"
+    ],
+    "admin2": "西宁市"
+  },
+  {
+    "name": "海东",
+    "admin1": "青海",
+    "lat": 36.502,
+    "lon": 102.104,
+    "aliases": [
+      "海东市",
+      "haidong"
+    ],
+    "admin2": "海东市"
+  },
+  {
+    "name": "格尔木",
+    "admin1": "青海",
+    "lat": 36.402,
+    "lon": 94.903,
+    "aliases": [
+      "格尔木市",
+      "geermu"
+    ],
+    "admin2": "海西州"
+  },
+  {
+    "name": "德令哈",
+    "admin1": "青海",
+    "lat": 37.374,
+    "lon": 97.37,
+    "aliases": [
+      "德令哈市",
+      "delingha"
+    ],
+    "admin2": "海西州"
+  },
+  {
+    "name": "银川",
+    "admin1": "宁夏",
+    "lat": 38.487,
+    "lon": 106.231,
+    "aliases": [
+      "银川市",
+      "yinchuan"
+    ],
+    "admin2": "银川市"
+  },
+  {
+    "name": "石嘴山",
+    "admin1": "宁夏",
+    "lat": 39.014,
+    "lon": 106.384,
+    "aliases": [
+      "石嘴山市",
+      "shizuishan"
+    ],
+    "admin2": "石嘴山市"
+  },
+  {
+    "name": "吴忠",
+    "admin1": "宁夏",
+    "lat": 37.997,
+    "lon": 106.199,
+    "aliases": [
+      "吴忠市",
+      "wuzhong"
+    ],
+    "admin2": "吴忠市"
+  },
+  {
+    "name": "固原",
+    "admin1": "宁夏",
+    "lat": 36.016,
+    "lon": 106.285,
+    "aliases": [
+      "固原市",
+      "guyuan"
+    ],
+    "admin2": "固原市"
+  },
+  {
+    "name": "中卫",
+    "admin1": "宁夏",
+    "lat": 37.5,
+    "lon": 105.197,
+    "aliases": [
+      "中卫市",
+      "zhongwei"
+    ],
+    "admin2": "中卫市"
+  },
+  {
+    "name": "乌鲁木齐",
+    "admin1": "新疆",
+    "lat": 43.825,
+    "lon": 87.617,
+    "aliases": [
+      "乌鲁木齐市",
+      "wulumuqi"
+    ],
+    "admin2": "乌鲁木齐市"
+  },
+  {
+    "name": "克拉玛依",
+    "admin1": "新疆",
+    "lat": 45.58,
+    "lon": 84.873,
+    "aliases": [
+      "克拉玛依市",
+      "kelamayi"
+    ],
+    "admin2": "克拉玛依市"
+  },
+  {
+    "name": "吐鲁番",
+    "admin1": "新疆",
+    "lat": 42.951,
+    "lon": 89.19,
+    "aliases": [
+      "吐鲁番市",
+      "tulufan"
+    ],
+    "admin2": "吐鲁番市"
+  },
+  {
+    "name": "哈密",
+    "admin1": "新疆",
+    "lat": 42.819,
+    "lon": 93.515,
+    "aliases": [
+      "哈密市",
+      "hami"
+    ],
+    "admin2": "哈密市"
+  },
+  {
+    "name": "昌吉",
+    "admin1": "新疆",
+    "lat": 44.014,
+    "lon": 87.308,
+    "aliases": [
+      "昌吉市",
+      "changji"
+    ],
+    "admin2": "昌吉州"
+  },
+  {
+    "name": "博乐",
+    "admin1": "新疆",
+    "lat": 44.904,
+    "lon": 82.067,
+    "aliases": [
+      "博乐市",
+      "bole"
+    ],
+    "admin2": "博尔塔拉州"
+  },
+  {
+    "name": "库尔勒",
+    "admin1": "新疆",
+    "lat": 41.726,
+    "lon": 86.147,
+    "aliases": [
+      "库尔勒市",
+      "kuerle"
+    ],
+    "admin2": "巴音郭楞州"
+  },
+  {
+    "name": "阿克苏",
+    "admin1": "新疆",
+    "lat": 41.168,
+    "lon": 80.26,
+    "aliases": [
+      "阿克苏市",
+      "akesu"
+    ],
+    "admin2": "阿克苏地区"
+  },
+  {
+    "name": "阿图什",
+    "admin1": "新疆",
+    "lat": 39.716,
+    "lon": 76.168,
+    "aliases": [
+      "阿图什市",
+      "atushi"
+    ],
+    "admin2": "克孜勒苏州"
+  },
+  {
+    "name": "喀什",
+    "admin1": "新疆",
+    "lat": 39.47,
+    "lon": 75.99,
+    "aliases": [
+      "喀什市",
+      "kashi"
+    ],
+    "admin2": "喀什地区"
+  },
+  {
+    "name": "和田",
+    "admin1": "新疆",
+    "lat": 37.114,
+    "lon": 79.925,
+    "aliases": [
+      "和田市",
+      "hetian"
+    ],
+    "admin2": "和田地区"
+  },
+  {
+    "name": "伊宁",
+    "admin1": "新疆",
+    "lat": 43.917,
+    "lon": 81.324,
+    "aliases": [
+      "伊宁市",
+      "yining"
+    ],
+    "admin2": "伊犁州"
+  },
+  {
+    "name": "塔城",
+    "admin1": "新疆",
+    "lat": 46.745,
+    "lon": 82.98,
+    "aliases": [
+      "塔城市",
+      "tacheng"
+    ],
+    "admin2": "塔城地区"
+  },
+  {
+    "name": "阿勒泰",
+    "admin1": "新疆",
+    "lat": 47.849,
+    "lon": 88.14,
+    "aliases": [
+      "阿勒泰市",
+      "aletai"
+    ],
+    "admin2": "阿勒泰地区"
+  },
+  {
+    "name": "石河子",
+    "admin1": "新疆",
+    "lat": 44.306,
+    "lon": 86.079,
+    "aliases": [
+      "石河子市",
+      "shihezi"
+    ],
+    "admin2": "石河子市"
+  },
+  {
+    "name": "纽约",
+    "admin1": "纽约州",
+    "country": "美国",
+    "lat": 40.7128,
+    "lon": -74.006,
+    "aliases": [
+      "纽约市",
+      "New York",
+      "New York City",
+      "nyc",
+      "niuyue"
+    ]
+  },
+  {
+    "name": "洛杉矶",
+    "admin1": "加利福尼亚",
+    "country": "美国",
+    "lat": 34.0522,
+    "lon": -118.2437,
+    "aliases": [
+      "Los Angeles",
+      "LA",
+      "luoshanji"
+    ]
+  },
+  {
+    "name": "芝加哥",
+    "admin1": "伊利诺伊",
+    "country": "美国",
+    "lat": 41.8781,
+    "lon": -87.6298,
+    "aliases": [
+      "Chicago",
+      "zhijiage"
+    ]
+  },
+  {
+    "name": "休斯顿",
+    "admin1": "得克萨斯",
+    "country": "美国",
+    "lat": 29.7604,
+    "lon": -95.3698,
+    "aliases": [
+      "休斯敦",
+      "Houston",
+      "xiushidun"
+    ]
+  },
+  {
+    "name": "凤凰城",
+    "admin1": "亚利桑那",
+    "country": "美国",
+    "lat": 33.4484,
+    "lon": -112.074,
+    "aliases": [
+      "菲尼克斯",
+      "Phoenix",
+      "fenghuangcheng"
+    ]
+  },
+  {
+    "name": "费城",
+    "admin1": "宾夕法尼亚",
+    "country": "美国",
+    "lat": 39.9526,
+    "lon": -75.1652,
+    "aliases": [
+      "Philadelphia",
+      "feicheng"
+    ]
+  },
+  {
+    "name": "圣安东尼奥",
+    "admin1": "得克萨斯",
+    "country": "美国",
+    "lat": 29.4241,
+    "lon": -98.4936,
+    "aliases": [
+      "San Antonio",
+      "shengandongniao"
+    ]
+  },
+  {
+    "name": "圣迭戈",
+    "admin1": "加利福尼亚",
+    "country": "美国",
+    "lat": 32.7157,
+    "lon": -117.1611,
+    "aliases": [
+      "圣地牙哥",
+      "San Diego",
+      "shengdiege"
+    ]
+  },
+  {
+    "name": "达拉斯",
+    "admin1": "得克萨斯",
+    "country": "美国",
+    "lat": 32.7767,
+    "lon": -96.797,
+    "aliases": [
+      "Dallas",
+      "dalasi"
+    ]
+  },
+  {
+    "name": "圣何塞",
+    "admin1": "加利福尼亚",
+    "country": "美国",
+    "lat": 37.3382,
+    "lon": -121.8863,
+    "aliases": [
+      "圣荷西",
+      "San Jose",
+      "shenghesai"
+    ]
+  },
+  {
+    "name": "奥斯汀",
+    "admin1": "得克萨斯",
+    "country": "美国",
+    "lat": 30.2672,
+    "lon": -97.7431,
+    "aliases": [
+      "Austin",
+      "aositing"
+    ]
+  },
+  {
+    "name": "杰克逊维尔",
+    "admin1": "佛罗里达",
+    "country": "美国",
+    "lat": 30.3322,
+    "lon": -81.6557,
+    "aliases": [
+      "Jacksonville",
+      "jiekexunweier"
+    ]
+  },
+  {
+    "name": "旧金山",
+    "admin1": "加利福尼亚",
+    "country": "美国",
+    "lat": 37.7749,
+    "lon": -122.4194,
+    "aliases": [
+      "三藩市",
+      "San Francisco",
+      "jiujinshan"
+    ]
+  },
+  {
+    "name": "哥伦布",
+    "admin1": "俄亥俄",
+    "country": "美国",
+    "lat": 39.9612,
+    "lon": -82.9988,
+    "aliases": [
+      "Columbus",
+      "gelunbu"
+    ]
+  },
+  {
+    "name": "印第安纳波利斯",
+    "admin1": "印第安纳",
+    "country": "美国",
+    "lat": 39.7684,
+    "lon": -86.1581,
+    "aliases": [
+      "Indianapolis",
+      "yindiannapolisi"
+    ]
+  },
+  {
+    "name": "夏洛特",
+    "admin1": "北卡罗来纳",
+    "country": "美国",
+    "lat": 35.2271,
+    "lon": -80.8431,
+    "aliases": [
+      "Charlotte",
+      "xialuote"
+    ]
+  },
+  {
+    "name": "西雅图",
+    "admin1": "华盛顿州",
+    "country": "美国",
+    "lat": 47.6062,
+    "lon": -122.3321,
+    "aliases": [
+      "Seattle",
+      "xiyatu"
+    ]
+  },
+  {
+    "name": "丹佛",
+    "admin1": "科罗拉多",
+    "country": "美国",
+    "lat": 39.7392,
+    "lon": -104.9903,
+    "aliases": [
+      "Denver",
+      "danfo"
+    ]
+  },
+  {
+    "name": "华盛顿",
+    "admin1": "哥伦比亚特区",
+    "country": "美国",
+    "lat": 38.9072,
+    "lon": -77.0369,
+    "aliases": [
+      "华盛顿特区",
+      "Washington",
+      "Washington DC",
+      "huashengdun"
+    ]
+  },
+  {
+    "name": "波士顿",
+    "admin1": "马萨诸塞",
+    "country": "美国",
+    "lat": 42.3601,
+    "lon": -71.0589,
+    "aliases": [
+      "Boston",
+      "boshidun"
+    ]
+  },
+  {
+    "name": "埃尔帕索",
+    "admin1": "得克萨斯",
+    "country": "美国",
+    "lat": 31.7619,
+    "lon": -106.485,
+    "aliases": [
+      "El Paso",
+      "aierpasuo"
+    ]
+  },
+  {
+    "name": "底特律",
+    "admin1": "密歇根",
+    "country": "美国",
+    "lat": 42.3314,
+    "lon": -83.0458,
+    "aliases": [
+      "Detroit",
+      "ditelv"
+    ]
+  },
+  {
+    "name": "纳什维尔",
+    "admin1": "田纳西",
+    "country": "美国",
+    "lat": 36.1627,
+    "lon": -86.7816,
+    "aliases": [
+      "Nashville",
+      "nashiweier"
+    ]
+  },
+  {
+    "name": "波特兰",
+    "admin1": "俄勒冈",
+    "country": "美国",
+    "lat": 45.5152,
+    "lon": -122.6784,
+    "aliases": [
+      "Portland",
+      "botelan"
+    ]
+  },
+  {
+    "name": "拉斯维加斯",
+    "admin1": "内华达",
+    "country": "美国",
+    "lat": 36.1699,
+    "lon": -115.1398,
+    "aliases": [
+      "Las Vegas",
+      "lasiweijiasi"
+    ]
+  },
+  {
+    "name": "孟菲斯",
+    "admin1": "田纳西",
+    "country": "美国",
+    "lat": 35.1495,
+    "lon": -90.049,
+    "aliases": [
+      "Memphis",
+      "mengfeisi"
+    ]
+  },
+  {
+    "name": "路易斯维尔",
+    "admin1": "肯塔基",
+    "country": "美国",
+    "lat": 38.2527,
+    "lon": -85.7585,
+    "aliases": [
+      "Louisville",
+      "luyisiweier"
+    ]
+  },
+  {
+    "name": "巴尔的摩",
+    "admin1": "马里兰",
+    "country": "美国",
+    "lat": 39.2904,
+    "lon": -76.6122,
+    "aliases": [
+      "Baltimore",
+      "baerdimo"
+    ]
+  },
+  {
+    "name": "密尔沃基",
+    "admin1": "威斯康星",
+    "country": "美国",
+    "lat": 43.0389,
+    "lon": -87.9065,
+    "aliases": [
+      "Milwaukee",
+      "mierwoji"
+    ]
+  },
+  {
+    "name": "阿尔伯克基",
+    "admin1": "新墨西哥",
+    "country": "美国",
+    "lat": 35.0844,
+    "lon": -106.6504,
+    "aliases": [
+      "Albuquerque",
+      "aerbokeji"
+    ]
+  },
+  {
+    "name": "图森",
+    "admin1": "亚利桑那",
+    "country": "美国",
+    "lat": 32.2226,
+    "lon": -110.9747,
+    "aliases": [
+      "Tucson",
+      "tusen"
+    ]
+  },
+  {
+    "name": "弗雷斯诺",
+    "admin1": "加利福尼亚",
+    "country": "美国",
+    "lat": 36.7378,
+    "lon": -119.7871,
+    "aliases": [
+      "Fresno",
+      "fuleisinuo"
+    ]
+  },
+  {
+    "name": "萨克拉门托",
+    "admin1": "加利福尼亚",
+    "country": "美国",
+    "lat": 38.5816,
+    "lon": -121.4944,
+    "aliases": [
+      "Sacramento",
+      "sakelamentuo"
+    ]
+  },
+  {
+    "name": "亚特兰大",
+    "admin1": "佐治亚",
+    "country": "美国",
+    "lat": 33.749,
+    "lon": -84.388,
+    "aliases": [
+      "Atlanta",
+      "yatelanda"
+    ]
+  },
+  {
+    "name": "迈阿密",
+    "admin1": "佛罗里达",
+    "country": "美国",
+    "lat": 25.7617,
+    "lon": -80.1918,
+    "aliases": [
+      "Miami",
+      "maiami"
+    ]
+  },
+  {
+    "name": "明尼阿波利斯",
+    "admin1": "明尼苏达",
+    "country": "美国",
+    "lat": 44.9778,
+    "lon": -93.265,
+    "aliases": [
+      "Minneapolis",
+      "mingniabolisi"
+    ]
+  },
+  {
+    "name": "新奥尔良",
+    "admin1": "路易斯安那",
+    "country": "美国",
+    "lat": 29.9511,
+    "lon": -90.0715,
+    "aliases": [
+      "New Orleans",
+      "xinaoerliang"
+    ]
+  },
+  {
+    "name": "克利夫兰",
+    "admin1": "俄亥俄",
+    "country": "美国",
+    "lat": 41.4993,
+    "lon": -81.6944,
+    "aliases": [
+      "Cleveland",
+      "kelifulan"
+    ]
+  },
+  {
+    "name": "坦帕",
+    "admin1": "佛罗里达",
+    "country": "美国",
+    "lat": 27.9506,
+    "lon": -82.4572,
+    "aliases": [
+      "Tampa",
+      "tanpa"
+    ]
+  },
+  {
+    "name": "奥兰多",
+    "admin1": "佛罗里达",
+    "country": "美国",
+    "lat": 28.5383,
+    "lon": -81.3792,
+    "aliases": [
+      "Orlando",
+      "aolanduo"
+    ]
+  },
+  {
+    "name": "圣路易斯",
+    "admin1": "密苏里",
+    "country": "美国",
+    "lat": 38.627,
+    "lon": -90.1994,
+    "aliases": [
+      "St. Louis",
+      "Saint Louis",
+      "shengluyisi"
+    ]
+  },
+  {
+    "name": "匹兹堡",
+    "admin1": "宾夕法尼亚",
+    "country": "美国",
+    "lat": 40.4406,
+    "lon": -79.9959,
+    "aliases": [
+      "Pittsburgh",
+      "pizibao"
+    ]
+  },
+  {
+    "name": "辛辛那提",
+    "admin1": "俄亥俄",
+    "country": "美国",
+    "lat": 39.1031,
+    "lon": -84.512,
+    "aliases": [
+      "Cincinnati",
+      "xinxinnati"
+    ]
+  },
+  {
+    "name": "盐湖城",
+    "admin1": "犹他",
+    "country": "美国",
+    "lat": 40.7608,
+    "lon": -111.891,
+    "aliases": [
+      "Salt Lake City",
+      "yanhucheng"
+    ]
+  },
+  {
+    "name": "火奴鲁鲁",
+    "admin1": "夏威夷",
+    "country": "美国",
+    "lat": 21.3069,
+    "lon": -157.8583,
+    "aliases": [
+      "檀香山",
+      "夏威夷",
+      "Honolulu",
+      "huonululu"
+    ]
+  },
+  {
+    "name": "安克雷奇",
+    "admin1": "阿拉斯加",
+    "country": "美国",
+    "lat": 61.2181,
+    "lon": -149.9003,
+    "aliases": [
+      "Anchorage",
+      "ankeleiqi"
+    ]
+  },
+  {
+    "name": "伦敦",
+    "admin1": "英格兰",
+    "country": "英国",
+    "lat": 51.5074,
+    "lon": -0.1278,
+    "aliases": [
+      "London",
+      "lundun"
+    ]
+  },
+  {
+    "name": "巴黎",
+    "admin1": "法兰西岛",
+    "country": "法国",
+    "lat": 48.8566,
+    "lon": 2.3522,
+    "aliases": [
+      "Paris",
+      "bali"
+    ]
+  },
+  {
+    "name": "柏林",
+    "admin1": "柏林",
+    "country": "德国",
+    "lat": 52.52,
+    "lon": 13.405,
+    "aliases": [
+      "Berlin",
+      "bolin"
+    ]
+  },
+  {
+    "name": "罗马",
+    "admin1": "拉齐奥",
+    "country": "意大利",
+    "lat": 41.9028,
+    "lon": 12.4964,
+    "aliases": [
+      "Rome",
+      "Roma",
+      "luoma"
+    ]
+  },
+  {
+    "name": "马德里",
+    "admin1": "马德里",
+    "country": "西班牙",
+    "lat": 40.4168,
+    "lon": -3.7038,
+    "aliases": [
+      "Madrid",
+      "madeli"
+    ]
+  },
+  {
+    "name": "莫斯科",
+    "admin1": "莫斯科",
+    "country": "俄罗斯",
+    "lat": 55.7558,
+    "lon": 37.6173,
+    "aliases": [
+      "Moscow",
+      "mosike"
+    ]
+  },
+  {
+    "name": "奥伊米亚康",
+    "admin1": "萨哈共和国",
+    "country": "俄罗斯",
+    "lat": 63.4622,
+    "lon": 142.7949,
+    "aliases": [
+      "奥伊米亚康村",
+      "北半球寒极",
+      "Oymyakon",
+      "Oimiakon",
+      "Oyemyakon",
+      "aoymiyakang"
+    ]
+  },
+  {
+    "name": "雅库茨克",
+    "admin1": "萨哈共和国",
+    "country": "俄罗斯",
+    "lat": 62.0339,
+    "lon": 129.7331,
+    "aliases": [
+      "雅库特",
+      "Yakutsk",
+      "Jakutsk",
+      "yakucike"
+    ]
+  },
+  {
+    "name": "东京",
+    "admin1": "东京都",
+    "country": "日本",
+    "lat": 35.6895,
+    "lon": 139.6917,
+    "aliases": [
+      "Tokyo",
+      "东京市",
+      "dongjing"
+    ]
+  },
+  {
+    "name": "横滨",
+    "admin1": "神奈川县",
+    "country": "日本",
+    "lat": 35.4437,
+    "lon": 139.638,
+    "aliases": [
+      "横浜",
+      "Yokohama",
+      "hengbin"
+    ]
+  },
+  {
+    "name": "大阪",
+    "admin1": "大阪府",
+    "country": "日本",
+    "lat": 34.6937,
+    "lon": 135.5023,
+    "aliases": [
+      "Osaka",
+      "daban"
+    ]
+  },
+  {
+    "name": "名古屋",
+    "admin1": "爱知县",
+    "country": "日本",
+    "lat": 35.1815,
+    "lon": 136.9066,
+    "aliases": [
+      "Nagoya",
+      "mingguwu"
+    ]
+  },
+  {
+    "name": "札幌",
+    "admin1": "北海道",
+    "country": "日本",
+    "lat": 43.0618,
+    "lon": 141.3545,
+    "aliases": [
+      "Sapporo",
+      "zhahuang"
+    ]
+  },
+  {
+    "name": "福冈",
+    "admin1": "福冈县",
+    "country": "日本",
+    "lat": 33.5904,
+    "lon": 130.4017,
+    "aliases": [
+      "福岡",
+      "Fukuoka",
+      "fugang"
+    ]
+  },
+  {
+    "name": "神户",
+    "admin1": "兵库县",
+    "country": "日本",
+    "lat": 34.6901,
+    "lon": 135.1956,
+    "aliases": [
+      "神戸",
+      "Kobe",
+      "shenh"
+    ]
+  },
+  {
+    "name": "京都",
+    "admin1": "京都府",
+    "country": "日本",
+    "lat": 35.0116,
+    "lon": 135.7681,
+    "aliases": [
+      "Kyoto",
+      "jingdu"
+    ]
+  },
+  {
+    "name": "广岛",
+    "admin1": "广岛县",
+    "country": "日本",
+    "lat": 34.3853,
+    "lon": 132.4553,
+    "aliases": [
+      "広島",
+      "Hiroshima",
+      "guangdao"
+    ]
+  },
+  {
+    "name": "仙台",
+    "admin1": "宫城县",
+    "country": "日本",
+    "lat": 38.2682,
+    "lon": 140.8694,
+    "aliases": [
+      "Sendai",
+      "xiantai"
+    ]
+  },
+  {
+    "name": "那霸",
+    "admin1": "冲绳县",
+    "country": "日本",
+    "lat": 26.2124,
+    "lon": 127.6809,
+    "aliases": [
+      "冲绳",
+      "沖縄",
+      "Naha",
+      "Okinawa",
+      "naha",
+      "chongsheng"
+    ]
+  },
+  {
+    "name": "奈良",
+    "admin1": "奈良县",
+    "country": "日本",
+    "lat": 34.6851,
+    "lon": 135.8048,
+    "aliases": [
+      "Nara",
+      "nailiang"
+    ]
+  },
+  {
+    "name": "长崎",
+    "admin1": "长崎县",
+    "country": "日本",
+    "lat": 32.7503,
+    "lon": 129.8777,
+    "aliases": [
+      "長崎",
+      "Nagasaki",
+      "changqi"
+    ]
+  },
+  {
+    "name": "首尔",
+    "admin1": "首尔",
+    "country": "韩国",
+    "lat": 37.5665,
+    "lon": 126.978,
+    "aliases": [
+      "漢城",
+      "汉城",
+      "Seoul",
+      "shouer"
+    ]
+  },
+  {
+    "name": "釜山",
+    "admin1": "釜山",
+    "country": "韩国",
+    "lat": 35.1796,
+    "lon": 129.0756,
+    "aliases": [
+      "Busan",
+      "Pusan",
+      "fushan"
+    ]
+  },
+  {
+    "name": "仁川",
+    "admin1": "仁川",
+    "country": "韩国",
+    "lat": 37.4563,
+    "lon": 126.7052,
+    "aliases": [
+      "Incheon",
+      "Inchon",
+      "renchuan"
+    ]
+  },
+  {
+    "name": "大邱",
+    "admin1": "大邱",
+    "country": "韩国",
+    "lat": 35.8714,
+    "lon": 128.6014,
+    "aliases": [
+      "Daegu",
+      "Taegu",
+      "daqiu"
+    ]
+  },
+  {
+    "name": "大田",
+    "admin1": "大田",
+    "country": "韩国",
+    "lat": 36.3504,
+    "lon": 127.3845,
+    "aliases": [
+      "Daejeon",
+      "Taejon",
+      "datian"
+    ]
+  },
+  {
+    "name": "光州",
+    "admin1": "光州",
+    "country": "韩国",
+    "lat": 35.1595,
+    "lon": 126.8526,
+    "aliases": [
+      "Gwangju",
+      "Kwangju",
+      "guangzhou-kr"
+    ]
+  },
+  {
+    "name": "济州",
+    "admin1": "济州特别自治道",
+    "country": "韩国",
+    "lat": 33.4996,
+    "lon": 126.5312,
+    "aliases": [
+      "济州市",
+      "濟州",
+      "Jeju",
+      "Jeju City",
+      "jizhou"
+    ]
+  },
+  {
+    "name": "水原",
+    "admin1": "京畿道",
+    "country": "韩国",
+    "lat": 37.2636,
+    "lon": 127.0286,
+    "aliases": [
+      "Suwon",
+      "shuiyuan"
+    ]
+  },
+  {
+    "name": "新加坡",
+    "admin1": "新加坡",
+    "country": "新加坡",
+    "lat": 1.3521,
+    "lon": 103.8198,
+    "aliases": [
+      "Singapore",
+      "xinjiapo"
+    ]
+  },
+  {
+    "name": "曼谷",
+    "admin1": "曼谷",
+    "country": "泰国",
+    "lat": 13.7563,
+    "lon": 100.5018,
+    "aliases": [
+      "Bangkok",
+      "mangu"
+    ]
+  },
+  {
+    "name": "悉尼",
+    "admin1": "新南威尔士",
+    "country": "澳大利亚",
+    "lat": -33.8688,
+    "lon": 151.2093,
+    "aliases": [
+      "Sydney",
+      "xini"
+    ]
+  },
+  {
+    "name": "墨尔本",
+    "admin1": "维多利亚",
+    "country": "澳大利亚",
+    "lat": -37.8136,
+    "lon": 144.9631,
+    "aliases": [
+      "Melbourne",
+      "moerben"
+    ]
+  },
+  {
+    "name": "多伦多",
+    "admin1": "安大略",
+    "country": "加拿大",
+    "lat": 43.6532,
+    "lon": -79.3832,
+    "aliases": [
+      "Toronto",
+      "duolunduo"
+    ]
+  },
+  {
+    "name": "温哥华",
+    "admin1": "不列颠哥伦比亚",
+    "country": "加拿大",
+    "lat": 49.2827,
+    "lon": -123.1207,
+    "aliases": [
+      "Vancouver",
+      "wengehua"
+    ]
+  },
+  {
+    "name": "迪拜",
+    "admin1": "迪拜",
+    "country": "阿联酋",
+    "lat": 25.2048,
+    "lon": 55.2708,
+    "aliases": [
+      "Dubai",
+      "dibai"
+    ]
+  },
+  {
+    "name": "开罗",
+    "admin1": "开罗",
+    "country": "埃及",
+    "lat": 30.0444,
+    "lon": 31.2357,
+    "aliases": [
+      "Cairo",
+      "kailuo"
+    ]
+  },
+  {
+    "name": "台北",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 25.033,
+    "lon": 121.5654,
+    "aliases": [
+      "台北市",
+      "臺北",
+      "臺北市",
+      "Taipei",
+      "taibei"
+    ]
+  },
+  {
+    "name": "新北",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 25.0169,
+    "lon": 121.4628,
+    "aliases": [
+      "新北市",
+      "New Taipei",
+      "xinbei"
+    ]
+  },
+  {
+    "name": "桃园",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 24.9936,
+    "lon": 121.301,
+    "aliases": [
+      "桃园市",
+      "桃園",
+      "桃園市",
+      "Taoyuan",
+      "taoyuan"
+    ]
+  },
+  {
+    "name": "台中",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 24.1477,
+    "lon": 120.6736,
+    "aliases": [
+      "台中市",
+      "臺中",
+      "臺中市",
+      "Taichung",
+      "taizhong"
+    ]
+  },
+  {
+    "name": "台南",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 22.9999,
+    "lon": 120.2269,
+    "aliases": [
+      "台南市",
+      "臺南",
+      "臺南市",
+      "Tainan",
+      "tainan"
+    ]
+  },
+  {
+    "name": "高雄",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 22.6273,
+    "lon": 120.3014,
+    "aliases": [
+      "高雄市",
+      "Kaohsiung",
+      "gaoxiong"
+    ]
+  },
+  {
+    "name": "基隆",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 25.1276,
+    "lon": 121.7392,
+    "aliases": [
+      "基隆市",
+      "Keelung",
+      "jilong"
+    ]
+  },
+  {
+    "name": "新竹",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 24.8138,
+    "lon": 120.9675,
+    "aliases": [
+      "新竹市",
+      "Hsinchu",
+      "xinzhu"
+    ]
+  },
+  {
+    "name": "嘉义",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 23.4801,
+    "lon": 120.4491,
+    "aliases": [
+      "嘉义市",
+      "嘉義",
+      "嘉義市",
+      "Chiayi",
+      "jiayi"
+    ]
+  },
+  {
+    "name": "花莲",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 23.9871,
+    "lon": 121.6012,
+    "aliases": [
+      "花莲市",
+      "花莲县",
+      "花蓮",
+      "花蓮市",
+      "花蓮縣",
+      "Hualien",
+      "hualian"
+    ]
+  },
+  {
+    "name": "宜兰",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 24.7021,
+    "lon": 121.7378,
+    "aliases": [
+      "宜兰市",
+      "宜兰县",
+      "宜蘭",
+      "宜蘭市",
+      "Yilan",
+      "yilan"
+    ]
+  },
+  {
+    "name": "台东",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 22.7972,
+    "lon": 121.1444,
+    "aliases": [
+      "台东市",
+      "台东县",
+      "臺東",
+      "臺東市",
+      "Taitung",
+      "taidong"
+    ]
+  },
+  {
+    "name": "屏东",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 22.5519,
+    "lon": 120.5487,
+    "aliases": [
+      "屏东市",
+      "屏东县",
+      "屏東",
+      "Pingtung",
+      "pingdong"
+    ]
+  },
+  {
+    "name": "南投",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 23.9609,
+    "lon": 120.9719,
+    "aliases": [
+      "南投市",
+      "南投县",
+      "Nantou",
+      "nantou"
+    ]
+  },
+  {
+    "name": "苗栗",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 24.5602,
+    "lon": 120.8214,
+    "aliases": [
+      "苗栗市",
+      "苗栗县",
+      "Miaoli",
+      "miaoli"
+    ]
+  },
+  {
+    "name": "彰化",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 24.0518,
+    "lon": 120.5161,
+    "aliases": [
+      "彰化市",
+      "彰化县",
+      "Changhua",
+      "zhanghua"
+    ]
+  },
+  {
+    "name": "云林",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 23.7092,
+    "lon": 120.4313,
+    "aliases": [
+      "云林县",
+      "雲林",
+      "Yunlin",
+      "yunlin"
+    ]
+  },
+  {
+    "name": "澎湖",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 23.5712,
+    "lon": 119.5793,
+    "aliases": [
+      "澎湖县",
+      "马公",
+      "馬公",
+      "Penghu",
+      "penghu"
+    ]
+  },
+  {
+    "name": "香港",
+    "admin1": "香港",
+    "country": "中国香港",
+    "lat": 22.3193,
+    "lon": 114.1694,
+    "aliases": [
+      "香港特别行政区",
+      "Hong Kong",
+      "HK",
+      "xianggang"
+    ]
+  },
+  {
+    "name": "澳门",
+    "admin1": "澳门",
+    "country": "中国澳门",
+    "lat": 22.1987,
+    "lon": 113.5439,
+    "aliases": [
+      "澳门特别行政区",
+      "Macau",
+      "Macao",
+      "aomen"
+    ]
+  },
+  {
+    "name": "雷克雅未克",
+    "admin1": "首都区",
+    "country": "冰岛",
+    "lat": 64.1466,
+    "lon": -21.9426,
+    "aliases": [
+      "雷克雅维克",
+      "雷克亞維克",
+      "Reykjavik",
+      "leikeyawike"
+    ]
+  },
+  {
+    "name": "阿蒙森-斯科特站",
+    "admin1": "南极点",
+    "country": "南极洲",
+    "lat": -90.0,
+    "lon": 0.0,
+    "aliases": [
+      "阿蒙森斯科特站",
+      "阿蒙森斯科特",
+      "阿蒙森站",
+      "阿蒙森",
+      "南极点",
+      "Amundsen-Scott",
+      "Amundsen Scott",
+      "South Pole",
+      "southpole"
+    ]
+  },
+  {
+    "name": "东方站",
+    "admin1": "东南极高原",
+    "country": "南极洲",
+    "lat": -78.4644,
+    "lon": 106.8336,
+    "aliases": [
+      "东方科考站",
+      "沃斯托克站",
+      "Vostok",
+      "Vostok Station",
+      "vostok"
+    ]
+  },
+  {
+    "name": "康科迪亚站",
+    "admin1": "穹C",
+    "country": "南极洲",
+    "lat": -75.1,
+    "lon": 123.3333,
+    "aliases": [
+      "康科迪亚科考站",
+      "Concordia",
+      "Concordia Station",
+      "Dome C",
+      "concordia"
+    ]
+  },
+  {
+    "name": "长城站",
+    "admin1": "乔治王岛",
+    "country": "南极洲",
+    "lat": -62.2167,
+    "lon": -58.9617,
+    "aliases": [
+      "中国南极长城站",
+      "南极长城站",
+      "Great Wall Station",
+      "Great Wall",
+      "changchengzhan"
+    ]
+  },
+  {
+    "name": "中山站",
+    "admin1": "拉斯曼丘陵",
+    "country": "南极洲",
+    "lat": -69.3731,
+    "lon": 76.3883,
+    "aliases": [
+      "中国南极中山站",
+      "南极中山站",
+      "Zhongshan Station",
+      "zhongshanzhan"
+    ]
+  },
+  {
+    "name": "昆仑站",
+    "admin1": "穹A",
+    "country": "南极洲",
+    "lat": -80.4171,
+    "lon": 77.1161,
+    "aliases": [
+      "中国南极昆仑站",
+      "南极昆仑站",
+      "Kunlun Station",
+      "Dome A",
+      "kunlunzhan"
+    ]
+  },
+  {
+    "name": "泰山站",
+    "admin1": "伊丽莎白公主地",
+    "country": "南极洲",
+    "lat": -73.85,
+    "lon": 76.9667,
+    "aliases": [
+      "中国南极泰山站",
+      "南极泰山站",
+      "Taishan Station",
+      "taishanzhan"
+    ]
+  },
+  {
+    "name": "秦岭站",
+    "admin1": "罗斯海恩克斯堡岛",
+    "country": "南极洲",
+    "lat": -74.9333,
+    "lon": 163.7,
+    "aliases": [
+      "中国南极秦岭站",
+      "南极秦岭站",
+      "罗斯海新站",
+      "Qinling Station",
+      "qinlingzhan"
+    ]
+  },
+  {
+    "name": "黄河站",
+    "admin1": "新奥尔松",
+    "country": "挪威",
+    "lat": 78.9167,
+    "lon": 11.9333,
+    "aliases": [
+      "中国北极黄河站",
+      "北极黄河站",
+      "黄河科考站",
+      "Yellow River Station",
+      "Ny-Ålesund",
+      "新奥尔松",
+      "huanghezhan"
+    ]
+  },
+  {
+    "name": "麦克默多站",
+    "admin1": "罗斯岛",
+    "country": "南极洲",
+    "lat": -77.8419,
+    "lon": 166.6863,
+    "aliases": [
+      "麦克默多",
+      "McMurdo",
+      "McMurdo Station",
+      "mcmurdo"
+    ]
+  },
+  {
+    "name": "文森山",
+    "admin1": "埃尔斯沃思山脉",
+    "country": "南极洲",
+    "lat": -78.5255,
+    "lon": -85.6172,
+    "aliases": [
+      "文森峰",
+      "Vinson",
+      "Vinson Massif",
+      "Mount Vinson",
+      "vinson"
+    ]
+  },
+  {
+    "name": "伯明翰",
+    "admin1": "英格兰",
+    "country": "英国",
+    "lat": 52.4862,
+    "lon": -1.8904,
+    "aliases": [
+      "Birmingham",
+      "bominghan"
+    ]
+  },
+  {
+    "name": "曼彻斯特",
+    "admin1": "英格兰",
+    "country": "英国",
+    "lat": 53.4808,
+    "lon": -2.2426,
+    "aliases": [
+      "Manchester",
+      "manchesite"
+    ]
+  },
+  {
+    "name": "利物浦",
+    "admin1": "英格兰",
+    "country": "英国",
+    "lat": 53.4084,
+    "lon": -2.9916,
+    "aliases": [
+      "Liverpool",
+      "liwupu"
+    ]
+  },
+  {
+    "name": "爱丁堡",
+    "admin1": "苏格兰",
+    "country": "英国",
+    "lat": 55.9533,
+    "lon": -3.1883,
+    "aliases": [
+      "Edinburgh",
+      "aidingbao"
+    ]
+  },
+  {
+    "name": "格拉斯哥",
+    "admin1": "苏格兰",
+    "country": "英国",
+    "lat": 55.8642,
+    "lon": -4.2518,
+    "aliases": [
+      "Glasgow",
+      "gelasige"
+    ]
+  },
+  {
+    "name": "都柏林",
+    "admin1": "都柏林",
+    "country": "爱尔兰",
+    "lat": 53.3498,
+    "lon": -6.2603,
+    "aliases": [
+      "Dublin",
+      "dubolin"
+    ]
+  },
+  {
+    "name": "里昂",
+    "admin1": "奥弗涅-罗讷-阿尔卑斯",
+    "country": "法国",
+    "lat": 45.764,
+    "lon": 4.8357,
+    "aliases": [
+      "Lyon",
+      "liang"
+    ]
+  },
+  {
+    "name": "马赛",
+    "admin1": "普罗旺斯",
+    "country": "法国",
+    "lat": 43.2965,
+    "lon": 5.3698,
+    "aliases": [
+      "Marseille",
+      "masai"
+    ]
+  },
+  {
+    "name": "尼斯",
+    "admin1": "普罗旺斯",
+    "country": "法国",
+    "lat": 43.7102,
+    "lon": 7.262,
+    "aliases": [
+      "Nice",
+      "nisi"
+    ]
+  },
+  {
+    "name": "慕尼黑",
+    "admin1": "巴伐利亚",
+    "country": "德国",
+    "lat": 48.1351,
+    "lon": 11.582,
+    "aliases": [
+      "Munich",
+      "München",
+      "munihei"
+    ]
+  },
+  {
+    "name": "汉堡",
+    "admin1": "汉堡",
+    "country": "德国",
+    "lat": 53.5511,
+    "lon": 9.9937,
+    "aliases": [
+      "Hamburg",
+      "hanbao"
+    ]
+  },
+  {
+    "name": "法兰克福",
+    "admin1": "黑森",
+    "country": "德国",
+    "lat": 50.1109,
+    "lon": 8.6821,
+    "aliases": [
+      "Frankfurt",
+      "falankefu"
+    ]
+  },
+  {
+    "name": "科隆",
+    "admin1": "北莱茵-威斯特法伦",
+    "country": "德国",
+    "lat": 50.9375,
+    "lon": 6.9603,
+    "aliases": [
+      "Cologne",
+      "Köln",
+      "kelong"
+    ]
+  },
+  {
+    "name": "米兰",
+    "admin1": "伦巴第",
+    "country": "意大利",
+    "lat": 45.4642,
+    "lon": 9.19,
+    "aliases": [
+      "Milan",
+      "Milano",
+      "milan"
+    ]
+  },
+  {
+    "name": "佛罗伦萨",
+    "admin1": "托斯卡纳",
+    "country": "意大利",
+    "lat": 43.7696,
+    "lon": 11.2558,
+    "aliases": [
+      "Florence",
+      "Firenze",
+      "foluolunsa"
+    ]
+  },
+  {
+    "name": "威尼斯",
+    "admin1": "威尼托",
+    "country": "意大利",
+    "lat": 45.4408,
+    "lon": 12.3155,
+    "aliases": [
+      "Venice",
+      "Venezia",
+      "weinisi"
+    ]
+  },
+  {
+    "name": "那不勒斯",
+    "admin1": "坎帕尼亚",
+    "country": "意大利",
+    "lat": 40.8518,
+    "lon": 14.2681,
+    "aliases": [
+      "Naples",
+      "Napoli",
+      "nabulesi"
+    ]
+  },
+  {
+    "name": "巴塞罗那",
+    "admin1": "加泰罗尼亚",
+    "country": "西班牙",
+    "lat": 41.3874,
+    "lon": 2.1686,
+    "aliases": [
+      "Barcelona",
+      "basailuona"
+    ]
+  },
+  {
+    "name": "塞维利亚",
+    "admin1": "安达卢西亚",
+    "country": "西班牙",
+    "lat": 37.3891,
+    "lon": -5.9845,
+    "aliases": [
+      "Seville",
+      "Sevilla",
+      "saiweiliya"
+    ]
+  },
+  {
+    "name": "瓦伦西亚",
+    "admin1": "瓦伦西亚",
+    "country": "西班牙",
+    "lat": 39.4699,
+    "lon": -0.3763,
+    "aliases": [
+      "Valencia",
+      "walunxiya"
+    ]
+  },
+  {
+    "name": "里斯本",
+    "admin1": "里斯本",
+    "country": "葡萄牙",
+    "lat": 38.7223,
+    "lon": -9.1393,
+    "aliases": [
+      "Lisbon",
+      "Lisboa",
+      "lisiben"
+    ]
+  },
+  {
+    "name": "波尔图",
+    "admin1": "波尔图",
+    "country": "葡萄牙",
+    "lat": 41.1579,
+    "lon": -8.6291,
+    "aliases": [
+      "Porto",
+      "boertu"
+    ]
+  },
+  {
+    "name": "阿姆斯特丹",
+    "admin1": "北荷兰",
+    "country": "荷兰",
+    "lat": 52.3676,
+    "lon": 4.9041,
+    "aliases": [
+      "Amsterdam",
+      "amusitedan"
+    ]
+  },
+  {
+    "name": "鹿特丹",
+    "admin1": "南荷兰",
+    "country": "荷兰",
+    "lat": 51.9225,
+    "lon": 4.4792,
+    "aliases": [
+      "Rotterdam",
+      "lutedan"
+    ]
+  },
+  {
+    "name": "布鲁塞尔",
+    "admin1": "布鲁塞尔",
+    "country": "比利时",
+    "lat": 50.8503,
+    "lon": 4.3517,
+    "aliases": [
+      "Brussels",
+      "bulusaier"
+    ]
+  },
+  {
+    "name": "苏黎世",
+    "admin1": "苏黎世",
+    "country": "瑞士",
+    "lat": 47.3769,
+    "lon": 8.5417,
+    "aliases": [
+      "Zurich",
+      "Zürich",
+      "sulishi"
+    ]
+  },
+  {
+    "name": "日内瓦",
+    "admin1": "日内瓦",
+    "country": "瑞士",
+    "lat": 46.2044,
+    "lon": 6.1432,
+    "aliases": [
+      "Geneva",
+      "Genève",
+      "rineiwa"
+    ]
+  },
+  {
+    "name": "维也纳",
+    "admin1": "维也纳",
+    "country": "奥地利",
+    "lat": 48.2082,
+    "lon": 16.3738,
+    "aliases": [
+      "Vienna",
+      "Wien",
+      "weiyena"
+    ]
+  },
+  {
+    "name": "斯德哥尔摩",
+    "admin1": "斯德哥尔摩",
+    "country": "瑞典",
+    "lat": 59.3293,
+    "lon": 18.0686,
+    "aliases": [
+      "Stockholm",
+      "sidegeermo"
+    ]
+  },
+  {
+    "name": "哥本哈根",
+    "admin1": "首都大区",
+    "country": "丹麦",
+    "lat": 55.6761,
+    "lon": 12.5683,
+    "aliases": [
+      "Copenhagen",
+      "København",
+      "gebenhagen"
+    ]
+  },
+  {
+    "name": "奥斯陆",
+    "admin1": "奥斯陆",
+    "country": "挪威",
+    "lat": 59.9139,
+    "lon": 10.7522,
+    "aliases": [
+      "Oslo",
+      "aosilu"
+    ]
+  },
+  {
+    "name": "赫尔辛基",
+    "admin1": "新地区",
+    "country": "芬兰",
+    "lat": 60.1699,
+    "lon": 24.9384,
+    "aliases": [
+      "Helsinki",
+      "heerxinji"
+    ]
+  },
+  {
+    "name": "华沙",
+    "admin1": "马佐夫舍",
+    "country": "波兰",
+    "lat": 52.2297,
+    "lon": 21.0122,
+    "aliases": [
+      "Warsaw",
+      "Warszawa",
+      "huasha"
+    ]
+  },
+  {
+    "name": "克拉科夫",
+    "admin1": "小波兰",
+    "country": "波兰",
+    "lat": 50.0647,
+    "lon": 19.945,
+    "aliases": [
+      "Krakow",
+      "Kraków",
+      "kelakefu"
+    ]
+  },
+  {
+    "name": "布拉格",
+    "admin1": "布拉格",
+    "country": "捷克",
+    "lat": 50.0755,
+    "lon": 14.4378,
+    "aliases": [
+      "Prague",
+      "Praha",
+      "bulage"
+    ]
+  },
+  {
+    "name": "布达佩斯",
+    "admin1": "布达佩斯",
+    "country": "匈牙利",
+    "lat": 47.4979,
+    "lon": 19.0402,
+    "aliases": [
+      "Budapest",
+      "budapeisi"
+    ]
+  },
+  {
+    "name": "布加勒斯特",
+    "admin1": "布加勒斯特",
+    "country": "罗马尼亚",
+    "lat": 44.4268,
+    "lon": 26.1025,
+    "aliases": [
+      "Bucharest",
+      "bujialesite"
+    ]
+  },
+  {
+    "name": "索非亚",
+    "admin1": "索非亚",
+    "country": "保加利亚",
+    "lat": 42.6977,
+    "lon": 23.3219,
+    "aliases": [
+      "Sofia",
+      "suofeiya"
+    ]
+  },
+  {
+    "name": "贝尔格莱德",
+    "admin1": "贝尔格莱德",
+    "country": "塞尔维亚",
+    "lat": 44.7866,
+    "lon": 20.4489,
+    "aliases": [
+      "Belgrade",
+      "Beograd",
+      "beiergelaide"
+    ]
+  },
+  {
+    "name": "萨格勒布",
+    "admin1": "萨格勒布",
+    "country": "克罗地亚",
+    "lat": 45.815,
+    "lon": 15.9819,
+    "aliases": [
+      "Zagreb",
+      "sagelebu"
+    ]
+  },
+  {
+    "name": "雅典",
+    "admin1": "阿提卡",
+    "country": "希腊",
+    "lat": 37.9838,
+    "lon": 23.7275,
+    "aliases": [
+      "Athens",
+      "Athína",
+      "yadian"
+    ]
+  },
+  {
+    "name": "圣托里尼",
+    "admin1": "南爱琴",
+    "country": "希腊",
+    "lat": 36.3932,
+    "lon": 25.4615,
+    "aliases": [
+      "Santorini",
+      "Thira",
+      "shengtuolini"
+    ]
+  },
+  {
+    "name": "塔林",
+    "admin1": "哈留",
+    "country": "爱沙尼亚",
+    "lat": 59.437,
+    "lon": 24.7536,
+    "aliases": [
+      "Tallinn",
+      "talin"
+    ]
+  },
+  {
+    "name": "里加",
+    "admin1": "里加",
+    "country": "拉脱维亚",
+    "lat": 56.9496,
+    "lon": 24.1052,
+    "aliases": [
+      "Riga",
+      "lijia"
+    ]
+  },
+  {
+    "name": "维尔纽斯",
+    "admin1": "维尔纽斯",
+    "country": "立陶宛",
+    "lat": 54.6872,
+    "lon": 25.2797,
+    "aliases": [
+      "Vilnius",
+      "weierniusi"
+    ]
+  },
+  {
+    "name": "圣彼得堡",
+    "admin1": "圣彼得堡",
+    "country": "俄罗斯",
+    "lat": 59.9311,
+    "lon": 30.3609,
+    "aliases": [
+      "Saint Petersburg",
+      "St Petersburg",
+      "彼得堡",
+      "shengbidebao"
+    ]
+  },
+  {
+    "name": "符拉迪沃斯托克",
+    "admin1": "滨海边疆区",
+    "country": "俄罗斯",
+    "lat": 43.1332,
+    "lon": 131.9113,
+    "aliases": [
+      "海参崴",
+      "Vladivostok",
+      "haishenwai"
+    ]
+  },
+  {
+    "name": "伊尔库茨克",
+    "admin1": "伊尔库茨克州",
+    "country": "俄罗斯",
+    "lat": 52.2869,
+    "lon": 104.305,
+    "aliases": [
+      "Irkutsk",
+      "ierkucike"
+    ]
+  },
+  {
+    "name": "新西伯利亚",
+    "admin1": "新西伯利亚州",
+    "country": "俄罗斯",
+    "lat": 55.0084,
+    "lon": 82.9357,
+    "aliases": [
+      "Novosibirsk",
+      "xinxiboliya"
+    ]
+  },
+  {
+    "name": "基辅",
+    "admin1": "基辅",
+    "country": "乌克兰",
+    "lat": 50.4501,
+    "lon": 30.5234,
+    "aliases": [
+      "Kyiv",
+      "Kiev",
+      "jifu"
+    ]
+  },
+  {
+    "name": "敖德萨",
+    "admin1": "敖德萨",
+    "country": "乌克兰",
+    "lat": 46.4825,
+    "lon": 30.7233,
+    "aliases": [
+      "Odesa",
+      "Odessa",
+      "aodesa"
+    ]
+  },
+  {
+    "name": "伊斯坦布尔",
+    "admin1": "伊斯坦布尔",
+    "country": "土耳其",
+    "lat": 41.0082,
+    "lon": 28.9784,
+    "aliases": [
+      "Istanbul",
+      "yisitanbuer"
+    ]
+  },
+  {
+    "name": "安卡拉",
+    "admin1": "安卡拉",
+    "country": "土耳其",
+    "lat": 39.9334,
+    "lon": 32.8597,
+    "aliases": [
+      "Ankara",
+      "ankala"
+    ]
+  },
+  {
+    "name": "特拉维夫",
+    "admin1": "特拉维夫区",
+    "country": "以色列",
+    "lat": 32.0853,
+    "lon": 34.7818,
+    "aliases": [
+      "Tel Aviv",
+      "telawefu"
+    ]
+  },
+  {
+    "name": "耶路撒冷",
+    "admin1": "耶路撒冷区",
+    "country": "以色列",
+    "lat": 31.7683,
+    "lon": 35.2137,
+    "aliases": [
+      "Jerusalem",
+      "yelusaleng"
+    ]
+  },
+  {
+    "name": "多哈",
+    "admin1": "多哈",
+    "country": "卡塔尔",
+    "lat": 25.2854,
+    "lon": 51.531,
+    "aliases": [
+      "Doha",
+      "duoha"
+    ]
+  },
+  {
+    "name": "阿布扎比",
+    "admin1": "阿布扎比",
+    "country": "阿联酋",
+    "lat": 24.4539,
+    "lon": 54.3773,
+    "aliases": [
+      "Abu Dhabi",
+      "abuzhabi"
+    ]
+  },
+  {
+    "name": "利雅得",
+    "admin1": "利雅得",
+    "country": "沙特阿拉伯",
+    "lat": 24.7136,
+    "lon": 46.6753,
+    "aliases": [
+      "Riyadh",
+      "liyade",
+      "里雅得"
+    ]
+  },
+  {
+    "name": "吉达",
+    "admin1": "麦加省",
+    "country": "沙特阿拉伯",
+    "lat": 21.4858,
+    "lon": 39.1925,
+    "aliases": [
+      "Jeddah",
+      "jida"
+    ]
+  },
+  {
+    "name": "科威特城",
+    "admin1": "首都省",
+    "country": "科威特",
+    "lat": 29.3759,
+    "lon": 47.9774,
+    "aliases": [
+      "Kuwait City",
+      "keweitecheng"
+    ]
+  },
+  {
+    "name": "贝鲁特",
+    "admin1": "贝鲁特",
+    "country": "黎巴嫩",
+    "lat": 33.8938,
+    "lon": 35.5018,
+    "aliases": [
+      "Beirut",
+      "beilute"
+    ]
+  },
+  {
+    "name": "安曼",
+    "admin1": "安曼",
+    "country": "约旦",
+    "lat": 31.9454,
+    "lon": 35.9284,
+    "aliases": [
+      "Amman",
+      "anman"
+    ]
+  },
+  {
+    "name": "德黑兰",
+    "admin1": "德黑兰",
+    "country": "伊朗",
+    "lat": 35.6892,
+    "lon": 51.389,
+    "aliases": [
+      "Tehran",
+      "deheilan"
+    ]
+  },
+  {
+    "name": "巴格达",
+    "admin1": "巴格达",
+    "country": "伊拉克",
+    "lat": 33.3152,
+    "lon": 44.3661,
+    "aliases": [
+      "Baghdad",
+      "bageida"
+    ]
+  },
+  {
+    "name": "新德里",
+    "admin1": "德里",
+    "country": "印度",
+    "lat": 28.6139,
+    "lon": 77.209,
+    "aliases": [
+      "New Delhi",
+      "xindeli"
+    ]
+  },
+  {
+    "name": "孟买",
+    "admin1": "马哈拉施特拉",
+    "country": "印度",
+    "lat": 19.076,
+    "lon": 72.8777,
+    "aliases": [
+      "Mumbai",
+      "Bombay",
+      "mengmai"
+    ]
+  },
+  {
+    "name": "班加罗尔",
+    "admin1": "卡纳塔克",
+    "country": "印度",
+    "lat": 12.9716,
+    "lon": 77.5946,
+    "aliases": [
+      "Bangalore",
+      "Bengaluru",
+      "banjialuoer"
+    ]
+  },
+  {
+    "name": "金奈",
+    "admin1": "泰米尔纳德",
+    "country": "印度",
+    "lat": 13.0827,
+    "lon": 80.2707,
+    "aliases": [
+      "Chennai",
+      "Madras",
+      "jinnai",
+      "清奈"
+    ]
+  },
+  {
+    "name": "加尔各答",
+    "admin1": "西孟加拉",
+    "country": "印度",
+    "lat": 22.5726,
+    "lon": 88.3639,
+    "aliases": [
+      "Kolkata",
+      "Calcutta",
+      "jiaergeda"
+    ]
+  },
+  {
+    "name": "海德拉巴",
+    "admin1": "特伦甘纳",
+    "country": "印度",
+    "lat": 17.385,
+    "lon": 78.4867,
+    "aliases": [
+      "Hyderabad",
+      "haidelaba"
+    ]
+  },
+  {
+    "name": "伊斯兰堡",
+    "admin1": "伊斯兰堡",
+    "country": "巴基斯坦",
+    "lat": 33.6844,
+    "lon": 73.0479,
+    "aliases": [
+      "Islamabad",
+      "yisilanbao"
+    ]
+  },
+  {
+    "name": "卡拉奇",
+    "admin1": "信德",
+    "country": "巴基斯坦",
+    "lat": 24.8607,
+    "lon": 67.0011,
+    "aliases": [
+      "Karachi",
+      "kalaqi"
+    ]
+  },
+  {
+    "name": "拉合尔",
+    "admin1": "旁遮普",
+    "country": "巴基斯坦",
+    "lat": 31.5204,
+    "lon": 74.3587,
+    "aliases": [
+      "Lahore",
+      "laheer"
+    ]
+  },
+  {
+    "name": "达卡",
+    "admin1": "达卡",
+    "country": "孟加拉国",
+    "lat": 23.8103,
+    "lon": 90.4125,
+    "aliases": [
+      "Dhaka",
+      "Dacca",
+      "daka"
+    ]
+  },
+  {
+    "name": "科伦坡",
+    "admin1": "西部省",
+    "country": "斯里兰卡",
+    "lat": 6.9271,
+    "lon": 79.8612,
+    "aliases": [
+      "Colombo",
+      "kelunpo"
+    ]
+  },
+  {
+    "name": "马累",
+    "admin1": "马累",
+    "country": "马尔代夫",
+    "lat": 4.1755,
+    "lon": 73.5093,
+    "aliases": [
+      "Malé",
+      "Male",
+      "malei"
+    ]
+  },
+  {
+    "name": "加德满都",
+    "admin1": "巴格马蒂",
+    "country": "尼泊尔",
+    "lat": 27.7172,
+    "lon": 85.324,
+    "aliases": [
+      "Kathmandu",
+      "jiademandu"
+    ]
+  },
+  {
+    "name": "河内",
+    "admin1": "河内",
+    "country": "越南",
+    "lat": 21.0278,
+    "lon": 105.8342,
+    "aliases": [
+      "Hanoi",
+      "Hà Nội",
+      "henei"
+    ]
+  },
+  {
+    "name": "胡志明市",
+    "admin1": "胡志明市",
+    "country": "越南",
+    "lat": 10.8231,
+    "lon": 106.6297,
+    "aliases": [
+      "Ho Chi Minh City",
+      "Saigon",
+      "西贡",
+      "huzhimingshi"
+    ]
+  },
+  {
+    "name": "金边",
+    "admin1": "金边",
+    "country": "柬埔寨",
+    "lat": 11.5564,
+    "lon": 104.9282,
+    "aliases": [
+      "Phnom Penh",
+      "jinbian"
+    ]
+  },
+  {
+    "name": "暹粒",
+    "admin1": "暹粒省",
+    "country": "柬埔寨",
+    "lat": 13.3633,
+    "lon": 103.8564,
+    "aliases": [
+      "Siem Reap",
+      "xianli"
+    ]
+  },
+  {
+    "name": "万象",
+    "admin1": "永珍",
+    "country": "老挝",
+    "lat": 17.9757,
+    "lon": 102.6331,
+    "aliases": [
+      "Vientiane",
+      "wanxiang"
+    ]
+  },
+  {
+    "name": "仰光",
+    "admin1": "仰光",
+    "country": "缅甸",
+    "lat": 16.8409,
+    "lon": 96.1735,
+    "aliases": [
+      "Yangon",
+      "Rangoon",
+      "yanguang"
+    ]
+  },
+  {
+    "name": "吉隆坡",
+    "admin1": "联邦直辖区",
+    "country": "马来西亚",
+    "lat": 3.139,
+    "lon": 101.6869,
+    "aliases": [
+      "Kuala Lumpur",
+      "jilongpo"
+    ]
+  },
+  {
+    "name": "槟城",
+    "admin1": "槟榔屿",
+    "country": "马来西亚",
+    "lat": 5.4141,
+    "lon": 100.3288,
+    "aliases": [
+      "Penang",
+      "George Town",
+      "bincheng"
+    ]
+  },
+  {
+    "name": "雅加达",
+    "admin1": "雅加达",
+    "country": "印度尼西亚",
+    "lat": -6.2088,
+    "lon": 106.8456,
+    "aliases": [
+      "Jakarta",
+      "yajiada"
+    ]
+  },
+  {
+    "name": "巴厘岛",
+    "admin1": "巴厘",
+    "country": "印度尼西亚",
+    "lat": -8.4095,
+    "lon": 115.1889,
+    "aliases": [
+      "Bali",
+      "Denpasar",
+      "登巴萨",
+      "balidao"
+    ]
+  },
+  {
+    "name": "马尼拉",
+    "admin1": "马尼拉",
+    "country": "菲律宾",
+    "lat": 14.5995,
+    "lon": 120.9842,
+    "aliases": [
+      "Manila",
+      "manila"
+    ]
+  },
+  {
+    "name": "宿务",
+    "admin1": "中米沙鄢",
+    "country": "菲律宾",
+    "lat": 10.3157,
+    "lon": 123.8854,
+    "aliases": [
+      "Cebu",
+      "suwu",
+      "宿务市",
+      "Cebu City"
+    ]
+  },
+  {
+    "name": "清迈",
+    "admin1": "清迈府",
+    "country": "泰国",
+    "lat": 18.7883,
+    "lon": 98.9853,
+    "aliases": [
+      "Chiang Mai",
+      "qingmai"
+    ]
+  },
+  {
+    "name": "普吉",
+    "admin1": "普吉府",
+    "country": "泰国",
+    "lat": 7.8804,
+    "lon": 98.3923,
+    "aliases": [
+      "Phuket",
+      "puji"
+    ]
+  },
+  {
+    "name": "布里斯班",
+    "admin1": "昆士兰",
+    "country": "澳大利亚",
+    "lat": -27.4698,
+    "lon": 153.0251,
+    "aliases": [
+      "Brisbane",
+      "bulisiban"
+    ]
+  },
+  {
+    "name": "珀斯",
+    "admin1": "西澳大利亚",
+    "country": "澳大利亚",
+    "lat": -31.9505,
+    "lon": 115.8605,
+    "aliases": [
+      "Perth",
+      "posi"
+    ]
+  },
+  {
+    "name": "阿德莱德",
+    "admin1": "南澳大利亚",
+    "country": "澳大利亚",
+    "lat": -34.9285,
+    "lon": 138.6007,
+    "aliases": [
+      "Adelaide",
+      "adelaiide"
+    ]
+  },
+  {
+    "name": "堪培拉",
+    "admin1": "首都领地",
+    "country": "澳大利亚",
+    "lat": -35.2809,
+    "lon": 149.13,
+    "aliases": [
+      "Canberra",
+      "kanpeila"
+    ]
+  },
+  {
+    "name": "黄金海岸",
+    "admin1": "昆士兰",
+    "country": "澳大利亚",
+    "lat": -28.0167,
+    "lon": 153.4,
+    "aliases": [
+      "Gold Coast",
+      "huangjinhaian"
+    ]
+  },
+  {
+    "name": "凯恩斯",
+    "admin1": "昆士兰",
+    "country": "澳大利亚",
+    "lat": -16.9186,
+    "lon": 145.7781,
+    "aliases": [
+      "Cairns",
+      "kaiensi"
+    ]
+  },
+  {
+    "name": "奥克兰",
+    "admin1": "奥克兰",
+    "country": "新西兰",
+    "lat": -36.8509,
+    "lon": 174.7645,
+    "aliases": [
+      "Auckland",
+      "aokelan"
+    ]
+  },
+  {
+    "name": "惠灵顿",
+    "admin1": "惠灵顿",
+    "country": "新西兰",
+    "lat": -41.2865,
+    "lon": 174.7762,
+    "aliases": [
+      "Wellington",
+      "huilingdun"
+    ]
+  },
+  {
+    "name": "基督城",
+    "admin1": "坎特伯雷",
+    "country": "新西兰",
+    "lat": -43.5321,
+    "lon": 172.6362,
+    "aliases": [
+      "Christchurch",
+      "jiducheng"
+    ]
+  },
+  {
+    "name": "皇后镇",
+    "admin1": "奥塔哥",
+    "country": "新西兰",
+    "lat": -45.0312,
+    "lon": 168.6626,
+    "aliases": [
+      "Queenstown",
+      "huanghouzhen"
+    ]
+  },
+  {
+    "name": "苏瓦",
+    "admin1": "中部区",
+    "country": "斐济",
+    "lat": -18.1248,
+    "lon": 178.4501,
+    "aliases": [
+      "Suva",
+      "suwa"
+    ]
+  },
+  {
+    "name": "蒙特利尔",
+    "admin1": "魁北克",
+    "country": "加拿大",
+    "lat": 45.5017,
+    "lon": -73.5673,
+    "aliases": [
+      "Montreal",
+      "Montréal",
+      "mengtelier"
+    ]
+  },
+  {
+    "name": "渥太华",
+    "admin1": "安大略",
+    "country": "加拿大",
+    "lat": 45.4215,
+    "lon": -75.6972,
+    "aliases": [
+      "Ottawa",
+      "wotaihua"
+    ]
+  },
+  {
+    "name": "卡尔加里",
+    "admin1": "艾伯塔",
+    "country": "加拿大",
+    "lat": 51.0447,
+    "lon": -114.0719,
+    "aliases": [
+      "Calgary",
+      "kaerjiali"
+    ]
+  },
+  {
+    "name": "埃德蒙顿",
+    "admin1": "艾伯塔",
+    "country": "加拿大",
+    "lat": 53.5461,
+    "lon": -113.4938,
+    "aliases": [
+      "Edmonton",
+      "aidemengdun"
+    ]
+  },
+  {
+    "name": "魁北克城",
+    "admin1": "魁北克",
+    "country": "加拿大",
+    "lat": 46.8139,
+    "lon": -71.208,
+    "aliases": [
+      "Quebec City",
+      "Québec",
+      "kuibeike"
+    ]
+  },
+  {
+    "name": "墨西哥城",
+    "admin1": "墨西哥城",
+    "country": "墨西哥",
+    "lat": 19.4326,
+    "lon": -99.1332,
+    "aliases": [
+      "Mexico City",
+      "Ciudad de México",
+      "moxigecheng"
+    ]
+  },
+  {
+    "name": "坎昆",
+    "admin1": "金塔纳罗奥",
+    "country": "墨西哥",
+    "lat": 21.1619,
+    "lon": -86.8515,
+    "aliases": [
+      "Cancún",
+      "Cancun",
+      "kankun"
+    ]
+  },
+  {
+    "name": "哈瓦那",
+    "admin1": "哈瓦那",
+    "country": "古巴",
+    "lat": 23.1136,
+    "lon": -82.3666,
+    "aliases": [
+      "Havana",
+      "La Habana",
+      "hawana"
+    ]
+  },
+  {
+    "name": "布宜诺斯艾利斯",
+    "admin1": "布宜诺斯艾利斯",
+    "country": "阿根廷",
+    "lat": -34.6037,
+    "lon": -58.3816,
+    "aliases": [
+      "Buenos Aires",
+      "buyinuosiailisi"
+    ]
+  },
+  {
+    "name": "圣地亚哥",
+    "admin1": "圣地亚哥首都大区",
+    "country": "智利",
+    "lat": -33.4489,
+    "lon": -70.6693,
+    "aliases": [
+      "Santiago",
+      "shengdiyage"
+    ]
+  },
+  {
+    "name": "圣保罗",
+    "admin1": "圣保罗州",
+    "country": "巴西",
+    "lat": -23.5558,
+    "lon": -46.6396,
+    "aliases": [
+      "São Paulo",
+      "Sao Paulo",
+      "shengbaoluo"
+    ]
+  },
+  {
+    "name": "里约热内卢",
+    "admin1": "里约热内卢州",
+    "country": "巴西",
+    "lat": -22.9068,
+    "lon": -43.1729,
+    "aliases": [
+      "Rio de Janeiro",
+      "里约",
+      "liyuereneilu"
+    ]
+  },
+  {
+    "name": "巴西利亚",
+    "admin1": "联邦区",
+    "country": "巴西",
+    "lat": -15.8267,
+    "lon": -47.9218,
+    "aliases": [
+      "Brasília",
+      "Brasilia",
+      "baxiliya"
+    ]
+  },
+  {
+    "name": "利马",
+    "admin1": "利马",
+    "country": "秘鲁",
+    "lat": -12.0464,
+    "lon": -77.0428,
+    "aliases": [
+      "Lima",
+      "lima"
+    ]
+  },
+  {
+    "name": "波哥大",
+    "admin1": "波哥大",
+    "country": "哥伦比亚",
+    "lat": 4.711,
+    "lon": -74.0721,
+    "aliases": [
+      "Bogotá",
+      "Bogota",
+      "bogeda"
+    ]
+  },
+  {
+    "name": "基多",
+    "admin1": "皮钦查",
+    "country": "厄瓜多尔",
+    "lat": -0.1807,
+    "lon": -78.4678,
+    "aliases": [
+      "Quito",
+      "jiduo"
+    ]
+  },
+  {
+    "name": "蒙得维的亚",
+    "admin1": "蒙得维的亚",
+    "country": "乌拉圭",
+    "lat": -34.9011,
+    "lon": -56.1645,
+    "aliases": [
+      "Montevideo",
+      "mengdeweideya"
+    ]
+  },
+  {
+    "name": "开普敦",
+    "admin1": "西开普",
+    "country": "南非",
+    "lat": -33.9249,
+    "lon": 18.4241,
+    "aliases": [
+      "Cape Town",
+      "kaipudun"
+    ]
+  },
+  {
+    "name": "约翰内斯堡",
+    "admin1": "豪登",
+    "country": "南非",
+    "lat": -26.2041,
+    "lon": 28.0473,
+    "aliases": [
+      "Johannesburg",
+      "yuehannesibao"
+    ]
+  },
+  {
+    "name": "内罗毕",
+    "admin1": "内罗毕",
+    "country": "肯尼亚",
+    "lat": -1.2921,
+    "lon": 36.8219,
+    "aliases": [
+      "Nairobi",
+      "neiluobi",
+      "奈洛比"
+    ]
+  },
+  {
+    "name": "拉各斯",
+    "admin1": "拉各斯",
+    "country": "尼日利亚",
+    "lat": 6.5244,
+    "lon": 3.3792,
+    "aliases": [
+      "Lagos",
+      "lagesi"
+    ]
+  },
+  {
+    "name": "卡萨布兰卡",
+    "admin1": "卡萨布兰卡-塞塔特",
+    "country": "摩洛哥",
+    "lat": 33.5731,
+    "lon": -7.5898,
+    "aliases": [
+      "Casablanca",
+      "kasabulanka"
+    ]
+  },
+  {
+    "name": "马拉喀什",
+    "admin1": "马拉喀什-萨菲",
+    "country": "摩洛哥",
+    "lat": 31.6295,
+    "lon": -7.9811,
+    "aliases": [
+      "Marrakech",
+      "malakashi"
+    ]
+  },
+  {
+    "name": "突尼斯",
+    "admin1": "突尼斯",
+    "country": "突尼斯",
+    "lat": 36.8065,
+    "lon": 10.1815,
+    "aliases": [
+      "Tunis",
+      "tunisi"
+    ]
+  },
+  {
+    "name": "亚的斯亚贝巴",
+    "admin1": "亚的斯亚贝巴",
+    "country": "埃塞俄比亚",
+    "lat": 9.032,
+    "lon": 38.7469,
+    "aliases": [
+      "Addis Ababa",
+      "yadesiyabeiba"
+    ]
+  },
+  {
+    "name": "亚历山大",
+    "admin1": "亚历山大",
+    "country": "埃及",
+    "lat": 31.2001,
+    "lon": 29.9187,
+    "aliases": [
+      "Alexandria",
+      "yalishanda"
+    ]
+  },
+  {
+    "name": "卢克索",
+    "admin1": "卢克索",
+    "country": "埃及",
+    "lat": 25.6872,
+    "lon": 32.6396,
+    "aliases": [
+      "Luxor",
+      "lukesuo"
+    ]
+  },
+  {
+    "name": "乞拉朋齐",
+    "admin1": "梅加拉亚邦",
+    "country": "印度",
+    "lat": 25.2847,
+    "lon": 91.7217,
+    "aliases": [
+      "切拉彭吉",
+      "Sohra",
+      "Cherrapunji",
+      "Cherrapunjee",
+      "qilapengqi",
+      "世界雨极"
+    ]
+  },
+  {
+    "name": "莫辛拉姆",
+    "admin1": "梅加拉亚邦",
+    "country": "印度",
+    "lat": 25.2985,
+    "lon": 91.5823,
+    "aliases": [
+      "Mawsynram",
+      "Mawsynrām",
+      "mosinlamu",
+      "地球雨极"
+    ]
+  },
+  {
+    "name": "基布多",
+    "admin1": "乔科省",
+    "country": "哥伦比亚",
+    "lat": 5.6919,
+    "lon": -76.6584,
+    "aliases": [
+      "Quibdó",
+      "Quibdo",
+      "jibuduo",
+      "哥伦比亚雨城"
+    ]
+  },
+  {
+    "name": "略罗",
+    "admin1": "乔科省",
+    "country": "哥伦比亚",
+    "lat": 5.4961,
+    "lon": -76.5495,
+    "aliases": [
+      "Lloró",
+      "Lloro",
+      "lueluo"
+    ]
+  },
+  {
+    "name": "布埃纳文图拉",
+    "admin1": "考卡山谷省",
+    "country": "哥伦比亚",
+    "lat": 3.8801,
+    "lon": -77.0312,
+    "aliases": [
+      "Buenaventura",
+      "buenawentula"
+    ]
+  },
+  {
+    "name": "德本沙",
+    "admin1": "西南区",
+    "country": "喀麦隆",
+    "lat": 4.1033,
+    "lon": 9.0,
+    "aliases": [
+      "Debundscha",
+      "Debundja",
+      "debensha"
+    ]
+  },
+  {
+    "name": "蒙罗维亚",
+    "admin1": "蒙特塞拉多",
+    "country": "利比里亚",
+    "lat": 6.3005,
+    "lon": -10.7969,
+    "aliases": [
+      "Monrovia",
+      "mengluoweiya"
+    ]
+  },
+  {
+    "name": "弗里敦",
+    "admin1": "西部区",
+    "country": "塞拉利昂",
+    "lat": 8.484,
+    "lon": -13.2299,
+    "aliases": [
+      "Freetown",
+      "fulidun"
+    ]
+  },
+  {
+    "name": "科纳克里",
+    "admin1": "科纳克里",
+    "country": "几内亚",
+    "lat": 9.6412,
+    "lon": -13.5784,
+    "aliases": [
+      "Conakry",
+      "kenakeli"
+    ]
+  },
+  {
+    "name": "杜阿拉",
+    "admin1": "滨海省",
+    "country": "喀麦隆",
+    "lat": 4.0511,
+    "lon": 9.7679,
+    "aliases": [
+      "Douala",
+      "duala"
+    ]
+  },
+  {
+    "name": "毛淡棉",
+    "admin1": "孟邦",
+    "country": "缅甸",
+    "lat": 16.4905,
+    "lon": 97.625,
+    "aliases": [
+      "Mawlamyine",
+      "Moulmein",
+      "maodanmian"
+    ]
+  },
+  {
+    "name": "希洛",
+    "admin1": "夏威夷",
+    "country": "美国",
+    "lat": 19.7299,
+    "lon": -155.0907,
+    "aliases": [
+      "Hilo",
+      "xiluo",
+      "夏威夷多雨城"
+    ]
+  },
+  {
+    "name": "屋久岛",
+    "admin1": "鹿儿岛县",
+    "country": "日本",
+    "lat": 30.3356,
+    "lon": 130.5069,
+    "aliases": [
+      "Yakushima",
+      "屋久島",
+      "wujiudao"
+    ]
+  },
+  {
+    "name": "金门",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 24.4368,
+    "lon": 118.3186,
+    "aliases": [
+      "金门县",
+      "金門",
+      "Kinmen",
+      "Quemoy",
+      "jinmen"
+    ]
+  },
+  {
+    "name": "马祖",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 26.1605,
+    "lon": 119.9514,
+    "aliases": [
+      "连江",
+      "连江县",
+      "連江",
+      "馬祖",
+      "Matsu",
+      "Lienchiang",
+      "mazu"
+    ]
+  },
+  {
+    "name": "淡水",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 25.1693,
+    "lon": 121.4453,
+    "aliases": [
+      "淡水区",
+      "Tamsui",
+      "Danshui",
+      "danshui"
+    ]
+  },
+  {
+    "name": "九份",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 25.1097,
+    "lon": 121.8443,
+    "aliases": [
+      "九份老街",
+      "Jiufen",
+      "jiufen"
+    ]
+  },
+  {
+    "name": "垦丁",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 21.9483,
+    "lon": 120.7793,
+    "aliases": [
+      "恆春",
+      "恒春",
+      "Kenting",
+      "kending"
+    ]
+  },
+  {
+    "name": "阿里山",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 23.5084,
+    "lon": 120.8031,
+    "aliases": [
+      "Alishan",
+      "alishan"
+    ]
+  },
+  {
+    "name": "日月潭",
+    "admin1": "台湾",
+    "country": "中国台湾",
+    "lat": 23.856,
+    "lon": 120.915,
+    "aliases": [
+      "Sun Moon Lake",
+      "riyuetan"
+    ]
+  },
+  {
+    "name": "平壤",
+    "admin1": "平壤",
+    "country": "朝鲜",
+    "lat": 39.0392,
+    "lon": 125.7625,
+    "aliases": [
+      "Pyongyang",
+      "pingrang"
+    ]
+  },
+  {
+    "name": "乌兰巴托",
+    "admin1": "乌兰巴托",
+    "country": "蒙古",
+    "lat": 47.8864,
+    "lon": 106.9057,
+    "aliases": [
+      "Ulaanbaatar",
+      "Ulan Bator",
+      "wulanbatuo"
+    ]
+  },
+  {
+    "name": "内比都",
+    "admin1": "内比都",
+    "country": "缅甸",
+    "lat": 19.7633,
+    "lon": 96.0785,
+    "aliases": [
+      "Naypyidaw",
+      "Nay Pyi Taw",
+      "neibidu"
+    ]
+  },
+  {
+    "name": "廷布",
+    "admin1": "廷布",
+    "country": "不丹",
+    "lat": 27.4728,
+    "lon": 89.6393,
+    "aliases": [
+      "Thimphu",
+      "tingbu"
+    ]
+  },
+  {
+    "name": "塔什干",
+    "admin1": "塔什干",
+    "country": "乌兹别克斯坦",
+    "lat": 41.2995,
+    "lon": 69.2401,
+    "aliases": [
+      "Tashkent",
+      "tashigan"
+    ]
+  },
+  {
+    "name": "阿斯塔纳",
+    "admin1": "阿斯塔纳",
+    "country": "哈萨克斯坦",
+    "lat": 51.1694,
+    "lon": 71.4491,
+    "aliases": [
+      "Astana",
+      "Nur-Sultan",
+      "努尔苏丹",
+      "asitana"
+    ]
+  },
+  {
+    "name": "阿什哈巴德",
+    "admin1": "阿什哈巴德",
+    "country": "土库曼斯坦",
+    "lat": 37.9601,
+    "lon": 58.3261,
+    "aliases": [
+      "Ashgabat",
+      "Ashkhabad",
+      "ashihabade"
+    ]
+  },
+  {
+    "name": "比什凯克",
+    "admin1": "比什凯克",
+    "country": "吉尔吉斯斯坦",
+    "lat": 42.8746,
+    "lon": 74.5698,
+    "aliases": [
+      "Bishkek",
+      "bishikaike"
+    ]
+  },
+  {
+    "name": "杜尚别",
+    "admin1": "杜尚别",
+    "country": "塔吉克斯坦",
+    "lat": 38.5598,
+    "lon": 68.7738,
+    "aliases": [
+      "Dushanbe",
+      "dushangbie"
+    ]
+  },
+  {
+    "name": "巴库",
+    "admin1": "巴库",
+    "country": "阿塞拜疆",
+    "lat": 40.4093,
+    "lon": 49.8671,
+    "aliases": [
+      "Baku",
+      "baku"
+    ]
+  },
+  {
+    "name": "第比利斯",
+    "admin1": "第比利斯",
+    "country": "格鲁吉亚",
+    "lat": 41.7151,
+    "lon": 44.8271,
+    "aliases": [
+      "Tbilisi",
+      "dibilisi"
+    ]
+  },
+  {
+    "name": "埃里温",
+    "admin1": "埃里温",
+    "country": "亚美尼亚",
+    "lat": 40.1792,
+    "lon": 44.4991,
+    "aliases": [
+      "Yerevan",
+      "ailiwen"
+    ]
+  },
+  {
+    "name": "马斯喀特",
+    "admin1": "马斯喀特",
+    "country": "阿曼",
+    "lat": 23.588,
+    "lon": 58.3829,
+    "aliases": [
+      "Muscat",
+      "masikate"
+    ]
+  },
+  {
+    "name": "萨那",
+    "admin1": "萨那",
+    "country": "也门",
+    "lat": 15.3694,
+    "lon": 44.191,
+    "aliases": [
+      "Sanaa",
+      "Sana'a",
+      "sana"
+    ]
+  },
+  {
+    "name": "大马士革",
+    "admin1": "大马士革",
+    "country": "叙利亚",
+    "lat": 33.5138,
+    "lon": 36.2765,
+    "aliases": [
+      "Damascus",
+      "damashige"
+    ]
+  },
+  {
+    "name": "尼科西亚",
+    "admin1": "尼科西亚",
+    "country": "塞浦路斯",
+    "lat": 35.1856,
+    "lon": 33.3823,
+    "aliases": [
+      "Nicosia",
+      "nikeoxiya"
+    ]
+  },
+  {
+    "name": "喀土穆",
+    "admin1": "喀土穆",
+    "country": "苏丹",
+    "lat": 15.5007,
+    "lon": 32.5599,
+    "aliases": [
+      "Khartoum",
+      "katumu"
+    ]
+  },
+  {
+    "name": "的黎波里",
+    "admin1": "的黎波里",
+    "country": "利比亚",
+    "lat": 32.8872,
+    "lon": 13.1913,
+    "aliases": [
+      "Tripoli",
+      "deliboli"
+    ]
+  },
+  {
+    "name": "阿尔及尔",
+    "admin1": "阿尔及尔",
+    "country": "阿尔及利亚",
+    "lat": 36.7538,
+    "lon": 3.0588,
+    "aliases": [
+      "Algiers",
+      "aerjier"
+    ]
+  },
+  {
+    "name": "拉巴特",
+    "admin1": "拉巴特-萨累-盖尼特拉",
+    "country": "摩洛哥",
+    "lat": 34.0209,
+    "lon": -6.8416,
+    "aliases": [
+      "Rabat",
+      "labate"
+    ]
+  },
+  {
+    "name": "努瓦克肖特",
+    "admin1": "努瓦克肖特",
+    "country": "毛里塔尼亚",
+    "lat": 18.0735,
+    "lon": -15.9582,
+    "aliases": [
+      "Nouakchott",
+      "nuwakexiaote"
+    ]
+  },
+  {
+    "name": "达喀尔",
+    "admin1": "达喀尔",
+    "country": "塞内加尔",
+    "lat": 14.7167,
+    "lon": -17.4677,
+    "aliases": [
+      "Dakar",
+      "dakaer"
+    ]
+  },
+  {
+    "name": "巴马科",
+    "admin1": "巴马科",
+    "country": "马里",
+    "lat": 12.6392,
+    "lon": -8.0029,
+    "aliases": [
+      "Bamako",
+      "bamake"
+    ]
+  },
+  {
+    "name": "瓦加杜古",
+    "admin1": "中心区",
+    "country": "布基纳法索",
+    "lat": 12.3714,
+    "lon": -1.5197,
+    "aliases": [
+      "Ouagadougou",
+      "wajiadugu"
+    ]
+  },
+  {
+    "name": "尼亚美",
+    "admin1": "尼亚美",
+    "country": "尼日尔",
+    "lat": 13.5116,
+    "lon": 2.1254,
+    "aliases": [
+      "Niamey",
+      "niyamei"
+    ]
+  },
+  {
+    "name": "阿布贾",
+    "admin1": "联邦首都区",
+    "country": "尼日利亚",
+    "lat": 9.0765,
+    "lon": 7.3986,
+    "aliases": [
+      "Abuja",
+      "abujia"
+    ]
+  },
+  {
+    "name": "亚穆苏克罗",
+    "admin1": "亚穆苏克罗",
+    "country": "科特迪瓦",
+    "lat": 6.8276,
+    "lon": -5.2893,
+    "aliases": [
+      "Yamoussoukro",
+      "yamusukeluo"
+    ]
+  },
+  {
+    "name": "阿克拉",
+    "admin1": "大阿克拉",
+    "country": "加纳",
+    "lat": 5.6037,
+    "lon": -0.187,
+    "aliases": [
+      "Accra",
+      "akela"
+    ]
+  },
+  {
+    "name": "洛美",
+    "admin1": "滨海区",
+    "country": "多哥",
+    "lat": 6.1375,
+    "lon": 1.2123,
+    "aliases": [
+      "Lomé",
+      "Lome",
+      "luomei"
+    ]
+  },
+  {
+    "name": "波多诺伏",
+    "admin1": "滨海省",
+    "country": "贝宁",
+    "lat": 6.4969,
+    "lon": 2.6289,
+    "aliases": [
+      "Porto-Novo",
+      "bodonuofu"
+    ]
+  },
+  {
+    "name": "马拉博",
+    "admin1": "北比奥科",
+    "country": "赤道几内亚",
+    "lat": 3.7504,
+    "lon": 8.7371,
+    "aliases": [
+      "Malabo",
+      "malabo"
+    ]
+  },
+  {
+    "name": "雅温得",
+    "admin1": "中央省",
+    "country": "喀麦隆",
+    "lat": 3.848,
+    "lon": 11.5021,
+    "aliases": [
+      "Yaoundé",
+      "Yaounde",
+      "yawende"
+    ]
+  },
+  {
+    "name": "班吉",
+    "admin1": "班吉",
+    "country": "中非",
+    "lat": 4.3947,
+    "lon": 18.5582,
+    "aliases": [
+      "Bangui",
+      "banji"
+    ]
+  },
+  {
+    "name": "恩贾梅纳",
+    "admin1": "恩贾梅纳",
+    "country": "乍得",
+    "lat": 12.1348,
+    "lon": 15.0557,
+    "aliases": [
+      "N'Djamena",
+      "Ndjamena",
+      "enjiamena"
+    ]
+  },
+  {
+    "name": "金沙萨",
+    "admin1": "金沙萨",
+    "country": "刚果民主共和国",
+    "lat": -4.4419,
+    "lon": 15.2663,
+    "aliases": [
+      "Kinshasa",
+      "jinshasa"
+    ]
+  },
+  {
+    "name": "布拉柴维尔",
+    "admin1": "布拉柴维尔",
+    "country": "刚果共和国",
+    "lat": -4.2634,
+    "lon": 15.2429,
+    "aliases": [
+      "Brazzaville",
+      "bulachaiweier"
+    ]
+  },
+  {
+    "name": "利伯维尔",
+    "admin1": "河口省",
+    "country": "加蓬",
+    "lat": 0.4162,
+    "lon": 9.4673,
+    "aliases": [
+      "Libreville",
+      "liboweier"
+    ]
+  },
+  {
+    "name": "圣多美",
+    "admin1": "圣多美",
+    "country": "圣多美和普林西比",
+    "lat": 0.3365,
+    "lon": 6.7273,
+    "aliases": [
+      "São Tomé",
+      "Sao Tome",
+      "shengduomei"
+    ]
+  },
+  {
+    "name": "罗安达",
+    "admin1": "罗安达",
+    "country": "安哥拉",
+    "lat": -8.839,
+    "lon": 13.2894,
+    "aliases": [
+      "Luanda",
+      "luoanda",
+      "卢安达"
+    ]
+  },
+  {
+    "name": "温得和克",
+    "admin1": "霍马斯",
+    "country": "纳米比亚",
+    "lat": -22.5609,
+    "lon": 17.0658,
+    "aliases": [
+      "Windhoek",
+      "wendeheke"
+    ]
+  },
+  {
+    "name": "哈博罗内",
+    "admin1": "东南区",
+    "country": "博茨瓦纳",
+    "lat": -24.6282,
+    "lon": 25.9231,
+    "aliases": [
+      "Gaborone",
+      "haboluonei"
+    ]
+  },
+  {
+    "name": "比勒陀利亚",
+    "admin1": "豪登",
+    "country": "南非",
+    "lat": -25.7479,
+    "lon": 28.2293,
+    "aliases": [
+      "Pretoria",
+      "Tshwane",
+      "biletuoliya"
+    ]
+  },
+  {
+    "name": "马塞卢",
+    "admin1": "马塞卢",
+    "country": "莱索托",
+    "lat": -29.3151,
+    "lon": 27.4869,
+    "aliases": [
+      "Maseru",
+      "masailu"
+    ]
+  },
+  {
+    "name": "姆巴巴内",
+    "admin1": "霍霍",
+    "country": "斯威士兰",
+    "lat": -26.3054,
+    "lon": 31.1367,
+    "aliases": [
+      "Mbabane",
+      "mubabanei"
+    ]
+  },
+  {
+    "name": "马普托",
+    "admin1": "马普托",
+    "country": "莫桑比克",
+    "lat": -25.9692,
+    "lon": 32.5732,
+    "aliases": [
+      "Maputo",
+      "maputuo"
+    ]
+  },
+  {
+    "name": "哈拉雷",
+    "admin1": "哈拉雷",
+    "country": "津巴布韦",
+    "lat": -17.8252,
+    "lon": 31.0335,
+    "aliases": [
+      "Harare",
+      "halalei"
+    ]
+  },
+  {
+    "name": "卢萨卡",
+    "admin1": "卢萨卡",
+    "country": "赞比亚",
+    "lat": -15.3875,
+    "lon": 28.3228,
+    "aliases": [
+      "Lusaka",
+      "lusaka"
+    ]
+  },
+  {
+    "name": "利隆圭",
+    "admin1": "中央区",
+    "country": "马拉维",
+    "lat": -13.9626,
+    "lon": 33.7741,
+    "aliases": [
+      "Lilongwe",
+      "lilonggui"
+    ]
+  },
+  {
+    "name": "多多马",
+    "admin1": "多多马",
+    "country": "坦桑尼亚",
+    "lat": -6.163,
+    "lon": 35.7516,
+    "aliases": [
+      "Dodoma",
+      "duoduoma"
+    ]
+  },
+  {
+    "name": "基加利",
+    "admin1": "基加利",
+    "country": "卢旺达",
+    "lat": -1.9441,
+    "lon": 30.0619,
+    "aliases": [
+      "Kigali",
+      "jijiali"
+    ]
+  },
+  {
+    "name": "布琼布拉",
+    "admin1": "布琼布拉",
+    "country": "布隆迪",
+    "lat": -3.3614,
+    "lon": 29.3599,
+    "aliases": [
+      "Bujumbura",
+      "buqiongbola"
+    ]
+  },
+  {
+    "name": "坎帕拉",
+    "admin1": "坎帕拉",
+    "country": "乌干达",
+    "lat": 0.3476,
+    "lon": 32.5825,
+    "aliases": [
+      "Kampala",
+      "kanpala"
+    ]
+  },
+  {
+    "name": "摩加迪沙",
+    "admin1": "摩加迪沙",
+    "country": "索马里",
+    "lat": 2.0469,
+    "lon": 45.3182,
+    "aliases": [
+      "Mogadishu",
+      "mojiadisha"
+    ]
+  },
+  {
+    "name": "阿斯马拉",
+    "admin1": "马埃克尔",
+    "country": "厄立特里亚",
+    "lat": 15.3229,
+    "lon": 38.9251,
+    "aliases": [
+      "Asmara",
+      "asimara"
+    ]
+  },
+  {
+    "name": "吉布提",
+    "admin1": "吉布提",
+    "country": "吉布提",
+    "lat": 11.8251,
+    "lon": 42.5903,
+    "aliases": [
+      "Djibouti",
+      "jibuti"
+    ]
+  },
+  {
+    "name": "维多利亚",
+    "admin1": "马埃",
+    "country": "塞舌尔",
+    "lat": -4.6191,
+    "lon": 55.4513,
+    "aliases": [
+      "Victoria",
+      "weiduoliya"
+    ]
+  },
+  {
+    "name": "莫罗尼",
+    "admin1": "大科摩罗",
+    "country": "科摩罗",
+    "lat": -11.7172,
+    "lon": 43.2473,
+    "aliases": [
+      "Moroni",
+      "moluoni"
+    ]
+  },
+  {
+    "name": "路易港",
+    "admin1": "路易港",
+    "country": "毛里求斯",
+    "lat": -20.1609,
+    "lon": 57.5012,
+    "aliases": [
+      "Port Louis",
+      "luyigang"
+    ]
+  },
+  {
+    "name": "安塔那那利佛",
+    "admin1": "阿纳拉曼加",
+    "country": "马达加斯加",
+    "lat": -18.8792,
+    "lon": 47.5079,
+    "aliases": [
+      "Antananarivo",
+      "antananalifo"
+    ]
+  },
+  {
+    "name": "明斯克",
+    "admin1": "明斯克",
+    "country": "白俄罗斯",
+    "lat": 53.9006,
+    "lon": 27.559,
+    "aliases": [
+      "Minsk",
+      "mingsike"
+    ]
+  },
+  {
+    "name": "基希讷乌",
+    "admin1": "基希讷乌",
+    "country": "摩尔多瓦",
+    "lat": 47.0105,
+    "lon": 28.8638,
+    "aliases": [
+      "Chișinău",
+      "Chisinau",
+      "jixinawu"
+    ]
+  },
+  {
+    "name": "萨拉热窝",
+    "admin1": "萨拉热窝",
+    "country": "波黑",
+    "lat": 43.8563,
+    "lon": 18.4131,
+    "aliases": [
+      "Sarajevo",
+      "salarewo"
+    ]
+  },
+  {
+    "name": "波德戈里察",
+    "admin1": "波德戈里察",
+    "country": "黑山",
+    "lat": 42.4304,
+    "lon": 19.2594,
+    "aliases": [
+      "Podgorica",
+      "bodegelicha"
+    ]
+  },
+  {
+    "name": "普里什蒂纳",
+    "admin1": "普里什蒂纳",
+    "country": "科索沃",
+    "lat": 42.6629,
+    "lon": 21.1655,
+    "aliases": [
+      "Pristina",
+      "Prishtina",
+      "pulishitina"
+    ]
+  },
+  {
+    "name": "斯科普里",
+    "admin1": "斯科普里",
+    "country": "北马其顿",
+    "lat": 41.9981,
+    "lon": 21.4254,
+    "aliases": [
+      "Skopje",
+      "sikepuli"
+    ]
+  },
+  {
+    "name": "地拉那",
+    "admin1": "地拉那",
+    "country": "阿尔巴尼亚",
+    "lat": 41.3275,
+    "lon": 19.8187,
+    "aliases": [
+      "Tirana",
+      "dilana"
+    ]
+  },
+  {
+    "name": "瓦莱塔",
+    "admin1": "瓦莱塔",
+    "country": "马耳他",
+    "lat": 35.8989,
+    "lon": 14.5146,
+    "aliases": [
+      "Valletta",
+      "walaita"
+    ]
+  },
+  {
+    "name": "梵蒂冈",
+    "admin1": "梵蒂冈城",
+    "country": "梵蒂冈",
+    "lat": 41.9029,
+    "lon": 12.4534,
+    "aliases": [
+      "Vatican City",
+      "fandigang"
+    ]
+  },
+  {
+    "name": "圣马力诺",
+    "admin1": "圣马力诺",
+    "country": "圣马力诺",
+    "lat": 43.9424,
+    "lon": 12.4578,
+    "aliases": [
+      "San Marino",
+      "shengmalinuo"
+    ]
+  },
+  {
+    "name": "伯尔尼",
+    "admin1": "伯尔尼",
+    "country": "瑞士",
+    "lat": 46.948,
+    "lon": 7.4474,
+    "aliases": [
+      "Bern",
+      "Berne",
+      "boerni"
+    ]
+  },
+  {
+    "name": "瓦杜兹",
+    "admin1": "瓦杜兹",
+    "country": "列支敦士登",
+    "lat": 47.141,
+    "lon": 9.5209,
+    "aliases": [
+      "Vaduz",
+      "waduzi"
+    ]
+  },
+  {
+    "name": "摩纳哥",
+    "admin1": "摩纳哥",
+    "country": "摩纳哥",
+    "lat": 43.7384,
+    "lon": 7.4246,
+    "aliases": [
+      "Monaco",
+      "monage"
+    ]
+  },
+  {
+    "name": "安道尔城",
+    "admin1": "安道尔",
+    "country": "安道尔",
+    "lat": 42.5063,
+    "lon": 1.5218,
+    "aliases": [
+      "Andorra la Vella",
+      "andaoer"
+    ]
+  },
+  {
+    "name": "卢森堡",
+    "admin1": "卢森堡",
+    "country": "卢森堡",
+    "lat": 49.6116,
+    "lon": 6.1319,
+    "aliases": [
+      "Luxembourg",
+      "lusenbao"
+    ]
+  },
+  {
+    "name": "危地马拉城",
+    "admin1": "危地马拉省",
+    "country": "危地马拉",
+    "lat": 14.6349,
+    "lon": -90.5069,
+    "aliases": [
+      "Guatemala City",
+      "weidimalacheng"
+    ]
+  },
+  {
+    "name": "贝尔莫潘",
+    "admin1": "卡约区",
+    "country": "伯利兹",
+    "lat": 17.251,
+    "lon": -88.759,
+    "aliases": [
+      "Belmopan",
+      "beiermopan"
+    ]
+  },
+  {
+    "name": "圣萨尔瓦多",
+    "admin1": "圣萨尔瓦多",
+    "country": "萨尔瓦多",
+    "lat": 13.6929,
+    "lon": -89.2182,
+    "aliases": [
+      "San Salvador",
+      "shengsaerwaduo"
+    ]
+  },
+  {
+    "name": "特古西加尔巴",
+    "admin1": "弗朗西斯科-莫拉桑",
+    "country": "洪都拉斯",
+    "lat": 14.0723,
+    "lon": -87.1921,
+    "aliases": [
+      "Tegucigalpa",
+      "teguxijiaerba"
+    ]
+  },
+  {
+    "name": "马那瓜",
+    "admin1": "马那瓜",
+    "country": "尼加拉瓜",
+    "lat": 12.1364,
+    "lon": -86.2514,
+    "aliases": [
+      "Managua",
+      "managua"
+    ]
+  },
+  {
+    "name": "哥斯达黎加圣何塞",
+    "admin1": "圣何塞",
+    "country": "哥斯达黎加",
+    "lat": 9.9281,
+    "lon": -84.0907,
+    "aliases": [
+      "圣何塞",
+      "San José",
+      "San Jose",
+      "gesidalijia"
+    ]
+  },
+  {
+    "name": "巴拿马城",
+    "admin1": "巴拿马省",
+    "country": "巴拿马",
+    "lat": 8.9824,
+    "lon": -79.5199,
+    "aliases": [
+      "Panama City",
+      "banamacheng"
+    ]
+  },
+  {
+    "name": "金斯敦",
+    "admin1": "圣安德鲁区",
+    "country": "牙买加",
+    "lat": 17.9714,
+    "lon": -76.7931,
+    "aliases": [
+      "Kingston",
+      "jinsidun"
+    ]
+  },
+  {
+    "name": "太子港",
+    "admin1": "西省",
+    "country": "海地",
+    "lat": 18.5944,
+    "lon": -72.3074,
+    "aliases": [
+      "Port-au-Prince",
+      "taizigang"
+    ]
+  },
+  {
+    "name": "圣多明各",
+    "admin1": "国家特区",
+    "country": "多米尼加",
+    "lat": 18.4861,
+    "lon": -69.9312,
+    "aliases": [
+      "Santo Domingo",
+      "shengduomingge"
+    ]
+  },
+  {
+    "name": "拿骚",
+    "admin1": "新普罗维登斯",
+    "country": "巴哈马",
+    "lat": 25.0443,
+    "lon": -77.3504,
+    "aliases": [
+      "Nassau",
+      "nasao"
+    ]
+  },
+  {
+    "name": "布里奇敦",
+    "admin1": "圣迈克尔",
+    "country": "巴巴多斯",
+    "lat": 13.0975,
+    "lon": -59.6105,
+    "aliases": [
+      "Bridgetown",
+      "bulijidun"
+    ]
+  },
+  {
+    "name": "卡斯特里",
+    "admin1": "卡斯特里",
+    "country": "圣卢西亚",
+    "lat": 14.0101,
+    "lon": -60.9875,
+    "aliases": [
+      "Castries",
+      "kasiteli"
+    ]
+  },
+  {
+    "name": "罗索",
+    "admin1": "圣乔治",
+    "country": "多米尼克",
+    "lat": 15.3092,
+    "lon": -61.3794,
+    "aliases": [
+      "Roseau",
+      "luosuo"
+    ]
+  },
+  {
+    "name": "西班牙港",
+    "admin1": "西班牙港",
+    "country": "特立尼达和多巴哥",
+    "lat": 10.6549,
+    "lon": -61.5019,
+    "aliases": [
+      "Port of Spain",
+      "xibanyagang"
+    ]
+  },
+  {
+    "name": "乔治敦",
+    "admin1": "德梅拉拉-埃塞奎博",
+    "country": "圭亚那",
+    "lat": 6.8013,
+    "lon": -58.1551,
+    "aliases": [
+      "Georgetown",
+      "qiaozhidun"
+    ]
+  },
+  {
+    "name": "帕拉马里博",
+    "admin1": "帕拉马里博",
+    "country": "苏里南",
+    "lat": 5.852,
+    "lon": -55.2038,
+    "aliases": [
+      "Paramaribo",
+      "palamalibo"
+    ]
+  },
+  {
+    "name": "亚松森",
+    "admin1": "亚松森",
+    "country": "巴拉圭",
+    "lat": -25.2637,
+    "lon": -57.5759,
+    "aliases": [
+      "Asunción",
+      "Asuncion",
+      "yasongsen"
+    ]
+  },
+  {
+    "name": "拉巴斯",
+    "admin1": "拉巴斯",
+    "country": "玻利维亚",
+    "lat": -16.4897,
+    "lon": -68.1193,
+    "aliases": [
+      "La Paz",
+      "labasi"
+    ]
+  },
+  {
+    "name": "苏克雷",
+    "admin1": "丘基萨卡",
+    "country": "玻利维亚",
+    "lat": -19.0196,
+    "lon": -65.2619,
+    "aliases": [
+      "Sucre",
+      "sukelei"
+    ]
+  },
+  {
+    "name": "加拉加斯",
+    "admin1": "首都区",
+    "country": "委内瑞拉",
+    "lat": 10.4806,
+    "lon": -66.9036,
+    "aliases": [
+      "Caracas",
+      "jialajiasi"
+    ]
+  },
+  {
+    "name": "莫尔兹比港",
+    "admin1": "国家首都区",
+    "country": "巴布亚新几内亚",
+    "lat": -9.4438,
+    "lon": 147.1803,
+    "aliases": [
+      "Port Moresby",
+      "moerzibigang"
+    ]
+  },
+  {
+    "name": "霍尼亚拉",
+    "admin1": "瓜达尔卡纳尔",
+    "country": "所罗门群岛",
+    "lat": -9.4456,
+    "lon": 159.9729,
+    "aliases": [
+      "Honiara",
+      "huoniyala"
+    ]
+  },
+  {
+    "name": "维拉港",
+    "admin1": "谢法省",
+    "country": "瓦努阿图",
+    "lat": -17.7333,
+    "lon": 168.3273,
+    "aliases": [
+      "Port Vila",
+      "weilagang"
+    ]
+  },
+  {
+    "name": "努库阿洛法",
+    "admin1": "通加塔布",
+    "country": "汤加",
+    "lat": -21.1394,
+    "lon": -175.1982,
+    "aliases": [
+      "Nuku'alofa",
+      "Nukualofa",
+      "nukualuofa"
+    ]
+  },
+  {
+    "name": "阿皮亚",
+    "admin1": "图阿马萨加",
+    "country": "萨摩亚",
+    "lat": -13.8333,
+    "lon": -171.7667,
+    "aliases": [
+      "Apia",
+      "apiya"
+    ]
+  },
+  {
+    "name": "塔拉瓦",
+    "admin1": "南塔拉瓦",
+    "country": "基里巴斯",
+    "lat": 1.4518,
+    "lon": 173.0,
+    "aliases": [
+      "Tarawa",
+      "South Tarawa",
+      "talawa"
+    ]
+  },
+  {
+    "name": "马朱罗",
+    "admin1": "马朱罗",
+    "country": "马绍尔群岛",
+    "lat": 7.1164,
+    "lon": 171.1855,
+    "aliases": [
+      "Majuro",
+      "mazhuluo"
+    ]
+  },
+  {
+    "name": "帕利基尔",
+    "admin1": "波纳佩",
+    "country": "密克罗尼西亚",
+    "lat": 6.9248,
+    "lon": 158.1611,
+    "aliases": [
+      "Palikir",
+      "palijier"
+    ]
+  },
+  {
+    "name": "雅伦",
+    "admin1": "雅伦",
+    "country": "瑙鲁",
+    "lat": -0.5467,
+    "lon": 166.9131,
+    "aliases": [
+      "Yaren",
+      "yalun"
+    ]
+  },
+  {
+    "name": "阿洛菲",
+    "admin1": "阿洛菲",
+    "country": "纽埃",
+    "lat": -19.0544,
+    "lon": -169.9172,
+    "aliases": [
+      "Alofi",
+      "aluofei"
+    ]
+  },
+  {
+    "name": "阿瓦鲁阿",
+    "admin1": "拉罗汤加",
+    "country": "库克群岛",
+    "lat": -21.2075,
+    "lon": -159.775,
+    "aliases": [
+      "Avarua",
+      "awalua"
+    ]
+  },
+  {
+    "name": "富纳富提",
+    "admin1": "富纳富提",
+    "country": "图瓦卢",
+    "lat": -8.5243,
+    "lon": 179.1942,
+    "aliases": [
+      "Funafuti",
+      "funafuti"
+    ]
+  },
+  {
+    "name": "艾哈迈达巴德",
+    "admin1": "古吉拉特",
+    "country": "印度",
+    "lat": 23.0225,
+    "lon": 72.5714,
+    "aliases": [
+      "Ahmedabad",
+      "aihamaidabade"
+    ]
+  },
+  {
+    "name": "浦那",
+    "admin1": "马哈拉施特拉",
+    "country": "印度",
+    "lat": 18.5204,
+    "lon": 73.8567,
+    "aliases": [
+      "Pune",
+      "Poona",
+      "puna"
+    ]
+  },
+  {
+    "name": "苏拉特",
+    "admin1": "古吉拉特",
+    "country": "印度",
+    "lat": 21.1702,
+    "lon": 72.8311,
+    "aliases": [
+      "Surat",
+      "sulate"
+    ]
+  },
+  {
+    "name": "斋浦尔",
+    "admin1": "拉贾斯坦",
+    "country": "印度",
+    "lat": 26.9124,
+    "lon": 75.7873,
+    "aliases": [
+      "Jaipur",
+      "zhaipuer"
+    ]
+  },
+  {
+    "name": "勒克瑙",
+    "admin1": "北方邦",
+    "country": "印度",
+    "lat": 26.8467,
+    "lon": 80.9462,
+    "aliases": [
+      "Lucknow",
+      "lekenao"
+    ]
+  },
+  {
+    "name": "坎普尔",
+    "admin1": "北方邦",
+    "country": "印度",
+    "lat": 26.4499,
+    "lon": 80.3319,
+    "aliases": [
+      "Kanpur",
+      "kanpuer"
+    ]
+  },
+  {
+    "name": "那格浦尔",
+    "admin1": "马哈拉施特拉",
+    "country": "印度",
+    "lat": 21.1458,
+    "lon": 79.0882,
+    "aliases": [
+      "Nagpur",
+      "nagepuer"
+    ]
+  },
+  {
+    "name": "印多尔",
+    "admin1": "中央邦",
+    "country": "印度",
+    "lat": 22.7196,
+    "lon": 75.8577,
+    "aliases": [
+      "Indore",
+      "yinduoer"
+    ]
+  },
+  {
+    "name": "帕特纳",
+    "admin1": "比哈尔",
+    "country": "印度",
+    "lat": 25.5941,
+    "lon": 85.1376,
+    "aliases": [
+      "Patna",
+      "patena"
+    ]
+  },
+  {
+    "name": "科钦",
+    "admin1": "喀拉拉",
+    "country": "印度",
+    "lat": 9.9312,
+    "lon": 76.2673,
+    "aliases": [
+      "Kochi",
+      "Cochin",
+      "keqin"
+    ]
+  },
+  {
+    "name": "费萨尔阿巴德",
+    "admin1": "旁遮普",
+    "country": "巴基斯坦",
+    "lat": 31.4504,
+    "lon": 73.135,
+    "aliases": [
+      "Faisalabad",
+      "feisaerabade"
+    ]
+  },
+  {
+    "name": "拉瓦尔品第",
+    "admin1": "旁遮普",
+    "country": "巴基斯坦",
+    "lat": 33.5651,
+    "lon": 73.0169,
+    "aliases": [
+      "Rawalpindi",
+      "laweerpinqi"
+    ]
+  },
+  {
+    "name": "泗水",
+    "admin1": "东爪哇",
+    "country": "印度尼西亚",
+    "lat": -7.2575,
+    "lon": 112.7521,
+    "aliases": [
+      "苏腊巴亚",
+      "Surabaya",
+      "sishui"
+    ]
+  },
+  {
+    "name": "万隆",
+    "admin1": "西爪哇",
+    "country": "印度尼西亚",
+    "lat": -6.9175,
+    "lon": 107.6191,
+    "aliases": [
+      "Bandung",
+      "wanlong"
+    ]
+  },
+  {
+    "name": "棉兰",
+    "admin1": "北苏门答腊",
+    "country": "印度尼西亚",
+    "lat": 3.5952,
+    "lon": 98.6722,
+    "aliases": [
+      "Medan",
+      "mianlan"
+    ]
+  },
+  {
+    "name": "贝卡西",
+    "admin1": "西爪哇",
+    "country": "印度尼西亚",
+    "lat": -6.2383,
+    "lon": 106.9756,
+    "aliases": [
+      "Bekasi",
+      "beikaxi"
+    ]
+  },
+  {
+    "name": "丹格朗",
+    "admin1": "万丹",
+    "country": "印度尼西亚",
+    "lat": -6.1783,
+    "lon": 106.6319,
+    "aliases": [
+      "Tangerang",
+      "danggelang"
+    ]
+  },
+  {
+    "name": "德波",
+    "admin1": "西爪哇",
+    "country": "印度尼西亚",
+    "lat": -6.4025,
+    "lon": 106.7942,
+    "aliases": [
+      "Depok",
+      "debo"
+    ]
+  },
+  {
+    "name": "巨港",
+    "admin1": "南苏门答腊",
+    "country": "印度尼西亚",
+    "lat": -2.9761,
+    "lon": 104.7754,
+    "aliases": [
+      "Palembang",
+      "jugang"
+    ]
+  },
+  {
+    "name": "望加锡",
+    "admin1": "南苏拉威西",
+    "country": "印度尼西亚",
+    "lat": -5.1477,
+    "lon": 119.4327,
+    "aliases": [
+      "Makassar",
+      "Ujung Pandang",
+      "wangjiaxi"
+    ]
+  },
+  {
+    "name": "三宝垄",
+    "admin1": "中爪哇",
+    "country": "印度尼西亚",
+    "lat": -6.9667,
+    "lon": 110.4167,
+    "aliases": [
+      "Semarang",
+      "sanbaolong"
+    ]
+  },
+  {
+    "name": "达沃",
+    "admin1": "达沃区",
+    "country": "菲律宾",
+    "lat": 7.1907,
+    "lon": 125.4553,
+    "aliases": [
+      "Davao",
+      "dawo"
+    ]
+  },
+  {
+    "name": "奎松市",
+    "admin1": "马尼拉大都会",
+    "country": "菲律宾",
+    "lat": 14.676,
+    "lon": 121.0437,
+    "aliases": [
+      "Quezon City",
+      "kuisongshi"
+    ]
+  },
+  {
+    "name": "海防",
+    "admin1": "海防",
+    "country": "越南",
+    "lat": 20.8449,
+    "lon": 106.6881,
+    "aliases": [
+      "Haiphong",
+      "haifang"
+    ]
+  },
+  {
+    "name": "岘港",
+    "admin1": "岘港",
+    "country": "越南",
+    "lat": 16.0544,
+    "lon": 108.2022,
+    "aliases": [
+      "Da Nang",
+      "Danang",
+      "xiangang"
+    ]
+  },
+  {
+    "name": "川崎",
+    "admin1": "神奈川县",
+    "country": "日本",
+    "lat": 35.5308,
+    "lon": 139.7029,
+    "aliases": [
+      "Kawasaki",
+      "chuanqi"
+    ]
+  },
+  {
+    "name": "埼玉",
+    "admin1": "埼玉县",
+    "country": "日本",
+    "lat": 35.8617,
+    "lon": 139.6455,
+    "aliases": [
+      "Saitama",
+      "qiyu"
+    ]
+  },
+  {
+    "name": "马什哈德",
+    "admin1": "呼罗珊拉扎维",
+    "country": "伊朗",
+    "lat": 36.2605,
+    "lon": 59.6168,
+    "aliases": [
+      "Mashhad",
+      "mashihade"
+    ]
+  },
+  {
+    "name": "伊斯法罕",
+    "admin1": "伊斯法罕",
+    "country": "伊朗",
+    "lat": 32.6539,
+    "lon": 51.666,
+    "aliases": [
+      "Isfahan",
+      "Esfahan",
+      "yisifahan"
+    ]
+  },
+  {
+    "name": "伊兹密尔",
+    "admin1": "伊兹密尔",
+    "country": "土耳其",
+    "lat": 38.4237,
+    "lon": 27.1428,
+    "aliases": [
+      "Izmir",
+      "yizimier"
+    ]
+  },
+  {
+    "name": "布尔萨",
+    "admin1": "布尔萨",
+    "country": "土耳其",
+    "lat": 40.1885,
+    "lon": 29.061,
+    "aliases": [
+      "Bursa",
+      "buersa"
+    ]
+  },
+  {
+    "name": "阿达纳",
+    "admin1": "阿达纳",
+    "country": "土耳其",
+    "lat": 36.9914,
+    "lon": 35.3308,
+    "aliases": [
+      "Adana",
+      "adana"
+    ]
+  },
+  {
+    "name": "吉萨",
+    "admin1": "吉萨",
+    "country": "埃及",
+    "lat": 29.987,
+    "lon": 31.2118,
+    "aliases": [
+      "Giza",
+      "jisa"
+    ]
+  },
+  {
+    "name": "卡诺",
+    "admin1": "卡诺州",
+    "country": "尼日利亚",
+    "lat": 12.0022,
+    "lon": 8.592,
+    "aliases": [
+      "Kano",
+      "kanuo"
+    ]
+  },
+  {
+    "name": "伊巴丹",
+    "admin1": "奥约州",
+    "country": "尼日利亚",
+    "lat": 7.3775,
+    "lon": 3.947,
+    "aliases": [
+      "Ibadan",
+      "yibadan"
+    ]
+  },
+  {
+    "name": "德班",
+    "admin1": "夸祖鲁-纳塔尔",
+    "country": "南非",
+    "lat": -29.8587,
+    "lon": 31.0218,
+    "aliases": [
+      "Durban",
+      "deban"
+    ]
+  },
+  {
+    "name": "阿比让",
+    "admin1": "阿比让",
+    "country": "科特迪瓦",
+    "lat": 5.36,
+    "lon": -4.0083,
+    "aliases": [
+      "Abidjan",
+      "abirang"
+    ]
+  },
+  {
+    "name": "达累斯萨拉姆",
+    "admin1": "达累斯萨拉姆",
+    "country": "坦桑尼亚",
+    "lat": -6.7924,
+    "lon": 39.2083,
+    "aliases": [
+      "Dar es Salaam",
+      "dalesisalaimu"
+    ]
+  },
+  {
+    "name": "瓜达拉哈拉",
+    "admin1": "哈利斯科",
+    "country": "墨西哥",
+    "lat": 20.6597,
+    "lon": -103.3496,
+    "aliases": [
+      "Guadalajara",
+      "guadalahala"
+    ]
+  },
+  {
+    "name": "蒙特雷",
+    "admin1": "新莱昂",
+    "country": "墨西哥",
+    "lat": 25.6866,
+    "lon": -100.3161,
+    "aliases": [
+      "Monterrey",
+      "monteilei"
+    ]
+  },
+  {
+    "name": "普埃布拉",
+    "admin1": "普埃布拉",
+    "country": "墨西哥",
+    "lat": 19.0414,
+    "lon": -98.2063,
+    "aliases": [
+      "Puebla",
+      "puaibula"
+    ]
+  },
+  {
+    "name": "蒂华纳",
+    "admin1": "下加利福尼亚",
+    "country": "墨西哥",
+    "lat": 32.5149,
+    "lon": -117.0382,
+    "aliases": [
+      "Tijuana",
+      "dihuana"
+    ]
+  },
+  {
+    "name": "莱昂",
+    "admin1": "瓜纳华托",
+    "country": "墨西哥",
+    "lat": 21.125,
+    "lon": -101.686,
+    "aliases": [
+      "León",
+      "Leon",
+      "laiang"
+    ]
+  },
+  {
+    "name": "俄克拉荷马城",
+    "admin1": "俄克拉荷马",
+    "country": "美国",
+    "lat": 35.4676,
+    "lon": -97.5164,
+    "aliases": [
+      "Oklahoma City",
+      "ekelahomacheng"
+    ]
+  },
+  {
+    "name": "叶卡捷琳堡",
+    "admin1": "斯维尔德洛夫斯克州",
+    "country": "俄罗斯",
+    "lat": 56.8389,
+    "lon": 60.6057,
+    "aliases": [
+      "Yekaterinburg",
+      "yekajielinbao"
+    ]
+  },
+  {
+    "name": "喀山",
+    "admin1": "鞑靼斯坦",
+    "country": "俄罗斯",
+    "lat": 55.7961,
+    "lon": 49.1064,
+    "aliases": [
+      "Kazan",
+      "kashan"
+    ]
+  },
+  {
+    "name": "下诺夫哥罗德",
+    "admin1": "下诺夫哥罗德州",
+    "country": "俄罗斯",
+    "lat": 56.2965,
+    "lon": 43.9361,
+    "aliases": [
+      "Nizhny Novgorod",
+      "xianuofugeluo"
+    ]
+  },
+  {
+    "name": "车里雅宾斯克",
+    "admin1": "车里雅宾斯克州",
+    "country": "俄罗斯",
+    "lat": 55.1644,
+    "lon": 61.4368,
+    "aliases": [
+      "Chelyabinsk",
+      "cheliyabinsike"
+    ]
+  },
+  {
+    "name": "萨马拉",
+    "admin1": "萨马拉州",
+    "country": "俄罗斯",
+    "lat": 53.1959,
+    "lon": 50.1002,
+    "aliases": [
+      "Samara",
+      "samala"
+    ]
+  },
+  {
+    "name": "鄂木斯克",
+    "admin1": "奥姆斯克州",
+    "country": "俄罗斯",
+    "lat": 54.9885,
+    "lon": 73.3242,
+    "aliases": [
+      "Omsk",
+      "emusike"
+    ]
+  },
+  {
+    "name": "顿河畔罗斯托夫",
+    "admin1": "罗斯托夫州",
+    "country": "俄罗斯",
+    "lat": 47.2357,
+    "lon": 39.7015,
+    "aliases": [
+      "Rostov-on-Don",
+      "Rostov",
+      "luosituofu"
+    ]
+  },
+  {
+    "name": "乌法",
+    "admin1": "巴什科尔托斯坦",
+    "country": "俄罗斯",
+    "lat": 54.7388,
+    "lon": 55.9721,
+    "aliases": [
+      "Ufa",
+      "wufa"
+    ]
+  },
+  {
+    "name": "克拉斯诺亚尔斯克",
+    "admin1": "克拉斯诺亚尔斯克边疆区",
+    "country": "俄罗斯",
+    "lat": 56.0153,
+    "lon": 92.8932,
+    "aliases": [
+      "Krasnoyarsk",
+      "kelasinuoayersike"
+    ]
+  },
+  {
+    "name": "阿拉木图",
+    "admin1": "阿拉木图",
+    "country": "哈萨克斯坦",
+    "lat": 43.222,
+    "lon": 76.8512,
+    "aliases": [
+      "Almaty",
+      "Alma-Ata",
+      "alamutu"
+    ]
+  },
+  {
+    "name": "麦加",
+    "admin1": "麦加省",
+    "country": "沙特阿拉伯",
+    "lat": 21.3891,
+    "lon": 39.8579,
+    "aliases": [
+      "Mecca",
+      "Makkah",
+      "maijia"
+    ]
+  },
+  {
+    "name": "麦地那",
+    "admin1": "麦地那省",
+    "country": "沙特阿拉伯",
+    "lat": 24.5247,
+    "lon": 39.5692,
+    "aliases": [
+      "Medina",
+      "Madinah",
+      "maidina"
+    ]
+  },
+  {
+    "name": "贝洛奥里藏特",
+    "admin1": "米纳斯吉拉斯",
+    "country": "巴西",
+    "lat": -19.9167,
+    "lon": -43.9345,
+    "aliases": [
+      "Belo Horizonte",
+      "beiluoaolizangte"
+    ]
+  },
+  {
+    "name": "萨尔瓦多",
+    "admin1": "巴伊亚",
+    "country": "巴西",
+    "lat": -12.9714,
+    "lon": -38.5014,
+    "aliases": [
+      "Salvador",
+      "saerwaduo"
+    ]
+  },
+  {
+    "name": "福塔莱萨",
+    "admin1": "塞阿拉",
+    "country": "巴西",
+    "lat": -3.7319,
+    "lon": -38.5267,
+    "aliases": [
+      "Fortaleza",
+      "futailaisa"
+    ]
+  },
+  {
+    "name": "累西腓",
+    "admin1": "伯南布哥",
+    "country": "巴西",
+    "lat": -8.0476,
+    "lon": -34.877,
+    "aliases": [
+      "Recife",
+      "leixifei"
+    ]
+  },
+  {
+    "name": "库里蒂巴",
+    "admin1": "巴拉那",
+    "country": "巴西",
+    "lat": -25.4284,
+    "lon": -49.2733,
+    "aliases": [
+      "Curitiba",
+      "kulidiba"
+    ]
+  },
+  {
+    "name": "马瑙斯",
+    "admin1": "亚马孙",
+    "country": "巴西",
+    "lat": -3.119,
+    "lon": -60.0217,
+    "aliases": [
+      "Manaus",
+      "manaosi"
+    ]
+  },
+  {
+    "name": "阿雷格里港",
+    "admin1": "南里奥格兰德",
+    "country": "巴西",
+    "lat": -30.0346,
+    "lon": -51.2177,
+    "aliases": [
+      "Porto Alegre",
+      "aleigeligang"
+    ]
+  },
+  {
+    "name": "贝伦",
+    "admin1": "帕拉",
+    "country": "巴西",
+    "lat": -1.4558,
+    "lon": -48.4902,
+    "aliases": [
+      "Belém",
+      "Belem",
+      "beilun"
+    ]
+  },
+  {
+    "name": "戈亚尼亚",
+    "admin1": "戈亚斯",
+    "country": "巴西",
+    "lat": -16.6869,
+    "lon": -49.2648,
+    "aliases": [
+      "Goiânia",
+      "Goiania",
+      "geyaniya"
+    ]
+  },
+  {
+    "name": "坎皮纳斯",
+    "admin1": "圣保罗州",
+    "country": "巴西",
+    "lat": -22.9056,
+    "lon": -47.0608,
+    "aliases": [
+      "Campinas",
+      "kanpinasi"
+    ]
+  },
+  {
+    "name": "科尔多瓦",
+    "admin1": "科尔多瓦省",
+    "country": "阿根廷",
+    "lat": -31.4201,
+    "lon": -64.1888,
+    "aliases": [
+      "Córdoba",
+      "Cordoba",
+      "keerduowa"
+    ]
+  },
+  {
+    "name": "罗萨里奥",
+    "admin1": "圣大菲省",
+    "country": "阿根廷",
+    "lat": -32.9442,
+    "lon": -60.6505,
+    "aliases": [
+      "Rosario",
+      "luosaliao"
+    ]
+  },
+  {
+    "name": "麦德林",
+    "admin1": "安蒂奥基亚",
+    "country": "哥伦比亚",
+    "lat": 6.2476,
+    "lon": -75.5658,
+    "aliases": [
+      "Medellín",
+      "Medellin",
+      "maidelin"
+    ]
+  },
+  {
+    "name": "卡利",
+    "admin1": "考卡山谷",
+    "country": "哥伦比亚",
+    "lat": 3.4516,
+    "lon": -76.532,
+    "aliases": [
+      "Cali",
+      "kali"
+    ]
+  },
+  {
+    "name": "瓜亚基尔",
+    "admin1": "瓜亚斯",
+    "country": "厄瓜多尔",
+    "lat": -2.1709,
+    "lon": -79.9224,
+    "aliases": [
+      "Guayaquil",
+      "guayajier"
+    ]
+  }
+]

@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".WeatherApp"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.XiaoxiongWeather">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.XiaoxiongWeather"
+            android:windowSoftInputMode="adjustResize">
+            <!-- 自定义 scheme，便于通知/外部入口拉起；LAUNCHER 仍由 activity-alias 承担 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="xiaoxiongweather"
+                    android:host="open" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".widget.WeatherAppWidgetReceiver"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weather_widget_info" />
+        </receiver>
+
+        <!-- 桌面图标按天气切换：同一时间只启用一个 alias -->
+        <activity-alias
+            android:name=".launcher.Sunny"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_sunny"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_sunny_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.FewClouds"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_few_clouds"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_few_clouds_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.FewCloudsNight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_few_clouds_night"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_few_clouds_night_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.ClearNight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_clear_night"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_clear_night_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.PartlyCloudy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_partly_cloudy"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_partly_cloudy_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.PartlyCloudyNight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_partly_cloudy_night"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_partly_cloudy_night_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.Cloudy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_cloudy"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_cloudy_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.Drizzle"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_drizzle"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_drizzle_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.Rainy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_rainy"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_rainy_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.ModerateRain"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_moderate_rain"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_moderate_rain_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.HeavyRain"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_heavy_rain"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_heavy_rain_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.ViolentRain"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_violent_rain"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_violent_rain_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.ExtremeRain"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_extreme_rain"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_extreme_rain_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.Snowy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_snowy"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_snowy_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.ModerateSnow"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_moderate_snow"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_moderate_snow_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.HeavySnow"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_heavy_snow"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_heavy_snow_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.Blizzard"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_blizzard"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_blizzard_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.FreezingRain"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_freezing_rain"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_freezing_rain_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.Storm"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_storm"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_storm_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.Foggy"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_foggy"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_foggy_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".launcher.Hail"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_hail"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_hail_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <!-- 分享卡片图片走缓存目录，对外授权只读 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>

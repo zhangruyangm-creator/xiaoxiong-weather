@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# 阻止误提交签名密钥与 keystore.properties
+set -euo pipefail
+
+blocked='(\.keystore$|keystore\.properties$|release\.keystore$)'
+staged="$(git diff --cached --name-only --diff-filter=ACM || true)"
+if printf '%s\n' "$staged" | grep -Eiq "$blocked"; then
+  echo "pre-commit: refusing to commit keystore / keystore.properties:" >&2
+  printf '%s\n' "$staged" | grep -Ei "$blocked" >&2
+  echo "These files must stay local (see .gitignore)." >&2
+  exit 1
+fi
+exit 0

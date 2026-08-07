@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  允许备份用户偏好（主题/收藏/选中城市等），排除天气缓存与临时地理/通知状态。
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="location_place_cache.xml" />
+    <exclude domain="sharedpref" path="weather_refresh_notify.xml" />
+    <exclude domain="sharedpref" path="weather_launcher_icon.xml" />
+    <exclude domain="file" path="datastore/weather_cache_v1.preferences_pb" />
+    <exclude domain="file" path="datastore/weather_cache_v1.preferences_pb.bak" />
+    <exclude domain="database" path="androidx.work.workdb" />
+</full-backup-content>

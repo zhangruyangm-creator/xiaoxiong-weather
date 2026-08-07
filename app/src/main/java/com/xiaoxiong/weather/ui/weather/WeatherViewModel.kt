@@ -1,0 +1,462 @@
+package com.xiaoxiong.weather.ui.weather
+
+import android.app.Application
+import androidx.annotation.StringRes
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.data.AppSettings
+import com.xiaoxiong.weather.data.City
+import com.xiaoxiong.weather.data.DebugWeatherOverride
+import com.xiaoxiong.weather.data.DebugWeatherState
+import com.xiaoxiong.weather.data.DebugWeatherStore
+import com.xiaoxiong.weather.data.RadarMapRepository
+import com.xiaoxiong.weather.data.WeatherSnapshot
+import com.xiaoxiong.weather.util.WeatherCodes
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicInteger
+
+data class WeatherUiState(
+    val query: String = "",
+    val suggestions: List<City> = emptyList(),
+    val isSearching: Boolean = false,
+    val isLoadingWeather: Boolean = false,
+    val isLocating: Boolean = false,
+    val selectedCity: City? = null,
+    val weather: WeatherSnapshot? = null,
+    val usingCurrentLocation: Boolean = false,
+    val lastUpdatedText: String? = null,
+    val isOffline: Boolean = false,
+    val errorMessage: String? = null,
+    val infoMessage: String? = null,
+    /** 隐藏调试模式已开启 */
+    val debugEnabled: Boolean = false
+)
+
+class WeatherViewModel(
+    application: Application,
+    private val deps: WeatherViewModelDeps
+) : AndroidViewModel(application) {
+
+    private val repository = deps.weatherRepository
+    private val locationHelper = deps.locationHelper
+    private val favoriteStore = deps.favoriteStore
+    private val recentCityStore = deps.recentCityStore
+    private val selectedCityStore = deps.selectedCityStore
+    private val weatherCacheStore = deps.weatherCacheStore
+    val settingsStore = deps.settingsStore
+    private val debugWeatherStore = deps.debugWeatherStore
+    val radarMapRepository: RadarMapRepository = deps.radarMapRepository
+
+    private val _uiState = MutableStateFlow(WeatherUiState())
+    val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
+
+    val favorites: StateFlow<List<City>> = favoriteStore.favorites
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val recentCities: StateFlow<List<City>> = recentCityStore.recent
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _popularCities = MutableStateFlow<List<City>>(emptyList())
+    val popularCities: StateFlow<List<City>> = _popularCities.asStateFlow()
+
+    val appSettings: StateFlow<AppSettings> = settingsStore.settings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+
+    private val debugController = DebugModeController(
+        scope = viewModelScope,
+        app = getApplication(),
+        store = deps.debugWeatherStore,
+        onState = { transform -> _uiState.update(transform) },
+        republishWeather = { republishBaseWeather() }
+    )
+    val debugState: StateFlow<DebugWeatherState> = debugController.state
+
+    private val searchController = CitySearchController(
+        scope = viewModelScope,
+        app = getApplication(),
+        citySearch = deps.citySearch,
+        onState = { transform -> _uiState.update(transform) },
+        currentState = { _uiState.value },
+        onDebugMagicQuery = { debugController.enable() }
+    )
+
+    /** 未经调试覆盖的原始快照，供编辑器与退出调试还原。 */
+    private val _baseWeather = MutableStateFlow<WeatherSnapshot?>(null)
+    val baseWeather: StateFlow<WeatherSnapshot?> = _baseWeather.asStateFlow()
+
+    private var weatherJob: Job? = null
+    private val weatherRequestId = AtomicInteger(0)
+    private val locationCoordinator = deps.locationSessionFactory.create(viewModelScope)
+    private val presentationEffects = deps.presentationEffects
+
+    private val coldStart = ColdStartController(
+        scope = viewModelScope,
+        settingsStore = settingsStore,
+        selectedCityStore = selectedCityStore,
+        favoriteStore = favoriteStore,
+        locationHelper = locationHelper,
+        selectCity = { city, fromLocation, quiet -> selectCity(city, fromLocation, quiet) },
+        loadCurrentLocationWeather = { showRationale, quiet ->
+            loadCurrentLocationWeather(showRationale, quiet)
+        },
+        refresh = { quiet -> refresh(quiet) },
+        updateState = { transform -> _uiState.update(transform) },
+        currentSelectedCity = { _uiState.value.selectedCity },
+        hasWeather = { _uiState.value.weather != null },
+        str = { id -> getApplication<Application>().str(id) }
+    )
+
+    init {
+        viewModelScope.launch {
+            _popularCities.value = withContext(Dispatchers.Default) {
+                deps.popularCitiesLoader(getApplication())
+            }
+        }
+        debugController.start()
+        searchController.start()
+    }
+
+    // region 前台/后台与权限：委托给 ColdStartController
+
+    fun onAppForeground() = coldStart.onAppForeground()
+
+    fun onAppBackground() = coldStart.onAppBackground()
+
+    fun consumeRuntimePermissionRequest(): Boolean =
+        coldStart.consumeRuntimePermissionRequest()
+
+    fun hasLocationPermission(): Boolean = coldStart.hasLocationPermission()
+
+    fun onPermissionResult(granted: Boolean) = coldStart.onPermissionResult(granted)
+
+    fun onNotificationPermissionResult(granted: Boolean) =
+        coldStart.onNotificationPermissionResult(granted)
+
+    fun ensureInitialLoad() = coldStart.ensureInitialLoad()
+
+    fun requestLocate(): Boolean = coldStart.requestLocate()
+
+    // endregion
+
+    fun onQueryChange(value: String) = searchController.onQueryChange(value)
+
+    fun selectCity(city: City, fromLocation: Boolean = false, quiet: Boolean = false) {
+        // 手动选城时作废进行中的定位，避免 GPS 晚到抢回城市
+        if (!fromLocation) {
+            locationCoordinator.cancelPending()
+        }
+
+        val useLocation = fromLocation || city.isCurrentLocation
+        val requestId = weatherRequestId.incrementAndGet()
+
+        _uiState.update {
+            val samePlace = roughlySameCity(it.selectedCity, city)
+            // 同城刷新 / 静默刷新保留旧数据，避免下拉或自动刷新把界面刷空
+            val keepWeather = quiet || samePlace
+            it.copy(
+                selectedCity = city,
+                query = city.displayName,
+                suggestions = emptyList(),
+                weather = if (keepWeather) it.weather else null,
+                isOffline = if (keepWeather) it.isOffline else false,
+                // 静默刷新不打断可见的 loading；手动刷新才显示进度
+                isLoadingWeather = if (quiet) it.isLoadingWeather else true,
+                isLocating = if (quiet) it.isLocating else false,
+                usingCurrentLocation = useLocation,
+                errorMessage = null
+            )
+        }
+        viewModelScope.launch {
+            selectedCityStore.save(city, useLocation)
+        }
+        if (!fromLocation && !quiet) {
+            viewModelScope.launch {
+                recentCityStore.add(city)
+            }
+        }
+        weatherJob?.cancel()
+        weatherJob = viewModelScope.launch {
+            if (!quiet) {
+                val cached = weatherCacheStore.get(city)
+                if (cached != null && requestId == weatherRequestId.get()) {
+                    publishWeather(
+                        requestId = requestId,
+                        snapshot = cached.snapshot,
+                        selectedCity = city,
+                        isLoadingWeather = true,
+                        isOffline = false,
+                        lastUpdatedText = formatCacheTime(cached.savedAtEpochMs),
+                        updateIcon = true,
+                        refreshWidgets = false
+                    )
+                }
+            }
+
+            try {
+                val snapshot = repository.fetchWeather(city)
+                if (requestId != weatherRequestId.get()) return@launch
+                weatherCacheStore.save(snapshot)
+                publishWeather(
+                    requestId = requestId,
+                    snapshot = snapshot,
+                    selectedCity = city,
+                    isLoadingWeather = false,
+                    isOffline = false,
+                    lastUpdatedText = nowText(),
+                    errorMessage = null,
+                    updateIcon = true,
+                    refreshWidgets = true
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (requestId != weatherRequestId.get()) return@launch
+                val cached = weatherCacheStore.get(city)
+                if (cached != null) {
+                    publishWeather(
+                        requestId = requestId,
+                        snapshot = cached.snapshot,
+                        selectedCity = city,
+                        isLoadingWeather = false,
+                        isOffline = true,
+                        lastUpdatedText = formatCacheTime(cached.savedAtEpochMs),
+                        errorMessage = if (quiet) null else str(R.string.error_network_cached),
+                        updateIcon = true,
+                        refreshWidgets = true
+                    )
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingWeather = false,
+                            isOffline = false,
+                            errorMessage = if (quiet) {
+                                null
+                            } else {
+                                userFacingError(e, R.string.error_fetch_weather)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun loadCurrentLocationWeather(showRationale: Boolean = true, quiet: Boolean = false) {
+        if (!locationHelper.hasLocationPermission()) {
+            if (showRationale && !quiet) {
+                _uiState.update { it.copy(errorMessage = str(R.string.error_need_location_permission)) }
+            }
+            return
+        }
+
+        weatherJob?.cancel()
+        weatherJob = null
+        weatherRequestId.incrementAndGet()
+
+        if (!quiet) {
+            _uiState.update {
+                it.copy(
+                    isLocating = true,
+                    isLoadingWeather = true,
+                    // 保留旧天气，定位期间不把界面刷空
+                    errorMessage = null
+                )
+            }
+        }
+
+        locationCoordinator.locate(
+            onResolved = { city ->
+                selectCity(city, fromLocation = true, quiet = quiet)
+            },
+            onError = { e ->
+                _uiState.update {
+                    it.copy(
+                        isLocating = false,
+                        isLoadingWeather = false,
+                        errorMessage = if (quiet) {
+                            null
+                        } else {
+                            userFacingError(e, R.string.error_locate_failed)
+                        }
+                    )
+                }
+                if (_uiState.value.weather == null) {
+                    coldStart.restoreFallbackCity()
+                }
+            },
+            onPlaceUpdated = { city ->
+                updateCurrentLocationLabel(city)
+            }
+        )
+    }
+
+    /** 逆地理完成后只改地名，不重拉天气。 */
+    private fun updateCurrentLocationLabel(city: City) {
+        _uiState.update { state ->
+            if (!state.usingCurrentLocation) return@update state
+            val current = state.selectedCity ?: return@update state
+            if (!roughlySameCity(current, city)) return@update state
+            state.copy(
+                selectedCity = city,
+                query = city.displayName
+            )
+        }
+        viewModelScope.launch {
+            selectedCityStore.save(city, useLocation = true)
+        }
+    }
+
+    fun toggleFavorite() {
+        val city = _uiState.value.selectedCity ?: return
+        viewModelScope.launch {
+            favoriteStore.toggle(city.copy(isCurrentLocation = false))
+        }
+    }
+
+    fun clearRecentCities() {
+        viewModelScope.launch {
+            recentCityStore.clear()
+        }
+    }
+
+    fun isFavorite(city: City?, favorites: List<City>): Boolean =
+        favoriteStore.isFavorite(favorites, city)
+
+    fun refresh(quiet: Boolean = false) {
+        val state = _uiState.value
+        // 静默刷新不打断正在进行的可见加载，避免把 spinner 清掉导致短暂空白
+        if (quiet && (state.isLoadingWeather || state.isLocating)) return
+        val city = state.selectedCity
+        if (city != null) {
+            // 下拉/自动刷新只重拉天气，复用已有坐标；完整 GPS 留给右上角「定位」
+            selectCity(
+                city = city,
+                fromLocation = state.usingCurrentLocation || city.isCurrentLocation,
+                quiet = quiet
+            )
+        } else if (state.usingCurrentLocation) {
+            loadCurrentLocationWeather(showRationale = !quiet, quiet = quiet)
+        }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun clearInfo() {
+        _uiState.update { it.copy(infoMessage = null) }
+    }
+
+    fun enableDebugMode() = debugController.enable()
+
+    fun exitDebugMode() = debugController.exit()
+
+    fun applyDebugOverride(override: DebugWeatherOverride) =
+        debugController.applyOverride(override)
+
+    fun clearDebugOverride() = debugController.clearOverride()
+
+    private suspend fun republishBaseWeather() {
+        val base = _baseWeather.value ?: return
+        val shown = presentWeather(base)
+        _uiState.update {
+            it.copy(
+                weather = shown,
+                debugEnabled = debugWeatherStore.getOnce().enabled
+            )
+        }
+    }
+
+    private suspend fun presentWeather(base: WeatherSnapshot): WeatherSnapshot {
+        val debug = debugWeatherStore.getOnce()
+        return if (debug.enabled) {
+            withContext(Dispatchers.Default) {
+                DebugWeatherStore.apply(
+                    base,
+                    debug.override,
+                    getApplication<Application>().resources
+                )
+            }
+        } else {
+            base
+        }
+    }
+
+    private fun publishWeather(
+        requestId: Int,
+        snapshot: WeatherSnapshot,
+        selectedCity: City,
+        isLoadingWeather: Boolean,
+        isOffline: Boolean,
+        lastUpdatedText: String,
+        errorMessage: String? = null,
+        updateIcon: Boolean = false,
+        refreshWidgets: Boolean = false
+    ) {
+        // 入口即弃过期请求：presentWeather 会挂起读 DataStore，期间可能已有更新的请求
+        if (requestId != weatherRequestId.get()) return
+        _baseWeather.value = snapshot
+        viewModelScope.launch {
+            val shown = presentWeather(snapshot)
+            // 续体再校验一次，否则快速切城时旧快照会盖回新城市
+            if (requestId != weatherRequestId.get()) return@launch
+            if (updateIcon) {
+                presentationEffects.scheduleLauncherIcon(
+                    getApplication(),
+                    shown.current.weatherCode,
+                    WeatherCodes.intensityPrecipMmPerHour(shown.current),
+                    shown.current.isDay
+                )
+            }
+            // 先出界面再刷小组件，避免 widget 更新拖住 loading
+            _uiState.update {
+                it.copy(
+                    weather = shown,
+                    selectedCity = selectedCity,
+                    isLoadingWeather = isLoadingWeather,
+                    isOffline = isOffline,
+                    lastUpdatedText = lastUpdatedText,
+                    errorMessage = errorMessage,
+                    debugEnabled = debugWeatherStore.getOnce().enabled
+                )
+            }
+            if (refreshWidgets) {
+                presentationEffects.refreshWidgets(getApplication())
+            }
+        }
+    }
+
+    private fun roughlySameCity(a: City?, b: City): Boolean {
+        if (a == null) return false
+        return kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
+            kotlin.math.abs(a.longitude - b.longitude) < 0.01
+    }
+
+    private fun nowText(): String =
+        LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+
+    private fun formatCacheTime(epochMs: Long): String =
+        LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMs), ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+
+    private fun str(@StringRes id: Int, vararg args: Any): String =
+        getApplication<Application>().str(id, *args)
+
+    private fun userFacingError(e: Throwable, @StringRes fallback: Int): String =
+        e.userFacingMessage(getApplication(), fallback)
+}

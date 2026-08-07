@@ -1,0 +1,585 @@
+package com.xiaoxiong.weather.ui.game
+
+import android.content.Context
+import android.view.HapticFeedbackConstants
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
+import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
+import kotlin.math.abs
+import kotlin.math.min
+import kotlin.math.sin
+import kotlin.random.Random
+import kotlinx.coroutines.isActive
+
+/** 彩蛋口令：搜索框输入「#小熊跳跳」进入跑酷小游戏。 */
+const val EASTER_EGG_BEAR_GAME = "#小熊跳跳"
+
+enum class GamePhase { READY, RUNNING, OVER }
+enum class ObstacleType { PUDDLE, SNOWMAN, STORM_CLOUD }
+
+class Obstacle(val type: ObstacleType, var x: Float, val w: Float, val h: Float)
+class Coin(var x: Float, val y: Float, val r: Float)
+class BgCloud(var x: Float, var y: Float, val scale: Float, val layer: Float)
+class Particle(
+    var x: Float,
+    var y: Float,
+    var vx: Float,
+    var vy: Float,
+    var life: Float,
+    val maxLife: Float = life,
+    val color: Color = Color.White
+)
+class FloatText(var x: Float, var y: Float, val text: String, var life: Float = 0.8f)
+
+/**
+ * 小熊跑酷全部可变状态。物理量在普通字段里（每帧变化不走快照），
+ * 只有阶段/最高分用 Compose state 驱动 HUD 重组。
+ */
+class BearGame {
+    var phase by mutableStateOf(GamePhase.READY)
+    var best by mutableIntStateOf(0)
+
+    var size = IntSize.Zero
+    var time = 0f
+    var distance = 0f
+    var speed = 0f
+    var coinCount = 0
+    var bearY = 0f
+    var bearVY = 0f
+    var jumpsLeft = 2
+    var grounded = true
+    var nextGap = Float.MAX_VALUE
+    var bob = 0f
+    var runPhase = 0f
+    var deadT = 0f
+    /** 眨眼倒计时；< 0 的 0.12s 内为闭眼。 */
+    var blinkT = 2.5f
+    /** 落地挤压计时；< 0 表示未触发。 */
+    var squashT = -1f
+    /** 二段跳空翻进度计时；< 0 表示未触发。 */
+    var flipT = -1f
+    /** 死亡屏幕震动剩余时间。 */
+    var shakeT = 0f
+    var dustT = 0f
+
+    val obstacles = mutableListOf<Obstacle>()
+    val coins = mutableListOf<Coin>()
+    val clouds = mutableListOf<BgCloud>()
+    val particles = mutableListOf<Particle>()
+    val texts = mutableListOf<FloatText>()
+
+    val s get() = size.height / 820f
+    val groundY get() = size.height * 0.80f
+    val bearSize get() = size.height * 0.115f
+    val bearX get() = size.width * 0.18f
+    private val floorY get() = groundY - bearSize
+    private val gravity get() = 2500f * s
+    private val jumpV get() = -960f * s
+    private val jumpV2 get() = -830f * s
+    private val maxSpeed get() = 950f * s
+
+    fun score(): Int = if (s <= 0f) 0 else (distance / (60f * s)).toInt() + coinCount * 10
+
+    fun resize(newSize: IntSize) {
+        if (newSize == size || newSize.height <= 0) return
+        size = newSize
+        // 对局中改尺寸会让障碍像素与碰撞错位，直接整局回准备态
+        if (phase == GamePhase.RUNNING || phase == GamePhase.OVER) {
+            phase = GamePhase.READY
+            reset()
+        } else if (phase == GamePhase.READY) {
+            reset()
+        }
+        bearY = bearY.coerceIn(-size.height.toFloat(), floorY)
+        if (clouds.isEmpty()) {
+            repeat(5) {
+                clouds += BgCloud(
+                    x = Random.nextFloat() * size.width,
+                    y = size.height * (0.06f + Random.nextFloat() * 0.22f),
+                    scale = 0.6f + Random.nextFloat() * 0.9f,
+                    layer = if (it % 2 == 0) 0.15f else 0.3f
+                )
+            }
+        }
+    }
+
+    fun reset() {
+        time = 0f
+        distance = 0f
+        speed = 0f
+        coinCount = 0
+        bearY = floorY
+        bearVY = 0f
+        jumpsLeft = 2
+        grounded = true
+        nextGap = 560f * s
+        runPhase = 0f
+        deadT = 0f
+        bob = 0f
+        blinkT = 2.5f
+        squashT = -1f
+        flipT = -1f
+        shakeT = 0f
+        dustT = 0f
+        obstacles.clear()
+        coins.clear()
+        particles.clear()
+        texts.clear()
+    }
+
+    fun start() {
+        reset()
+        phase = GamePhase.RUNNING
+        speed = 340f * s
+    }
+
+    fun tap() {
+        when (phase) {
+            GamePhase.READY -> start()
+            GamePhase.RUNNING -> if (jumpsLeft > 0) {
+                bearVY = if (jumpsLeft == 2) jumpV else jumpV2
+                jumpsLeft--
+                grounded = false
+                // 二段跳触发前空翻
+                if (jumpsLeft == 0) flipT = 0f
+                burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+            }
+            GamePhase.OVER -> Unit
+        }
+    }
+
+    fun die(onDeath: (score: Int) -> Unit) {
+        phase = GamePhase.OVER
+        deadT = 0f
+        shakeT = 0.35f
+        flipT = -1f
+        burst(bearX + bearSize / 2, bearY + bearSize / 2, count = 16, spread = 540f * s)
+        onDeath(score())
+    }
+
+    private fun onLand() {
+        squashT = 0f
+        flipT = -1f
+        burst(
+            bearX + bearSize / 2, groundY,
+            count = 6, spread = 170f * s, color = Color(0xFFD7CCC8)
+        )
+    }
+
+    fun burst(cx: Float, cy: Float, count: Int, spread: Float, color: Color = Color.White) {
+        repeat(count) {
+            val a = Random.nextFloat() * (Math.PI * 2).toFloat()
+            val v = (0.3f + Random.nextFloat() * 0.7f) * spread
+            val life = 0.5f + Random.nextFloat() * 0.4f
+            particles += Particle(
+                x = cx, y = cy,
+                vx = kotlin.math.cos(a) * v, vy = kotlin.math.sin(a) * v - 120f * s,
+                life = life, maxLife = life, color = color
+            )
+        }
+    }
+
+    private fun spawn() {
+        val r = Random.nextFloat()
+        val type = when {
+            r < 0.40f -> ObstacleType.PUDDLE
+            r < 0.72f -> ObstacleType.SNOWMAN
+            else -> ObstacleType.STORM_CLOUD
+        }
+        val (w, h) = when (type) {
+            ObstacleType.PUDDLE -> 78f * s to 20f * s
+            ObstacleType.SNOWMAN -> 56f * s to 84f * s
+            ObstacleType.STORM_CLOUD -> 68f * s to 50f * s
+        }
+        val x = size.width + 48f * s
+        obstacles += Obstacle(type, x, w, h)
+        if (Random.nextFloat() < 0.4f) {
+            // 障碍上方一道金币弧线，鼓励踩着节奏跳
+            val cy = groundY - bearSize - (30f + Random.nextFloat() * 46f) * s
+            for (i in -2..2) {
+                val lift = (2 - abs(i)) * 14f * s
+                coins += Coin(x + w / 2 + i * 34f * s, cy - lift, 11f * s)
+            }
+        }
+    }
+
+    fun tick(dt: Float, onCoin: () -> Unit, onDeath: (score: Int) -> Unit) {
+        if (size == IntSize.Zero) return
+        time += dt
+        if (shakeT > 0f) shakeT -= dt
+        if (squashT >= 0f) squashT += dt
+        if (phase != GamePhase.OVER) {
+            blinkT -= dt
+            if (blinkT < -0.12f) blinkT = 2.2f + Random.nextFloat() * 2.2f
+        }
+
+        // 粒子任何阶段都继续飞
+        val iter = particles.iterator()
+        while (iter.hasNext()) {
+            val p = iter.next()
+            p.life -= dt
+            p.vy += 900f * s * dt
+            p.x += p.vx * dt
+            p.y += p.vy * dt
+            if (p.life <= 0f) iter.remove()
+        }
+        // 飘分
+        val ti = texts.iterator()
+        while (ti.hasNext()) {
+            val t = ti.next()
+            t.life -= dt
+            t.y -= 70f * s * dt
+            if (t.life <= 0f) ti.remove()
+        }
+
+        if (phase == GamePhase.READY) bob = sin(time * 2.5f) * 1.5f * s
+        if (phase == GamePhase.OVER) deadT += dt
+        if (phase != GamePhase.RUNNING) return
+
+        speed = min(maxSpeed, speed + 7f * s * dt)
+        val dx = speed * dt
+        distance += dx
+        if (flipT >= 0f) flipT += dt
+
+        // 小熊物理
+        bearVY += gravity * dt
+        bearY += bearVY * dt
+        if (bearY >= floorY) {
+            val landed = !grounded
+            bearY = floorY
+            bearVY = 0f
+            jumpsLeft = 2
+            if (landed) onLand()
+            grounded = true
+            // 步频跟速度走：步幅相位驱动四肢摆动与身体起伏
+            runPhase += speed * dt * 0.04f / s
+            bob = -abs(sin(runPhase)) * 3f * s
+            // 高速跑动脚下扬尘
+            if (speed > 520f * s) {
+                dustT += dt
+                if (dustT > 0.09f) {
+                    dustT = 0f
+                    val life = 0.3f + Random.nextFloat() * 0.2f
+                    particles += Particle(
+                        x = bearX + bearSize * 0.25f, y = groundY - 5f * s,
+                        vx = -(70f + Random.nextFloat() * 90f) * s,
+                        vy = -(20f + Random.nextFloat() * 60f) * s,
+                        life = life, maxLife = life, color = Color(0xFFD7CCC8)
+                    )
+                }
+            }
+        } else {
+            grounded = false
+            bob = 0f
+        }
+
+        // 世界推进
+        obstacles.forEach { it.x -= dx }
+        obstacles.removeAll { it.x < -it.w - 20f * s }
+        coins.forEach { it.x -= dx }
+        coins.removeAll { it.x < -it.r - 20f * s }
+        clouds.forEach {
+            it.x -= dx * it.layer + 10f * s * dt
+            if (it.x < -140f * s * it.scale) {
+                it.x = size.width + Random.nextFloat() * 160f * s
+            }
+        }
+
+        nextGap -= dx
+        if (nextGap <= 0f) {
+            spawn()
+            nextGap = (460f + Random.nextFloat() * 340f) * s
+        }
+
+        // 碰撞（判定盒内缩，手感宽松一点）
+        val insetX = bearSize * 0.20f
+        val insetY = bearSize * 0.14f
+        val bearRect = Rect(
+            bearX + insetX, bearY + insetY,
+            bearX + bearSize - insetX, bearY + bearSize - insetY * 0.5f
+        )
+        val overlapping = coins.filter { c ->
+            val dxC = c.x - (bearX + bearSize / 2)
+            val dyC = c.y - (bearY + bearSize / 2)
+            val reach = c.r + bearSize * 0.52f
+            dxC * dxC + dyC * dyC < reach * reach
+        }
+        if (overlapping.isNotEmpty()) {
+            for (coinHit in overlapping) {
+                coins.remove(coinHit)
+                coinCount++
+                texts += FloatText(coinHit.x, coinHit.y - 24f * s, "+10")
+                burst(coinHit.x, coinHit.y, count = 4, spread = 150f * s, color = Color(0xFFFFCA28))
+                onCoin()
+            }
+        }
+        val dead = obstacles.any { ob ->
+            val obTop = when (ob.type) {
+                ObstacleType.PUDDLE -> groundY - ob.h
+                ObstacleType.SNOWMAN -> groundY - ob.h
+                ObstacleType.STORM_CLOUD -> groundY - ob.h - 4f * s
+            }
+            val shrinkX = ob.w * 0.16f
+            val shrinkTop = ob.h * 0.14f
+            bearRect.overlaps(
+                Rect(ob.x + shrinkX, obTop + shrinkTop, ob.x + ob.w - shrinkX, obTop + ob.h)
+            )
+        }
+        if (dead) die(onDeath)
+    }
+}
+
+@Composable
+fun BearGameScreen(
+    sceneCode: Int?,
+    isDay: Boolean?,
+    onExit: () -> Unit
+) {
+    BackHandler(onBack = onExit)
+    val context = LocalContext.current
+    val view = LocalView.current
+    val style = weatherSceneStyle(sceneCode, isDay, appDark = false)
+
+    val prefs = remember { context.getSharedPreferences("bear_game", Context.MODE_PRIVATE) }
+    val game = remember {
+        BearGame().also { it.best = prefs.getInt("best", 0) }
+    }
+    val bearSprites = BearSprites(
+        runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
+        runPushA = ImageBitmap.imageResource(R.drawable.bear_run_push_a),
+        runPass = ImageBitmap.imageResource(R.drawable.bear_run_pass),
+        runB = ImageBitmap.imageResource(R.drawable.bear_run_b),
+        runPushB = ImageBitmap.imageResource(R.drawable.bear_run_push_b),
+        jump = ImageBitmap.imageResource(R.drawable.bear_jump),
+        fall = ImageBitmap.imageResource(R.drawable.bear_fall),
+        land = ImageBitmap.imageResource(R.drawable.bear_land)
+    )
+    var frame by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(Unit) {
+        var last = Long.MIN_VALUE
+        while (isActive) {
+            withFrameNanos { now ->
+                val dt = if (last == Long.MIN_VALUE) {
+                    1f / 60f
+                } else {
+                    min((now - last) / 1e9f, 0.033f)
+                }
+                last = now
+                game.tick(
+                    dt,
+                    onCoin = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    },
+                    onDeath = { score ->
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        if (score > game.best) {
+                            game.best = score
+                            prefs.edit().putInt("best", score).apply()
+                        }
+                    }
+                )
+                frame = now
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(style.gradient))
+            .onSizeChanged { sz ->
+                game.resize(IntSize(sz.width, sz.height))
+            }
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        game.tap()
+                    }
+                }
+        ) {
+            frame // 每帧触发重绘
+            if (game.size == IntSize.Zero) return@Canvas
+            drawWorld(game, style.contentColor, isDay = isDay ?: true, sprites = bearSprites)
+        }
+
+        GameHud(game = game, frame = frame, onExit = onExit)
+
+        when (game.phase) {
+            GamePhase.READY -> {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.bear_game_title),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = style.contentColor
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.bear_game_tap_start),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = style.contentColor
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.bear_game_hint_jump),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = style.mutedContentColor
+                    )
+                }
+            }
+            GamePhase.OVER -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                do {
+                                    val event = awaitPointerEvent()
+                                    event.changes.forEach { it.consume() }
+                                } while (event.changes.any { it.pressed })
+                            }
+                        }
+                )
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(32.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    tonalElevation = 4.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = stringResource(R.string.bear_game_over),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "${game.score()}",
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.bear_game_best_label) +
+                                " ${game.best}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            TextButton(onClick = onExit) {
+                                Text(stringResource(R.string.bear_game_exit))
+                            }
+                            Button(onClick = { game.start() }) {
+                                Text(stringResource(R.string.bear_game_restart))
+                            }
+                        }
+                    }
+                }
+            }
+            GamePhase.RUNNING -> Unit
+        }
+    }
+}
+
+@Composable
+private fun GameHud(game: BearGame, frame: Long, onExit: () -> Unit) {
+    // frame 仅用于驱动 HUD 每帧刷新分数
+    @Suppress("UNUSED_EXPRESSION") frame
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onExit) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = stringResource(R.string.cd_close_game),
+                tint = Color.White
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "${game.score()}",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = stringResource(R.string.bear_game_best_label) + " ${game.best}",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.8f)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+    }
+}
