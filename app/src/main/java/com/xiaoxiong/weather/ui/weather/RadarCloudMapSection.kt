@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
@@ -38,8 +39,9 @@ fun RadarCloudMapSection(
     val context = LocalContext.current
     val resources = context.resources
     val city = snapshot.city
+    val configuration = LocalConfiguration.current
     val outlook =
-        remember(snapshot.current, snapshot.hourly, resources.configuration) {
+        remember(snapshot.current, snapshot.hourly, configuration) {
             RadarPrecipOutlook.from(resources, snapshot.current, snapshot.hourly)
         }
     var mapMode by remember { mutableStateOf(PrecipMapMode.RADAR) }
