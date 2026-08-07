@@ -35,6 +35,10 @@ android {
         versionCode = 29
         versionName = "1.4.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            // 仅保留 ARM 架构：x86/x86_64 只服务于模拟器，2026 年已无实际设备使用
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     signingConfigs {
