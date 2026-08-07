@@ -28,3 +28,4 @@ keystore.properties
 app/release.keystore
 .cursor_tmp*
 /.vscode
+/dist
