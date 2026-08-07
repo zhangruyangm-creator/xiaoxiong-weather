@@ -43,16 +43,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import kotlin.math.abs
 
 @Composable
 internal fun SearchHeader(
+    viewModel: WeatherViewModel,
     query: String,
-    favorites: List<City>,
-    recentCities: List<City>,
-    popularCities: List<City>,
     selectedCity: City?,
     isSearching: Boolean,
     suggestions: List<City>,
@@ -60,6 +59,11 @@ internal fun SearchHeader(
     onSelectCity: (City) -> Unit,
     onClearRecent: () -> Unit,
 ) {
+    // 收藏/最近/热门城市只在搜索面板使用，下沉到组件内收集，
+    // 避免任一变化触发整个天气页重组
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val recentCities by viewModel.recentCities.collectAsStateWithLifecycle()
+    val popularCities by viewModel.popularCities.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     var searchFocused by remember { mutableStateOf(false) }
     val showDiscovery = searchFocused && query.trim().length < 2

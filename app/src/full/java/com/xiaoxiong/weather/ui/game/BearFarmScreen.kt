@@ -433,6 +433,12 @@ fun BearFarmScreen(
 
     LaunchedEffect(weather) {
         var last = Long.MIN_VALUE
+        var slowTick = 0
+        // 雨/雪/雷暴有粒子动画需要 60fps；晴/多云/雾降频到约 12fps 即可
+        val needsHighFps =
+            weather == FarmWeather.RAINY ||
+                weather == FarmWeather.STORMY ||
+                weather == FarmWeather.SNOWY
         while (isActive) {
             withFrameNanos { now ->
                 val dt =
@@ -443,12 +449,19 @@ fun BearFarmScreen(
                     }
                 last = now
                 farm.tick(System.currentTimeMillis(), weather, dt)
-                // 每约 5 秒自动存一次
-                if ((now / 5_000_000_000L) != (frame / 5_000_000_000L) && frame != 0L) {
-                    farm.save()
+                if (needsHighFps || slowTick % 5 == 0) {
+                    frame = now
                 }
-                frame = now
+                slowTick++
             }
+        }
+    }
+
+    // 自动保存与渲染帧解耦：独立 5 秒定时，不再依赖帧循环
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            delay(5_000)
+            farm.save()
         }
     }
 

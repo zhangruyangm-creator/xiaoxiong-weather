@@ -83,9 +83,6 @@ private fun WeatherScreenContent(
     viewModel: WeatherViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
-    val recentCities by viewModel.recentCities.collectAsStateWithLifecycle()
-    val popularCities by viewModel.popularCities.collectAsStateWithLifecycle()
     val appSettings by viewModel.appSettings.collectAsStateWithLifecycle()
     val debugState by viewModel.debugState.collectAsStateWithLifecycle()
     val baseWeather by viewModel.baseWeather.collectAsStateWithLifecycle()
@@ -229,7 +226,6 @@ private fun WeatherScreenContent(
         viewModel.clearInfo()
     }
 
-    val favorite = viewModel.isFavorite(state.selectedCity, favorites)
     // 折线图横向拖动选点时，暂时关闭左右翻页，避免手势被 Pager 抢走
     var pagerScrollEnabled by remember { mutableStateOf(true) }
     val onChartDragStateChange =
@@ -264,8 +260,8 @@ private fun WeatherScreenContent(
                 containerColor = Color.Transparent,
                 topBar = {
                     WeatherTopBar(
+                        viewModel = viewModel,
                         state = state,
-                        isFavorite = favorite,
                         onLocate = {
                             val needPermission = viewModel.requestLocate()
                             if (needPermission) {
@@ -308,10 +304,8 @@ private fun WeatherScreenContent(
                             .padding(innerPadding),
                 ) {
                     SearchHeader(
+                        viewModel = viewModel,
                         query = state.query,
-                        favorites = favorites,
-                        recentCities = recentCities,
-                        popularCities = popularCities,
                         selectedCity = state.selectedCity,
                         isSearching = state.isSearching,
                         suggestions = state.suggestions,

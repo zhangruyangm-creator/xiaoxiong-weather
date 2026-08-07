@@ -470,6 +470,7 @@ fun BearGameScreen(
 
     LaunchedEffect(Unit) {
         var last = Long.MIN_VALUE
+        var slowTick = 0
         while (isActive) {
             withFrameNanos { now ->
                 val dt =
@@ -479,20 +480,25 @@ fun BearGameScreen(
                         min((now - last) / 1e9f, 0.033f)
                     }
                 last = now
-                game.tick(
-                    dt,
-                    onCoin = {
-                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    },
-                    onDeath = { score ->
-                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                        if (score > game.best) {
-                            game.best = score
-                            prefs.edit().putInt("best", score).apply()
-                        }
-                    },
-                )
-                frame = now
+                val running = game.phase == GamePhase.RUNNING
+                // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
+                if (running || slowTick % 5 == 0) {
+                    game.tick(
+                        dt,
+                        onCoin = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        },
+                        onDeath = { score ->
+                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            if (score > game.best) {
+                                game.best = score
+                                prefs.edit().putInt("best", score).apply()
+                            }
+                        },
+                    )
+                    frame = now
+                }
+                if (!running) slowTick++
             }
         }
     }
