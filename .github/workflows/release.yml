@@ -48,19 +48,46 @@ jobs:
         id: version
         run: echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Build release notes from CHANGELOG
+        id: notes
+        env:
+          VERSION: ${{ steps.version.outputs.tag }}
+        run: |
+          NOTES=$(python3 -c "
+import re, pathlib
+txt = pathlib.Path('CHANGELOG.md').read_text()
+m = re.search(r'## \\[' + '$VERSION' + r'\\].*?(?=\\n## |\\Z)', txt, re.S)
+print(m.group(0).strip() if m else '')
+")
+          if [ -z "$NOTES" ]; then
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_notes=true" >> "$GITHUB_OUTPUT"
+            echo "$NOTES" > /tmp/release-notes.txt
+          fi
+
       - name: Publish to releases repo
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           TAG: ${{ github.ref_name }}
           VERSION: ${{ steps.version.outputs.tag }}
+          HAS_NOTES: ${{ steps.notes.outputs.has_notes }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
             echo "::error::GH_TOKEN secret 未配置（需要有 xiaoxiong-weather-releases 写权限的 PAT）"
             exit 1
           fi
-          gh release create "$TAG" \
-            app/build/outputs/apk/full/release/app-full-release.apk \
-            --repo zhangruyangm-creator/xiaoxiong-weather-releases \
-            --title "Xiaoxiong Weather $VERSION" \
-            --notes "自动发布：v$VERSION（由 GitHub Actions 构建签名）" \
-            --generate-notes
+          if [ "$HAS_NOTES" == "true" ]; then
+            gh release create "$TAG" \
+              app/build/outputs/apk/full/release/app-full-release.apk \
+              --repo zhangruyangm-creator/xiaoxiong-weather-releases \
+              --title "Xiaoxiong Weather $VERSION" \
+              --notes-file /tmp/release-notes.txt
+          else
+            gh release create "$TAG" \
+              app/build/outputs/apk/full/release/app-full-release.apk \
+              --repo zhangruyangm-creator/xiaoxiong-weather-releases \
+              --title "Xiaoxiong Weather $VERSION" \
+              --notes "自动发布：v$VERSION（由 GitHub Actions 构建签名）" \
+              --generate-notes
+          fi
