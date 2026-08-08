@@ -96,8 +96,9 @@ if f"| {version} |" in old:
     print("README 已含该版本，跳过")
     sys.exit(0)
 
-# 版本表插入（放在当前最新版本行之前）
-new = old.replace("| 1.4.5 |", row + "| 1.4.5 |", 1)
+# 版本表插入：锚定表头，永远插到第一行（不再硬编码历史版本号）
+ver_header = "| 版本 | 文件 | 大小 |\n|------|------|------|\n"
+new = old.replace(ver_header, ver_header + row, 1)
 
 # 从本地 CHANGELOG 提取该版本的 bullet 摘要
 changelog = open("CHANGELOG.md", encoding="utf-8").read()
@@ -106,7 +107,8 @@ bullets = re.findall(r"^\- (.*)$", m.group(0), re.M) if m else []
 summary = "；".join(bullets) if bullets else "见 GitHub Release 说明"
 today = os.popen("date +%F").read().strip()
 log_row = f"| {version} | {today} | {summary} |\n"
-new = new.replace("| 版本 | 日期 | 主要更新 |\n|------|------|----------|\n| 1.4.5 |", "| 版本 | 日期 | 主要更新 |\n|------|------|----------|\n" + log_row + "| 1.4.5 |", 1)
+log_header = "| 版本 | 日期 | 主要更新 |\n|------|------|----------|\n"
+new = new.replace(log_header, log_header + log_row, 1)
 
 payload = json.dumps({
     "message": f"update README for v{version}",
