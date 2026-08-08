@@ -126,24 +126,34 @@ private fun DrawScope.drawHills(
     val groundY = game.groundY
     val segW = 260f * s
     val hillH = size.height * heightRatio
+    // 山丘带形状固定，缓存复用；每帧只做平移，避免每帧 new Path 引发 GC
+    val cached = game.hillPathCache
+    val path =
+        if (cached != null && cached.first == heightRatio) {
+            cached.second
+        } else {
+            Path()
+                .apply {
+                    // 覆盖足够宽的固定山丘带（4096*s 逻辑像素 > 任何手机屏幕）
+                    val span = 4096f * s
+                    var x = -segW
+                    while (x < span + segW) {
+                        moveTo(x, 0f)
+                        quadraticTo(x + segW / 2, -hillH * 2, x + segW, 0f)
+                        x += segW
+                    }
+                    lineTo(span, 0f)
+                    lineTo(span, 4f * s)
+                    lineTo(0f, 4f * s)
+                    close()
+                }.also { game.hillPathCache = heightRatio to it }
+        }
     val offset = -(game.distance * parallax % segW)
-    val path = Path()
-    path.moveTo(offset - segW, groundY)
-    var x = offset - segW
-    while (x < size.width + segW) {
-        path.quadraticTo(
-            x + segW / 2,
-            groundY - hillH * 2,
-            x + segW,
-            groundY,
-        )
-        x += segW
+    withTransform({
+        translate(left = offset, top = groundY)
+    }) {
+        drawPath(path, contentColor, alpha = alpha)
     }
-    path.lineTo(size.width, groundY)
-    path.lineTo(size.width, groundY + 4f * s)
-    path.lineTo(0f, groundY + 4f * s)
-    path.close()
-    drawPath(path, contentColor, alpha = alpha)
 }
 
 private fun DrawScope.drawBgClouds(game: BearGame) {

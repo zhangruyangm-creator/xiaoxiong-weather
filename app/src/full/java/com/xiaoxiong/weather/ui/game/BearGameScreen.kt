@@ -44,6 +44,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -123,6 +124,9 @@ class BearGame {
     var jumpsLeft = 2
     var grounded = true
     var nextGap = Float.MAX_VALUE
+
+    /** 视差山丘 Path 缓存：key = heightRatio，避免每帧重建 Path 引发 GC。 */
+    var hillPathCache: Pair<Float, Path>? = null
     var bob = 0f
     var runPhase = 0f
     var deadT = 0f
