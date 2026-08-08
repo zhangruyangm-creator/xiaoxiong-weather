@@ -59,6 +59,92 @@ class DebugWeatherStoreTest {
         assertFalse(shown.alerts.any { it.kind == AlertKind.CLEAR })
     }
 
+    @Test
+    fun apply_onlyTemp_feelsFollowsTemp() {
+        val resources = mockResources()
+        val base =
+            WeatherSnapshot(
+                city = WeatherFixtures.city("青岛"),
+                current =
+                    WeatherFixtures.current(
+                        weatherCode = 0,
+                        temperatureC = 22.0,
+                        apparentTemperatureC = 27.0,
+                    ),
+                hourly =
+                    listOf(
+                        WeatherFixtures.hourly("2026-08-02T12:00", precipitationMm = 0.0, weatherCode = 0),
+                    ),
+                daily = emptyList(),
+                alerts = emptyList(),
+            )
+        val shown =
+            DebugWeatherStore.apply(
+                base,
+                DebugWeatherOverride(temperatureC = -89.2),
+                resources,
+            )
+        assertEquals(-89.2, shown.current.temperatureC)
+        // 只改实际温度时体感自动跟随，避免预警按旧体感判断
+        assertEquals(-89.2, shown.current.apparentTemperatureC)
+    }
+
+    @Test
+    fun apply_bothTemps_keepsIndependentFeels() {
+        val resources = mockResources()
+        val base =
+            WeatherSnapshot(
+                city = WeatherFixtures.city("青岛"),
+                current = WeatherFixtures.current(weatherCode = 0, temperatureC = 22.0),
+                hourly = listOf(WeatherFixtures.hourly("2026-08-02T12:00", precipitationMm = 0.0, weatherCode = 0)),
+                daily = emptyList(),
+                alerts = emptyList(),
+            )
+        val shown =
+            DebugWeatherStore.apply(
+                base,
+                DebugWeatherOverride(temperatureC = -89.2, apparentTemperatureC = -95.0),
+                resources,
+            )
+        assertEquals(-89.2, shown.current.temperatureC)
+        assertEquals(-95.0, shown.current.apparentTemperatureC)
+    }
+
+    @Test
+    fun apply_dailyTempOverride_emitsHeatWaveAlert() {
+        val resources = mockResources()
+        val base =
+            WeatherSnapshot(
+                city = WeatherFixtures.city("青岛"),
+                current = WeatherFixtures.current(weatherCode = 0, temperatureC = 30.0),
+                hourly =
+                    listOf(
+                        WeatherFixtures.hourly("2026-08-02T12:00", precipitationMm = 0.0, weatherCode = 0),
+                    ),
+                daily =
+                    (0 until 7).map { i ->
+                        WeatherFixtures.daily(
+                            date = "2026-08-${(i + 2).toString().padStart(2, '0')}",
+                            tempMaxC = 30.0,
+                            tempMinC = 24.0,
+                        )
+                    },
+                alerts = emptyList(),
+            )
+        val shown =
+            DebugWeatherStore.apply(
+                base,
+                DebugWeatherOverride(dailyTempMaxC = listOf(37.0, 38.0, 39.0, 36.0, 35.0)),
+                resources,
+            )
+        assertEquals(37.0, shown.daily[0].tempMaxC)
+        assertEquals(38.0, shown.daily[1].tempMaxC)
+        assertEquals(39.0, shown.daily[2].tempMaxC)
+        // 未覆盖的第 6、7 天保留实况
+        assertEquals(30.0, shown.daily[5].tempMaxC)
+        assertTrue(shown.alerts.any { it.kind == AlertKind.HEAT_WAVE })
+    }
+
     private fun mockResources(): Resources {
         val resources = Mockito.mock(Resources::class.java)
         Mockito.`when`(resources.getString(Mockito.anyInt())).thenReturn("x")

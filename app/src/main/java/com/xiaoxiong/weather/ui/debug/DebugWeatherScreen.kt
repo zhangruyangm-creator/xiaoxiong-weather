@@ -98,6 +98,12 @@ fun DebugWeatherScreen(
     var dust by remember(initialOverride, baseWeather) {
         mutableStateOf(fieldText(initialOverride.dustUgM3, baseWeather?.airQuality?.dustUgM3))
     }
+    var dailyMax by remember(initialOverride) {
+        mutableStateOf(initialOverride.dailyTempMaxC?.joinToString(",") ?: "")
+    }
+    var dailyMin by remember(initialOverride) {
+        mutableStateOf(initialOverride.dailyTempMinC?.joinToString(",") ?: "")
+    }
 
     fun buildOverride(): DebugWeatherOverride =
         DebugWeatherOverride(
@@ -112,6 +118,8 @@ fun DebugWeatherScreen(
             uvIndex = uv.toDoubleOrNull(),
             europeanAqi = aqi.toIntOrNull(),
             dustUgM3 = dust.toDoubleOrNull(),
+            dailyTempMaxC = parseDailyTemps(dailyMax),
+            dailyTempMinC = parseDailyTemps(dailyMin),
         )
 
     AppScreenBackground(modifier = Modifier.fillMaxSize()) {
@@ -165,6 +173,33 @@ fun DebugWeatherScreen(
                 item {
                     SoftCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            // 预置场景：一键填入连续高温/寒潮所需温度与未来逐日温度
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        temperature = "37"
+                                        feels = "37"
+                                        dailyMax = "37,38,39,36,35"
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(stringResource(R.string.debug_scene_heat_wave))
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        temperature = "35"
+                                        feels = "35"
+                                        dailyMax = "35,15,12,14,16"
+                                        dailyMin = "28,8,6,10,12"
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(stringResource(R.string.debug_scene_cold_wave))
+                                }
+                            }
                             DebugField(
                                 stringResource(R.string.debug_field_temp),
                                 temperature,
@@ -212,6 +247,16 @@ fun DebugWeatherScreen(
                                 stringResource(R.string.debug_field_dust),
                                 dust,
                             ) { dust = it }
+                            DebugField(
+                                stringResource(R.string.debug_field_daily_max),
+                                dailyMax,
+                                KeyboardType.Decimal,
+                            ) { dailyMax = it }
+                            DebugField(
+                                stringResource(R.string.debug_field_daily_min),
+                                dailyMin,
+                                KeyboardType.Decimal,
+                            ) { dailyMin = it }
                         }
                     }
                 }
@@ -274,6 +319,17 @@ private fun fieldText(
     override: Int?,
     fallback: Int?,
 ): String = (override ?: fallback)?.toString() ?: ""
+
+/** 解析"37,38,39"或"37 38 39"为温度列表；空串/非法输入返回 null（不改 daily）。 */
+private fun parseDailyTemps(raw: String): List<Double>? {
+    val values =
+        raw
+            .split(',', ' ', '，')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .mapNotNull { it.toDoubleOrNull() }
+    return values.takeIf { it.isNotEmpty() }
+}
 
 private fun trimNum(value: Double): String {
     val asLong = value.toLong()

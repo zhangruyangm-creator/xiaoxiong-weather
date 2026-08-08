@@ -28,6 +28,10 @@ data class DebugWeatherOverride(
     val uvIndex: Double? = null,
     val europeanAqi: Int? = null,
     val dustUgM3: Double? = null,
+    /** 未来逐日最高温覆盖（从今天起），可短于 daily；null = 不改 daily。 */
+    val dailyTempMaxC: List<Double>? = null,
+    /** 未来逐日最低温覆盖（从今天起）。 */
+    val dailyTempMinC: List<Double>? = null,
 ) {
     fun hasAny(): Boolean =
         temperatureC != null ||
@@ -40,7 +44,9 @@ data class DebugWeatherOverride(
             visibilityMeters != null ||
             uvIndex != null ||
             europeanAqi != null ||
-            dustUgM3 != null
+            dustUgM3 != null ||
+            dailyTempMaxC != null ||
+            dailyTempMinC != null
 }
 
 data class DebugWeatherState(
@@ -116,12 +122,17 @@ class DebugWeatherStore(
             resources: Resources,
         ): WeatherSnapshot {
             if (!override.hasAny()) return base
+            // 只设实际温度时体感温度自动跟随，避免预警仍按旧体感判断导致测试失真
+            val effectiveFeelsC =
+                when {
+                    override.temperatureC != null && override.apparentTemperatureC == null ->
+                        override.temperatureC
+                    else -> override.apparentTemperatureC
+                }
             val current =
                 base.current.copy(
                     temperatureC = override.temperatureC ?: base.current.temperatureC,
-                    apparentTemperatureC =
-                        override.apparentTemperatureC
-                            ?: base.current.apparentTemperatureC,
+                    apparentTemperatureC = effectiveFeelsC ?: base.current.apparentTemperatureC,
                     humidityPercent = override.humidityPercent ?: base.current.humidityPercent,
                     weatherCode = override.weatherCode ?: base.current.weatherCode,
                     precipitationRateMmPerHour =
@@ -146,6 +157,24 @@ class DebugWeatherStore(
                         weatherCode = override.weatherCode ?: hourly[0].weatherCode,
                     )
             }
+            // daily 温度覆盖：支持模拟连续高温/寒潮（长度不足处保留实况）
+            val daily =
+                if (override.dailyTempMaxC != null || override.dailyTempMinC != null) {
+                    base.daily.mapIndexed { i, d ->
+                        val max = override.dailyTempMaxC?.getOrNull(i)
+                        val min = override.dailyTempMinC?.getOrNull(i)
+                        if (max != null || min != null) {
+                            d.copy(
+                                tempMaxC = max ?: d.tempMaxC,
+                                tempMinC = min ?: d.tempMinC,
+                            )
+                        } else {
+                            d
+                        }
+                    }
+                } else {
+                    base.daily
+                }
             val air =
                 (base.airQuality ?: AirQuality()).copy(
                     uvIndex = override.uvIndex ?: base.airQuality?.uvIndex,
@@ -157,7 +186,7 @@ class DebugWeatherStore(
                     resources,
                     current,
                     hourly,
-                    base.daily,
+                    daily,
                     air,
                 )
             val lifeIndices =
@@ -165,7 +194,7 @@ class DebugWeatherStore(
                     resources,
                     current,
                     hourly,
-                    base.daily,
+                    daily,
                     air,
                 )
             val advice =
@@ -173,12 +202,13 @@ class DebugWeatherStore(
                     resources,
                     current,
                     hourly,
-                    base.daily,
+                    daily,
                     air,
                 )
             return base.copy(
                 current = current,
                 hourly = hourly,
+                daily = daily,
                 airQuality = air,
                 alerts = alerts,
                 lifeIndices = lifeIndices,

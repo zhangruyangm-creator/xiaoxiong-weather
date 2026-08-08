@@ -446,6 +446,10 @@
     <string name="debug_field_uv">紫外线</string>
     <string name="debug_field_aqi">欧洲 AQI</string>
     <string name="debug_field_dust">沙尘 μg/m³</string>
+    <string name="debug_scene_heat_wave">连续高温</string>
+    <string name="debug_scene_cold_wave">寒潮</string>
+    <string name="debug_field_daily_max">未来最高温（今天起，逗号分隔）</string>
+    <string name="debug_field_daily_min">未来最低温（今天起，逗号分隔）</string>
     <string name="settings_privacy_policy">隐私政策</string>
     <string name="settings_about_permissions">定位仅用于当前城市天气；通知用于天气变化提醒；网络用于获取预报与雷达。</string>
     <string name="settings_alert_disclaimer_title">智能提醒说明</string>
