@@ -419,6 +419,8 @@ fun BearMazeScreen(
         }
     val mazeWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     val mazeRain = remember(sceneCode) { rainStrengthOf(sceneCode) }
+    val mazeFreezingRain = remember(sceneCode) { isFreezingRainCode(sceneCode) }
+    val mazeHail = remember(sceneCode) { isHailCode(sceneCode) }
     val game = remember { MazeGame().also { it.loadProgress(prefs) } }
     val sprites =
         BearSprites(
@@ -493,6 +495,8 @@ fun BearMazeScreen(
                     frame = frame,
                     weather = mazeWeather,
                     rainStrength = mazeRain,
+                    freezingRain = mazeFreezingRain,
+                    hail = mazeHail,
                     onExitSelect = { game.openSelect() },
                     onRestart = { game.restart() },
                     onNext = {
@@ -653,6 +657,8 @@ private fun MazePlayField(
     frame: Long,
     weather: FarmWeather,
     rainStrength: RainStrength,
+    freezingRain: Boolean,
+    hail: Boolean,
     onExitSelect: () -> Unit,
     onRestart: () -> Unit,
     onNext: () -> Unit,
@@ -695,7 +701,7 @@ private fun MazePlayField(
             @Suppress("UNUSED_EXPRESSION")
             frame
             drawMazeWorld(game, sprites, style)
-            drawMazeWeather(game, weather, rainStrength)
+            drawMazeWeather(game, weather, rainStrength, freezingRain, hail)
         }
 
         // HUD
@@ -915,42 +921,84 @@ private fun DrawScope.drawMazeWeather(
     game: MazeGame,
     weather: FarmWeather,
     rainStrength: RainStrength,
+    freezingRain: Boolean,
+    hail: Boolean,
 ) {
+    // 冻雨/冰雹优先于普通雨/雷暴识别
+    if (freezingRain) {
+        drawRect(Color(0xFF5E7390).copy(alpha = 0.20f))
+        drawFreezingRain(game.time, 1f, size.width, size.height)
+        return
+    }
+    if (hail) {
+        drawRect(Color(0xFF141B28).copy(alpha = 0.30f))
+        // 冰雹：雨更少，突出冰雹粒子
+        drawRainLayered(
+            fgCount = 18,
+            bgCount = 9,
+            time = game.time,
+            width = size.width,
+            height = size.height,
+            scale = 1f,
+            lenMul = 1.1f,
+            alpha = 0.55f,
+            fgColor = Color(0xFFD8E6F8),
+        )
+        drawHailPellets(game.time, 1f, size.width, size.height, count = 44)
+        drawStormLightning(game.time, 1f, size.width, size.height)
+        return
+    }
     when (weather) {
         FarmWeather.SUNNY, FarmWeather.CLOUDY, FarmWeather.FOGGY -> Unit
         FarmWeather.RAINY -> {
             drawRect(Color(0xFF29364A).copy(alpha = 0.12f))
-            val count =
-                when (rainStrength) {
-                    RainStrength.LIGHT -> 22
-                    RainStrength.HEAVY -> 70
-                    else -> 46
-                }
-            for (i in 0 until count) {
-                val x = ((i * 97 + game.time * 90) % (size.width + 40)) - 20
-                val y = ((i * 53 + game.time * 230) % (size.height + 60)) - 30
-                drawLine(
-                    Color(0xFFA9C6E8).copy(alpha = 0.55f),
-                    Offset(x, y),
-                    Offset(x - 3f, y + 14f),
-                    strokeWidth = 2f,
-                    cap = StrokeCap.Round,
-                )
+            when (rainStrength) {
+                RainStrength.LIGHT ->
+                    drawRainLayered(
+                        fgCount = 15,
+                        bgCount = 7,
+                        time = game.time,
+                        width = size.width,
+                        height = size.height,
+                        scale = 1f,
+                        alpha = 0.45f,
+                    )
+                RainStrength.HEAVY ->
+                    drawRainLayered(
+                        fgCount = 47,
+                        bgCount = 23,
+                        time = game.time,
+                        width = size.width,
+                        height = size.height,
+                        scale = 1f,
+                        lenMul = 1.15f,
+                        alpha = 0.65f,
+                    )
+                else ->
+                    drawRainLayered(
+                        fgCount = 31,
+                        bgCount = 15,
+                        time = game.time,
+                        width = size.width,
+                        height = size.height,
+                        scale = 1f,
+                        alpha = 0.55f,
+                    )
             }
         }
         FarmWeather.STORMY -> {
             drawRect(Color(0xFF151B26).copy(alpha = 0.28f))
-            for (i in 0 until 78) {
-                val x = ((i * 97 + game.time * 120) % (size.width + 40)) - 20
-                val y = ((i * 53 + game.time * 260) % (size.height + 60)) - 30
-                drawLine(
-                    Color(0xFFA9C6E8).copy(alpha = 0.65f),
-                    Offset(x, y),
-                    Offset(x - 4f, y + 16f),
-                    strokeWidth = 2f,
-                    cap = StrokeCap.Round,
-                )
-            }
+            // 雷暴：以闪电为主，雨量收敛到中雨量级
+            drawRainLayered(
+                fgCount = 32,
+                bgCount = 16,
+                time = game.time,
+                width = size.width,
+                height = size.height,
+                scale = 1f,
+                lenMul = 1.25f,
+                alpha = 0.6f,
+            )
             if (sin(game.time * 6f) > 0.90f) {
                 drawLine(
                     Color(0xFFFFF59D).copy(alpha = 0.85f),
@@ -977,17 +1025,17 @@ private fun DrawScope.drawThemeFx(
 ) {
     when (game.level.theme) {
         MazeTheme.RAIN -> {
-            for (i in 0 until 40) {
-                val x = ((i * 97 + game.time * 80) % (size.width + 40)) - 20
-                val y = ((i * 53 + game.time * 220) % (size.height + 60)) - 30
-                drawLine(
-                    Color.White.copy(alpha = 0.35f),
-                    Offset(x, y),
-                    Offset(x - 4f, y + 14f),
-                    strokeWidth = 2f,
-                    cap = StrokeCap.Round,
-                )
-            }
+            drawRainLayered(
+                fgCount = 27,
+                bgCount = 13,
+                time = game.time,
+                width = size.width,
+                height = size.height,
+                scale = 1f,
+                alpha = 0.4f,
+                fgColor = Color.White,
+                bgColor = Color.White,
+            )
         }
         MazeTheme.SNOW -> {
             for (i in 0 until 35) {

@@ -110,23 +110,29 @@ private val jumpTextPaint =
     }
 
 /** 摘星场景：纯晴天（非雨天）时为夜晚（star 字面义，星最多）；阴天灰云；雨/雪/雷暴渲染雨雪。 */
-enum class JumpScene { SUNNY, CLOUDY, RAIN_LIGHT, RAIN, RAIN_HEAVY, SNOW, STORM }
+enum class JumpScene { SUNNY, CLOUDY, RAIN_LIGHT, RAIN, RAIN_HEAVY, SNOW, STORM, FREEZING_RAIN, HAIL }
 
 private fun jumpSceneFromWeather(
     weather: FarmWeather,
     sceneCode: Int?,
 ): JumpScene =
-    when (weather) {
-        FarmWeather.SNOWY -> JumpScene.SNOW
-        FarmWeather.RAINY ->
-            when (rainStrengthOf(sceneCode)) {
-                RainStrength.LIGHT -> JumpScene.RAIN_LIGHT
-                RainStrength.HEAVY -> JumpScene.RAIN_HEAVY
-                else -> JumpScene.RAIN
+    when {
+        // 冻雨/冰雹：原码保留在 displayCode 中，优先于普通雨/雷暴识别
+        isFreezingRainCode(sceneCode) -> JumpScene.FREEZING_RAIN
+        isHailCode(sceneCode) -> JumpScene.HAIL
+        else ->
+            when (weather) {
+                FarmWeather.SNOWY -> JumpScene.SNOW
+                FarmWeather.RAINY ->
+                    when (rainStrengthOf(sceneCode)) {
+                        RainStrength.LIGHT -> JumpScene.RAIN_LIGHT
+                        RainStrength.HEAVY -> JumpScene.RAIN_HEAVY
+                        else -> JumpScene.RAIN
+                    }
+                FarmWeather.STORMY -> JumpScene.STORM
+                FarmWeather.CLOUDY, FarmWeather.FOGGY -> JumpScene.CLOUDY
+                FarmWeather.SUNNY -> JumpScene.SUNNY
             }
-        FarmWeather.STORMY -> JumpScene.STORM
-        FarmWeather.CLOUDY, FarmWeather.FOGGY -> JumpScene.CLOUDY
-        FarmWeather.SUNNY -> JumpScene.SUNNY
     }
 
 /**
@@ -479,6 +485,8 @@ fun BearStarJumpScreen(
                         min((now - last) / 1e9f, 0.033f)
                     }
                 last = now
+                // 查看排行榜时暂停：跳过 tick，画面定格
+                if (showLeaderboard) return@withFrameNanos
                 game.tick(
                     dt,
                     onBounce = {
@@ -798,6 +806,8 @@ private fun DrawScope.drawJumpWorld(
             JumpScene.RAIN_HEAVY -> 0.45f
             JumpScene.SNOW -> 0.70f
             JumpScene.STORM -> 0.40f
+            JumpScene.FREEZING_RAIN -> 0.52f
+            JumpScene.HAIL -> 0.40f
             JumpScene.CLOUDY -> 0.62f
             JumpScene.SUNNY -> 1f
         }
@@ -830,6 +840,8 @@ private fun DrawScope.drawJumpWorld(
                 JumpScene.RAIN_HEAVY -> 7
                 JumpScene.SNOW -> 4
                 JumpScene.STORM -> 8
+                JumpScene.FREEZING_RAIN -> 6
+                JumpScene.HAIL -> 8
             }
         for (r in 0 until rows) {
             for (c in 0 until cols) {
@@ -882,6 +894,8 @@ private fun DrawScope.drawJumpWorld(
             JumpScene.RAIN_HEAVY -> 0.10f
             JumpScene.SNOW -> 0.3f
             JumpScene.STORM -> 0.08f
+            JumpScene.FREEZING_RAIN -> 0.12f
+            JumpScene.HAIL -> 0.06f
         }
     val sunA = (1f - alt / 1.5f).coerceIn(0f, 1f) * sunDim
     if (sunA > 0.01f) {
@@ -932,6 +946,8 @@ private fun DrawScope.drawJumpWorld(
                 JumpScene.RAIN_HEAVY -> Color(0xFF9AA7B5)
                 JumpScene.SNOW -> Color(0xFFD8DEE4)
                 JumpScene.STORM -> Color(0xFF8A94A0)
+                JumpScene.FREEZING_RAIN -> Color(0xFF9FAFBF)
+                JumpScene.HAIL -> Color(0xFF7E8A99)
             }
         for (i in 0 until 4) {
             val speed = 10f * s * (1 + (i % 3))
@@ -1040,60 +1056,76 @@ private fun DrawScope.drawJumpWeatherParticles(
     val cam = game.cameraY
     when (scene) {
         JumpScene.RAIN_LIGHT -> {
-            for (i in 0 until 18) {
-                val speed = 900f * s + (i % 3) * 130f * s
-                val x = ((i * 97 + game.time * (speed * 0.6f)) % (w + 60)) - 30
-                val y = ((i * 53 + game.time * speed) % (h + 80) + (h + 80)) % (h + 80) - 40 - cam * 0.15f
-                drawLine(
-                    Color(0xFFB7D7F5).copy(alpha = 0.35f),
-                    Offset(x, y),
-                    Offset(x - 4f * s, y + 11f * s),
-                    strokeWidth = 1.6f * s,
-                    cap = StrokeCap.Round,
-                )
-            }
+            drawRainLayered(
+                fgCount = 12,
+                bgCount = 6,
+                time = game.time,
+                width = w,
+                height = h,
+                scale = s,
+                lenMul = 0.8f,
+                alpha = 0.35f,
+                yOff = -cam * 0.15f,
+            )
         }
         JumpScene.RAIN -> {
-            for (i in 0 until 44) {
-                val speed = 900f * s + (i % 3) * 130f * s
-                val x = ((i * 97 + game.time * (speed * 0.6f)) % (w + 60)) - 30
-                val y = ((i * 53 + game.time * speed) % (h + 80) + (h + 80)) % (h + 80) - 40 - cam * 0.15f
-                drawLine(
-                    Color(0xFFB7D7F5).copy(alpha = 0.45f),
-                    Offset(x, y),
-                    Offset(x - 4f * s, y + 14f * s),
-                    strokeWidth = 2f * s,
-                    cap = StrokeCap.Round,
-                )
-            }
+            drawRainLayered(
+                fgCount = 30,
+                bgCount = 14,
+                time = game.time,
+                width = w,
+                height = h,
+                scale = s,
+                alpha = 0.45f,
+                yOff = -cam * 0.15f,
+            )
         }
         JumpScene.RAIN_HEAVY -> {
-            for (i in 0 until 70) {
-                val speed = 980f * s + (i % 3) * 150f * s
-                val x = ((i * 97 + game.time * (speed * 0.6f)) % (w + 60)) - 30
-                val y = ((i * 53 + game.time * speed) % (h + 80) + (h + 80)) % (h + 80) - 40 - cam * 0.15f
-                drawLine(
-                    Color(0xFFB7D7F5).copy(alpha = 0.55f),
-                    Offset(x, y),
-                    Offset(x - 4.5f * s, y + 17f * s),
-                    strokeWidth = 2.2f * s,
-                    cap = StrokeCap.Round,
-                )
-            }
+            drawRainLayered(
+                fgCount = 48,
+                bgCount = 24,
+                time = game.time,
+                width = w,
+                height = h,
+                scale = s,
+                lenMul = 1.15f,
+                alpha = 0.6f,
+                yOff = -cam * 0.15f,
+            )
         }
         JumpScene.STORM -> {
-            for (i in 0 until 80) {
-                val speed = 1000f * s + (i % 3) * 150f * s
-                val x = ((i * 97 + game.time * (speed * 0.6f)) % (w + 60)) - 30
-                val y = ((i * 53 + game.time * speed) % (h + 80) + (h + 80)) % (h + 80) - 40 - cam * 0.15f
-                drawLine(
-                    Color(0xFFB7D7F5).copy(alpha = 0.55f),
-                    Offset(x, y),
-                    Offset(x - 4.5f * s, y + 17f * s),
-                    strokeWidth = 2.2f * s,
-                    cap = StrokeCap.Round,
-                )
-            }
+            // 雷暴：以闪电为主，雨量收敛到中雨量级
+            drawRainLayered(
+                fgCount = 34,
+                bgCount = 16,
+                time = game.time,
+                width = w,
+                height = h,
+                scale = s,
+                lenMul = 1.25f,
+                alpha = 0.6f,
+                yOff = -cam * 0.15f,
+            )
+        }
+        JumpScene.FREEZING_RAIN -> {
+            drawFreezingRain(game.time, s, w, h, yOff = -cam * 0.15f)
+        }
+        JumpScene.HAIL -> {
+            // 冰雹：雨更少，突出冰雹粒子
+            drawRainLayered(
+                fgCount = 16,
+                bgCount = 8,
+                time = game.time,
+                width = w,
+                height = h,
+                scale = s,
+                lenMul = 1.1f,
+                alpha = 0.5f,
+                yOff = -cam * 0.15f,
+                fgColor = Color(0xFFD8E6F8),
+            )
+            drawHailPellets(game.time, s, w, h, yOff = -cam * 0.15f, count = 40)
+            drawStormLightning(game.time, s, w, h)
         }
         JumpScene.SNOW -> {
             for (i in 0 until 34) {

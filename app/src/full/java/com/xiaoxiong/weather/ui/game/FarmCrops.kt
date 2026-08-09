@@ -29,6 +29,12 @@ fun rainStrengthOf(sceneCode: Int?): RainStrength =
         else -> RainStrength.NONE
     }
 
+/** 冻雨码：56/57 冻毛毛雨，66/67 冻雨。 */
+fun isFreezingRainCode(sceneCode: Int?): Boolean = sceneCode in setOf(56, 57, 66, 67)
+
+/** 冰雹码：96/99 雷暴伴冰雹（95 为普通雷暴）。 */
+fun isHailCode(sceneCode: Int?): Boolean = sceneCode in setOf(96, 99)
+
 fun farmWeatherFromScene(
     sceneCode: Int?,
     isDay: Boolean?,

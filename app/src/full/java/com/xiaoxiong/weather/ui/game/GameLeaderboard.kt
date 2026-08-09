@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.xiaoxiong.weather.R
@@ -263,7 +264,8 @@ private fun LeaderboardRow(
                 modifier = Modifier.width(28.dp),
             )
         }
-        Column(modifier = Modifier.weight(1f)) {
+        // 分数 + 日期：内容自适应宽度，不被右侧挤压
+        Column(modifier = Modifier.padding(end = 12.dp)) {
             Text(
                 text = stringResource(R.string.bear_leaderboard_score_label, entry.score),
                 style = MaterialTheme.typography.titleMedium,
@@ -275,17 +277,23 @@ private fun LeaderboardRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Column(horizontalAlignment = Alignment.End) {
+        // 地点 + 天气：占剩余宽度，地名过长时换行，不挤压日期列
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.End,
+        ) {
             Text(
                 text = entry.city ?: "—",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
+                textAlign = TextAlign.End,
+                maxLines = 2,
             )
             Text(
                 text = entry.weather ?: "—",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
             )
         }
     }

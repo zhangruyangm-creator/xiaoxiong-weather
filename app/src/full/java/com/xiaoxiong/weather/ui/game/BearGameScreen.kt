@@ -65,24 +65,30 @@ import kotlin.random.Random
 /** 彩蛋口令：搜索框输入「#小熊跳跳」进入跑酷小游戏。 */
 const val EASTER_EGG_BEAR_GAME = "#小熊跳跳"
 
-/** 跑酷场景：跟随当前天气。阴/雨（按强度分档）/雪/雷暴渲染对应粒子与灰调背景。 */
-enum class RunScene { SUNNY, CLOUDY, RAIN_LIGHT, RAIN, RAIN_HEAVY, SNOW, STORM }
+/** 跑酷场景：跟随当前天气。阴/雨（按强度分档）/雪/雷暴/冻雨/冰雹渲染对应粒子与灰调背景。 */
+enum class RunScene { SUNNY, CLOUDY, RAIN_LIGHT, RAIN, RAIN_HEAVY, SNOW, STORM, FREEZING_RAIN, HAIL }
 
 private fun runSceneFromWeather(
     weather: FarmWeather,
     sceneCode: Int?,
 ): RunScene =
-    when (weather) {
-        FarmWeather.SNOWY -> RunScene.SNOW
-        FarmWeather.RAINY ->
-            when (rainStrengthOf(sceneCode)) {
-                RainStrength.LIGHT -> RunScene.RAIN_LIGHT
-                RainStrength.HEAVY -> RunScene.RAIN_HEAVY
-                else -> RunScene.RAIN
+    when {
+        // 冻雨/冰雹：原码保留在 displayCode 中，优先于普通雨/雷暴识别
+        isFreezingRainCode(sceneCode) -> RunScene.FREEZING_RAIN
+        isHailCode(sceneCode) -> RunScene.HAIL
+        else ->
+            when (weather) {
+                FarmWeather.SNOWY -> RunScene.SNOW
+                FarmWeather.RAINY ->
+                    when (rainStrengthOf(sceneCode)) {
+                        RainStrength.LIGHT -> RunScene.RAIN_LIGHT
+                        RainStrength.HEAVY -> RunScene.RAIN_HEAVY
+                        else -> RunScene.RAIN
+                    }
+                FarmWeather.STORMY -> RunScene.STORM
+                FarmWeather.CLOUDY, FarmWeather.FOGGY -> RunScene.CLOUDY
+                FarmWeather.SUNNY -> RunScene.SUNNY
             }
-        FarmWeather.STORMY -> RunScene.STORM
-        FarmWeather.CLOUDY, FarmWeather.FOGGY -> RunScene.CLOUDY
-        FarmWeather.SUNNY -> RunScene.SUNNY
     }
 
 enum class GamePhase { READY, RUNNING, OVER }
@@ -320,7 +326,8 @@ class BearGame {
                         r < 0.85f -> ObstacleType.SNOWMAN
                         else -> ObstacleType.STORM_CLOUD
                     }
-                RunScene.RAIN, RunScene.RAIN_LIGHT, RunScene.RAIN_HEAVY, RunScene.STORM ->
+                RunScene.RAIN, RunScene.RAIN_LIGHT, RunScene.RAIN_HEAVY, RunScene.STORM,
+                RunScene.FREEZING_RAIN, RunScene.HAIL ->
                     // 雨天：水坑变多，雪人减少
                     when {
                         r < 0.62f -> ObstacleType.PUDDLE
@@ -543,6 +550,8 @@ fun BearGameScreen(
                         min((now - last) / 1e9f, 0.033f)
                     }
                 last = now
+                // 查看排行榜时暂停：跳过 tick，画面定格
+                if (showLeaderboard) return@withFrameNanos
                 val running = game.phase == GamePhase.RUNNING
                 // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
                 if (running || slowTick % 5 == 0) {
