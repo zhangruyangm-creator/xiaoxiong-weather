@@ -448,7 +448,7 @@ fun BearStarJumpScreen(
     val view = LocalView.current
     val density = LocalDensity.current.density
     val prefs = remember { context.getSharedPreferences("bear_game", Context.MODE_PRIVATE) }
-    val leaderboard = remember { GameLeaderboardStore(prefs, "leaderboard_jump") }
+    val leaderboard = remember { GameLeaderboardStore(prefs, "leaderboard_jump", bestKey = "best_jump") }
     var showLeaderboard by remember { mutableStateOf(false) }
     var lastRank by remember { mutableIntStateOf(0) }
     var leaderboardEntries by remember { mutableStateOf(leaderboard.load()) }
@@ -586,6 +586,7 @@ fun BearStarJumpScreen(
                 onClear = {
                     leaderboard.clear()
                     leaderboardEntries = emptyList()
+                    game.best = 0
                 },
                 onDismiss = { showLeaderboard = false },
             )

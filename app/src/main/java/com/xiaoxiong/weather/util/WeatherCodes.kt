@@ -525,8 +525,9 @@ fun formatTemperature(
         }
     val suffix =
         when (unit) {
-            TemperatureUnit.CELSIUS -> "°"
-            TemperatureUnit.FAHRENHEIT -> "°F"
+            // 国标/SI 写法：度符号 (U+00B0) + 字母 C/F；预组合 ℃/℉ (U+2103/U+2109) 在系统字体里渲染偏扁
+            TemperatureUnit.CELSIUS -> "\u00B0C"
+            TemperatureUnit.FAHRENHEIT -> "\u00B0F"
         }
     return String.format(Locale.US, "%.1f%s", display, suffix)
 }

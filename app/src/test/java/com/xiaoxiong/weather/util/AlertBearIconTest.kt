@@ -106,9 +106,14 @@ class AlertBearIconTest {
             R.drawable.ic_launcher_bear_violent_rain,
             AlertBearIcon.drawableRes(AlertKind.RAIN_SOON, 20.0),
         )
+        // 黑伞阈值与桌面当前天气图标一致：>32 mm/h
+        assertEquals(
+            R.drawable.ic_launcher_bear_violent_rain,
+            AlertBearIcon.rainSoonUmbrellaRes(32.0),
+        )
         assertEquals(
             R.drawable.ic_launcher_bear_extreme_rain,
-            AlertBearIcon.drawableRes(AlertKind.RAIN_SOON, 55.0),
+            AlertBearIcon.drawableRes(AlertKind.RAIN_SOON, 33.0),
         )
         assertEquals(
             R.drawable.ic_launcher_bear_rainy,

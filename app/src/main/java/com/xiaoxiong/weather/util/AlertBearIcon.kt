@@ -73,13 +73,13 @@ object AlertBearIcon {
     }
 
     /**
-     * 未来降雨伞色：蓝 → 青绿 → 黄 → 红 → 黑（&gt;50 mm/小时）。
+     * 未来降雨伞色：蓝 → 青绿 → 黄 → 红 → 黑（&gt;32 mm/小时，与桌面当前天气图标口径一致）。
      */
     @DrawableRes
     fun rainSoonUmbrellaRes(peakMmPerHour: Double?): Int {
         val mm = peakMmPerHour ?: 0.0
         return when {
-            mm > 50.0 -> R.drawable.ic_launcher_bear_extreme_rain
+            mm > WeatherCodes.PRECIP_VIOLENT_MM_H -> R.drawable.ic_launcher_bear_extreme_rain
             mm > 16.0 -> R.drawable.ic_launcher_bear_violent_rain
             mm > 4.0 -> R.drawable.ic_launcher_bear_heavy_rain
             mm > 1.0 -> R.drawable.ic_launcher_bear_moderate_rain

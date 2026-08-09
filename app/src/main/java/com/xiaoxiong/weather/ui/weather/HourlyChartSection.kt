@@ -156,8 +156,8 @@ fun HourlyChartSection(
                 stringResource(
                     R.string.cd_hourly_chart,
                     stringResource(metric.labelRes(tempUnit)),
-                    formatMetricValue(metric, numeric.max()),
-                    formatMetricValue(metric, numeric.min()),
+                    formatMetricValue(metric, numeric.max(), tempUnit),
+                    formatMetricValue(metric, numeric.min(), tempUnit),
                 )
             }
         }
@@ -423,7 +423,7 @@ fun HourlyChartSection(
                                 drawCircle(color = color, radius = 8.5f, center = Offset(x, y))
                                 drawCircle(color = Color.White, radius = 3.5f, center = Offset(x, y))
 
-                                val label = formatMetricValue(metric, value)
+                                val label = formatMetricValue(metric, value, tempUnit)
                                 valuePaint.color = labelColorInt
                                 val textWidth = valuePaint.measureText(label)
                                 val padH = 10f
@@ -518,7 +518,7 @@ fun HourlyChartSection(
             )
             if (currentIndex in values.indices) {
                 Text(
-                    text = values[currentIndex]?.let { formatMetricValue(metric, it) }.orEmpty(),
+                    text = values[currentIndex]?.let { formatMetricValue(metric, it, tempUnit) }.orEmpty(),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = nowColor,
@@ -538,7 +538,7 @@ fun HourlyChartSection(
                     color = labelColor,
                 )
                 Text(
-                    text = values[selIdx]?.let { formatMetricValue(metric, it) }.orEmpty(),
+                    text = values[selIdx]?.let { formatMetricValue(metric, it, tempUnit) }.orEmpty(),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = SelectedLineColor,
@@ -585,9 +585,16 @@ private fun buildSmoothPath(
 private fun formatMetricValue(
     metric: HourlyMetric,
     value: Double,
+    tempUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
 ): String =
     when (metric) {
-        HourlyMetric.TEMPERATURE -> String.format(Locale.US, "%.1f°", value)
+        HourlyMetric.TEMPERATURE ->
+            String.format(
+                Locale.US,
+                "%.1f%s",
+                value,
+                if (tempUnit == TemperatureUnit.FAHRENHEIT) "\u00B0F" else "\u00B0C",
+            )
         HourlyMetric.HUMIDITY, HourlyMetric.PRECIP_PROB -> String.format(Locale.US, "%.0f%%", value)
         HourlyMetric.PRECIP_MM -> String.format(Locale.US, "%.1fmm", value)
         HourlyMetric.VISIBILITY -> String.format(Locale.US, "%.1fkm", value)
@@ -672,7 +679,11 @@ private fun HourlyDetailRow(
         when (metric) {
             HourlyMetric.TEMPERATURE ->
                 convertCelsiusForDisplay(item.temperatureC, tempUnit)
-                    ?.let { "${"%.1f".format(it)}°" } ?: "--"
+                    ?.let {
+                        "${"%.1f".format(it)}${
+                            if (tempUnit == TemperatureUnit.FAHRENHEIT) "\u00B0F" else "\u00B0C"
+                        }"
+                    } ?: "--"
             HourlyMetric.HUMIDITY -> item.humidityPercent?.let { "$it%" } ?: "--"
             HourlyMetric.VISIBILITY ->
                 item.visibilityMeters?.let { "${"%.1f".format(it / 1000)} km" } ?: "--"

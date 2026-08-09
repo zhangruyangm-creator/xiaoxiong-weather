@@ -194,9 +194,9 @@ class WeatherCodesTest {
     fun temperatureAndVisibilityFormatting() {
         assertEquals(32.0, celsiusToFahrenheit(0.0), 0.001)
         assertEquals("--", formatTemperature(null))
-        assertEquals("22.0°", formatTemperature(22.0, TemperatureUnit.CELSIUS))
-        assertEquals("22.4°", formatTemperature(22.4, TemperatureUnit.CELSIUS))
-        assertEquals("71.6°F", formatTemperature(22.0, TemperatureUnit.FAHRENHEIT))
+        assertEquals("22.0\u00B0C", formatTemperature(22.0, TemperatureUnit.CELSIUS))
+        assertEquals("22.4\u00B0C", formatTemperature(22.4, TemperatureUnit.CELSIUS))
+        assertEquals("71.6\u00B0F", formatTemperature(22.0, TemperatureUnit.FAHRENHEIT))
         assertEquals("1.5 km", formatVisibility(1500.0))
         assertEquals("800 m", formatVisibility(800.0))
         assertEquals("--", formatVisibility(null))

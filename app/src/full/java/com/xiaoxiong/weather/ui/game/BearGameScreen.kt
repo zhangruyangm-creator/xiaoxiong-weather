@@ -512,7 +512,7 @@ fun BearGameScreen(
     val style = weatherSceneStyle(sceneCode, isDay, appDark = false)
 
     val prefs = remember { context.getSharedPreferences("bear_game", Context.MODE_PRIVATE) }
-    val leaderboard = remember { GameLeaderboardStore(prefs, "leaderboard_run") }
+    val leaderboard = remember { GameLeaderboardStore(prefs, "leaderboard_run", bestKey = "best") }
     var showLeaderboard by remember { mutableStateOf(false) }
     var lastRank by remember { mutableIntStateOf(0) }
     var leaderboardEntries by remember { mutableStateOf(leaderboard.load()) }
@@ -628,6 +628,7 @@ fun BearGameScreen(
                 onClear = {
                     leaderboard.clear()
                     leaderboardEntries = emptyList()
+                    game.best = 0
                 },
                 onDismiss = { showLeaderboard = false },
             )

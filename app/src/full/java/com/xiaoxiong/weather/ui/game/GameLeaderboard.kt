@@ -72,6 +72,7 @@ private val leaderboardJson =
 class GameLeaderboardStore(
     private val prefs: SharedPreferences,
     private val key: String,
+    private val bestKey: String? = null,
 ) {
     private var cache: List<LeaderboardEntry>? = null
 
@@ -94,9 +95,12 @@ class GameLeaderboardStore(
         return if (idx >= 0) idx + 1 else null
     }
 
-    /** 清空全部纪录。 */
+    /** 清空全部纪录；若配置了 [bestKey]，最高分一并清零。 */
     fun clear() {
-        prefs.edit().remove(key).apply()
+        prefs.edit().apply {
+            remove(key)
+            if (bestKey != null) remove(bestKey)
+        }.apply()
         cache = emptyList()
     }
 }
