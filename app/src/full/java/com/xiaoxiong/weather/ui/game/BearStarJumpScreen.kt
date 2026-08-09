@@ -109,14 +109,38 @@ private val jumpTextPaint =
         typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
 
+/** 摘星场景：纯晴天（非雨天）时为夜晚（star 字面义，星最多）；阴天灰云；雨/雪/雷暴渲染雨雪。 */
+enum class JumpScene { SUNNY, CLOUDY, RAIN_LIGHT, RAIN, RAIN_HEAVY, SNOW, STORM }
+
+private fun jumpSceneFromWeather(
+    weather: FarmWeather,
+    sceneCode: Int?,
+): JumpScene =
+    when (weather) {
+        FarmWeather.SNOWY -> JumpScene.SNOW
+        FarmWeather.RAINY ->
+            when (rainStrengthOf(sceneCode)) {
+                RainStrength.LIGHT -> JumpScene.RAIN_LIGHT
+                RainStrength.HEAVY -> JumpScene.RAIN_HEAVY
+                else -> JumpScene.RAIN
+            }
+        FarmWeather.STORMY -> JumpScene.STORM
+        FarmWeather.CLOUDY, FarmWeather.FOGGY -> JumpScene.CLOUDY
+        FarmWeather.SUNNY -> JumpScene.SUNNY
+    }
+
 /**
  * 小熊摘星：竖版跳台。拖动控制方向，踩云向上；
  * 天空随高度从白天渐变到黄昏、夜空再到太空。
+ * 背景天气跟随当前天气：阴/雨/雪时天空变灰、星星减少、并落下雨雪。
  */
 private class StarJumpGame {
     var phase by mutableStateOf(GamePhase.READY)
     var best by mutableIntStateOf(0)
     var score by mutableIntStateOf(0)
+
+    /** 当前天气场景；由 [BearStarJumpScreen] 在天气变化时刷新。 */
+    var scene by mutableStateOf(JumpScene.SUNNY)
 
     var w = 0f
     var h = 0f
@@ -409,18 +433,28 @@ private class StarJumpGame {
 
 @Composable
 fun BearStarJumpScreen(
-    @Suppress("UNUSED_PARAMETER") sceneCode: Int?,
-    @Suppress("UNUSED_PARAMETER") isDay: Boolean?,
+    sceneCode: Int?,
+    isDay: Boolean?,
     onExit: () -> Unit,
+    cityName: String? = null,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
     val density = LocalDensity.current.density
     val prefs = remember { context.getSharedPreferences("bear_game", Context.MODE_PRIVATE) }
+    val leaderboard = remember { GameLeaderboardStore(prefs, "leaderboard_jump") }
+    var showLeaderboard by remember { mutableStateOf(false) }
+    var lastRank by remember { mutableIntStateOf(0) }
+    var leaderboardEntries by remember { mutableStateOf(leaderboard.load()) }
     val game =
         remember {
             StarJumpGame().also { it.best = prefs.getInt("best_jump", 0) }
         }
+    val jumpWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
+    // 天气变化时更新游戏场景（雨量强度决定雨点多少）
+    LaunchedEffect(jumpWeather, sceneCode) {
+        game.scene = jumpSceneFromWeather(jumpWeather, sceneCode)
+    }
     val bearSprites =
         BearSprites(
             runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
@@ -461,6 +495,17 @@ fun BearStarJumpScreen(
                         if (score > game.best) {
                             game.best = score
                             prefs.edit().putInt("best_jump", score).apply()
+                        }
+                        if (score > 0) {
+                            lastRank =
+                                leaderboard.submit(
+                                    LeaderboardEntry(
+                                        score = score,
+                                        timestamp = System.currentTimeMillis(),
+                                        city = cityName,
+                                        weather = leaderboardWeatherOf(context, sceneCode),
+                                    ),
+                                ) ?: 0
                         }
                     },
                 )
@@ -516,7 +561,27 @@ fun BearStarJumpScreen(
             }
         }
 
-        JumpHud(game, frame, onExit)
+        JumpHud(
+            game = game,
+            frame = frame,
+            onExit = onExit,
+            onLeaderboard = {
+                leaderboardEntries = leaderboard.load()
+                showLeaderboard = true
+            },
+        )
+
+        if (showLeaderboard) {
+            GameLeaderboardDialog(
+                title = stringResource(R.string.bear_leaderboard_title),
+                entries = leaderboardEntries,
+                onClear = {
+                    leaderboard.clear()
+                    leaderboardEntries = emptyList()
+                },
+                onDismiss = { showLeaderboard = false },
+            )
+        }
 
         when (game.phase) {
             GamePhase.READY -> {
@@ -598,6 +663,15 @@ fun BearStarJumpScreen(
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (lastRank > 0) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text =
+                                    stringResource(R.string.bear_leaderboard_rank_label, lastRank),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         Spacer(modifier = Modifier.height(18.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             TextButton(onClick = onExit) {
@@ -620,6 +694,7 @@ private fun JumpHud(
     game: StarJumpGame,
     frame: Long,
     onExit: () -> Unit,
+    onLeaderboard: () -> Unit,
 ) {
     @Suppress("UNUSED_EXPRESSION")
     frame
@@ -654,7 +729,7 @@ private fun JumpHud(
                 color = Color.White.copy(alpha = 0.85f),
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        LeaderboardButton(onClick = onLeaderboard)
     }
 }
 
@@ -712,13 +787,32 @@ private fun DrawScope.drawJumpWorld(
     val s = game.s
     val cam = game.cameraY
     val alt = game.altitudeKm
+    val scene = game.scene
     val (skyTop, skyBottom) = skyColors(alt)
 
-    drawRect(Brush.verticalGradient(listOf(skyTop, skyBottom)))
+    // 天气适配：雨/雪/雷暴压低天空亮度与饱和度，仍随高度渐变
+    val weatherDim =
+        when (scene) {
+            JumpScene.RAIN_LIGHT -> 0.72f
+            JumpScene.RAIN -> 0.55f
+            JumpScene.RAIN_HEAVY -> 0.45f
+            JumpScene.SNOW -> 0.70f
+            JumpScene.STORM -> 0.40f
+            JumpScene.CLOUDY -> 0.62f
+            JumpScene.SUNNY -> 1f
+        }
+    drawRect(
+        Brush.verticalGradient(
+            listOf(
+                skyTop.copy(red = skyTop.red * weatherDim, green = skyTop.green * weatherDim, blue = skyTop.blue * weatherDim),
+                skyBottom.copy(red = skyBottom.red * weatherDim, green = skyBottom.green * weatherDim, blue = skyBottom.blue * weatherDim),
+            ),
+        ),
+    )
     // 底部柔光：模拟云海/地平线反射，任何高度都增强层次
     drawHorizonGlow(h * 0.88f, midColor(skyBottom, Color.White), h * 0.18f)
 
-    // 星星（哈希星空：视差 0.5，无需存状态）
+    // 星星（哈希星空：视差 0.5，无需存状态）；雨天很少、晴天最多
     val starAlpha = ((alt - 0.9f) / 0.7f).coerceIn(0f, 1f)
     if (starAlpha > 0.01f) {
         val cell = 110f * s
@@ -726,8 +820,21 @@ private fun DrawScope.drawJumpWorld(
         val row0 = floor(yOff / cell).toInt() - 1
         val rows = (h / cell).toInt() + 3
         val cols = (w / cell).toInt() + 2
+        // 密度：晴天全画，阴天略稀，雨/雪/雷暴按天气稀疏
+        val starSkip =
+            when (scene) {
+                JumpScene.SUNNY -> 1
+                JumpScene.CLOUDY -> 2
+                JumpScene.RAIN_LIGHT -> 4
+                JumpScene.RAIN -> 5
+                JumpScene.RAIN_HEAVY -> 7
+                JumpScene.SNOW -> 4
+                JumpScene.STORM -> 8
+            }
         for (r in 0 until rows) {
             for (c in 0 until cols) {
+                // 按密度跳过格子
+                if ((r * (cols + 1) + c) % starSkip != 0) continue
                 val ry = row0 + r
                 val h1 = abs((c * 73856093) xor (ry * 19349663))
                 val h2 = abs((c * 83492791) xor (ry * 29712151))
@@ -765,8 +872,18 @@ private fun DrawScope.drawJumpWorld(
         }
     }
 
-    // 太阳（低空）→ 月亮（高空）交接
-    val sunA = (1f - alt / 1.5f).coerceIn(0f, 1f)
+    // 太阳（低空）→ 月亮（高空）交接；阴/雨/雪/雷暴时太阳几乎隐去
+    val sunDim =
+        when (scene) {
+            JumpScene.SUNNY -> 1f
+            JumpScene.CLOUDY -> 0.12f
+            JumpScene.RAIN_LIGHT -> 0.35f
+            JumpScene.RAIN -> 0.22f
+            JumpScene.RAIN_HEAVY -> 0.10f
+            JumpScene.SNOW -> 0.3f
+            JumpScene.STORM -> 0.08f
+        }
+    val sunA = (1f - alt / 1.5f).coerceIn(0f, 1f) * sunDim
     if (sunA > 0.01f) {
         val sunC = Offset(w * 0.80f, h * 0.20f)
         rotate(game.time * 3f, pivot = sunC) {
@@ -803,9 +920,19 @@ private fun DrawScope.drawJumpWorld(
         drawCircle(Color(0xFFE8E0C8), 2.2f * s, moonC + Offset(8f * s, -7f * s), alpha = moonA)
     }
 
-    // 背景云（低空有、高空稀）
+    // 背景云（低空有、高空稀）；雨/雪时云更低更灰
     val cloudA = (1.15f - alt * 0.5f).coerceIn(0f, 1f)
     if (cloudA > 0.01f) {
+        val cloudGrey =
+            when (scene) {
+                JumpScene.SUNNY -> Color.White
+                JumpScene.CLOUDY -> Color(0xFFC2CBD3)
+                JumpScene.RAIN_LIGHT -> Color(0xFFCBD3DA)
+                JumpScene.RAIN -> Color(0xFFB8C4CE)
+                JumpScene.RAIN_HEAVY -> Color(0xFF9AA7B5)
+                JumpScene.SNOW -> Color(0xFFD8DEE4)
+                JumpScene.STORM -> Color(0xFF8A94A0)
+            }
         for (i in 0 until 4) {
             val speed = 10f * s * (1 + (i % 3))
             val cx = ((i * 283f * s + game.time * speed) % (w + 260f * s)) - 130f * s
@@ -813,7 +940,7 @@ private fun DrawScope.drawJumpWorld(
                 ((i * 251f * s - cam * 0.3f) % (h + 200f * s) + (h + 200f * s)) %
                     (h + 200f * s) - 100f * s
             val cw = (54f + i * 11f) * s
-            val col = Color.White
+            val col = cloudGrey
             drawCircle(col, cw * 0.55f, Offset(cx - cw * 0.4f, cy + cw * 0.1f), alpha = 0.30f * cloudA)
             drawCircle(col, cw * 0.75f, Offset(cx, cy), alpha = 0.30f * cloudA)
             drawCircle(col, cw * 0.5f, Offset(cx + cw * 0.5f, cy + cw * 0.12f), alpha = 0.30f * cloudA)
@@ -825,6 +952,9 @@ private fun DrawScope.drawJumpWorld(
             )
         }
     }
+
+    // 雨/雪粒子（视差 + 随风漂）
+    drawJumpWeatherParticles(game, scene)
 
     // 地面（起点附近才可见）
     val groundTop = -cam
@@ -897,6 +1027,83 @@ private fun DrawScope.drawJumpWorld(
     drawJumpBear(game, sprites, game.bearX)
     if (game.bearX < game.bearSize) drawJumpBear(game, sprites, game.bearX + w + game.bearSize)
     if (game.bearX > w) drawJumpBear(game, sprites, game.bearX - w - game.bearSize)
+}
+
+private fun DrawScope.drawJumpWeatherParticles(
+    game: StarJumpGame,
+    scene: JumpScene,
+) {
+    if (scene == JumpScene.SUNNY || scene == JumpScene.CLOUDY) return
+    val w = game.w
+    val h = game.h
+    val s = game.s
+    val cam = game.cameraY
+    when (scene) {
+        JumpScene.RAIN_LIGHT -> {
+            for (i in 0 until 18) {
+                val speed = 900f * s + (i % 3) * 130f * s
+                val x = ((i * 97 + game.time * (speed * 0.6f)) % (w + 60)) - 30
+                val y = ((i * 53 + game.time * speed) % (h + 80) + (h + 80)) % (h + 80) - 40 - cam * 0.15f
+                drawLine(
+                    Color(0xFFB7D7F5).copy(alpha = 0.35f),
+                    Offset(x, y),
+                    Offset(x - 4f * s, y + 11f * s),
+                    strokeWidth = 1.6f * s,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+        JumpScene.RAIN -> {
+            for (i in 0 until 44) {
+                val speed = 900f * s + (i % 3) * 130f * s
+                val x = ((i * 97 + game.time * (speed * 0.6f)) % (w + 60)) - 30
+                val y = ((i * 53 + game.time * speed) % (h + 80) + (h + 80)) % (h + 80) - 40 - cam * 0.15f
+                drawLine(
+                    Color(0xFFB7D7F5).copy(alpha = 0.45f),
+                    Offset(x, y),
+                    Offset(x - 4f * s, y + 14f * s),
+                    strokeWidth = 2f * s,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+        JumpScene.RAIN_HEAVY -> {
+            for (i in 0 until 70) {
+                val speed = 980f * s + (i % 3) * 150f * s
+                val x = ((i * 97 + game.time * (speed * 0.6f)) % (w + 60)) - 30
+                val y = ((i * 53 + game.time * speed) % (h + 80) + (h + 80)) % (h + 80) - 40 - cam * 0.15f
+                drawLine(
+                    Color(0xFFB7D7F5).copy(alpha = 0.55f),
+                    Offset(x, y),
+                    Offset(x - 4.5f * s, y + 17f * s),
+                    strokeWidth = 2.2f * s,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+        JumpScene.STORM -> {
+            for (i in 0 until 80) {
+                val speed = 1000f * s + (i % 3) * 150f * s
+                val x = ((i * 97 + game.time * (speed * 0.6f)) % (w + 60)) - 30
+                val y = ((i * 53 + game.time * speed) % (h + 80) + (h + 80)) % (h + 80) - 40 - cam * 0.15f
+                drawLine(
+                    Color(0xFFB7D7F5).copy(alpha = 0.55f),
+                    Offset(x, y),
+                    Offset(x - 4.5f * s, y + 17f * s),
+                    strokeWidth = 2.2f * s,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+        JumpScene.SNOW -> {
+            for (i in 0 until 34) {
+                val x = ((i * 83 + game.time * 22f + sin(game.time * 1.4f + i) * 12f) % (w + 30))
+                val y = ((i * 61 + game.time * 46f) % (h + 30)) - cam * 0.12f
+                drawCircle(Color.White.copy(alpha = 0.85f), (2f + i % 3) * s, Offset(x, y))
+            }
+        }
+        JumpScene.SUNNY, JumpScene.CLOUDY -> Unit
+    }
 }
 
 private fun DrawScope.drawPlatform(

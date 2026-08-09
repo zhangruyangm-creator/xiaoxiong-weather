@@ -35,9 +35,11 @@ fun DrawScope.drawWorld(
     sprites: BearSprites,
 ) {
     val s = game.s
-    val groundY = game.groundY
 
-    drawSky(game, isDay)
+    drawSky(game, isDay, scene = game.scene)
+
+    // 天气：雨/雪/雷暴压暗天空
+    drawRunWeather(game)
 
     // 死亡震动只作用于世界层（天空除外）
     val shakeAmp = if (game.shakeT > 0f) (game.shakeT / 0.35f) * 9f * s else 0f
@@ -59,6 +61,9 @@ fun DrawScope.drawWorld(
         drawFloatTexts(game)
         drawAnimatedBear(game, sprites)
     }
+
+    // 雨/雪/闪电盖在最上层，看起来像真的在下
+    drawRunPrecip(game)
 }
 
 // ---------------- 天空 ----------------
@@ -66,27 +71,43 @@ fun DrawScope.drawWorld(
 private fun DrawScope.drawSky(
     game: BearGame,
     isDay: Boolean,
+    scene: RunScene,
 ) {
     val s = game.s
     val cx = size.width * 0.80f
     val cy = size.height * 0.15f
+    // 阴天：灰云压顶、太阳隐去，只留一点暖光
+    if (scene == RunScene.CLOUDY) {
+        for (i in 0 until 4) {
+            val x = ((i * 220f + game.time * 14f) % (size.width + 180f)) - 90f
+            val y = size.height * (0.07f + i * 0.06f)
+            drawCircle(Color(0xFF9AA7B5).copy(alpha = 0.55f), 34f * s, Offset(x, y))
+            drawCircle(Color(0xFFAEB9C4).copy(alpha = 0.55f), 26f * s, Offset(x + 30f * s, y + 6f * s))
+            drawCircle(Color(0xFFAEB9C4).copy(alpha = 0.55f), 24f * s, Offset(x - 28f * s, y + 8f * s))
+        }
+        drawCircle(Color(0xFFFFE082).copy(alpha = 0.30f), 24f * s, Offset(cx, cy))
+        drawHorizonGlow(game.groundY, Color(0xFFDDE3E8), size.height * 0.12f)
+        return
+    }
     if (isDay) {
-        // 太阳：内芯 + 慢转光芒
-        drawCircle(Color(0xFFFFE082), 30f * s, Offset(cx, cy), alpha = 0.95f)
-        drawCircle(Color(0xFFFFF8E1), 22f * s, Offset(cx - 3f * s, cy - 3f * s))
-        rotate(degrees = game.time * 6f, pivot = Offset(cx, cy)) {
-            for (i in 0 until 12) {
-                val a = Math.PI.toFloat() * 2f * i / 12f
-                val inner = 38f * s
-                val outer = 48f * s
-                drawLine(
-                    color = Color(0xFFFFE082),
-                    start = Offset(cx + cos(a) * inner, cy + sin(a) * inner),
-                    end = Offset(cx + cos(a) * outer, cy + sin(a) * outer),
-                    strokeWidth = 3.5f * s,
-                    cap = StrokeCap.Round,
-                    alpha = 0.85f,
-                )
+        if (scene == RunScene.SUNNY) {
+            // 太阳：内芯 + 慢转光芒
+            drawCircle(Color(0xFFFFE082), 30f * s, Offset(cx, cy), alpha = 0.95f)
+            drawCircle(Color(0xFFFFF8E1), 22f * s, Offset(cx - 3f * s, cy - 3f * s))
+            rotate(degrees = game.time * 6f, pivot = Offset(cx, cy)) {
+                for (i in 0 until 12) {
+                    val a = Math.PI.toFloat() * 2f * i / 12f
+                    val inner = 38f * s
+                    val outer = 48f * s
+                    drawLine(
+                        color = Color(0xFFFFE082),
+                        start = Offset(cx + cos(a) * inner, cy + sin(a) * inner),
+                        end = Offset(cx + cos(a) * outer, cy + sin(a) * outer),
+                        strokeWidth = 3.5f * s,
+                        cap = StrokeCap.Round,
+                        alpha = 0.85f,
+                    )
+                }
             }
         }
     } else {
@@ -108,9 +129,85 @@ private fun DrawScope.drawSky(
     // 地平线光晕
     drawHorizonGlow(
         game.groundY,
-        if (isDay) Color(0xFFFFE082) else Color(0xFFB0C4DE),
+        if (isDay && scene == RunScene.SUNNY) Color(0xFFFFE082) else Color(0xFFB0C4DE),
         size.height * 0.12f,
     )
+}
+
+// ---------------- 天气联动 ----------------
+
+/** 跑酷天气氛围：按当前天气压暗天色（粒子与闪电在 [drawRunPrecip] 顶层绘制）。 */
+private fun DrawScope.drawRunWeather(game: BearGame) {
+    when (game.scene) {
+        RunScene.SUNNY, RunScene.CLOUDY -> Unit
+        RunScene.RAIN_LIGHT -> drawRect(Color(0xFF29364A).copy(alpha = 0.10f))
+        RunScene.RAIN -> drawRect(Color(0xFF29364A).copy(alpha = 0.18f))
+        RunScene.RAIN_HEAVY -> drawRect(Color(0xFF1F2A3A).copy(alpha = 0.26f))
+        RunScene.SNOW -> drawRect(Color(0xFFB9C7D6).copy(alpha = 0.10f))
+        RunScene.STORM -> drawRect(Color(0xFF151B26).copy(alpha = 0.32f))
+    }
+}
+
+/** 跑酷降水层：雨/雪粒子 + 雷暴闪电，盖在世界之上；雨点密度随雨势。 */
+private fun DrawScope.drawRunPrecip(game: BearGame) {
+    val s = game.s
+    when (game.scene) {
+        RunScene.SUNNY, RunScene.CLOUDY -> Unit
+        RunScene.RAIN_LIGHT -> drawRain(game, 20, lenMul = 0.8f)
+        RunScene.RAIN -> drawRain(game, 44)
+        RunScene.RAIN_HEAVY -> drawRain(game, 72, lenMul = 1.2f, alpha = 0.7f)
+        RunScene.SNOW -> drawSnow(game, 32)
+        RunScene.STORM -> {
+            drawRain(game, 80, lenMul = 1.25f, alpha = 0.7f)
+            if (sin(game.time * 6f) > 0.90f) {
+                drawLine(
+                    color = Color(0xFFFFF59D).copy(alpha = 0.85f),
+                    start = Offset(size.width * 0.70f, 0f),
+                    end = Offset(size.width * 0.58f, size.height * 0.18f),
+                    strokeWidth = 2.5f * s,
+                )
+                drawLine(
+                    color = Color(0xFFFFF59D).copy(alpha = 0.85f),
+                    start = Offset(size.width * 0.62f, size.height * 0.06f),
+                    end = Offset(size.width * 0.50f, size.height * 0.20f),
+                    strokeWidth = 1.6f * s,
+                )
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawRain(
+    game: BearGame,
+    count: Int,
+    lenMul: Float = 1f,
+    alpha: Float = 0.55f,
+) {
+    val s = game.s
+    for (i in 0 until count) {
+        val speed = 1100f * s + (i % 3) * 160f * s
+        val x = ((i * 97 + game.time * (speed * 0.55f)) % (size.width + 60)) - 30
+        val y = ((i * 53 + game.time * speed) % (size.height + 80)) - 40
+        drawLine(
+            color = Color(0xFFA9C6E8).copy(alpha = alpha),
+            start = Offset(x, y),
+            end = Offset(x - 3f * s, y + 14f * s * lenMul),
+            strokeWidth = 2f * s,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+private fun DrawScope.drawSnow(
+    game: BearGame,
+    count: Int,
+) {
+    val s = game.s
+    for (i in 0 until count) {
+        val x = ((i * 83 + game.time * 24f + sin(game.time * 1.4f + i) * 12f) % (size.width + 30))
+        val y = ((i * 61 + game.time * 50f) % (size.height + 30))
+        drawCircle(Color.White.copy(alpha = 0.85f), (2f + i % 3) * s, Offset(x, y))
+    }
 }
 
 // ---------------- 远景 ----------------

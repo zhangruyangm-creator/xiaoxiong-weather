@@ -31,6 +31,7 @@ internal fun BearGameOverlay(
     onClearQuery: () -> Unit,
     sceneCode: Int?,
     isDay: Boolean?,
+    cityName: String?,
     pagerState: PagerState,
     scope: CoroutineScope,
 ) {
@@ -77,6 +78,7 @@ internal fun BearGameOverlay(
                 showBearGame = false
                 onExit()
             },
+            cityName = cityName,
         )
     }
     if (showStarGame) {
@@ -87,6 +89,7 @@ internal fun BearGameOverlay(
                 showStarGame = false
                 onExit()
             },
+            cityName = cityName,
         )
     }
     if (showMazeGame) {

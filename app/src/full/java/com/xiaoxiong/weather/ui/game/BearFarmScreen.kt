@@ -195,7 +195,9 @@ private class BearFarm(
                     val hours = step / 3_600_000f
                     val weedP = farmChanceAtLeastOnce(fx.weedChancePerHour, hours)
                     val bugP = farmChanceAtLeastOnce(fx.bugChancePerHour, hours)
-                    val wiltP = farmChanceAtLeastOnce(0.25f, hours)
+                    // 枯萎：按“每天 25%”的极宽松概率触发，缺一两天水远不会枯，
+                    // 只有连续干旱好几天（约 4-7 天）才有明显风险。
+                    val wiltP = farmChanceAtLeastOnce(0.25f / 24f, hours)
 
                     plot.moisture =
                         (plot.moisture - fx.dryPerHour * hours + fx.rainPerHour * hours)

@@ -397,6 +397,7 @@ private fun WeatherScreenContent(
             onClearQuery = viewModel::clearQueryKeepLocation,
             sceneCode = bgSceneCode,
             isDay = bgCurrent?.isDay,
+            cityName = state.selectedCity?.displayName,
             pagerState = pagerState,
             scope = scope,
         )

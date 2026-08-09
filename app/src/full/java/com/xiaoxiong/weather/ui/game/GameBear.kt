@@ -18,6 +18,7 @@ import kotlin.math.sin
  * 小熊的帧（共 8）：
  * 跑步 6 拍循环 RUN_A → RUN_PUSH_A → RUN_PASS → RUN_B → RUN_PUSH_B → RUN_PASS，
  * 加上 JUMP（上升）/ FALL（下落）/ LAND（落地）。
+ * A/B 均为朝右 3/4 正面，仅迈步对侧。
  */
 enum class BearFrame {
     RUN_A,
@@ -134,7 +135,7 @@ fun DrawScope.drawGameBear(
     }
 }
 
-/** 跑步 6 拍循环：按 runPhase 分档切帧。 */
+/** 跑步 6 拍循环：按 [runPhase] 分档切帧（A/B 同为朝右正面，对侧迈步）。 */
 fun runCycleFrame(runPhase: Float): BearFrame {
     val twoPi = Math.PI.toFloat() * 2f
     val phase = ((runPhase % twoPi) + twoPi) % twoPi

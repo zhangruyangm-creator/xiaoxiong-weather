@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -60,10 +59,31 @@ import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 /** 彩蛋口令：搜索框输入「#小熊跳跳」进入跑酷小游戏。 */
 const val EASTER_EGG_BEAR_GAME = "#小熊跳跳"
+
+/** 跑酷场景：跟随当前天气。阴/雨（按强度分档）/雪/雷暴渲染对应粒子与灰调背景。 */
+enum class RunScene { SUNNY, CLOUDY, RAIN_LIGHT, RAIN, RAIN_HEAVY, SNOW, STORM }
+
+private fun runSceneFromWeather(
+    weather: FarmWeather,
+    sceneCode: Int?,
+): RunScene =
+    when (weather) {
+        FarmWeather.SNOWY -> RunScene.SNOW
+        FarmWeather.RAINY ->
+            when (rainStrengthOf(sceneCode)) {
+                RainStrength.LIGHT -> RunScene.RAIN_LIGHT
+                RainStrength.HEAVY -> RunScene.RAIN_HEAVY
+                else -> RunScene.RAIN
+            }
+        FarmWeather.STORMY -> RunScene.STORM
+        FarmWeather.CLOUDY, FarmWeather.FOGGY -> RunScene.CLOUDY
+        FarmWeather.SUNNY -> RunScene.SUNNY
+    }
 
 enum class GamePhase { READY, RUNNING, OVER }
 
@@ -114,6 +134,9 @@ class BearGame {
     var phase by mutableStateOf(GamePhase.READY)
     var best by mutableIntStateOf(0)
 
+    /** 当前天气场景；由 [BearGameScreen] 在天气变化时刷新。 */
+    var scene by mutableStateOf(RunScene.SUNNY)
+
     var size = IntSize.Zero
     var time = 0f
     var distance = 0f
@@ -159,6 +182,15 @@ class BearGame {
     private val jumpV get() = -960f * s
     private val jumpV2 get() = -830f * s
     private val maxSpeed get() = 950f * s
+
+    /**
+     * 速度曲线：由纯距离分数（不含金币）驱动，而不是按时间线性加速。
+     * 开局 340，约 5000 分时才达到极速 950；前期较快、越到后期增速越缓。
+     */
+    private fun speedAt(distanceScore: Float): Float {
+        val p = (distanceScore / 5000f).coerceIn(0f, 1f)
+        return (340f + 610f * sqrt(p)) * s
+    }
 
     fun score(): Int = if (s <= 0f) 0 else (distance / (60f * s)).toInt() + coinCount * 10
 
@@ -280,10 +312,27 @@ class BearGame {
     private fun spawn() {
         val r = Random.nextFloat()
         val type =
-            when {
-                r < 0.40f -> ObstacleType.PUDDLE
-                r < 0.72f -> ObstacleType.SNOWMAN
-                else -> ObstacleType.STORM_CLOUD
+            when (scene) {
+                RunScene.SNOW ->
+                    // 雪天：雪人变多，雷暴云消失，水坑减少
+                    when {
+                        r < 0.18f -> ObstacleType.PUDDLE
+                        r < 0.85f -> ObstacleType.SNOWMAN
+                        else -> ObstacleType.STORM_CLOUD
+                    }
+                RunScene.RAIN, RunScene.RAIN_LIGHT, RunScene.RAIN_HEAVY, RunScene.STORM ->
+                    // 雨天：水坑变多，雪人减少
+                    when {
+                        r < 0.62f -> ObstacleType.PUDDLE
+                        r < 0.80f -> ObstacleType.SNOWMAN
+                        else -> ObstacleType.STORM_CLOUD
+                    }
+                RunScene.SUNNY, RunScene.CLOUDY ->
+                    when {
+                        r < 0.40f -> ObstacleType.PUDDLE
+                        r < 0.72f -> ObstacleType.SNOWMAN
+                        else -> ObstacleType.STORM_CLOUD
+                    }
             }
         val (w, h) =
             when (type) {
@@ -340,7 +389,7 @@ class BearGame {
         if (phase == GamePhase.OVER) deadT += dt
         if (phase != GamePhase.RUNNING) return
 
-        speed = min(maxSpeed, speed + 7f * s * dt)
+        speed = min(maxSpeed, speedAt(distance / (60f * s)))
         val dx = speed * dt
         distance += dx
         if (flipT >= 0f) flipT += dt
@@ -448,6 +497,7 @@ fun BearGameScreen(
     sceneCode: Int?,
     isDay: Boolean?,
     onExit: () -> Unit,
+    cityName: String? = null,
 ) {
     BackHandler(onBack = onExit)
     val context = LocalContext.current
@@ -455,10 +505,19 @@ fun BearGameScreen(
     val style = weatherSceneStyle(sceneCode, isDay, appDark = false)
 
     val prefs = remember { context.getSharedPreferences("bear_game", Context.MODE_PRIVATE) }
+    val leaderboard = remember { GameLeaderboardStore(prefs, "leaderboard_run") }
+    var showLeaderboard by remember { mutableStateOf(false) }
+    var lastRank by remember { mutableIntStateOf(0) }
+    var leaderboardEntries by remember { mutableStateOf(leaderboard.load()) }
+    val gameWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     val game =
         remember {
             BearGame().also { it.best = prefs.getInt("best", 0) }
         }
+    // 天气变化时更新游戏场景（雨量强度决定雨点多少）
+    LaunchedEffect(gameWeather, sceneCode) {
+        game.scene = runSceneFromWeather(gameWeather, sceneCode)
+    }
     val bearSprites =
         BearSprites(
             runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
@@ -498,6 +557,17 @@ fun BearGameScreen(
                                 game.best = score
                                 prefs.edit().putInt("best", score).apply()
                             }
+                            if (score > 0) {
+                                lastRank =
+                                    leaderboard.submit(
+                                        LeaderboardEntry(
+                                            score = score,
+                                            timestamp = System.currentTimeMillis(),
+                                            city = cityName,
+                                            weather = leaderboardWeatherOf(context, sceneCode),
+                                        ),
+                                    ) ?: 0
+                            }
                         },
                     )
                     frame = now
@@ -532,7 +602,27 @@ fun BearGameScreen(
             drawWorld(game, style.contentColor, isDay = isDay ?: true, sprites = bearSprites)
         }
 
-        GameHud(game = game, frame = frame, onExit = onExit)
+        GameHud(
+            game = game,
+            frame = frame,
+            onExit = onExit,
+            onLeaderboard = {
+                leaderboardEntries = leaderboard.load()
+                showLeaderboard = true
+            },
+        )
+
+        if (showLeaderboard) {
+            GameLeaderboardDialog(
+                title = stringResource(R.string.bear_leaderboard_title),
+                entries = leaderboardEntries,
+                onClear = {
+                    leaderboard.clear()
+                    leaderboardEntries = emptyList()
+                },
+                onDismiss = { showLeaderboard = false },
+            )
+        }
 
         when (game.phase) {
             GamePhase.READY -> {
@@ -610,6 +700,15 @@ fun BearGameScreen(
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (lastRank > 0) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text =
+                                    stringResource(R.string.bear_leaderboard_rank_label, lastRank),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         Spacer(modifier = Modifier.height(18.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             TextButton(onClick = onExit) {
@@ -632,6 +731,7 @@ private fun GameHud(
     game: BearGame,
     frame: Long,
     onExit: () -> Unit,
+    onLeaderboard: () -> Unit,
 ) {
     // frame 仅用于驱动 HUD 每帧刷新分数
     @Suppress("UNUSED_EXPRESSION")
@@ -665,6 +765,6 @@ private fun GameHud(
                 color = Color.White.copy(alpha = 0.8f),
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        LeaderboardButton(onClick = onLeaderboard)
     }
 }

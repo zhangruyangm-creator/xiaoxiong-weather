@@ -407,8 +407,8 @@ private class MazeGame {
 
 @Composable
 fun BearMazeScreen(
-    @Suppress("UNUSED_PARAMETER") sceneCode: Int?,
-    @Suppress("UNUSED_PARAMETER") isDay: Boolean?,
+    sceneCode: Int?,
+    isDay: Boolean?,
     onExit: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -417,6 +417,8 @@ fun BearMazeScreen(
         remember {
             context.getSharedPreferences("bear_game", Context.MODE_PRIVATE)
         }
+    val mazeWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
+    val mazeRain = remember(sceneCode) { rainStrengthOf(sceneCode) }
     val game = remember { MazeGame().also { it.loadProgress(prefs) } }
     val sprites =
         BearSprites(
@@ -489,6 +491,8 @@ fun BearMazeScreen(
                     game = game,
                     sprites = sprites,
                     frame = frame,
+                    weather = mazeWeather,
+                    rainStrength = mazeRain,
                     onExitSelect = { game.openSelect() },
                     onRestart = { game.restart() },
                     onNext = {
@@ -647,6 +651,8 @@ private fun MazePlayField(
     game: MazeGame,
     sprites: BearSprites,
     frame: Long,
+    weather: FarmWeather,
+    rainStrength: RainStrength,
     onExitSelect: () -> Unit,
     onRestart: () -> Unit,
     onNext: () -> Unit,
@@ -689,6 +695,7 @@ private fun MazePlayField(
             @Suppress("UNUSED_EXPRESSION")
             frame
             drawMazeWorld(game, sprites, style)
+            drawMazeWeather(game, weather, rainStrength)
         }
 
         // HUD
@@ -901,6 +908,67 @@ private fun DrawScope.drawMazeWorld(
     val bx = ox + (bc + 0.5f) * cell
     val by = oy + (br + 0.5f) * cell
     drawMazeBear(game, sprites, bx, by, cell)
+}
+
+/** 整局天气覆盖层：雨/雪/雷暴时叠加与当前天气一致的粒子与天色；雨点密度随雨势。 */
+private fun DrawScope.drawMazeWeather(
+    game: MazeGame,
+    weather: FarmWeather,
+    rainStrength: RainStrength,
+) {
+    when (weather) {
+        FarmWeather.SUNNY, FarmWeather.CLOUDY, FarmWeather.FOGGY -> Unit
+        FarmWeather.RAINY -> {
+            drawRect(Color(0xFF29364A).copy(alpha = 0.12f))
+            val count =
+                when (rainStrength) {
+                    RainStrength.LIGHT -> 22
+                    RainStrength.HEAVY -> 70
+                    else -> 46
+                }
+            for (i in 0 until count) {
+                val x = ((i * 97 + game.time * 90) % (size.width + 40)) - 20
+                val y = ((i * 53 + game.time * 230) % (size.height + 60)) - 30
+                drawLine(
+                    Color(0xFFA9C6E8).copy(alpha = 0.55f),
+                    Offset(x, y),
+                    Offset(x - 3f, y + 14f),
+                    strokeWidth = 2f,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+        FarmWeather.STORMY -> {
+            drawRect(Color(0xFF151B26).copy(alpha = 0.28f))
+            for (i in 0 until 78) {
+                val x = ((i * 97 + game.time * 120) % (size.width + 40)) - 20
+                val y = ((i * 53 + game.time * 260) % (size.height + 60)) - 30
+                drawLine(
+                    Color(0xFFA9C6E8).copy(alpha = 0.65f),
+                    Offset(x, y),
+                    Offset(x - 4f, y + 16f),
+                    strokeWidth = 2f,
+                    cap = StrokeCap.Round,
+                )
+            }
+            if (sin(game.time * 6f) > 0.90f) {
+                drawLine(
+                    Color(0xFFFFF59D).copy(alpha = 0.85f),
+                    Offset(size.width * 0.7f, 0f),
+                    Offset(size.width * 0.58f, size.height * 0.16f),
+                    strokeWidth = 3f,
+                )
+            }
+        }
+        FarmWeather.SNOWY -> {
+            drawRect(Color(0xFFB9C7D6).copy(alpha = 0.08f))
+            for (i in 0 until 34) {
+                val x = ((i * 83 + game.time * 26) % (size.width + 20))
+                val y = ((i * 61 + game.time * 48) % (size.height + 20))
+                drawCircle(Color.White.copy(alpha = 0.8f), 2.5f + (i % 3), Offset(x, y))
+            }
+        }
+    }
 }
 
 private fun DrawScope.drawThemeFx(

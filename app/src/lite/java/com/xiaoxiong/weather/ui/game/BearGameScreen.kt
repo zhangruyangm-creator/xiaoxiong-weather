@@ -16,6 +16,7 @@ fun BearGameScreen(
     @Suppress("UNUSED_PARAMETER") sceneCode: Int?,
     @Suppress("UNUSED_PARAMETER") isDay: Boolean?,
     @Suppress("UNUSED_PARAMETER") onExit: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") cityName: String? = null,
 ) = Unit
 
 @Composable
@@ -23,6 +24,7 @@ fun BearStarJumpScreen(
     @Suppress("UNUSED_PARAMETER") sceneCode: Int?,
     @Suppress("UNUSED_PARAMETER") isDay: Boolean?,
     @Suppress("UNUSED_PARAMETER") onExit: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") cityName: String? = null,
 ) = Unit
 
 @Composable
