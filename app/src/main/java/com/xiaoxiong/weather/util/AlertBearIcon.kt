@@ -8,7 +8,7 @@ import com.xiaoxiong.weather.data.AlertSeverity
 /**
  * 预警类型 → 小熊插画资源。
  * 高温/连续高温/严寒/剧烈降温/寒潮/紫外线/大风/雷暴/冰雹/冻雨/强降雨/积水/大雪/雪天路滑/空气质量使用专属姿态；
- * 强降雨：提醒黄伞、预警红伞；未来降雨按峰值小时雨量换伞色；其余复用桌面天气小熊。
+ * 强降雨：提醒黄伞、预警红伞；未来降雨按峰值小时雨量换伞色；浓雾用专属小熊；其余复用桌面天气小熊。
  */
 object AlertBearIcon {
     @DrawableRes
@@ -35,7 +35,13 @@ object AlertBearIcon {
             AlertKind.SNOW, AlertKind.SNOW_SOON -> snowBearRes(precipMmPerHour, severity)
             AlertKind.SNOWING -> R.drawable.ic_launcher_bear_snowy
             AlertKind.SNOWY_ROAD -> R.drawable.ic_alert_bear_snowy_road
-            AlertKind.FOG, AlertKind.LOW_VISIBILITY -> R.drawable.ic_launcher_bear_foggy
+            AlertKind.FOG ->
+                if (severity == AlertSeverity.WARNING) {
+                    R.drawable.ic_alert_bear_dense_fog
+                } else {
+                    R.drawable.ic_launcher_bear_foggy
+                }
+            AlertKind.LOW_VISIBILITY -> R.drawable.ic_launcher_bear_foggy
             AlertKind.RAINING, AlertKind.RAIN_SOON -> rainSoonUmbrellaRes(precipMmPerHour)
             AlertKind.CLEAR -> R.drawable.ic_launcher_bear_sunny
         }

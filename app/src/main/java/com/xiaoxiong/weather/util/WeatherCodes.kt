@@ -50,6 +50,16 @@ object WeatherCodes {
     const val COLD_WAVE_WINTRY_MAX_C = 16.0
     const val COLD_WAVE_WINTRY_MIN_C = 8.0
 
+    /** 体感严寒升为 WARNING 的门槛（°C）。 */
+    const val COLD_WARNING_APPARENT_C = -15.0
+
+    /**
+     * 浓雾：能见度 &lt; 200 m（中国气象局浓雾量级）。
+     * 大雾 / 低能见度提醒仍用 &lt; 1000 m。
+     */
+    const val FOG_DENSE_VISIBILITY_M = 200.0
+    const val FOG_WATCH_VISIBILITY_M = 1000.0
+
     /** 连续高温：日最高温 ≥35°C 计为高温日（中国高温日常用门槛）。 */
     const val HEAT_WAVE_DAY_MAX_C = 35.0
 

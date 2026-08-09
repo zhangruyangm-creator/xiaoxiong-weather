@@ -73,9 +73,17 @@ class WeatherAlertGeneratorTest {
 
         val cold =
             first(
-                WeatherFixtures.current(temperatureC = 0.0, apparentTemperatureC = -12.0),
+                WeatherFixtures.current(temperatureC = 0.0, apparentTemperatureC = -16.0),
             )
         assertEquals(AlertKind.COLD, cold.kind)
+        assertEquals(AlertSeverity.WARNING, cold.severity)
+
+        // -12°C 未达严寒 WARNING 门槛（-15°C）
+        assertFalse(
+            kindsOf(
+                WeatherFixtures.current(temperatureC = 0.0, apparentTemperatureC = -12.0),
+            ).contains(AlertKind.COLD),
+        )
     }
 
     @Test
@@ -418,15 +426,89 @@ class WeatherAlertGeneratorTest {
 
     @Test
     fun distinctByTitle() {
+        // 雷暴 + 大风：两条不同标题，验证不会被 distinctBy 合并掉
         val alerts =
             WeatherAlertGenerator.specs(
-                WeatherFixtures.current(weatherCode = 45, visibilityMeters = 500.0),
+                WeatherFixtures.current(weatherCode = 95, windGustsKmh = 70.0),
                 emptyList(),
                 emptyList(),
                 null,
             )
-        assertTrue(alerts.any { it.kind == AlertKind.FOG })
-        assertTrue(alerts.any { it.kind == AlertKind.LOW_VISIBILITY })
+        assertTrue(alerts.any { it.kind == AlertKind.STORM })
+        assertTrue(alerts.any { it.kind == AlertKind.WIND })
+        assertEquals(2, alerts.map { it.titleRes }.distinct().size)
+    }
+
+    @Test
+    fun fog_watchFromWeatherCode() {
+        val alert = first(WeatherFixtures.current(weatherCode = 45, visibilityMeters = 500.0))
+        assertEquals(AlertKind.FOG, alert.kind)
+        assertEquals(AlertSeverity.WATCH, alert.severity)
+        assertEquals(R.string.alert_fog_title, alert.titleRes)
+        assertFalse(kindsOf(WeatherFixtures.current(weatherCode = 45, visibilityMeters = 500.0)).contains(AlertKind.LOW_VISIBILITY))
+    }
+
+    @Test
+    fun denseFog_warningWhenVisibilityUnder200m() {
+        val alert = first(WeatherFixtures.current(weatherCode = 45, visibilityMeters = 150.0))
+        assertEquals(AlertKind.FOG, alert.kind)
+        assertEquals(AlertSeverity.WARNING, alert.severity)
+        assertEquals(R.string.alert_dense_fog_title, alert.titleRes)
+    }
+
+    @Test
+    fun denseFog_warningFromVisibilityAlone() {
+        val alert = first(WeatherFixtures.current(weatherCode = 3, visibilityMeters = 180.0))
+        assertEquals(AlertKind.FOG, alert.kind)
+        assertEquals(AlertSeverity.WARNING, alert.severity)
+    }
+
+    @Test
+    fun heavyRainSoon_emittedAlongsideCurrentWatchWhenFutureIsWarning() {
+        // 当前 5mm/h（WATCH），未来峰值 22mm/h（WARNING）→ 两条都报，不再被互斥吞掉
+        val current =
+            WeatherFixtures.current(
+                time = "2026-08-02T12:00",
+                weatherCode = 63,
+                precipitationRateMmPerHour = 5.0,
+            )
+        val hourly =
+            listOf(
+                WeatherFixtures.hourly("2026-08-02T12:00", precipitationMm = 5.0),
+                WeatherFixtures.hourly("2026-08-02T13:00", precipitationMm = 6.0),
+                WeatherFixtures.hourly("2026-08-02T18:00", precipitationMm = 22.0, precipProbability = 95),
+            )
+        val specs = WeatherAlertGenerator.specs(current, hourly, emptyList(), null)
+        assertTrue(specs.any { it.kind == AlertKind.HEAVY_RAIN && it.severity == AlertSeverity.WATCH })
+        val soon = specs.first { it.kind == AlertKind.RAIN_SOON }
+        assertEquals(AlertSeverity.WARNING, soon.severity)
+        assertEquals(22.0, soon.messageArg)
+    }
+
+    @Test
+    fun heavyRainSoon_within24HoursNotJustNextFew() {
+        // 峰值在约 20 小时后，旧逻辑（只看约 5h）会漏报
+        val current =
+            WeatherFixtures.current(
+                time = "2026-08-02T00:00",
+                weatherCode = 0,
+                precipitationRateMmPerHour = 0.0,
+            )
+        val hourly =
+            (0..23).map { h ->
+                val precip = if (h == 20) 12.0 else 0.0
+                WeatherFixtures.hourly(
+                    "2026-08-02T%02d:00".format(h),
+                    precipitationMm = precip,
+                    precipProbability = if (h == 20) 90 else 10,
+                )
+            }
+        val soon =
+            WeatherAlertGenerator
+                .specs(current, hourly, emptyList(), null)
+                .first { it.kind == AlertKind.RAIN_SOON }
+        assertEquals(AlertSeverity.WATCH, soon.severity)
+        assertEquals(12.0, soon.messageArg)
     }
 
     @Test

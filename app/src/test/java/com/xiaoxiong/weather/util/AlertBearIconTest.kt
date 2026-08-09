@@ -74,6 +74,10 @@ class AlertBearIconTest {
     fun weatherStyleKinds_reuseLauncherBears() {
         assertEquals(R.drawable.ic_launcher_bear_foggy, AlertBearIcon.drawableRes(AlertKind.FOG))
         assertEquals(
+            R.drawable.ic_alert_bear_dense_fog,
+            AlertBearIcon.drawableRes(AlertKind.FOG, severity = AlertSeverity.WARNING),
+        )
+        assertEquals(
             R.drawable.ic_launcher_bear_foggy,
             AlertBearIcon.drawableRes(AlertKind.LOW_VISIBILITY),
         )

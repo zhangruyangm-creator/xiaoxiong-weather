@@ -102,9 +102,22 @@ class WeatherLauncherIconMappingTest {
             WeatherLauncherIcon.Style.EXTREME_RAIN,
             WeatherLauncherIcon.fromWeather(61, 55.0),
         )
+        // 雷暴常见，红伞/黑伞暴雨量级更稀少：雨强达标时盖过雷暴图标
         assertEquals(
             WeatherLauncherIcon.Style.STORM,
+            WeatherLauncherIcon.fromWeather(95, 5.0),
+        )
+        assertEquals(
+            WeatherLauncherIcon.Style.VIOLENT_RAIN,
+            WeatherLauncherIcon.fromWeather(95, 16.0),
+        )
+        assertEquals(
+            WeatherLauncherIcon.Style.VIOLENT_RAIN,
             WeatherLauncherIcon.fromWeather(95, 30.0),
+        )
+        assertEquals(
+            WeatherLauncherIcon.Style.EXTREME_RAIN,
+            WeatherLauncherIcon.fromWeather(95, 40.0),
         )
     }
 

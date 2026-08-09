@@ -30,8 +30,9 @@ object WeatherAlertGenerator {
         airQuality: AirQuality?,
     ): List<Spec> {
         val alerts = mutableListOf<Spec>()
-        val upcoming = upcomingFromCurrent(hourly, { it.time }, current.time, count = 12)
-        val upcoming6 = upcoming.take(6)
+        // 取当前整点 + 未来 24 小时，用于「未来强降雨/降雪」预报窗口
+        val upcoming = upcomingFromCurrent(hourly, { it.time }, current.time, count = 25)
+        val futureHours = upcoming.drop(1).take(24)
         val today = daily.firstOrNull()
         // 与小时图同一标准：当前整点小时桶（拉取时已写入 precipitationRateMmPerHour）
         val rateNow =
@@ -51,6 +52,7 @@ object WeatherAlertGenerator {
                     weatherCode = current.weatherCode,
                     currentPrecipMm = rateNow,
                 )
+        val nowRainWarning = WeatherCodes.isHeavyRainWarningIntensity(rateNow)
         val heavyRainDaily =
             !heavyRainNow &&
                 !WeatherCodes.isSnowCode(current.weatherCode) &&
@@ -58,14 +60,14 @@ object WeatherAlertGenerator {
                     currentPrecipMm = rateNow,
                     dailyPrecipFallenMm = fallenTodayMm,
                 )
-        // 未来强降雨：看随后约 5 个整点小时桶的峰值（不含当前小时，当前大雨走「强降雨提醒」）
-        val futureHours = upcoming6.drop(1)
+        // 未来 24h 强降雨：当前已在大雨时，仅当未来峰值升到 WARNING 且当前未达 WARNING 才并报
         val futurePeakMm = futureHours.maxOfOrNull { it.precipitationMm ?: 0.0 } ?: 0.0
+        val soonRainWarning = WeatherCodes.isHeavyRainForecastWarning(futurePeakMm)
         val heavyRainSoon =
-            !heavyRainNow &&
-                !heavyRainDaily &&
+            !heavyRainDaily &&
                 !WeatherCodes.isSnowCode(current.weatherCode) &&
-                WeatherCodes.isHeavyRainForecastPeak(futurePeakMm)
+                WeatherCodes.isHeavyRainForecastPeak(futurePeakMm) &&
+                (!heavyRainNow || (soonRainWarning && !nowRainWarning))
         val precipitatingNow = WeatherCodes.isPrecipitatingNow(rateNow)
 
         val snowIntensityNow =
@@ -99,10 +101,15 @@ object WeatherAlertGenerator {
                 .maxByOrNull { it.precipitationMm ?: 0.0 }
         val futureSnowPeakMm = futureSnowHour?.precipitationMm ?: 0.0
         val futureSnowCode = futureSnowHour?.weatherCode
+        val soonSnowWarning =
+            WeatherCodes.isBlizzardForecastWarning(
+                futureSnowPeakMm,
+                futureSnowCode,
+            )
         val heavySnowSoon =
-            !heavySnowNow &&
-                !heavySnowDaily &&
-                WeatherCodes.isHeavySnowForecastPeak(futureSnowPeakMm, futureSnowCode)
+            !heavySnowDaily &&
+                WeatherCodes.isHeavySnowForecastPeak(futureSnowPeakMm, futureSnowCode) &&
+                (!heavySnowNow || (soonSnowWarning && !blizzardNow))
 
         when (current.weatherCode) {
             95 ->
@@ -129,28 +136,20 @@ object WeatherAlertGenerator {
                         R.string.alert_freezing_rain_title,
                         R.string.alert_freezing_rain_msg,
                     )
-            45, 48 ->
-                alerts +=
-                    Spec(
-                        AlertKind.FOG,
-                        AlertSeverity.WATCH,
-                        R.string.alert_fog_title,
-                        R.string.alert_fog_msg,
-                    )
+            // 45/48 大雾码：能见度分档在下方统一处理，避免与浓雾 WARNING 重复
         }
 
         if (heavyRainNow) {
-            val nowWarning = WeatherCodes.isHeavyRainWarningIntensity(rateNow)
             alerts +=
                 Spec(
                     AlertKind.HEAVY_RAIN,
-                    if (nowWarning) AlertSeverity.WARNING else AlertSeverity.WATCH,
-                    if (nowWarning) {
+                    if (nowRainWarning) AlertSeverity.WARNING else AlertSeverity.WATCH,
+                    if (nowRainWarning) {
                         R.string.alert_heavy_rain_warning_title
                     } else {
                         R.string.alert_heavy_rain_title
                     },
-                    if (nowWarning) {
+                    if (nowRainWarning) {
                         R.string.alert_heavy_rain_warning_msg
                     } else {
                         R.string.alert_heavy_rain_msg
@@ -166,18 +165,18 @@ object WeatherAlertGenerator {
                     R.string.alert_heavy_rain_daily_msg,
                     fallenTodayMm,
                 )
-        } else if (heavyRainSoon) {
-            val soonWarning = WeatherCodes.isHeavyRainForecastWarning(futurePeakMm)
+        }
+        if (heavyRainSoon) {
             alerts +=
                 Spec(
                     AlertKind.RAIN_SOON,
-                    if (soonWarning) AlertSeverity.WARNING else AlertSeverity.WATCH,
-                    if (soonWarning) {
+                    if (soonRainWarning) AlertSeverity.WARNING else AlertSeverity.WATCH,
+                    if (soonRainWarning) {
                         R.string.alert_heavy_rain_soon_warning_title
                     } else {
                         R.string.alert_heavy_rain_soon_title
                     },
-                    if (soonWarning) {
+                    if (soonRainWarning) {
                         R.string.alert_heavy_rain_soon_warning_msg
                     } else {
                         R.string.alert_heavy_rain_soon_msg
@@ -186,6 +185,8 @@ object WeatherAlertGenerator {
                     precipIconMm = futurePeakMm,
                 )
         } else if (
+            !heavyRainNow &&
+            !heavyRainDaily &&
             precipitatingNow &&
             !WeatherCodes.isSnowCode(current.weatherCode) &&
             current.weatherCode !in listOf(95, 96, 99, 56, 57, 66, 67)
@@ -236,22 +237,18 @@ object WeatherAlertGenerator {
                     },
                     fallenTodayMm,
                 )
-        } else if (heavySnowSoon) {
-            val soonWarning =
-                WeatherCodes.isBlizzardForecastWarning(
-                    futureSnowPeakMm,
-                    futureSnowCode,
-                )
+        }
+        if (heavySnowSoon) {
             alerts +=
                 Spec(
                     AlertKind.SNOW_SOON,
-                    if (soonWarning) AlertSeverity.WARNING else AlertSeverity.WATCH,
-                    if (soonWarning) {
+                    if (soonSnowWarning) AlertSeverity.WARNING else AlertSeverity.WATCH,
+                    if (soonSnowWarning) {
                         R.string.alert_blizzard_soon_warning_title
                     } else {
                         R.string.alert_heavy_snow_soon_title
                     },
-                    if (soonWarning) {
+                    if (soonSnowWarning) {
                         R.string.alert_blizzard_soon_warning_msg
                     } else {
                         R.string.alert_heavy_snow_soon_msg
@@ -260,6 +257,8 @@ object WeatherAlertGenerator {
                     precipIconMm = futureSnowPeakMm,
                 )
         } else if (
+            !heavySnowNow &&
+            !heavySnowDaily &&
             precipitatingNow &&
             WeatherCodes.isSnowCode(current.weatherCode) &&
             snowIntensityNow != WeatherCodes.SnowIntensity.NONE
@@ -318,7 +317,7 @@ object WeatherAlertGenerator {
                     R.string.alert_heat_msg,
                     temp,
                 )
-        } else if (temp != null && temp <= -10) {
+        } else if (temp != null && temp <= WeatherCodes.COLD_WARNING_APPARENT_C) {
             alerts +=
                 Spec(
                     AlertKind.COLD,
@@ -332,15 +331,34 @@ object WeatherAlertGenerator {
         coldWaveSpec(current, hourly, daily)?.let { alerts += it }
         heatWaveSpec(daily)?.let { alerts += it }
 
+        // 大雾 / 浓雾 / 低能见度：能见度 <200m 为浓雾 WARNING；雾码或 <1000m 为提醒
         val visibility = current.visibilityMeters
-        if (visibility != null && visibility < 1000) {
-            alerts +=
-                Spec(
-                    AlertKind.LOW_VISIBILITY,
-                    AlertSeverity.WATCH,
-                    R.string.alert_low_vis_title,
-                    R.string.alert_low_vis_msg,
-                )
+        val fogCode = current.weatherCode == 45 || current.weatherCode == 48
+        when {
+            visibility != null && visibility < WeatherCodes.FOG_DENSE_VISIBILITY_M ->
+                alerts +=
+                    Spec(
+                        AlertKind.FOG,
+                        AlertSeverity.WARNING,
+                        R.string.alert_dense_fog_title,
+                        R.string.alert_dense_fog_msg,
+                    )
+            fogCode ->
+                alerts +=
+                    Spec(
+                        AlertKind.FOG,
+                        AlertSeverity.WATCH,
+                        R.string.alert_fog_title,
+                        R.string.alert_fog_msg,
+                    )
+            visibility != null && visibility < WeatherCodes.FOG_WATCH_VISIBILITY_M ->
+                alerts +=
+                    Spec(
+                        AlertKind.LOW_VISIBILITY,
+                        AlertSeverity.WATCH,
+                        R.string.alert_low_vis_title,
+                        R.string.alert_low_vis_msg,
+                    )
         }
 
         // 未来有雨：已在下雨/下雪或已有强降水提醒则不再报「未来降雨」；只看后续小时

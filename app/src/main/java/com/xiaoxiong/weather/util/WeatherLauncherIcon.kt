@@ -104,7 +104,8 @@ object WeatherLauncherIcon {
 
     /**
      * 结合天气代码、昼夜与近 1 小时降水选图标。
-     * 晴/多云夜间用月亮；毛毛雨单独一档；雨雪按强度分档；雷暴等特殊天气优先。
+     * 晴/多云夜间用月亮；毛毛雨单独一档；雨雪按强度分档；
+     * 冰雹/冻雨优先；雷暴常见，但红伞/黑伞暴雨量级更稀少，雨强达标时盖过雷暴。
      */
     fun fromWeather(
         code: Int?,
@@ -112,9 +113,16 @@ object WeatherLauncherIcon {
         isDay: Boolean? = true,
     ): Style {
         when (code) {
-            95 -> return Style.STORM
             96, 99 -> return Style.HAIL
             56, 57, 66, 67 -> return Style.FREEZING_RAIN
+            95 -> {
+                // 雷暴码：仅当雨强未达暴雨/猛烈时用雷暴图标，否则让红/黑伞胜出
+                return when (WeatherCodes.rainIntensity(precipMmPerHour)) {
+                    WeatherCodes.RainIntensity.TORRENTIAL -> Style.VIOLENT_RAIN
+                    WeatherCodes.RainIntensity.VIOLENT -> Style.EXTREME_RAIN
+                    else -> Style.STORM
+                }
+            }
         }
         if (WeatherCodes.isSnowCode(code)) {
             return when (WeatherCodes.snowIntensity(code, precipMmPerHour)) {
