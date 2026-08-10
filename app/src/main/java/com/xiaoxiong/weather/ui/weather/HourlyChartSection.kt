@@ -1,6 +1,11 @@
 package com.xiaoxiong.weather.ui.weather
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,8 +28,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +58,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -119,6 +128,8 @@ fun HourlyChartSection(
 ) {
     var metric by remember { mutableStateOf(HourlyMetric.TEMPERATURE) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    // 小时明细默认折叠，避免页面一进来就是 24 行列表
+    var detailsExpanded by remember { mutableStateOf(false) }
     val tempUnit = LocalTemperatureUnit.current
 
     val times = remember(hourly) { hourly.map { it.time } }
@@ -547,16 +558,29 @@ fun HourlyChartSection(
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        // 稳定实例：拖动折线时 CompactHourlyList 重组，各行靠稳定参数跳过
-        val onSelectHour = remember { { index: Int -> selectedIndex = index } }
-        CompactHourlyList(
-            hourly = hourly,
-            currentTime = currentTime,
-            metric = metric,
-            selectedIndex = selectedIndex,
-            tempUnit = tempUnit,
-            onSelect = onSelectHour,
+        HourlyDetailToggle(
+            expanded = detailsExpanded,
+            onClick = { detailsExpanded = !detailsExpanded },
         )
+        AnimatedVisibility(
+            visible = detailsExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(6.dp))
+                // 稳定实例：拖动折线时 CompactHourlyList 重组，各行靠稳定参数跳过
+                val onSelectHour = remember { { index: Int -> selectedIndex = index } }
+                CompactHourlyList(
+                    hourly = hourly,
+                    currentTime = currentTime,
+                    metric = metric,
+                    selectedIndex = selectedIndex,
+                    tempUnit = tempUnit,
+                    onSelect = onSelectHour,
+                )
+            }
+        }
     }
 }
 
@@ -609,6 +633,52 @@ private fun LegendDot(color: Color) {
                 .size(10.dp)
                 .background(color, CircleShape),
     )
+}
+
+@Composable
+private fun HourlyDetailToggle(
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    val toggleLabel =
+        stringResource(
+            if (expanded) {
+                R.string.chart_hourly_detail_collapse
+            } else {
+                R.string.chart_hourly_detail_expand
+            },
+        )
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = toggleLabel,
+                    onClick = onClick,
+                ).padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.chart_hourly_detail),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = toggleLabel,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Icon(
+            imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
 }
 
 @Composable

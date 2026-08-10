@@ -8,9 +8,9 @@ import org.junit.Test
 class TodayCardLayoutTest {
     @Test
     fun default_allVisibleInCanonicalOrder() {
-        val ids = TodayCardLayout.DEFAULT.map { it.id }
+        val ids = TodayCardLayout.defaults.map { it.id }
         assertEquals(TodayCardId.entries, ids)
-        assertTrue(TodayCardLayout.DEFAULT.all { it.visible })
+        assertTrue(TodayCardLayout.defaults.all { it.visible })
     }
 
     @Test
@@ -42,7 +42,7 @@ class TodayCardLayoutTest {
     fun encodeDecode_roundTrip() {
         val prefs =
             TodayCardLayout.withVisibility(
-                TodayCardLayout.move(TodayCardLayout.DEFAULT, fromIndex = 2, toIndex = 0),
+                TodayCardLayout.move(TodayCardLayout.defaults, fromIndex = 2, toIndex = 0),
                 TodayCardId.RADAR,
                 visible = false,
             )
@@ -52,15 +52,15 @@ class TodayCardLayoutTest {
 
     @Test
     fun decode_blankUsesDefault() {
-        assertEquals(TodayCardLayout.DEFAULT, TodayCardLayout.decode(null))
-        assertEquals(TodayCardLayout.DEFAULT, TodayCardLayout.decode("  "))
+        assertEquals(TodayCardLayout.defaults, TodayCardLayout.decode(null))
+        assertEquals(TodayCardLayout.defaults, TodayCardLayout.decode("  "))
     }
 
     @Test
     fun withVisibility_ignoresHidingCurrent() {
         val prefs =
             TodayCardLayout.withVisibility(
-                TodayCardLayout.DEFAULT,
+                TodayCardLayout.defaults,
                 TodayCardId.CURRENT,
                 visible = false,
             )
@@ -69,7 +69,7 @@ class TodayCardLayoutTest {
 
     @Test
     fun move_reorders() {
-        val moved = TodayCardLayout.move(TodayCardLayout.DEFAULT, 0, 2)
+        val moved = TodayCardLayout.move(TodayCardLayout.defaults, 0, 2)
         assertEquals(TodayCardId.CURRENT, moved[0].id)
         assertEquals(TodayCardId.LIFE_INDICES, moved[1].id)
         assertEquals(TodayCardId.ALERTS, moved[2].id)

@@ -29,6 +29,10 @@
 ./gradlew assembleFullRelease
 ./gradlew assembleLiteRelease
 
+# 彩蛋游戏可选编译（full 版，默认全部 4 个都编译进去）
+./gradlew assembleFullRelease -Pgames=jump,star          # 只编译跳跳 + 摘星
+./gradlew assembleFullRelease -Pgames=none               # 不含任何游戏（等价 lite 入口）
+
 # 单元测试
 ./gradlew test
 
@@ -43,10 +47,22 @@
 
 | Flavor | 彩蛋游戏 | 说明 |
 |--------|---------|------|
-| `full` | ✅ | 默认版本，含小熊彩蛋游戏 |
+| `full` | ✅（可选） | 默认版本，含小熊彩蛋游戏，可裁剪 |
 | `lite` | ❌ | 游戏编译为空实现，R8 内联消除，包体零痕迹 |
 
-`lite` 的 `BearGameScreen.kt` 只保留符号签名，release 构建下会被 R8 直接内联消除。
+### full 版游戏可选编译
+
+`full` 版默认把 4 个小游戏（跳跳 / 摘星 / 迷宫 / 农场）全部编译进去；需要只编译其中一部分时，用 `-Pgames` 指定：
+
+```bash
+./gradlew assembleFullRelease -Pgames=jump,maze          # 只编译跳跳 + 迷宫
+./gradlew assembleFullRelease -Pgames=none               # 不含任何游戏
+```
+
+- 游戏 id：`jump`（小熊跳跳）、`star`（小熊摘星）、`maze`（小熊迷宫）、`farm`（小熊农场）
+- 未选中的游戏源码集（`app/src/gameXxx/kotlin`）不参与编译，仅编译几行空实现门面（`app/src/gameXxxEmpty/kotlin`），release 下被 R8 消除，未选游戏的代码不进包
+- 未选游戏的对应口令不可达；对应的单元测试（`app/src/gameXxxTest/kotlin`）也不会被编译运行
+- 缺省（不传 `-Pgames`）等价于 `all`
 
 ## 签名配置
 
@@ -131,7 +147,7 @@ app/
 │   │   │   │   │   └── WeatherViewModelFactory.kt
 │   │   │   │   ├── settings/
 │   │   │   │   ├── debug/
-│   │   │   │   └── game/              # full flavor：4 个彩蛋游戏
+│   │   │   │   └── game/              # 彩蛋游戏入口（口令触发）
 │   │   │   ├── widget/                # Glance 桌面小组件
 │   │   │   ├── worker/WeatherRefreshWorker.kt
 │   │   │   └── util/
@@ -146,6 +162,10 @@ app/
 │   │       └── values/                # strings.xml（中文为主）
 │   ├── full/                          # full flavor 源集
 │   ├── lite/                          # lite flavor：游戏空实现
+│   ├── gameCommon/                    # 4 游戏共享代码（按 -Pgames 选入 full）
+│   ├── game{Jump,Star,Maze,Farm}/     # 各游戏源码（按 -Pgames 选入 full）
+│   ├── game{Jump,Star,Maze,Farm}Empty/# 未选中时的空实现门面
+│   ├── game{Jump,Maze,Farm}Test/      # 对应游戏的单元测试
 │   ├── test/                          # 24 个单元测试
 │   └── androidTest/                   # 仪器测试
 └── build.gradle.kts

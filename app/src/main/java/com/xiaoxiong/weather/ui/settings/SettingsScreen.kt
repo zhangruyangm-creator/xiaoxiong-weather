@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Notifications
@@ -70,6 +71,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenTodayCards: () -> Unit = {},
+    onOpenHourlyCards: () -> Unit = {},
     onDebugUnlocked: () -> Unit = {},
 ) {
     val settings by settingsStore.settings.collectAsStateWithLifecycle(
@@ -267,6 +269,32 @@ fun SettingsScreen(
                                     title = stringResource(R.string.settings_today_cards),
                                     subtitle = stringResource(R.string.settings_today_cards_sub),
                                     icon = Icons.Filled.ViewAgenda,
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                item {
+                    SoftCard(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onOpenHourlyCards),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                SectionHeader(
+                                    title = stringResource(R.string.settings_hourly_cards),
+                                    subtitle = stringResource(R.string.settings_hourly_cards_sub),
+                                    icon = Icons.AutoMirrored.Filled.ShowChart,
                                 )
                             }
                             Icon(

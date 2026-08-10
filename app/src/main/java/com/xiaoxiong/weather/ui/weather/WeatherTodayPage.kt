@@ -84,7 +84,7 @@ internal fun TodayPage(
     isOffline: Boolean,
     lastUpdatedText: String?,
     radarMapRepository: RadarMapRepository,
-    cardLayout: List<TodayCardPref> = TodayCardLayout.DEFAULT,
+    cardLayout: List<TodayCardPref> = TodayCardLayout.defaults,
 ) {
     val layout = remember(cardLayout) { TodayCardLayout.mergeWithDefaults(cardLayout) }
     LazyColumn(

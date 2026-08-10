@@ -30,6 +30,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.data.HourlyCardId
+import com.xiaoxiong.weather.data.HourlyCardLayout
+import com.xiaoxiong.weather.data.HourlyCardPref
 import com.xiaoxiong.weather.data.HourlyWeather
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
@@ -46,7 +49,9 @@ internal fun HourlyPage(
     isOffline: Boolean,
     lastUpdatedText: String?,
     onChartDragStateChange: (Boolean) -> Unit = {},
+    cardLayout: List<HourlyCardPref> = HourlyCardLayout.defaults,
 ) {
+    val layout = remember(cardLayout) { HourlyCardLayout.mergeWithDefaults(cardLayout) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -66,24 +71,29 @@ internal fun HourlyPage(
                 icon = Icons.Filled.Schedule,
             )
         }
-        item {
-            PrecipitationBarChart(
-                hourly = weather.hourly,
-                currentTime = weather.current.time,
-            )
-        }
-        item {
-            HourlyStrip(
-                hourly = weather.hourly,
-                currentTime = weather.current.time,
-            )
-        }
-        item {
-            HourlyChartSection(
-                hourly = weather.hourly,
-                currentTime = weather.current.time,
-                onDragStateChange = onChartDragStateChange,
-            )
+        val visibleCards = layout.filter { it.visible }
+        items(
+            items = visibleCards,
+            key = { it.id.name },
+        ) { pref ->
+            when (pref.id) {
+                HourlyCardId.PRECIP ->
+                    PrecipitationBarChart(
+                        hourly = weather.hourly,
+                        currentTime = weather.current.time,
+                    )
+                HourlyCardId.STRIP ->
+                    HourlyStrip(
+                        hourly = weather.hourly,
+                        currentTime = weather.current.time,
+                    )
+                HourlyCardId.CHART ->
+                    HourlyChartSection(
+                        hourly = weather.hourly,
+                        currentTime = weather.current.time,
+                        onDragStateChange = onChartDragStateChange,
+                    )
+            }
         }
     }
 }

@@ -9,6 +9,29 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
+// 彩蛋游戏可选编译：默认把 4 个小游戏全部编译进 full 版；
+// 可用 -Pgames=jump,star,maze,farm 只编译其中若干（逗号分隔），-Pgames=none 不含任何游戏（等价 lite 入口）。
+// 未选中的游戏对应源码集（src/gameXxx/kotlin）不会参与编译，仅编译空实现门面（src/gameXxxEmpty/kotlin），
+// 由 main 的彩蛋入口引用，保证任意组合下 WeatherGameOverlay 都能编译通过。
+val gameIds = listOf("jump", "star", "maze", "farm")
+
+fun String.toGameDirName(): String = replaceFirstChar { it.uppercase() }
+
+val gamesRaw = (project.findProperty("games") as String?)?.trim()?.lowercase()
+val enabledGames: Set<String> =
+    when {
+        gamesRaw.isNullOrBlank() || gamesRaw == "all" -> gameIds.toSet()
+        gamesRaw == "none" -> emptySet()
+        else -> {
+            val picked = gamesRaw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            val unknown = picked - gameIds
+            if (unknown.isNotEmpty()) {
+                logger.warn("未知的游戏 id：${unknown.joinToString()}（可选：${gameIds.joinToString()}）")
+            }
+            (picked intersect gameIds).toSet()
+        }
+    }
+
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
@@ -32,8 +55,8 @@ android {
         applicationId = "com.xiaoxiong.weather"
         minSdk = 26
         targetSdk = 37
-        versionCode = 36
-        versionName = "1.5.2"
+        versionCode = 37
+        versionName = "1.5.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             // 仅保留 ARM 架构：x86/x86_64 只服务于模拟器，2026 年已无实际设备使用
@@ -87,6 +110,28 @@ android {
         }
         create("lite") {
             dimension = "edition"
+        }
+    }
+
+    sourceSets {
+        getByName("full") {
+            // 共享代码：跳跳/摘星/迷宫/农场任一共用（天气分类、小熊精灵、天空与降水特效、排行榜）
+            if (enabledGames.isNotEmpty()) {
+                kotlin.srcDir("src/gameCommon/kotlin")
+            }
+            for (id in gameIds) {
+                // 选中的游戏编译真实实现，未选中的编译空实现门面
+                val dir = if (id in enabledGames) "src/game${id.toGameDirName()}/kotlin" else "src/game${id.toGameDirName()}Empty/kotlin"
+                kotlin.srcDir(dir)
+            }
+        }
+        // 单元测试源集只编译选中游戏的测试，避免引用未编译的符号
+        getByName("testFull") {
+            for (id in gameIds) {
+                if (id in enabledGames) {
+                    kotlin.srcDir("src/game${id.toGameDirName()}Test/kotlin")
+                }
+            }
         }
     }
 }

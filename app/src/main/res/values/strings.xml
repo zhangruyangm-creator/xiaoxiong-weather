@@ -426,6 +426,15 @@
     <string name="today_card_air">空气质量</string>
     <string name="today_card_radar">雷达与云图</string>
     <string name="today_card_sun">日出日落</string>
+    <string name="settings_hourly_cards">小时页卡片</string>
+    <string name="settings_hourly_cards_sub">显示、隐藏与调整顺序</string>
+    <string name="settings_hourly_cards_title">小时页卡片</string>
+    <string name="settings_hourly_cards_hint">长按左侧手柄拖动排序；关闭后该卡片不显示</string>
+    <string name="settings_hourly_cards_reset">恢复默认</string>
+    <string name="settings_hourly_cards_locked">小时走势始终显示</string>
+    <string name="hourly_card_precip">降水柱状图</string>
+    <string name="hourly_card_strip">小时温度条</string>
+    <string name="hourly_card_chart">小时走势图</string>
     <string name="cd_drag_reorder">拖动排序</string>
     <string name="cd_hourly_chart">逐小时%1$s趋势图，最高 %2$s，最低 %3$s</string>
     <string name="cd_precip_chart">逐小时降水量柱状图，峰值 %1$s 毫米</string>
@@ -814,6 +823,8 @@
     <string name="chart_sub">按住图表左右滑动可选中某一时刻</string>
     <string name="chart_selected_at">选中 %1$s</string>
     <string name="chart_hourly_detail">小时明细</string>
+    <string name="chart_hourly_detail_expand">点击展开逐小时数值</string>
+    <string name="chart_hourly_detail_collapse">点击收起</string>
     <string name="metric_temp_short">气温</string>
     <string name="metric_temp_c">气温 (°C)</string>
     <string name="metric_temp_f">气温 (°F)</string>

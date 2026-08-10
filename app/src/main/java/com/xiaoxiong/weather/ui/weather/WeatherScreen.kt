@@ -51,6 +51,7 @@ import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.debug.DebugWeatherScreen
+import com.xiaoxiong.weather.ui.settings.HourlyCardsSettingsScreen
 import com.xiaoxiong.weather.ui.settings.PrivacyGateDialog
 import com.xiaoxiong.weather.ui.settings.PrivacyScreen
 import com.xiaoxiong.weather.ui.settings.SettingsScreen
@@ -152,6 +153,7 @@ private fun WeatherScreenContent(
                 onBack = { overlay = OverlayScreen.None },
                 onOpenPrivacy = { overlay = OverlayScreen.Privacy },
                 onOpenTodayCards = { overlay = OverlayScreen.TodayCards },
+                onOpenHourlyCards = { overlay = OverlayScreen.HourlyCards },
                 onDebugUnlocked = {
                     viewModel.enableDebugMode()
                     overlay = OverlayScreen.Debug
@@ -161,6 +163,14 @@ private fun WeatherScreenContent(
         }
         OverlayScreen.TodayCards -> {
             TodayCardsSettingsScreen(
+                settingsStore = settingsStore,
+                scope = scope,
+                onBack = { overlay = OverlayScreen.Settings },
+            )
+            return
+        }
+        OverlayScreen.HourlyCards -> {
+            HourlyCardsSettingsScreen(
                 settingsStore = settingsStore,
                 scope = scope,
                 onBack = { overlay = OverlayScreen.Settings },
@@ -376,6 +386,7 @@ private fun WeatherScreenContent(
                                             isOffline = state.isOffline,
                                             lastUpdatedText = state.lastUpdatedText,
                                             onChartDragStateChange = onChartDragStateChange,
+                                            cardLayout = appSettings.hourlyCards,
                                         )
                                     else ->
                                         DailyPage(

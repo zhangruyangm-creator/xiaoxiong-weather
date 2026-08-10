@@ -55,7 +55,8 @@ data class AppSettings(
     val preferLocationOnLaunch: Boolean = true,
     val privacyAccepted: Boolean = false,
     val backgroundRefreshInterval: BackgroundRefreshInterval = BackgroundRefreshInterval.HOURS_3,
-    val todayCards: List<TodayCardPref> = TodayCardLayout.DEFAULT,
+    val todayCards: List<TodayCardPref> = TodayCardLayout.defaults,
+    val hourlyCards: List<HourlyCardPref> = HourlyCardLayout.defaults,
 )
 
 class AppSettingsStore(
@@ -85,6 +86,7 @@ class AppSettingsStore(
                         prefs[KEY_BG_REFRESH_HOURS] ?: WeatherRefreshPolicy.BACKGROUND_HOURS,
                     ),
                 todayCards = TodayCardLayout.decode(prefs[KEY_TODAY_CARDS]),
+                hourlyCards = HourlyCardLayout.decode(prefs[KEY_HOURLY_CARDS]),
             )
         }
 
@@ -126,7 +128,19 @@ class AppSettingsStore(
 
     suspend fun resetTodayCards() {
         context.appSettingsDataStore.edit {
-            it[KEY_TODAY_CARDS] = TodayCardLayout.encode(TodayCardLayout.DEFAULT)
+            it[KEY_TODAY_CARDS] = TodayCardLayout.encode(TodayCardLayout.defaults)
+        }
+    }
+
+    suspend fun setHourlyCards(prefs: List<HourlyCardPref>) {
+        context.appSettingsDataStore.edit {
+            it[KEY_HOURLY_CARDS] = HourlyCardLayout.encode(prefs)
+        }
+    }
+
+    suspend fun resetHourlyCards() {
+        context.appSettingsDataStore.edit {
+            it[KEY_HOURLY_CARDS] = HourlyCardLayout.encode(HourlyCardLayout.defaults)
         }
     }
 
@@ -139,5 +153,6 @@ class AppSettingsStore(
         private val KEY_PRIVACY = booleanPreferencesKey("privacy_accepted")
         private val KEY_BG_REFRESH_HOURS = intPreferencesKey("bg_refresh_hours")
         private val KEY_TODAY_CARDS = stringPreferencesKey("today_cards")
+        private val KEY_HOURLY_CARDS = stringPreferencesKey("hourly_cards")
     }
 }
