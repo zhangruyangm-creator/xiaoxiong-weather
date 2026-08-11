@@ -171,4 +171,60 @@ class SeasonTipGeneratorTest {
             SeasonTipGenerator.subjectsRes(SeasonTipGenerator.Kind.WINTER_BLOOM, 39.0, false),
         )
     }
+
+    @Test
+    fun warmerYear_springBloomWindowMovesEarlier() {
+        // 武汉 4/20 本在春花窗（3/1–4/25）内；今年提前 10 天 → 窗口偏移 -10 天变为 2/19–4/15
+        val warm =
+            SeasonTipGenerator.tipsFor(
+                30.5,
+                114.3,
+                LocalDate.of(2026, 4, 20),
+                elevationMeters = 30.0,
+                admin1 = "湖北",
+                phenologyShiftDays = -10,
+            )
+        val plain =
+            SeasonTipGenerator.tipsFor(
+                30.5,
+                114.3,
+                LocalDate.of(2026, 4, 20),
+                elevationMeters = 30.0,
+                admin1 = "湖北",
+            )
+        assertTrue(plain.any { it.kind == SeasonTipGenerator.Kind.SPRING_BLOOM })
+        // 提前 10 天后 4/20 已过新窗口且距下一年开窗超过 14 天 → 不再命中
+        assertEquals(emptyList<SeasonTipGenerator.Kind>(), warm.map { it.kind })
+    }
+
+    @Test
+    fun warmerYear_autumnFoliageMovesLater() {
+        // 北京 10/10 本在红叶窗起点附近；今年提前 10 天 → 秋花/红叶相反：推迟 10 天
+        val cold =
+            SeasonTipGenerator.tipsFor(
+                39.9,
+                116.4,
+                LocalDate.of(2026, 10, 10),
+                phenologyShiftDays = -10,
+            )
+        val foliage = cold.firstOrNull { it.kind == SeasonTipGenerator.Kind.FOLIAGE }
+        assertTrue("expected foliage tip, got ${cold.map { it.kind }}", foliage != null)
+        // 红叶窗 10/10–11/15，推迟 10 天 → 10/20–11/25，10/10 已过（>14 天） → 不命中
+        assertTrue(cold.none { it.kind == SeasonTipGenerator.Kind.FOLIAGE && it.phase == SeasonTipGenerator.Phase.PEAK })
+    }
+
+    @Test
+    fun phenologyShiftDays_carriedIntoTip() {
+        val tips =
+            SeasonTipGenerator.tipsFor(
+                30.5,
+                114.3,
+                LocalDate.of(2026, 4, 15),
+                elevationMeters = 30.0,
+                admin1 = "湖北",
+                phenologyShiftDays = 5,
+            )
+        val spring = tips.firstOrNull { it.kind == SeasonTipGenerator.Kind.SPRING_BLOOM }
+        assertEquals(5, spring?.phenologyShiftDays)
+    }
 }

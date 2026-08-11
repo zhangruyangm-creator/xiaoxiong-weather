@@ -80,6 +80,28 @@ data class DailyWeatherDto(
 )
 
 @Serializable
+data class ArchiveResponse(
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val timezone: String? = null,
+    val daily: ArchiveDailyDto? = null,
+)
+
+@Serializable
+data class ArchiveDailyDto(
+    val time: List<String> = emptyList(),
+    @SerialName("temperature_2m_mean") val temperatureMean: List<Double?> = emptyList(),
+    @SerialName("weather_code") val weatherCode: List<Int?> = emptyList(),
+    @SerialName("temperature_2m_max") val tempMax: List<Double?> = emptyList(),
+    @SerialName("temperature_2m_min") val tempMin: List<Double?> = emptyList(),
+    @SerialName("precipitation_sum") val precipSum: List<Double?> = emptyList(),
+    @SerialName("relative_humidity_2m_mean") val humidityMean: List<Int?> = emptyList(),
+    @SerialName("wind_speed_10m_max") val windMax: List<Double?> = emptyList(),
+    val sunrise: List<String?> = emptyList(),
+    val sunset: List<String?> = emptyList(),
+)
+
+@Serializable
 data class AirQualityResponse(
     val latitude: Double? = null,
     val longitude: Double? = null,

@@ -11,9 +11,12 @@ import com.xiaoxiong.weather.data.DebugWeatherOverride
 import com.xiaoxiong.weather.data.DebugWeatherSource
 import com.xiaoxiong.weather.data.DebugWeatherState
 import com.xiaoxiong.weather.data.FavoriteCitySource
+import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.LocationPermissionSource
 import com.xiaoxiong.weather.data.LocationSession
 import com.xiaoxiong.weather.data.LocationSessionFactory
+import com.xiaoxiong.weather.data.PhenologyCache
+import com.xiaoxiong.weather.data.PhenologyCacheStore
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.RecentCitySource
 import com.xiaoxiong.weather.data.SelectedCitySource
@@ -45,6 +48,7 @@ import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.mockito.Mockito
+import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule : TestWatcher() {
@@ -138,10 +142,182 @@ class WeatherViewModelSelectCityTest {
             assertNull(state.errorMessage)
         }
 
+    @Test
+    fun ensurePhenologyShift_freshCache_noNetworkCall() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val year = LocalDate.now().year
+            val fetcher = RecordingPhenologyFetcher()
+            val phenologyCache =
+                FakePhenologyCache().apply {
+                    seed(city, year, shiftDays = -5)
+                }
+            val vm = createViewModel(fetcher, FakeWeatherCache(), RecordingLocationSession(), phenologyCache)
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.ensurePhenologyShift()
+            advanceUntilIdle()
+
+            assertEquals(-5, vm.uiState.value.phenologyShiftDays)
+            assertEquals(0, fetcher.phenologyCallCount)
+        }
+
+    @Test
+    fun ensurePhenologyShift_staleCache_fetchesOnceAndPublishes() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val year = LocalDate.now().year
+            val fetcher =
+                RecordingPhenologyFetcher(
+                    phenologyBlock = { _, _ -> -8 },
+                )
+            val phenologyCache =
+                FakePhenologyCache().apply {
+                    seed(city, year, shiftDays = null, fetchedToday = false)
+                }
+            val vm = createViewModel(fetcher, FakeWeatherCache(), RecordingLocationSession(), phenologyCache)
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.ensurePhenologyShift()
+            advanceUntilIdle()
+
+            assertEquals(-8, vm.uiState.value.phenologyShiftDays)
+            assertEquals(1, fetcher.phenologyCallCount)
+            assertEquals(1, phenologyCache.saved.size)
+
+            // 同日再次进入七日页：命中缓存，不再联网
+            vm.ensurePhenologyShift()
+            advanceUntilIdle()
+            assertEquals(1, fetcher.phenologyCallCount)
+        }
+
+    @Test
+    fun ensurePhenologyShift_noData_cachesNullAndKeepsNull() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val year = LocalDate.now().year
+            val fetcher = RecordingPhenologyFetcher() // 默认返回 null（数据不足）
+            val phenologyCache = FakePhenologyCache()
+            val vm = createViewModel(fetcher, FakeWeatherCache(), RecordingLocationSession(), phenologyCache)
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.ensurePhenologyShift()
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.phenologyShiftDays)
+            assertEquals(1, fetcher.phenologyCallCount)
+            assertEquals(1, phenologyCache.saved.size)
+            assertEquals(null, phenologyCache.saved.first().shiftDays)
+        }
+
+    @Test
+    fun selectCity_resetsPhenologyShift() =
+        runTest {
+            val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)
+            val cityB = WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
+            val year = LocalDate.now().year
+            val fetcher = RecordingPhenologyFetcher(phenologyBlock = { _, _ -> -5 })
+            val phenologyCache = FakePhenologyCache()
+            val vm = createViewModel(fetcher, FakeWeatherCache(), RecordingLocationSession(), phenologyCache)
+
+            vm.selectCity(cityA)
+            advanceUntilIdle()
+            vm.ensurePhenologyShift()
+            advanceUntilIdle()
+            assertEquals(-5, vm.uiState.value.phenologyShiftDays)
+
+            vm.selectCity(cityB)
+            advanceUntilIdle()
+            assertNull(vm.uiState.value.phenologyShiftDays)
+        }
+
+    @Test
+    fun fetchHistoryDay_success_publishesAndDedups() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val date = LocalDate.now().minusDays(2)
+            val fetcher =
+                RecordingPhenologyFetcher(
+                    historyBlock = { _, _ -> historyWeather(date, tempMax = 30.0) },
+                )
+            val vm = createViewModel(fetcher, FakeWeatherCache(), RecordingLocationSession())
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.fetchHistoryDay(date)
+            advanceUntilIdle()
+
+            val history = vm.uiState.value.historyWeather
+            assertEquals(30.0, history?.tempMaxC)
+            assertEquals(1, fetcher.historyCallCount)
+
+            // 同城同日再查：命中内存缓存，不再联网
+            vm.fetchHistoryDay(date)
+            advanceUntilIdle()
+            assertEquals(1, fetcher.historyCallCount)
+            val historyAgain = vm.uiState.value.historyWeather
+            assertEquals(30.0, historyAgain?.tempMaxC)
+        }
+
+    @Test
+    fun fetchHistoryDay_failure_marksFailed() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val date = LocalDate.now().minusDays(2)
+            val fetcher =
+                RecordingPhenologyFetcher(
+                    historyBlock = { _, _ -> null },
+                )
+            val vm = createViewModel(fetcher, FakeWeatherCache(), RecordingLocationSession())
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.fetchHistoryDay(date)
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.historyWeather)
+            assertTrue(vm.uiState.value.historyFailed)
+            assertFalse(vm.uiState.value.isHistoryLoading)
+
+            // 失败不缓存：再查会重试
+            vm.fetchHistoryDay(date)
+            advanceUntilIdle()
+            assertEquals(2, fetcher.historyCallCount)
+        }
+
+    @Test
+    fun selectCity_resetsHistory() =
+        runTest {
+            val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)
+            val cityB = WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
+            val date = LocalDate.now().minusDays(2)
+            val fetcher =
+                RecordingPhenologyFetcher(
+                    historyBlock = { _, _ -> historyWeather(date, tempMax = 30.0) },
+                )
+            val vm = createViewModel(fetcher, FakeWeatherCache(), RecordingLocationSession())
+
+            vm.selectCity(cityA)
+            advanceUntilIdle()
+            vm.fetchHistoryDay(date)
+            advanceUntilIdle()
+            val historyA = vm.uiState.value.historyWeather
+            assertEquals(30.0, historyA?.tempMaxC)
+
+            vm.selectCity(cityB)
+            advanceUntilIdle()
+            assertNull(vm.uiState.value.historyWeather)
+            assertFalse(vm.uiState.value.isHistoryLoading)
+        }
+
     private fun createViewModel(
         fetcher: WeatherFetcher,
         cache: WeatherCache,
         session: RecordingLocationSession,
+        phenologyCache: PhenologyCache = FakePhenologyCache(),
     ): WeatherViewModel {
         val app = mockApplication()
         val deps =
@@ -155,6 +331,7 @@ class WeatherViewModelSelectCityTest {
                 recentCityStore = FakeRecentCitySource(),
                 selectedCityStore = FakeSelectedCitySource(),
                 weatherCacheStore = cache,
+                phenologyCache = phenologyCache,
                 citySearch = Mockito.mock(CitySearchUseCase::class.java),
                 settingsStore = FakeAppSettingsSource(),
                 debugWeatherStore = FakeDebugWeatherSource(),
@@ -206,6 +383,113 @@ private class FakeWeatherFetcher(
     private val block: suspend (City) -> WeatherSnapshot,
 ) : WeatherFetcher {
     override suspend fun fetchWeather(city: City): WeatherSnapshot = block(city)
+}
+
+/** 记录物候/历史拉取次数；默认返回 null（数据不足），可注入具体返回值。 */
+private class RecordingPhenologyFetcher(
+    private val weatherBlock: (City) -> WeatherSnapshot = { city ->
+        WeatherSnapshot(
+            city = city,
+            current = WeatherFixtures.current(temperatureC = 20.0),
+        )
+    },
+    private val phenologyBlock: (City, LocalDate) -> Int? = { _, _ -> null },
+    private val historyBlock: (City, LocalDate) -> HistoryWeather? = { _, _ -> null },
+) : WeatherFetcher {
+    var phenologyCallCount = 0
+        private set
+    var historyCallCount = 0
+        private set
+
+    override suspend fun fetchWeather(city: City): WeatherSnapshot = weatherBlock(city)
+
+    override suspend fun fetchPhenologyShiftDays(
+        city: City,
+        today: LocalDate,
+    ): Int? {
+        phenologyCallCount++
+        return phenologyBlock(city, today)
+    }
+
+    override suspend fun fetchHistoryDay(
+        city: City,
+        date: LocalDate,
+    ): HistoryWeather? {
+        historyCallCount++
+        return historyBlock(city, date)
+    }
+}
+
+private fun historyWeather(
+    date: LocalDate,
+    tempMax: Double? = null,
+): HistoryWeather =
+    HistoryWeather(
+        date = date.toString(),
+        weatherCode = 0,
+        tempMaxC = tempMax,
+        tempMinC = null,
+        tempMeanC = null,
+        precipSumMm = null,
+        humidityMeanPercent = null,
+        windMaxKmh = null,
+        sunrise = null,
+        sunset = null,
+    )
+
+private class FakePhenologyCache : PhenologyCache {
+    val saved = mutableListOf<PhenologyCacheStore.PhenologyEntry>()
+    private var seeded: PhenologyCacheStore.PhenologyEntry? = null
+
+    fun seed(
+        city: City,
+        year: Int,
+        shiftDays: Int?,
+        fetchedToday: Boolean = true,
+    ) {
+        seeded =
+            PhenologyCacheStore.PhenologyEntry(
+                cityLat = city.latitude,
+                cityLon = city.longitude,
+                year = year,
+                shiftDays = shiftDays,
+                fetchedAtEpochMs =
+                    if (fetchedToday) {
+                        System.currentTimeMillis()
+                    } else {
+                        System.currentTimeMillis() - 2L * 24 * 3600_000L
+                    },
+            )
+    }
+
+    override suspend fun get(
+        city: City,
+        year: Int,
+    ): PhenologyCacheStore.PhenologyEntry? {
+        val entry = seeded ?: return null
+        return if (entry.year == year && entry.sameCity(city) && entry.isFreshToday()) {
+            entry
+        } else {
+            null
+        }
+    }
+
+    override suspend fun save(
+        city: City,
+        year: Int,
+        shiftDays: Int?,
+    ) {
+        val entry =
+            PhenologyCacheStore.PhenologyEntry(
+                cityLat = city.latitude,
+                cityLon = city.longitude,
+                year = year,
+                shiftDays = shiftDays,
+                fetchedAtEpochMs = System.currentTimeMillis(),
+            )
+        saved += entry
+        seeded = entry
+    }
 }
 
 private class FakeWeatherCache : WeatherCache {

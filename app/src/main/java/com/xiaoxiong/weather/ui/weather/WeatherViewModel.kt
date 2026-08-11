@@ -10,6 +10,7 @@ import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.DebugWeatherOverride
 import com.xiaoxiong.weather.data.DebugWeatherState
 import com.xiaoxiong.weather.data.DebugWeatherStore
+import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.util.WeatherCodes
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -45,6 +47,15 @@ data class WeatherUiState(
     val infoMessage: String? = null,
     /** 隐藏调试模式已开启 */
     val debugEnabled: Boolean = false,
+    /**
+     * 物候偏移天数（正 = 推迟，负 = 提前），进入七日页时按需拉取；
+     * 独立于天气快照，主天气刷新不影响该值；null = 无数据/尚未拉取。
+     */
+    val phenologyShiftDays: Int? = null,
+    /** 历史天气查询结果（用户主动选日）；null = 尚未查询或查询失败。 */
+    val historyWeather: HistoryWeather? = null,
+    val isHistoryLoading: Boolean = false,
+    val historyFailed: Boolean = false,
 )
 
 class WeatherViewModel(
@@ -57,6 +68,7 @@ class WeatherViewModel(
     private val recentCityStore = deps.recentCityStore
     private val selectedCityStore = deps.selectedCityStore
     private val weatherCacheStore = deps.weatherCacheStore
+    private val phenologyCache = deps.phenologyCache
     val settingsStore = deps.settingsStore
     private val debugWeatherStore = deps.debugWeatherStore
     val radarMapRepository: RadarMapRepository = deps.radarMapRepository
@@ -189,6 +201,11 @@ class WeatherViewModel(
                 isLoadingWeather = if (quiet) it.isLoadingWeather else true,
                 isLocating = if (quiet) it.isLocating else false,
                 usingCurrentLocation = useLocation,
+                // 换城后物候/历史天气属于旧城市，等再进入相关页面按需补齐
+                phenologyShiftDays = null,
+                historyWeather = null,
+                isHistoryLoading = false,
+                historyFailed = false,
                 errorMessage = null,
             )
         }
@@ -379,6 +396,99 @@ class WeatherViewModel(
 
     fun clearInfo() {
         _uiState.update { it.copy(infoMessage = null) }
+    }
+
+    private var phenologyJob: Job? = null
+
+    /** 单日历史查询内存缓存：键 = "城市坐标|日期"。 */
+    private val historyCache = mutableMapOf<String, HistoryWeather>()
+
+    /**
+     * 进入「七日」页时按需补齐物候偏移：
+     * 同城同年当日已拉过则直接用缓存，否则才联网（一天最多一次）；
+     * 跨天/跨年/换城自然失效，会在下次进入页面时重拉。
+     * 独立于主天气加载，失败时静默保留空（时令卡退化为纯经验推算）。
+     */
+    fun ensurePhenologyShift() {
+        val city = _uiState.value.selectedCity ?: return
+        if (phenologyJob?.isActive == true) return
+        phenologyJob =
+            viewModelScope.launch {
+                val today = LocalDate.now()
+                val cached = phenologyCache.get(city, today.year)
+                val shift =
+                    if (cached != null) {
+                        cached.shiftDays
+                    } else {
+                        val fetched =
+                            try {
+                                repository.fetchPhenologyShiftDays(city, today)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                null
+                            }
+                        // 无论成功还是无数据都缓存当日结果，保证一天最多拉一次
+                        phenologyCache.save(city, today.year, fetched)
+                        fetched
+                    }
+                // 拉取期间换城则不覆盖新城市的显示
+                val current = _uiState.value
+                if (current.selectedCity != null && roughlySameCity(current.selectedCity, city)) {
+                    _uiState.update { it.copy(phenologyShiftDays = shift) }
+                }
+            }
+    }
+
+    private var historyJob: Job? = null
+
+    /**
+     * 单日历史查询：按「城市|日期」做内存缓存去重，同城同日只查一次；
+     * 换城后缓存键不同，自然不串城。失败置 historyWeather=null 供 UI 提示。
+     */
+    fun fetchHistoryDay(date: LocalDate) {
+        val city = _uiState.value.selectedCity ?: return
+        val cacheKey = "%.4f,%.4f|%s".format(city.latitude, city.longitude, date)
+        historyCache[cacheKey]?.let { cached ->
+            _uiState.update {
+                it.copy(historyWeather = cached, isHistoryLoading = false, historyFailed = false)
+            }
+            return
+        }
+        historyJob?.cancel()
+        historyJob =
+            viewModelScope.launch {
+                _uiState.update { it.copy(isHistoryLoading = true, historyWeather = null, historyFailed = false) }
+                val result =
+                    try {
+                        repository.fetchHistoryDay(city, date)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    }
+                if (result != null) {
+                    historyCache[cacheKey] = result
+                }
+                // 查询期间换城则丢弃结果（不覆盖新城市）
+                val current = _uiState.value
+                if (current.selectedCity != null && roughlySameCity(current.selectedCity, city)) {
+                    _uiState.update {
+                        it.copy(
+                            historyWeather = result,
+                            isHistoryLoading = false,
+                            historyFailed = result == null,
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isHistoryLoading = false) }
+                }
+            }
+    }
+
+    fun clearHistoryDay() {
+        historyJob?.cancel()
+        _uiState.update { it.copy(historyWeather = null, isHistoryLoading = false, historyFailed = false) }
     }
 
     fun enableDebugMode() = debugController.enable()

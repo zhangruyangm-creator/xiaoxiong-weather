@@ -184,3 +184,21 @@ data class WeatherSnapshot(
     /** 城市 IANA 时区（如 Asia/Shanghai），来自 Open-Meteo timezone=auto；用于雷达帧等 UTC 时刻的本地化展示。 */
     val timezone: String? = null,
 )
+
+/**
+ * 历史某一天的天气（Open-Meteo Archive / ERA5 再分析数据）。
+ * 用户主动查询单日，值可空表示该字段无数据。
+ */
+@Serializable
+data class HistoryWeather(
+    val date: String,
+    val weatherCode: Int? = null,
+    val tempMaxC: Double? = null,
+    val tempMinC: Double? = null,
+    val tempMeanC: Double? = null,
+    val precipSumMm: Double? = null,
+    val humidityMeanPercent: Int? = null,
+    val windMaxKmh: Double? = null,
+    val sunrise: String? = null,
+    val sunset: String? = null,
+)

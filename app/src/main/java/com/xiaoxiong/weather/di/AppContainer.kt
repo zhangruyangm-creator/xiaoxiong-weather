@@ -6,6 +6,7 @@ import com.xiaoxiong.weather.data.AppSettingsStore
 import com.xiaoxiong.weather.data.DebugWeatherStore
 import com.xiaoxiong.weather.data.FavoriteCityStore
 import com.xiaoxiong.weather.data.LocationHelper
+import com.xiaoxiong.weather.data.PhenologyCacheStore
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.RecentCityStore
 import com.xiaoxiong.weather.data.RetryInterceptor
@@ -80,6 +81,7 @@ class AppContainer(
     val recentCityStore by lazy { RecentCityStore(appContext) }
     val selectedCityStore by lazy { SelectedCityStore(appContext) }
     val weatherCacheStore by lazy { WeatherCacheStore(appContext) }
+    val phenologyCacheStore by lazy { PhenologyCacheStore(appContext) }
     val settingsStore by lazy { AppSettingsStore(appContext) }
     val debugWeatherStore by lazy { DebugWeatherStore(appContext) }
     val notifyDedupStore by lazy { WeatherNotifyDedupStore(appContext) }

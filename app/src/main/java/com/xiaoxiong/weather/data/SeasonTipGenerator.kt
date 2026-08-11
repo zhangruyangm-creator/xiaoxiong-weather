@@ -40,6 +40,11 @@ object SeasonTipGenerator {
         val windowEnd: MonthDay,
         /** 该纬度带常见观赏对象文案（花种 / 彩叶树） */
         @param:StringRes val subjectsRes: Int,
+        /**
+         * 今年相对常年的物候偏移天数（正 = 推迟，负 = 提前），
+         * null = 无积温数据（保持纯经验推算）。
+         */
+        val phenologyShiftDays: Int? = null,
     )
 
     /** 当前所有命中的时令（含即将进入）；重叠时全部返回。 */
@@ -49,6 +54,7 @@ object SeasonTipGenerator {
         onDate: LocalDate,
         elevationMeters: Double? = null,
         admin1: String? = null,
+        phenologyShiftDays: Int? = null,
     ): List<Tip> {
         val southern = latitude < 0
         val lat = abs(latitude)
@@ -67,33 +73,38 @@ object SeasonTipGenerator {
             listOfNotNull(
                 evaluate(
                     Kind.WINTER_BLOOM,
-                    shiftWindow(winterBloomWindow(lat), days = reliefShiftDays(Kind.WINTER_BLOOM, band)),
+                    shiftWindow(winterBloomWindow(lat), days = totalShift(Kind.WINTER_BLOOM, band, phenologyShiftDays)),
                     md,
                     date,
+                    phenologyShiftDays = phenologyShiftFor(Kind.WINTER_BLOOM, phenologyShiftDays),
                 )?.withSubjects(lat, highlandish),
                 evaluate(
                     Kind.SPRING_BLOOM,
-                    shiftWindow(springBloomWindow(lat), days = reliefShiftDays(Kind.SPRING_BLOOM, band)),
+                    shiftWindow(springBloomWindow(lat), days = totalShift(Kind.SPRING_BLOOM, band, phenologyShiftDays)),
                     md,
                     date,
+                    phenologyShiftDays = phenologyShiftFor(Kind.SPRING_BLOOM, phenologyShiftDays),
                 )?.withSubjects(lat, highlandish),
                 evaluate(
                     Kind.SUMMER_BLOOM,
-                    shiftWindow(summerBloomWindow(lat), days = reliefShiftDays(Kind.SUMMER_BLOOM, band)),
+                    shiftWindow(summerBloomWindow(lat), days = totalShift(Kind.SUMMER_BLOOM, band, phenologyShiftDays)),
                     md,
                     date,
+                    phenologyShiftDays = phenologyShiftFor(Kind.SUMMER_BLOOM, phenologyShiftDays),
                 )?.withSubjects(lat, highlandish),
                 evaluate(
                     Kind.AUTUMN_BLOOM,
-                    shiftWindow(autumnBloomWindow(lat), days = reliefShiftDays(Kind.AUTUMN_BLOOM, band)),
+                    shiftWindow(autumnBloomWindow(lat), days = totalShift(Kind.AUTUMN_BLOOM, band, phenologyShiftDays)),
                     md,
                     date,
+                    phenologyShiftDays = phenologyShiftFor(Kind.AUTUMN_BLOOM, phenologyShiftDays),
                 )?.withSubjects(lat, highlandish),
                 evaluate(
                     Kind.FOLIAGE,
-                    shiftWindow(foliageWindow(lat), days = reliefShiftDays(Kind.FOLIAGE, band)),
+                    shiftWindow(foliageWindow(lat), days = totalShift(Kind.FOLIAGE, band, phenologyShiftDays)),
                     md,
                     date,
+                    phenologyShiftDays = phenologyShiftFor(Kind.FOLIAGE, phenologyShiftDays),
                 )?.withSubjects(lat, highlandish),
             )
         return if (southern) tips.map { it.withLocalSouthernWindow() } else tips
@@ -103,6 +114,7 @@ object SeasonTipGenerator {
         city: City,
         referenceIsoTime: String?,
         elevationMeters: Double? = null,
+        phenologyShiftDays: Int? = null,
     ): List<Tip> {
         val date =
             parseFlexibleDateTime(referenceIsoTime.orEmpty())?.toLocalDate()
@@ -113,6 +125,7 @@ object SeasonTipGenerator {
             onDate = date,
             elevationMeters = elevationMeters,
             admin1 = city.admin1,
+            phenologyShiftDays = phenologyShiftDays,
         )
     }
 
@@ -151,6 +164,28 @@ object SeasonTipGenerator {
                     Kind.FOLIAGE -> -14
                 }
         }
+
+    /**
+     * 物候积温偏移按物候事件方向套用：
+     * 春/夏/冬花随温暖而提前（暖年直接提前），秋花与红叶随温暖而推迟（暖秋使变色/开花变晚）。
+     */
+    private fun phenologyShiftFor(
+        kind: Kind,
+        phenologyShiftDays: Int?,
+    ): Int? =
+        phenologyShiftDays?.let { days ->
+            when (kind) {
+                Kind.AUTUMN_BLOOM, Kind.FOLIAGE -> -days
+                else -> days
+            }
+        }
+
+    /** 海拔地形偏移 + 今年积温物候偏移（无积温数据时仅海拔）。 */
+    private fun totalShift(
+        kind: Kind,
+        band: ReliefBand,
+        phenologyShiftDays: Int?,
+    ): Int = reliefShiftDays(kind, band) + (phenologyShiftFor(kind, phenologyShiftDays) ?: 0)
 
     /**
      * 优先用 Open-Meteo elevation；无海拔时用行政区 / 经纬度粗判高原。
@@ -326,13 +361,14 @@ object SeasonTipGenerator {
         window: Pair<MonthDay, MonthDay>?,
         todayMd: MonthDay,
         today: LocalDate,
+        phenologyShiftDays: Int? = null,
     ): Tip? {
         if (window == null) return null
         val (start, end) = window
         val placeholder = R.string.season_subjects_spring_north
         if (inWindow(todayMd, start, end)) {
             val phase = phaseInWindow(today, start, end)
-            return Tip(kind, phase, start, end, placeholder)
+            return Tip(kind, phase, start, end, placeholder, phenologyShiftDays)
         }
         // 跨年窗（冬花）：即将进入时看「距最近一次开窗」
         val nextStart = nextOccurrence(start, today)
@@ -340,7 +376,7 @@ object SeasonTipGenerator {
             java.time.temporal.ChronoUnit.DAYS
                 .between(today, nextStart)
         if (daysUntil in 0..UPCOMING_DAYS) {
-            return Tip(kind, Phase.UPCOMING, start, end, placeholder)
+            return Tip(kind, Phase.UPCOMING, start, end, placeholder, phenologyShiftDays)
         }
         return null
     }

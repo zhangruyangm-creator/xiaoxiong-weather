@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,7 +51,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.data.DailyCardId
+import com.xiaoxiong.weather.data.DailyCardLayout
+import com.xiaoxiong.weather.data.DailyCardPref
 import com.xiaoxiong.weather.data.DailyWeather
+import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
@@ -64,7 +69,15 @@ internal fun DailyPage(
     weather: WeatherSnapshot?,
     isOffline: Boolean,
     lastUpdatedText: String?,
+    phenologyShiftDays: Int? = null,
+    onPhenologyPageShown: () -> Unit = {},
+    historyWeather: HistoryWeather? = null,
+    isHistoryLoading: Boolean = false,
+    historyFailed: Boolean = false,
+    onPickHistoryDate: (java.time.LocalDate) -> Unit = {},
+    cardLayout: List<DailyCardPref> = DailyCardLayout.defaults,
 ) {
+    val layout = remember(cardLayout) { DailyCardLayout.mergeWithDefaults(cardLayout) }
     val todayLabel = stringResource(R.string.label_today)
     val tempUnit = LocalTemperatureUnit.current
     val appDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
@@ -75,6 +88,11 @@ internal fun DailyPage(
         remember(weather?.daily) {
             weather?.daily?.let { weekTemperatureBounds(it) }
         }
+
+    // 进入七日页（或页面内换城）时才按需补齐物候偏移，见 WeatherViewModel.ensurePhenologyShift
+    LaunchedEffect(weather?.city) {
+        if (weather != null) onPhenologyPageShown()
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -95,30 +113,47 @@ internal fun DailyPage(
                 icon = Icons.Filled.CalendarMonth,
             )
         }
-        itemsIndexed(
-            items = weather.daily,
-            key = { _, day -> day.date },
-        ) { index, day ->
-            DailyDayCard(
-                day = day,
-                isToday = index == 0,
-                todayLabel = todayLabel,
-                tempUnit = tempUnit,
-                appDark = appDark,
-                weekMinC = weekBounds?.first,
-                weekMaxC = weekBounds?.second,
-                expanded = expandedDate == day.date,
-                onToggleExpand = {
-                    expandedDate = if (expandedDate == day.date) null else day.date
-                },
-            )
-        }
-        item {
-            SeasonTipsSection(
-                city = weather.city,
-                referenceIsoTime = weather.current.time,
-                elevationMeters = weather.elevationMeters,
-            )
+        val visibleCards = layout.filter { it.visible }
+        visibleCards.forEach { pref ->
+            when (pref.id) {
+                DailyCardId.FORECAST ->
+                    itemsIndexed(
+                        items = weather.daily,
+                        key = { _, day -> day.date },
+                    ) { index, day ->
+                        DailyDayCard(
+                            day = day,
+                            isToday = index == 0,
+                            todayLabel = todayLabel,
+                            tempUnit = tempUnit,
+                            appDark = appDark,
+                            weekMinC = weekBounds?.first,
+                            weekMaxC = weekBounds?.second,
+                            expanded = expandedDate == day.date,
+                            onToggleExpand = {
+                                expandedDate = if (expandedDate == day.date) null else day.date
+                            },
+                        )
+                    }
+                DailyCardId.SEASON_TIPS ->
+                    item {
+                        SeasonTipsSection(
+                            city = weather.city,
+                            referenceIsoTime = weather.current.time,
+                            elevationMeters = weather.elevationMeters,
+                            phenologyShiftDays = phenologyShiftDays,
+                        )
+                    }
+                DailyCardId.HISTORY ->
+                    item {
+                        HistoryWeatherSection(
+                            weather = historyWeather,
+                            isLoading = isHistoryLoading,
+                            failed = historyFailed,
+                            onPickDate = onPickHistoryDate,
+                        )
+                    }
+            }
         }
         item { Spacer(modifier = Modifier.height(4.dp)) }
     }

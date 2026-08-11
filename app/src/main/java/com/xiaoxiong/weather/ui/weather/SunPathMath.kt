@@ -36,6 +36,46 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_exercise_soccer,
         R.drawable.ic_sun_bear_exercise_yoga,
         R.drawable.ic_sun_bear_exercise_taichi,
+        R.drawable.ic_sun_bear_exercise_baduanjin,
+        R.drawable.ic_sun_bear_exercise_squaredance,
+        R.drawable.ic_sun_bear_exercise_jianzi,
+        R.drawable.ic_sun_bear_exercise_taichisword,
+        R.drawable.ic_sun_bear_exercise_dogwalk,
+        R.drawable.ic_sun_bear_exercise_briskwalk,
+        R.drawable.ic_sun_bear_exercise_diabolo,
+        R.drawable.ic_sun_bear_exercise_tennis,
+        R.drawable.ic_sun_bear_exercise_hulahoop,
+    ),
+
+    /** 工作日通勤前早餐：中式 / 西式 / 阿拉伯式独立插画池，按日轮换。 */
+    BREAKFAST(
+        R.string.sun_bear_breakfast,
+        // 中式
+        R.drawable.ic_sun_bear_breakfast_youtiao,
+        R.drawable.ic_sun_bear_breakfast_baozi,
+        R.drawable.ic_sun_bear_breakfast_congee,
+        R.drawable.ic_sun_bear_breakfast_jianbing,
+        R.drawable.ic_sun_bear_breakfast_milkbread,
+        R.drawable.ic_sun_bear_breakfast_eggtoast,
+        R.drawable.ic_sun_bear_breakfast_noodles,
+        R.drawable.ic_sun_bear_breakfast_sandwich,
+        R.drawable.ic_sun_bear_breakfast_oatmeal,
+        R.drawable.ic_sun_bear_breakfast_changfen,
+        // 西式
+        R.drawable.ic_sun_bear_breakfast_bacon_eggs,
+        R.drawable.ic_sun_bear_breakfast_waffle,
+        R.drawable.ic_sun_bear_breakfast_bagel,
+        R.drawable.ic_sun_bear_breakfast_frenchtoast,
+        R.drawable.ic_sun_bear_breakfast_omelette,
+        R.drawable.ic_sun_bear_breakfast_cereal,
+        R.drawable.ic_sun_bear_breakfast_english,
+        // 阿拉伯 / 中东式
+        R.drawable.ic_sun_bear_breakfast_hummus,
+        R.drawable.ic_sun_bear_breakfast_arabtea,
+        R.drawable.ic_sun_bear_breakfast_falafel,
+        R.drawable.ic_sun_bear_breakfast_shakshuka,
+        R.drawable.ic_sun_bear_breakfast_dates,
+        R.drawable.ic_sun_bear_breakfast_manakish,
     ),
     MORNING_OUT(
         R.string.sun_bear_morning_out,
@@ -97,6 +137,15 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_exercise_soccer,
         R.drawable.ic_sun_bear_exercise_yoga,
         R.drawable.ic_sun_bear_exercise_taichi,
+        R.drawable.ic_sun_bear_exercise_baduanjin,
+        R.drawable.ic_sun_bear_exercise_squaredance,
+        R.drawable.ic_sun_bear_exercise_jianzi,
+        R.drawable.ic_sun_bear_exercise_taichisword,
+        R.drawable.ic_sun_bear_exercise_dogwalk,
+        R.drawable.ic_sun_bear_exercise_briskwalk,
+        R.drawable.ic_sun_bear_exercise_diabolo,
+        R.drawable.ic_sun_bear_exercise_tennis,
+        R.drawable.ic_sun_bear_exercise_hulahoop,
     ),
     WEEKEND_MORNING(
         R.string.sun_bear_weekend_morning,
@@ -154,6 +203,31 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_evening_knit,
         R.drawable.ic_sun_bear_evening_diary,
         R.drawable.ic_sun_bear_evening_pet,
+        R.drawable.ic_sun_bear_evening_guitar,
+        R.drawable.ic_sun_bear_evening_treadmill,
+        R.drawable.ic_sun_bear_evening_yoga,
+        R.drawable.ic_sun_bear_evening_draw,
+        R.drawable.ic_sun_bear_evening_balcony,
+        R.drawable.ic_sun_bear_evening_cityview,
+        R.drawable.ic_sun_bear_evening_lounge,
+        R.drawable.ic_sun_bear_evening_videocall,
+        R.drawable.ic_sun_bear_evening_boardgame,
+        R.drawable.ic_sun_bear_evening_lego,
+        R.drawable.ic_sun_bear_evening_study,
+    ),
+
+    /** 入睡准备（23:00–24:00）：换睡衣 / 泡澡 / 夜灯等，按日轮换。 */
+    BEDTIME_PREP(
+        R.string.sun_bear_bedtime,
+        R.drawable.ic_sun_bear_bedtime_pajamas,
+        R.drawable.ic_sun_bear_bedtime_bath,
+        R.drawable.ic_sun_bear_bedtime_nightlight,
+        R.drawable.ic_sun_bear_bedtime_makebed,
+        R.drawable.ic_sun_bear_bedtime_story,
+        R.drawable.ic_sun_bear_bedtime_plush,
+        R.drawable.ic_sun_bear_bedtime_alarm,
+        R.drawable.ic_sun_bear_bedtime_footbath,
+        R.drawable.ic_sun_bear_bedtime_book,
     ),
     SLEEP(
         R.string.sun_bear_sleep,
@@ -170,6 +244,14 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_sleep_train,
         R.drawable.ic_sun_bear_sleep_igloo,
         R.drawable.ic_sun_bear_sleep_treehouse,
+        R.drawable.ic_sun_bear_sleep_sleepingbag,
+        R.drawable.ic_sun_bear_sleep_bunk,
+        R.drawable.ic_sun_bear_sleep_campcot,
+        R.drawable.ic_sun_bear_sleep_lounge,
+        R.drawable.ic_sun_bear_sleep_crib,
+        R.drawable.ic_sun_bear_sleep_petpile,
+        R.drawable.ic_sun_bear_sleep_sofa_lie,
+        R.drawable.ic_sun_bear_sleep_dorm,
     ),
     ALMOST_DAWN(
         R.string.sun_bear_almost_dawn,
@@ -223,6 +305,32 @@ enum class SunPathBearMoment(
                         R.string.sun_bear_evening_knit,
                         R.string.sun_bear_evening_diary,
                         R.string.sun_bear_evening_pet,
+                        R.string.sun_bear_evening_guitar,
+                        R.string.sun_bear_evening_treadmill,
+                        R.string.sun_bear_evening_yoga,
+                        R.string.sun_bear_evening_draw,
+                        R.string.sun_bear_evening_balcony,
+                        R.string.sun_bear_evening_cityview,
+                        R.string.sun_bear_evening_lounge,
+                        R.string.sun_bear_evening_videocall,
+                        R.string.sun_bear_evening_boardgame,
+                        R.string.sun_bear_evening_lego,
+                        R.string.sun_bear_evening_study,
+                    )
+                return captions[dailyVariantIndex(date, name, captions.size)]
+            }
+            BEDTIME_PREP -> {
+                val captions =
+                    intArrayOf(
+                        R.string.sun_bear_bedtime_pajamas,
+                        R.string.sun_bear_bedtime_bath,
+                        R.string.sun_bear_bedtime_nightlight,
+                        R.string.sun_bear_bedtime_makebed,
+                        R.string.sun_bear_bedtime_story,
+                        R.string.sun_bear_bedtime_plush,
+                        R.string.sun_bear_bedtime_alarm,
+                        R.string.sun_bear_bedtime_footbath,
+                        R.string.sun_bear_bedtime_book,
                     )
                 return captions[dailyVariantIndex(date, name, captions.size)]
             }
@@ -283,7 +391,7 @@ private fun commuteBearRes(
     }
 }
 
-/** 跑步 / 篮球 / 乒乓 / 单杠 / 羽毛球 / 跳绳 / 骑行 / 足球 / 瑜伽 / 太极；晨练与傍晚各自按日抽取。 */
+/** 运动池；晨练与傍晚共用插画、各自按日抽取。 */
 private val EXERCISE_DRAWABLES =
     intArrayOf(
         R.drawable.ic_sun_bear_exercise_run,
@@ -296,6 +404,15 @@ private val EXERCISE_DRAWABLES =
         R.drawable.ic_sun_bear_exercise_soccer,
         R.drawable.ic_sun_bear_exercise_yoga,
         R.drawable.ic_sun_bear_exercise_taichi,
+        R.drawable.ic_sun_bear_exercise_baduanjin,
+        R.drawable.ic_sun_bear_exercise_squaredance,
+        R.drawable.ic_sun_bear_exercise_jianzi,
+        R.drawable.ic_sun_bear_exercise_taichisword,
+        R.drawable.ic_sun_bear_exercise_dogwalk,
+        R.drawable.ic_sun_bear_exercise_briskwalk,
+        R.drawable.ic_sun_bear_exercise_diabolo,
+        R.drawable.ic_sun_bear_exercise_tennis,
+        R.drawable.ic_sun_bear_exercise_hulahoop,
     )
 private val EXERCISE_MORNING_CAPTIONS =
     intArrayOf(
@@ -309,6 +426,15 @@ private val EXERCISE_MORNING_CAPTIONS =
         R.string.sun_bear_exercise_soccer_morning,
         R.string.sun_bear_exercise_yoga_morning,
         R.string.sun_bear_exercise_taichi_morning,
+        R.string.sun_bear_exercise_baduanjin_morning,
+        R.string.sun_bear_exercise_squaredance_morning,
+        R.string.sun_bear_exercise_jianzi_morning,
+        R.string.sun_bear_exercise_taichisword_morning,
+        R.string.sun_bear_exercise_dogwalk_morning,
+        R.string.sun_bear_exercise_briskwalk_morning,
+        R.string.sun_bear_exercise_diabolo_morning,
+        R.string.sun_bear_exercise_tennis_morning,
+        R.string.sun_bear_exercise_hulahoop_morning,
     )
 private val EXERCISE_EVENING_CAPTIONS =
     intArrayOf(
@@ -322,6 +448,15 @@ private val EXERCISE_EVENING_CAPTIONS =
         R.string.sun_bear_exercise_soccer_evening,
         R.string.sun_bear_exercise_yoga_evening,
         R.string.sun_bear_exercise_taichi_evening,
+        R.string.sun_bear_exercise_baduanjin_evening,
+        R.string.sun_bear_exercise_squaredance_evening,
+        R.string.sun_bear_exercise_jianzi_evening,
+        R.string.sun_bear_exercise_taichisword_evening,
+        R.string.sun_bear_exercise_dogwalk_evening,
+        R.string.sun_bear_exercise_briskwalk_evening,
+        R.string.sun_bear_exercise_diabolo_evening,
+        R.string.sun_bear_exercise_tennis_evening,
+        R.string.sun_bear_exercise_hulahoop_evening,
     )
 
 private fun exerciseIndex(
@@ -354,6 +489,18 @@ private val WORK_FIELD_JOBS =
         R.drawable.ic_sun_bear_work_painter,
         R.drawable.ic_sun_bear_work_baker,
         R.drawable.ic_sun_bear_work_guard,
+        R.drawable.ic_sun_bear_work_doctor,
+        R.drawable.ic_sun_bear_work_police,
+        R.drawable.ic_sun_bear_work_pilot,
+        R.drawable.ic_sun_bear_work_programmer,
+        R.drawable.ic_sun_bear_work_streamer,
+        R.drawable.ic_sun_bear_work_designer,
+        R.drawable.ic_sun_bear_work_carpenter,
+        R.drawable.ic_sun_bear_work_electrician,
+        R.drawable.ic_sun_bear_work_miner,
+        R.drawable.ic_sun_bear_work_vet,
+        R.drawable.ic_sun_bear_work_photographer,
+        R.drawable.ic_sun_bear_work_musician,
     )
 
 /**
@@ -400,9 +547,11 @@ fun sunPathBearMoment(
 }
 
 /**
- * 白天（工作日）：晨练(~08:00前) → 上班通勤(08:00–09:00) → 上午忙 → 午饭(11:30–13:30)
- * → 下午忙；另插下午茶(15:00–16:30) → 回家通勤(17:30–18:30) → 傍晚锻炼(18:30后至日落)。
- * 周末仍用周末片刻，不拆通勤/锻炼。
+ * 白天（工作日）：晨练(日出~07:15；若 07:15 尚未日出则跳过直接吃早餐)
+ * → 早餐(07:15–08:15) → 上班通勤(08:15–09:00) → 上午忙
+ * → 午饭(11:30–12:30) → 下午忙 → 下午茶(15:00–15:45) → 下午忙(至18:00)
+ * → 回家通勤(18:00–18:45) → 傍晚锻炼(18:45–19:00) → 晚饭(19:00–20:00)。
+ * 周末仍用周末片刻，不拆通勤/锻炼/早餐。
  */
 private fun dayBearMoment(
     date: LocalDate,
@@ -410,29 +559,35 @@ private fun dayBearMoment(
 ): SunPathBearMoment {
     val weekend = isWeekend(date)
     return when {
-        minutes < 8 * 60 ->
+        minutes < 7 * 60 + 15 ->
             if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_EXERCISE
+        minutes < 8 * 60 + 15 ->
+            if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.BREAKFAST
         minutes < 9 * 60 ->
             if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_OUT
         minutes < 11 * 60 + 30 ->
             if (weekend) SunPathBearMoment.WEEKEND_EXPLORE else SunPathBearMoment.WORK_MORNING
-        minutes < 13 * 60 + 30 ->
+        minutes < 12 * 60 + 30 ->
             SunPathBearMoment.LUNCH
-        !weekend && minutes in (15 * 60) until (16 * 60 + 30) ->
-            SunPathBearMoment.AFTERNOON_TEA
-        minutes < 17 * 60 + 30 ->
+        minutes < 15 * 60 ->
             if (weekend) SunPathBearMoment.WEEKEND_AFTERNOON else SunPathBearMoment.WORK_AFTERNOON
-        minutes < 18 * 60 + 30 ->
+        !weekend && minutes in (15 * 60) until (15 * 60 + 45) ->
+            SunPathBearMoment.AFTERNOON_TEA
+        minutes < 18 * 60 ->
+            if (weekend) SunPathBearMoment.WEEKEND_AFTERNOON else SunPathBearMoment.WORK_AFTERNOON
+        minutes < 18 * 60 + 45 ->
             if (weekend) SunPathBearMoment.WEEKEND_RETURN else SunPathBearMoment.HEAD_HOME
-        else ->
+        minutes < 19 * 60 ->
             if (weekend) SunPathBearMoment.WEEKEND_RETURN else SunPathBearMoment.EVENING_EXERCISE
+        else ->
+            if (weekend) SunPathBearMoment.WEEKEND_RETURN else SunPathBearMoment.DINNER
     }
 }
 
 /**
- * 夜晚：工作日若日落早，用黄昏补上回家通勤(~18:30前)与傍晚锻炼(~19:30前)，
- * 再晚饭(~20:00前) → 歇一会儿(~23:00前) → 睡觉 → 临近天亮。
- * 夏天日落晚时，通勤/锻炼多半已在白天完成，入夜会较快落到晚饭。
+ * 夜晚：工作日若日落早，用黄昏补上回家通勤(~18:45前)与傍晚锻炼(~19:00前)，
+ * 再晚饭(19:00–20:00) → 歇一会儿(~23:00前) → 入睡准备(23:00–24:00) → 睡觉(~05:00前) → 临近天亮。
+ * 夏天日落晚时，通勤/锻炼已在白天完成，入夜会较快落到晚饭。
  */
 private fun nightBearMoment(
     date: LocalDate,
@@ -441,9 +596,10 @@ private fun nightBearMoment(
     val weekend = isWeekend(date)
     return when {
         minutes in (5 * 60) until (9 * 60) -> SunPathBearMoment.ALMOST_DAWN
-        minutes >= 23 * 60 || minutes < 5 * 60 -> SunPathBearMoment.SLEEP
-        !weekend && minutes < 18 * 60 + 30 -> SunPathBearMoment.HEAD_HOME
-        !weekend && minutes < 19 * 60 + 30 -> SunPathBearMoment.EVENING_EXERCISE
+        minutes < 5 * 60 -> SunPathBearMoment.SLEEP
+        minutes >= 23 * 60 -> SunPathBearMoment.BEDTIME_PREP
+        !weekend && minutes < 18 * 60 + 45 -> SunPathBearMoment.HEAD_HOME
+        !weekend && minutes < 19 * 60 -> SunPathBearMoment.EVENING_EXERCISE
         minutes < 20 * 60 -> SunPathBearMoment.DINNER
         else -> SunPathBearMoment.EVENING
     }

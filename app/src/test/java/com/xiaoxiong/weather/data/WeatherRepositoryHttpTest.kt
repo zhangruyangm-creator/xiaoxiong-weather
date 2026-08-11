@@ -41,6 +41,7 @@ class WeatherRepositoryHttpTest {
                 geocodingBase = base,
                 forecastBase = base,
                 airQualityBase = base,
+                archiveBase = base,
             )
     }
 
@@ -59,11 +60,13 @@ class WeatherRepositoryHttpTest {
     private fun pathDispatcher(
         forecast: MockResponse,
         air: MockResponse,
+        archive: MockResponse = MockResponse().setResponseCode(404),
     ): Dispatcher =
         object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 val path = request.path ?: return MockResponse().setResponseCode(404)
                 return when {
+                    path.contains("archive") -> archive
                     path.contains("air-quality") -> air
                     path.contains("forecast") -> forecast
                     else -> MockResponse().setResponseCode(404)
@@ -147,6 +150,7 @@ class WeatherRepositoryHttpTest {
 
             assertNotNull(snapshot.advice)
             assertEquals(8, snapshot.lifeIndices.size)
+            // 物候不再随主天气拉取（进入七日页按需拉），故只 2 个请求
             assertEquals(2, server.requestCount)
         }
 
@@ -202,7 +206,209 @@ class WeatherRepositoryHttpTest {
             }
         }
 
+    @Test
+    fun fetchPhenologyShiftDays_warmerYear_returnsNegativeShift() =
+        runBlocking {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(archiveJson(today = "2026-08-10", thisYearOffset = 6.0)),
+            )
+            val shift =
+                repository.fetchPhenologyShiftDays(
+                    WeatherFixtures.city("济南"),
+                    today = java.time.LocalDate.of(2026, 8, 10),
+                )
+            assertNotNull(shift)
+            assertTrue("expected earlier (negative), got $shift", shift!! < 0)
+        }
+
+    @Test
+    fun fetchPhenologyShiftDays_colderYear_returnsPositiveShift() =
+        runBlocking {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(archiveJson(today = "2026-08-10", thisYearOffset = -6.0)),
+            )
+            val shift =
+                repository.fetchPhenologyShiftDays(
+                    WeatherFixtures.city("济南"),
+                    today = java.time.LocalDate.of(2026, 8, 10),
+                )
+            assertNotNull(shift)
+            assertTrue("expected later (positive), got $shift", shift!! > 0)
+        }
+
+    @Test
+    fun fetchPhenologyShiftDays_httpError_returnsNull() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+            val shift =
+                repository.fetchPhenologyShiftDays(
+                    WeatherFixtures.city("济南"),
+                    today = java.time.LocalDate.of(2026, 8, 10),
+                )
+            assertNull(shift)
+        }
+
+    @Test
+    fun fetchPhenologyShiftDays_usesYesterdayAsEndDate() =
+        runBlocking {
+            // ERA5 再分析数据延迟约 1 天：end_date 必须是 today-1，否则 archive 报越界错误
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(archiveJson(today = "2026-08-10", thisYearOffset = 6.0)),
+            )
+            repository.fetchPhenologyShiftDays(
+                WeatherFixtures.city("济南"),
+                today = java.time.LocalDate.of(2026, 8, 10),
+            )
+            val recorded = server.takeRequest()
+            assertEquals("2026-08-09", recorded.requestUrl?.queryParameter("end_date"))
+            assertEquals("2020-01-01", recorded.requestUrl?.queryParameter("start_date"))
+        }
+
+    @Test
+    fun fetchHistoryDay_success_mapsFields() =
+        runBlocking {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(historyJson(date = "2026-08-10")),
+            )
+            val day =
+                repository.fetchHistoryDay(
+                    WeatherFixtures.city("济南"),
+                    date = java.time.LocalDate.of(2026, 8, 10),
+                )
+            assertNotNull(day)
+            assertEquals("2026-08-10", day!!.date)
+            assertEquals(95, day.weatherCode)
+            assertEquals(30.0, day.tempMaxC)
+            assertEquals(20.0, day.tempMinC)
+            assertEquals(25.0, day.tempMeanC)
+            assertEquals(5.0, day.precipSumMm)
+            assertEquals(60, day.humidityMeanPercent)
+            assertEquals(15.0, day.windMaxKmh)
+            assertEquals("2026-08-10T05:00", day.sunrise)
+            assertEquals("2026-08-10T19:00", day.sunset)
+
+            val recorded = server.takeRequest()
+            assertEquals("2026-08-10", recorded.requestUrl?.queryParameter("start_date"))
+            assertEquals("2026-08-10", recorded.requestUrl?.queryParameter("end_date"))
+        }
+
+    @Test
+    fun fetchHistoryDay_httpError_returnsNull() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+            val day =
+                repository.fetchHistoryDay(
+                    WeatherFixtures.city("济南"),
+                    date = java.time.LocalDate.of(2026, 8, 10),
+                )
+            assertNull(day)
+        }
+
+    @Test
+    fun fetchHistoryDay_mismatchedDate_returnsNull() =
+        runBlocking {
+            // 服务端返回的日期与请求日期不一致（异常响应）时按无数据处理
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(historyJson(date = "2026-08-09")),
+            )
+            val day =
+                repository.fetchHistoryDay(
+                    WeatherFixtures.city("济南"),
+                    date = java.time.LocalDate.of(2026, 8, 10),
+                )
+            assertNull(day)
+        }
+
+    @Test
+    fun fetchWeather_doesNotFetchArchive() =
+        runBlocking {
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(200).setBody(FORECAST_JSON),
+                    air = MockResponse().setResponseCode(200).setBody(AIR_JSON),
+                    archive = MockResponse().setResponseCode(500).setBody("boom"),
+                )
+
+            val snapshot = repository.fetchWeather(WeatherFixtures.city("济南"))
+
+            // 物候由进入七日页时按需拉取，主天气加载不应命中 archive 接口
+            assertEquals(2, server.requestCount)
+            val paths = (1..server.requestCount).map { server.takeRequest().path!! }
+            assertTrue(paths.none { it.contains("archive") })
+            assertEquals(22.0, snapshot.current.temperatureC)
+            assertEquals(95, snapshot.current.weatherCode)
+        }
+
     companion object {
+        /**
+         * 生成多年 archive JSON：往年恒为 base 温度，今年恒为 base + thisYearOffset。
+         * 这样多年平均=base，今年温度恒定偏移，GDD 偏移方向确定。
+         */
+        private fun archiveJson(
+            today: String,
+            thisYearOffset: Double,
+            base: Double = 15.0,
+            years: IntRange = 2020..2026,
+        ): String {
+            val todayDate = java.time.LocalDate.parse(today)
+            val times = mutableListOf<String>()
+            val temps = mutableListOf<Double>()
+            for (year in years) {
+                var date = java.time.LocalDate.of(year, 1, 1)
+                val end = if (year == todayDate.year) todayDate else java.time.LocalDate.of(year, 12, 31)
+                while (!date.isAfter(end)) {
+                    times += date.toString()
+                    val temp = if (year == todayDate.year) base + thisYearOffset else base
+                    temps += temp
+                    date = date.plusDays(1)
+                }
+            }
+            val timeJson = times.joinToString(",") { "\"$it\"" }
+            val tempJson = temps.joinToString(",")
+            return """
+                {
+                  "latitude": 36.65,
+                  "longitude": 117.12,
+                  "timezone": "Asia/Shanghai",
+                  "daily": {
+                    "time": [$timeJson],
+                    "temperature_2m_mean": [$tempJson]
+                  }
+                }
+                """.trimIndent()
+        }
+
+        private fun historyJson(date: String): String =
+            """
+            {
+              "latitude": 36.65,
+              "longitude": 117.12,
+              "timezone": "Asia/Shanghai",
+              "daily": {
+                "time": ["$date"],
+                "weather_code": [95],
+                "temperature_2m_max": [30.0],
+                "temperature_2m_min": [20.0],
+                "temperature_2m_mean": [25.0],
+                "precipitation_sum": [5.0],
+                "relative_humidity_2m_mean": [60],
+                "wind_speed_10m_max": [15.0],
+                "sunrise": ["${date}T05:00"],
+                "sunset": ["${date}T19:00"]
+              }
+            }
+            """.trimIndent()
+
         private val FORECAST_JSON =
             """
             {

@@ -5,16 +5,49 @@ import com.xiaoxiong.weather.util.WeatherLauncherIcon
 import com.xiaoxiong.weather.widget.WeatherWidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 /** 拉取天气快照（便于 ViewModel 单测替换）。 */
 fun interface WeatherFetcher {
     suspend fun fetchWeather(city: City): WeatherSnapshot
+
+    /**
+     * 物候积温偏移天数（正 = 推迟，负 = 提前）；无数据/失败返回 null。
+     * 默认不拉取：只由进入七日页时按需调用（低频率，跨年/换城/跨天才重拉）。
+     */
+    suspend fun fetchPhenologyShiftDays(
+        city: City,
+        today: LocalDate,
+    ): Int? = null
+
+    /**
+     * 查询某天的历史天气（Archive / ERA5）；失败或无数据返回 null。
+     * 用户主动触发，默认不实现（UI 未接入口时为无操作）。
+     */
+    suspend fun fetchHistoryDay(
+        city: City,
+        date: LocalDate,
+    ): HistoryWeather? = null
 }
 
 interface WeatherCache {
     suspend fun get(city: City): WeatherCacheStore.CacheEntry?
 
     suspend fun save(snapshot: WeatherSnapshot)
+}
+
+/** 物候偏移结果的按日缓存：同城同年当日有效，跨天/换城/跨年需重拉。 */
+interface PhenologyCache {
+    suspend fun get(
+        city: City,
+        year: Int,
+    ): PhenologyCacheStore.PhenologyEntry?
+
+    suspend fun save(
+        city: City,
+        year: Int,
+        shiftDays: Int?,
+    )
 }
 
 interface FavoriteCitySource {

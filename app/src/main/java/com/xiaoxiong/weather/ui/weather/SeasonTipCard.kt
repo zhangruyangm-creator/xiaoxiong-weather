@@ -24,6 +24,7 @@ internal fun SeasonTipsSection(
     city: City,
     referenceIsoTime: String?,
     elevationMeters: Double? = null,
+    phenologyShiftDays: Int? = null,
 ) {
     val tips =
         remember(
@@ -32,8 +33,9 @@ internal fun SeasonTipsSection(
             city.admin1,
             referenceIsoTime,
             elevationMeters,
+            phenologyShiftDays,
         ) {
-            SeasonTipGenerator.tipsForCity(city, referenceIsoTime, elevationMeters)
+            SeasonTipGenerator.tipsForCity(city, referenceIsoTime, elevationMeters, phenologyShiftDays)
         }
     if (tips.isEmpty()) return
     Column(
@@ -115,6 +117,19 @@ private fun SeasonTipCard(tip: SeasonTipGenerator.Tip) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        tip.phenologyShiftDays?.takeIf { it != 0 }?.let { shiftDays ->
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text =
+                    if (shiftDays < 0) {
+                        stringResource(R.string.season_phenology_early, -shiftDays)
+                    } else {
+                        stringResource(R.string.season_phenology_late, shiftDays)
+                    },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = stringResource(R.string.season_disclaimer),

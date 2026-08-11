@@ -57,6 +57,7 @@ data class AppSettings(
     val backgroundRefreshInterval: BackgroundRefreshInterval = BackgroundRefreshInterval.HOURS_3,
     val todayCards: List<TodayCardPref> = TodayCardLayout.defaults,
     val hourlyCards: List<HourlyCardPref> = HourlyCardLayout.defaults,
+    val dailyCards: List<DailyCardPref> = DailyCardLayout.defaults,
 )
 
 class AppSettingsStore(
@@ -87,6 +88,7 @@ class AppSettingsStore(
                     ),
                 todayCards = TodayCardLayout.decode(prefs[KEY_TODAY_CARDS]),
                 hourlyCards = HourlyCardLayout.decode(prefs[KEY_HOURLY_CARDS]),
+                dailyCards = DailyCardLayout.decode(prefs[KEY_DAILY_CARDS]),
             )
         }
 
@@ -144,6 +146,18 @@ class AppSettingsStore(
         }
     }
 
+    suspend fun setDailyCards(prefs: List<DailyCardPref>) {
+        context.appSettingsDataStore.edit {
+            it[KEY_DAILY_CARDS] = DailyCardLayout.encode(prefs)
+        }
+    }
+
+    suspend fun resetDailyCards() {
+        context.appSettingsDataStore.edit {
+            it[KEY_DAILY_CARDS] = DailyCardLayout.encode(DailyCardLayout.defaults)
+        }
+    }
+
     companion object {
         private val KEY_NOTIFICATIONS = booleanPreferencesKey("notifications_enabled")
         private val KEY_TEMP_UNIT = stringPreferencesKey("temperature_unit")
@@ -154,5 +168,6 @@ class AppSettingsStore(
         private val KEY_BG_REFRESH_HOURS = intPreferencesKey("bg_refresh_hours")
         private val KEY_TODAY_CARDS = stringPreferencesKey("today_cards")
         private val KEY_HOURLY_CARDS = stringPreferencesKey("hourly_cards")
+        private val KEY_DAILY_CARDS = stringPreferencesKey("daily_cards")
     }
 }

@@ -51,6 +51,7 @@ import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.debug.DebugWeatherScreen
+import com.xiaoxiong.weather.ui.settings.DailyCardsSettingsScreen
 import com.xiaoxiong.weather.ui.settings.HourlyCardsSettingsScreen
 import com.xiaoxiong.weather.ui.settings.PrivacyGateDialog
 import com.xiaoxiong.weather.ui.settings.PrivacyScreen
@@ -154,6 +155,7 @@ private fun WeatherScreenContent(
                 onOpenPrivacy = { overlay = OverlayScreen.Privacy },
                 onOpenTodayCards = { overlay = OverlayScreen.TodayCards },
                 onOpenHourlyCards = { overlay = OverlayScreen.HourlyCards },
+                onOpenDailyCards = { overlay = OverlayScreen.DailyCards },
                 onDebugUnlocked = {
                     viewModel.enableDebugMode()
                     overlay = OverlayScreen.Debug
@@ -171,6 +173,14 @@ private fun WeatherScreenContent(
         }
         OverlayScreen.HourlyCards -> {
             HourlyCardsSettingsScreen(
+                settingsStore = settingsStore,
+                scope = scope,
+                onBack = { overlay = OverlayScreen.Settings },
+            )
+            return
+        }
+        OverlayScreen.DailyCards -> {
+            DailyCardsSettingsScreen(
                 settingsStore = settingsStore,
                 scope = scope,
                 onBack = { overlay = OverlayScreen.Settings },
@@ -393,6 +403,13 @@ private fun WeatherScreenContent(
                                             weather = state.weather,
                                             isOffline = state.isOffline,
                                             lastUpdatedText = state.lastUpdatedText,
+                                            phenologyShiftDays = state.phenologyShiftDays,
+                                            onPhenologyPageShown = viewModel::ensurePhenologyShift,
+                                            historyWeather = state.historyWeather,
+                                            isHistoryLoading = state.isHistoryLoading,
+                                            historyFailed = state.historyFailed,
+                                            onPickHistoryDate = viewModel::fetchHistoryDay,
+                                            cardLayout = appSettings.dailyCards,
                                         )
                                 }
                             }

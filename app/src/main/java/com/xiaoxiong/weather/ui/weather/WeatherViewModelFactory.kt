@@ -10,6 +10,7 @@ import com.xiaoxiong.weather.data.DebugWeatherSource
 import com.xiaoxiong.weather.data.FavoriteCitySource
 import com.xiaoxiong.weather.data.LocationPermissionSource
 import com.xiaoxiong.weather.data.LocationSessionFactory
+import com.xiaoxiong.weather.data.PhenologyCache
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.RecentCitySource
 import com.xiaoxiong.weather.data.SelectedCitySource
@@ -26,6 +27,7 @@ data class WeatherViewModelDeps(
     val recentCityStore: RecentCitySource,
     val selectedCityStore: SelectedCitySource,
     val weatherCacheStore: WeatherCache,
+    val phenologyCache: PhenologyCache,
     val citySearch: CitySearchUseCase,
     val settingsStore: AppSettingsSource,
     val debugWeatherStore: DebugWeatherSource,
@@ -56,6 +58,7 @@ class WeatherViewModelFactory(
                     recentCityStore = c.recentCityStore,
                     selectedCityStore = c.selectedCityStore,
                     weatherCacheStore = c.weatherCacheStore,
+                    phenologyCache = c.phenologyCacheStore,
                     citySearch = c.citySearchUseCase,
                     settingsStore = c.settingsStore,
                     debugWeatherStore = c.debugWeatherStore,

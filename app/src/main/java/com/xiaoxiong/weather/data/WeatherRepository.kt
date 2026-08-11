@@ -5,6 +5,7 @@ import com.github.promeg.pinyinhelper.Pinyin
 import com.xiaoxiong.weather.BuildConfig
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.remote.AirQualityResponse
+import com.xiaoxiong.weather.data.remote.ArchiveResponse
 import com.xiaoxiong.weather.data.remote.ForecastResponse
 import com.xiaoxiong.weather.data.remote.GeocodingResponse
 import com.xiaoxiong.weather.util.indexOfCurrentHour
@@ -27,6 +28,7 @@ class WeatherRepository(
     private val geocodingBase: String = DEFAULT_GEOCODING_BASE,
     private val forecastBase: String = DEFAULT_FORECAST_BASE,
     private val airQualityBase: String = DEFAULT_AIR_QUALITY_BASE,
+    private val archiveBase: String = DEFAULT_ARCHIVE_BASE,
 ) : WeatherFetcher {
     suspend fun searchCities(query: String): List<City> =
         withContext(Dispatchers.IO) {
@@ -98,6 +100,10 @@ class WeatherRepository(
         private const val DEFAULT_GEOCODING_BASE = "https://geocoding-api.open-meteo.com/v1"
         private const val DEFAULT_FORECAST_BASE = "https://api.open-meteo.com/v1"
         private const val DEFAULT_AIR_QUALITY_BASE = "https://air-quality-api.open-meteo.com/v1"
+        private const val DEFAULT_ARCHIVE_BASE = "https://archive-api.open-meteo.com/v1"
+
+        /** 常年对比窗口年数（含今年共 N 年），N-1 年用于多年平均。 */
+        private const val PHENOLOGY_YEARS = 6
 
         private val PLACE_SUFFIX =
             Regex("(特别行政区|自治州|自治区|自治县|地区|盟|市|县|区|旗|林区)$")
@@ -421,6 +427,132 @@ class WeatherRepository(
     }
 
     /**
+     * 物候积温偏移天数（正 = 推迟，负 = 提前），失败或数据不足返回 null。
+     *
+     * 仅在进入「七日」页时按需调用（跨年/换城/当日未拉过才真正联网，
+     * 见 WeatherViewModel.ensurePhenologyShift），不参与主天气加载。
+     *
+     * 用 Open-Meteo Archive API 拉取「今年至今」与「往年同期」逐日均温：
+     * 今年与常年按积温（GDD）对比，把温差换算为物候偏移天数。
+     */
+    override suspend fun fetchPhenologyShiftDays(
+        city: City,
+        today: java.time.LocalDate,
+    ): Int? =
+        withContext(Dispatchers.IO) {
+            val startYear = today.year - PHENOLOGY_YEARS
+            // ERA5 再分析数据延迟约 1 天，end_date 用昨天，否则 archive 接口报
+            // "end_date out of allowed range" 直接失败（物候偏移一天延迟无感）。
+            val endDate = today.minusDays(1)
+            val url =
+                archiveBase
+                    .toHttpUrl()
+                    .newBuilder()
+                    .addPathSegment("archive")
+                    .addQueryParameter("latitude", city.latitude.toString())
+                    .addQueryParameter("longitude", city.longitude.toString())
+                    .addQueryParameter("start_date", "$startYear-01-01")
+                    .addQueryParameter("end_date", endDate.toString())
+                    .addQueryParameter(
+                        "daily",
+                        "temperature_2m_mean",
+                    ).addQueryParameter("timezone", "auto")
+                    .build()
+
+            val response =
+                try {
+                    decodeArchive(execute(url.toString()))
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    return@withContext null
+                }
+            val daily = response.daily ?: return@withContext null
+
+            val records =
+                daily.time.mapIndexedNotNull { index, time ->
+                    val date = runCatching { java.time.LocalDate.parse(time) }.getOrNull()
+                    val mean = daily.temperatureMean.getOrNull(index)
+                    if (date == null || mean == null) null else date to mean
+                }
+
+            val thisYear = today.year
+            val thisYearTemps =
+                records.filter { it.first.year == thisYear }.map { it.second }
+            if (thisYearTemps.size < GrowingDegreeDays.MIN_DAYS) return@withContext null
+
+            val normalByDay = GrowingDegreeDays.averageByDayOfYear(records.filter { it.first.year < thisYear })
+            val normalTemps =
+                GrowingDegreeDays.normalTempsUntil(normalByDay, today, java.time.LocalDate.of(thisYear, 1, 1))
+            if (normalTemps.size < GrowingDegreeDays.MIN_DAYS) return@withContext null
+
+            GrowingDegreeDays.shiftDays(thisYearTemps, normalTemps)
+        }
+
+    /**
+     * 查询某天的历史天气（Archive / ERA5），失败或无数据返回 null。
+     *
+     * 用户主动查询单日，不参与主天气加载；date 通常为昨天或更早
+     * （ERA5 延迟约 1 天）。单日请求极小，ViewModel 层再按内存缓存去重。
+     */
+    override suspend fun fetchHistoryDay(
+        city: City,
+        date: java.time.LocalDate,
+    ): HistoryWeather? =
+        withContext(Dispatchers.IO) {
+            val url =
+                archiveBase
+                    .toHttpUrl()
+                    .newBuilder()
+                    .addPathSegment("archive")
+                    .addQueryParameter("latitude", city.latitude.toString())
+                    .addQueryParameter("longitude", city.longitude.toString())
+                    .addQueryParameter("start_date", date.toString())
+                    .addQueryParameter("end_date", date.toString())
+                    .addQueryParameter(
+                        "daily",
+                        listOf(
+                            "weather_code",
+                            "temperature_2m_max",
+                            "temperature_2m_min",
+                            "temperature_2m_mean",
+                            "precipitation_sum",
+                            "relative_humidity_2m_mean",
+                            "wind_speed_10m_max",
+                            "sunrise",
+                            "sunset",
+                        ).joinToString(","),
+                    ).addQueryParameter("timezone", "auto")
+                    .build()
+
+            val response =
+                try {
+                    decodeArchive(execute(url.toString()))
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    return@withContext null
+                }
+            val daily = response.daily ?: return@withContext null
+            val day = daily.time.firstOrNull() ?: return@withContext null
+            val parsed = runCatching { java.time.LocalDate.parse(day) }.getOrNull() ?: return@withContext null
+            if (parsed != date) return@withContext null
+
+            HistoryWeather(
+                date = day,
+                weatherCode = daily.weatherCode.getOrNull(0),
+                tempMaxC = daily.tempMax.getOrNull(0),
+                tempMinC = daily.tempMin.getOrNull(0),
+                tempMeanC = daily.temperatureMean.getOrNull(0),
+                precipSumMm = daily.precipSum.getOrNull(0),
+                humidityMeanPercent = daily.humidityMean.getOrNull(0),
+                windMaxKmh = daily.windMax.getOrNull(0),
+                sunrise = daily.sunrise.getOrNull(0),
+                sunset = daily.sunset.getOrNull(0),
+            )
+        }
+
+    /**
      * 小时序列来自 timezone=auto，是城市本地墙钟时间；
      * 不能用设备 [ZoneId.systemDefault]，否则跨时区会偏一小时甚至整天。
      */
@@ -465,6 +597,13 @@ class WeatherRepository(
     private fun decodeGeocoding(body: String): GeocodingResponse =
         try {
             json.decodeFromString(GeocodingResponse.serializer(), body)
+        } catch (e: SerializationException) {
+            throw AppError.DataFormat(e)
+        }
+
+    private fun decodeArchive(body: String): ArchiveResponse =
+        try {
+            json.decodeFromString(ArchiveResponse.serializer(), body)
         } catch (e: SerializationException) {
             throw AppError.DataFormat(e)
         }

@@ -66,6 +66,14 @@ class SunPathMathTest {
             sunPathBearMoment(day, weekday, LocalTime.of(7, 0)),
         )
         assertEquals(
+            SunPathBearMoment.BREAKFAST,
+            sunPathBearMoment(day, weekday, LocalTime.of(7, 15)),
+        )
+        assertEquals(
+            SunPathBearMoment.BREAKFAST,
+            sunPathBearMoment(day, weekday, LocalTime.of(7, 45)),
+        )
+        assertEquals(
             SunPathBearMoment.MORNING_OUT,
             sunPathBearMoment(day, weekday, LocalTime.of(8, 15)),
         )
@@ -90,11 +98,23 @@ class SunPathMathTest {
             sunPathBearMoment(day, weekday, LocalTime.of(16, 45)),
         )
         assertEquals(
+            SunPathBearMoment.WORK_AFTERNOON,
+            sunPathBearMoment(day, weekday, LocalTime.of(17, 45)),
+        )
+        assertEquals(
             SunPathBearMoment.HEAD_HOME,
             sunPathBearMoment(day, weekday, LocalTime.of(18, 0)),
         )
         assertEquals(
+            SunPathBearMoment.HEAD_HOME,
+            sunPathBearMoment(day, weekday, LocalTime.of(18, 30)),
+        )
+        assertEquals(
             SunPathBearMoment.EVENING_EXERCISE,
+            sunPathBearMoment(day, weekday, LocalTime.of(18, 45)),
+        )
+        assertEquals(
+            SunPathBearMoment.DINNER,
             sunPathBearMoment(day, weekday, LocalTime.of(19, 0)),
         )
         assertEquals(
@@ -184,6 +204,10 @@ class SunPathMathTest {
         )
         assertEquals(
             SunPathBearMoment.EVENING_EXERCISE,
+            sunPathBearMoment(night, weekday, LocalTime.of(18, 45)),
+        )
+        assertEquals(
+            SunPathBearMoment.DINNER,
             sunPathBearMoment(night, weekday, LocalTime.of(19, 0)),
         )
         assertEquals(
@@ -204,12 +228,16 @@ class SunPathMathTest {
             sunPathBearMoment(night, weekday, LocalTime.of(22, 30)),
         )
         assertEquals(
-            SunPathBearMoment.SLEEP,
+            SunPathBearMoment.BEDTIME_PREP,
             sunPathBearMoment(night, weekday, LocalTime.of(23, 0)),
         )
         assertEquals(
-            SunPathBearMoment.SLEEP,
+            SunPathBearMoment.BEDTIME_PREP,
             sunPathBearMoment(night, weekday, LocalTime.of(23, 30)),
+        )
+        assertEquals(
+            SunPathBearMoment.SLEEP,
+            sunPathBearMoment(night, weekday, LocalTime.of(0, 0)),
         )
         assertEquals(
             SunPathBearMoment.SLEEP,
@@ -235,9 +263,20 @@ class SunPathMathTest {
                 R.drawable.ic_sun_bear_evening_knit to R.string.sun_bear_evening_knit,
                 R.drawable.ic_sun_bear_evening_diary to R.string.sun_bear_evening_diary,
                 R.drawable.ic_sun_bear_evening_pet to R.string.sun_bear_evening_pet,
+                R.drawable.ic_sun_bear_evening_guitar to R.string.sun_bear_evening_guitar,
+                R.drawable.ic_sun_bear_evening_treadmill to R.string.sun_bear_evening_treadmill,
+                R.drawable.ic_sun_bear_evening_yoga to R.string.sun_bear_evening_yoga,
+                R.drawable.ic_sun_bear_evening_draw to R.string.sun_bear_evening_draw,
+                R.drawable.ic_sun_bear_evening_balcony to R.string.sun_bear_evening_balcony,
+                R.drawable.ic_sun_bear_evening_cityview to R.string.sun_bear_evening_cityview,
+                R.drawable.ic_sun_bear_evening_lounge to R.string.sun_bear_evening_lounge,
+                R.drawable.ic_sun_bear_evening_videocall to R.string.sun_bear_evening_videocall,
+                R.drawable.ic_sun_bear_evening_boardgame to R.string.sun_bear_evening_boardgame,
+                R.drawable.ic_sun_bear_evening_lego to R.string.sun_bear_evening_lego,
+                R.drawable.ic_sun_bear_evening_study to R.string.sun_bear_evening_study,
             )
         val seen = mutableSetOf<Int>()
-        for (i in 0L..60L) {
+        for (i in 0L..80L) {
             val d = day.plusDays(i)
             val res = SunPathBearMoment.EVENING.bearResFor(d)
             val caption = SunPathBearMoment.EVENING.captionResFor(d)
@@ -245,11 +284,39 @@ class SunPathMathTest {
             assertEquals(pair.second, caption)
             seen += res
         }
-        assertEquals(9, seen.size)
+        assertEquals(20, seen.size)
         assertEquals(
             SunPathBearMoment.EVENING.bearResFor(day),
             SunPathBearMoment.EVENING.bearResFor(day),
         )
+    }
+
+    @Test
+    fun bedtimePrep_variantsMatchCaptions() {
+        val day = LocalDate.of(2026, 8, 6)
+        val pairs =
+            listOf(
+                R.drawable.ic_sun_bear_bedtime_pajamas to R.string.sun_bear_bedtime_pajamas,
+                R.drawable.ic_sun_bear_bedtime_bath to R.string.sun_bear_bedtime_bath,
+                R.drawable.ic_sun_bear_bedtime_nightlight to R.string.sun_bear_bedtime_nightlight,
+                R.drawable.ic_sun_bear_bedtime_makebed to R.string.sun_bear_bedtime_makebed,
+                R.drawable.ic_sun_bear_bedtime_story to R.string.sun_bear_bedtime_story,
+                R.drawable.ic_sun_bear_bedtime_plush to R.string.sun_bear_bedtime_plush,
+                R.drawable.ic_sun_bear_bedtime_alarm to R.string.sun_bear_bedtime_alarm,
+                R.drawable.ic_sun_bear_bedtime_footbath to R.string.sun_bear_bedtime_footbath,
+                R.drawable.ic_sun_bear_bedtime_book to R.string.sun_bear_bedtime_book,
+            )
+        val seen = mutableSetOf<Int>()
+        for (i in 0L..40L) {
+            val d = day.plusDays(i)
+            val res = SunPathBearMoment.BEDTIME_PREP.bearResFor(d)
+            val caption = SunPathBearMoment.BEDTIME_PREP.captionResFor(d)
+            val idx = pairs.indexOfFirst { it.first == res }
+            assertTrue(idx >= 0)
+            assertEquals(pairs[idx].second, caption)
+            seen += res
+        }
+        assertEquals(9, seen.size)
     }
 
     @Test
@@ -270,6 +337,14 @@ class SunPathMathTest {
                 R.drawable.ic_sun_bear_sleep_train,
                 R.drawable.ic_sun_bear_sleep_igloo,
                 R.drawable.ic_sun_bear_sleep_treehouse,
+                R.drawable.ic_sun_bear_sleep_sleepingbag,
+                R.drawable.ic_sun_bear_sleep_bunk,
+                R.drawable.ic_sun_bear_sleep_campcot,
+                R.drawable.ic_sun_bear_sleep_lounge,
+                R.drawable.ic_sun_bear_sleep_crib,
+                R.drawable.ic_sun_bear_sleep_petpile,
+                R.drawable.ic_sun_bear_sleep_sofa_lie,
+                R.drawable.ic_sun_bear_sleep_dorm,
             )
         val seen = mutableSetOf<Int>()
         for (i in 0L..80L) {
@@ -279,7 +354,7 @@ class SunPathMathTest {
             assertEquals(R.string.sun_bear_sleep, SunPathBearMoment.SLEEP.captionResFor(d))
             seen += res
         }
-        assertEquals(13, seen.size)
+        assertEquals(21, seen.size)
     }
 
     @Test
@@ -394,6 +469,48 @@ class SunPathMathTest {
     }
 
     @Test
+    fun breakfast_rotatesByDay_independentFromLunch() {
+        val day = LocalDate.of(2026, 8, 6)
+        val pool =
+            setOf(
+                R.drawable.ic_sun_bear_breakfast_youtiao,
+                R.drawable.ic_sun_bear_breakfast_baozi,
+                R.drawable.ic_sun_bear_breakfast_congee,
+                R.drawable.ic_sun_bear_breakfast_jianbing,
+                R.drawable.ic_sun_bear_breakfast_milkbread,
+                R.drawable.ic_sun_bear_breakfast_eggtoast,
+                R.drawable.ic_sun_bear_breakfast_noodles,
+                R.drawable.ic_sun_bear_breakfast_sandwich,
+                R.drawable.ic_sun_bear_breakfast_oatmeal,
+                R.drawable.ic_sun_bear_breakfast_changfen,
+                R.drawable.ic_sun_bear_breakfast_bacon_eggs,
+                R.drawable.ic_sun_bear_breakfast_waffle,
+                R.drawable.ic_sun_bear_breakfast_bagel,
+                R.drawable.ic_sun_bear_breakfast_frenchtoast,
+                R.drawable.ic_sun_bear_breakfast_omelette,
+                R.drawable.ic_sun_bear_breakfast_cereal,
+                R.drawable.ic_sun_bear_breakfast_english,
+                R.drawable.ic_sun_bear_breakfast_hummus,
+                R.drawable.ic_sun_bear_breakfast_arabtea,
+                R.drawable.ic_sun_bear_breakfast_falafel,
+                R.drawable.ic_sun_bear_breakfast_shakshuka,
+                R.drawable.ic_sun_bear_breakfast_dates,
+                R.drawable.ic_sun_bear_breakfast_manakish,
+            )
+        val a = SunPathBearMoment.BREAKFAST.bearResFor(day)
+        assertTrue(a in pool)
+        assertEquals(a, SunPathBearMoment.BREAKFAST.bearResFor(day))
+        assertEquals(R.string.sun_bear_breakfast, SunPathBearMoment.BREAKFAST.captionResFor(day))
+        val seen =
+            (0L..80L)
+                .map { SunPathBearMoment.BREAKFAST.bearResFor(day.plusDays(it)) }
+                .toSet()
+        assertEquals(23, seen.size)
+        // 与午饭插画池互不共用
+        assertTrue(a !in setOf(R.drawable.ic_sun_bear_lunch, R.drawable.ic_sun_bear_lunch_2))
+    }
+
+    @Test
     fun exercise_morningAndEveningIndependent_rotatesByDay() {
         val day = LocalDate.of(2026, 8, 6)
         val pool =
@@ -408,6 +525,15 @@ class SunPathMathTest {
                 R.drawable.ic_sun_bear_exercise_soccer,
                 R.drawable.ic_sun_bear_exercise_yoga,
                 R.drawable.ic_sun_bear_exercise_taichi,
+                R.drawable.ic_sun_bear_exercise_baduanjin,
+                R.drawable.ic_sun_bear_exercise_squaredance,
+                R.drawable.ic_sun_bear_exercise_jianzi,
+                R.drawable.ic_sun_bear_exercise_taichisword,
+                R.drawable.ic_sun_bear_exercise_dogwalk,
+                R.drawable.ic_sun_bear_exercise_briskwalk,
+                R.drawable.ic_sun_bear_exercise_diabolo,
+                R.drawable.ic_sun_bear_exercise_tennis,
+                R.drawable.ic_sun_bear_exercise_hulahoop,
             )
         val morningCaptions =
             listOf(
@@ -421,6 +547,15 @@ class SunPathMathTest {
                 R.string.sun_bear_exercise_soccer_morning,
                 R.string.sun_bear_exercise_yoga_morning,
                 R.string.sun_bear_exercise_taichi_morning,
+                R.string.sun_bear_exercise_baduanjin_morning,
+                R.string.sun_bear_exercise_squaredance_morning,
+                R.string.sun_bear_exercise_jianzi_morning,
+                R.string.sun_bear_exercise_taichisword_morning,
+                R.string.sun_bear_exercise_dogwalk_morning,
+                R.string.sun_bear_exercise_briskwalk_morning,
+                R.string.sun_bear_exercise_diabolo_morning,
+                R.string.sun_bear_exercise_tennis_morning,
+                R.string.sun_bear_exercise_hulahoop_morning,
             )
         val eveningCaptions =
             listOf(
@@ -434,6 +569,15 @@ class SunPathMathTest {
                 R.string.sun_bear_exercise_soccer_evening,
                 R.string.sun_bear_exercise_yoga_evening,
                 R.string.sun_bear_exercise_taichi_evening,
+                R.string.sun_bear_exercise_baduanjin_evening,
+                R.string.sun_bear_exercise_squaredance_evening,
+                R.string.sun_bear_exercise_jianzi_evening,
+                R.string.sun_bear_exercise_taichisword_evening,
+                R.string.sun_bear_exercise_dogwalk_evening,
+                R.string.sun_bear_exercise_briskwalk_evening,
+                R.string.sun_bear_exercise_diabolo_evening,
+                R.string.sun_bear_exercise_tennis_evening,
+                R.string.sun_bear_exercise_hulahoop_evening,
             )
         val morning = SunPathBearMoment.MORNING_EXERCISE.bearResFor(day)
         val evening = SunPathBearMoment.EVENING_EXERCISE.bearResFor(day)
@@ -454,10 +598,10 @@ class SunPathMathTest {
             }
         assertTrue(differDays > 20)
         val morningSeen =
-            (0L..40L)
+            (0L..80L)
                 .map {
                     SunPathBearMoment.MORNING_EXERCISE.bearResFor(day.plusDays(it))
                 }.toSet()
-        assertEquals(10, morningSeen.size)
+        assertEquals(19, morningSeen.size)
     }
 }
