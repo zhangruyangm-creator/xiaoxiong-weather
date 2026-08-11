@@ -10,6 +10,7 @@ import com.xiaoxiong.weather.data.DebugWeatherSource
 import com.xiaoxiong.weather.data.FavoriteCitySource
 import com.xiaoxiong.weather.data.LocationPermissionSource
 import com.xiaoxiong.weather.data.LocationSessionFactory
+import com.xiaoxiong.weather.data.NetworkStateSource
 import com.xiaoxiong.weather.data.PhenologyCache
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.RecentCitySource
@@ -34,6 +35,8 @@ data class WeatherViewModelDeps(
     val radarMapRepository: RadarMapRepository,
     val locationSessionFactory: LocationSessionFactory,
     val presentationEffects: WeatherPresentationEffects = WeatherPresentationEffects.Default,
+    /** 网络在线状态；null（如测试）则不做网络恢复自动刷新。 */
+    val networkMonitor: NetworkStateSource? = null,
     val popularCitiesLoader: suspend (Application) -> List<City> = { app ->
         ChinaCityCatalog.popular(app, limit = 12)
     },
@@ -67,6 +70,7 @@ class WeatherViewModelFactory(
                         LocationSessionFactory { scope ->
                             LocationWeatherCoordinator(c.locationHelper, scope)
                         },
+                    networkMonitor = c.networkMonitor,
                 ),
         ) as T
     }

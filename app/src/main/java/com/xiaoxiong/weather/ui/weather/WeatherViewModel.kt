@@ -147,6 +147,21 @@ class WeatherViewModel(
         }
         debugController.start()
         searchController.start()
+        startNetworkRecoveryRefresh()
+    }
+
+    /** 断网期间失败后，网络一恢复就静默刷新，把界面拉回最新数据。 */
+    private fun startNetworkRecoveryRefresh() {
+        val monitor = deps.networkMonitor ?: return
+        var wasOnline = monitor.isOnline.value
+        viewModelScope.launch {
+            monitor.isOnline.collect { online ->
+                if (online && !wasOnline) {
+                    refresh(quiet = true)
+                }
+                wasOnline = online
+            }
+        }
     }
 
     // region 前台/后台与权限：委托给 ColdStartController

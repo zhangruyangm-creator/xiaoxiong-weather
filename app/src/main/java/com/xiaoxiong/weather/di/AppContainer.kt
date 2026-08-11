@@ -6,6 +6,7 @@ import com.xiaoxiong.weather.data.AppSettingsStore
 import com.xiaoxiong.weather.data.DebugWeatherStore
 import com.xiaoxiong.weather.data.FavoriteCityStore
 import com.xiaoxiong.weather.data.LocationHelper
+import com.xiaoxiong.weather.data.NetworkMonitor
 import com.xiaoxiong.weather.data.PhenologyCacheStore
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.RecentCityStore
@@ -39,9 +40,16 @@ class AppContainer(
             .cache(httpCache)
             .addInterceptor(RetryInterceptor())
             .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
+            // 网络切换后旧连接可能半死，10s 响应等待避免「卡住 1 分钟才失败」
+            .readTimeout(10, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
+    }
+
+    /** 监听网络变化：清空死连接池 + 暴露在线状态，随进程常驻。 */
+    val networkMonitor by lazy {
+        NetworkMonitor(appContext, httpClient.connectionPool)
+            .also { it.start() }
     }
 
     val searchHttpClient by lazy {

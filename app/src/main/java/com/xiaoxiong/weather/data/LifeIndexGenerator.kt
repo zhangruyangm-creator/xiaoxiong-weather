@@ -5,6 +5,7 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.upcomingFromCurrent
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * 基于 Open-Meteo 已有字段在本地估算生活指数（非官方发布）。
@@ -21,13 +22,9 @@ object LifeIndexGenerator {
         val upcoming18 = upcomingFromCurrent(hourly, { it.time }, current.time, count = 18)
         val today = daily.firstOrNull()
         val feels = current.apparentTemperatureC ?: current.temperatureC
-        val uv =
-            when {
-                current.isDay == false -> airQuality?.uvIndex
-                else -> airQuality?.uvIndex ?: today?.uvIndexMax
-            }
         val wind = current.windGustsKmh ?: current.windSpeedKmh
-        val aqi = airQuality?.usAqi ?: airQuality?.europeanAqi
+        val aqi = unifiedUsAqi(airQuality)
+        val uv = uvForIndex(current.isDay, airQuality, today)
         val maxPrecipProb =
             upcoming18.mapNotNull { it.precipProbability }.maxOrNull()
                 ?: today?.precipProbabilityMax
@@ -39,7 +36,12 @@ object LifeIndexGenerator {
 
         return listOf(
             comfortIndex(resources, feels, current.humidityPercent),
-            clothingIndex(resources, feels),
+            clothingIndex(
+                resources,
+                feels,
+                current.humidityPercent,
+                isApparentTemperature = current.apparentTemperatureC != null,
+            ),
             umbrellaIndex(resources, rainingNow, current.weatherCode, upcoming12),
             uvIndex(resources, uv, current.isDay),
             carWashIndex(resources, rainingNow, maxPrecipProb, precipSum, wind),
@@ -54,6 +56,34 @@ object LifeIndexGenerator {
             sportIndex(resources, feels, rainingNow, wind, aqi, uv),
             coldIndex(resources, feels, wind, current.humidityPercent, upcoming12),
         )
+    }
+
+    /**
+     * 防晒是全天建议：白天以当日最大 UV 为准，避免早晚用当前低值误报「无需防晒」；
+     * 夜间几乎为 0，用当前值即可。
+     */
+    internal fun uvForIndex(
+        isDay: Boolean?,
+        airQuality: AirQuality?,
+        today: DailyWeather?,
+    ): Double? =
+        if (isDay != false) {
+            today?.uvIndexMax ?: airQuality?.uvIndex
+        } else {
+            airQuality?.uvIndex
+        }
+
+    /**
+     * 统一到 US AQI 口径，供运动指数等判断使用。
+     * US AQI 与欧洲 EAQI 数值不可比：US AQI 100 ≈ PM2.5 35.4µg/m³，
+     * EAQI 100 ≈ PM2.5 50µg/m³，故只有 EAQI 时按 50/35.4≈1.41 近似放大，
+     * 避免同一污染水平用 EAQI 判断时偏乐观。
+     */
+    internal fun unifiedUsAqi(airQuality: AirQuality?): Int? {
+        val us = airQuality?.usAqi
+        if (us != null) return us
+        val eu = airQuality?.europeanAqi ?: return null
+        return (eu * 50.0 / 35.4).roundToInt().coerceAtLeast(0)
     }
 
     /**
@@ -269,30 +299,50 @@ object LifeIndexGenerator {
         )
     }
 
+    /**
+     * 穿衣指数的等效体感温度：体感温度缺失、退回原始气温时，
+     * 高湿（≥75%）会放大寒冷感（湿冷），等效体感下调 3°C；
+     * 已有体感温度（已含湿度修正）则原样使用。
+     */
+    internal fun effectiveClothingFeels(
+        feelsC: Double?,
+        humidityPercent: Int?,
+        isApparentTemperature: Boolean,
+    ): Double? =
+        if (!isApparentTemperature && feelsC != null && (humidityPercent ?: 0) >= 75) {
+            feelsC - 3.0
+        } else {
+            feelsC
+        }
+
     private fun clothingIndex(
         resources: Resources,
         feelsC: Double?,
+        humidityPercent: Int?,
+        isApparentTemperature: Boolean,
     ): LifeIndex {
+        val effectiveFeels =
+            effectiveClothingFeels(feelsC, humidityPercent, isApparentTemperature)
         val level =
             when {
-                feelsC == null -> LifeIndexLevel.FAIR
-                feelsC in 18.0..26.0 -> LifeIndexLevel.GOOD
-                feelsC in 10.0..32.0 -> LifeIndexLevel.FAIR
+                effectiveFeels == null -> LifeIndexLevel.FAIR
+                effectiveFeels in 18.0..26.0 -> LifeIndexLevel.GOOD
+                effectiveFeels in 10.0..32.0 -> LifeIndexLevel.FAIR
                 else -> LifeIndexLevel.POOR
             }
         val (labelRes, summaryRes) =
             when {
-                feelsC == null ->
+                effectiveFeels == null ->
                     R.string.life_clothing_label_fair to R.string.life_clothing_unknown
-                feelsC >= 32 ->
+                effectiveFeels >= 32 ->
                     R.string.life_clothing_label_guard to R.string.life_clothing_hot
-                feelsC >= 26 ->
+                effectiveFeels >= 26 ->
                     R.string.life_clothing_label_fair to R.string.life_clothing_warm
-                feelsC >= 18 ->
+                effectiveFeels >= 18 ->
                     R.string.life_clothing_label_good to R.string.life_clothing_mild
-                feelsC >= 10 ->
+                effectiveFeels >= 10 ->
                     R.string.life_clothing_label_fair to R.string.life_clothing_cool
-                feelsC >= 0 ->
+                effectiveFeels >= 0 ->
                     R.string.life_clothing_label_guard to R.string.life_clothing_cold
                 else ->
                     R.string.life_clothing_label_guard to R.string.life_clothing_freezing

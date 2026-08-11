@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LifeIndexGeneratorTest {
@@ -136,6 +137,69 @@ class LifeIndexGeneratorTest {
                 maxPrecipProb = 10,
                 precipSum = 0.0,
                 windKmh = 12.0,
+            ),
+        )
+    }
+
+    @Test
+    fun unifiedUsAqi_prefersUsAqi_andScalesEuropean() {
+        // US AQI 直接采用
+        assertEquals(
+            90,
+            LifeIndexGenerator.unifiedUsAqi(AirQuality(usAqi = 90, europeanAqi = 100)),
+        )
+        // 只有欧洲 EAQI 时按 50/35.4 放大（EAQI 100 ≈ US 141）
+        assertEquals(
+            141,
+            LifeIndexGenerator.unifiedUsAqi(AirQuality(europeanAqi = 100)),
+        )
+        // 均缺失
+        assertNull(LifeIndexGenerator.unifiedUsAqi(AirQuality()))
+    }
+
+    @Test
+    fun effectiveClothingFeels_appliesDampColdCorrectionWhenRawTemp() {
+        // 已有体感温度：原样使用
+        assertEquals(
+            10.0,
+            LifeIndexGenerator.effectiveClothingFeels(10.0, 90, isApparentTemperature = true),
+        )
+        // 退回原始气温 + 高湿：湿冷下调 3°C
+        assertEquals(
+            7.0,
+            LifeIndexGenerator.effectiveClothingFeels(10.0, 90, isApparentTemperature = false),
+        )
+        // 退回原始气温 + 低湿：不下调
+        assertEquals(
+            10.0,
+            LifeIndexGenerator.effectiveClothingFeels(10.0, 40, isApparentTemperature = false),
+        )
+        // 湿度缺失按低湿处理，不下调
+        assertEquals(
+            10.0,
+            LifeIndexGenerator.effectiveClothingFeels(10.0, null, isApparentTemperature = false),
+        )
+    }
+
+    @Test
+    fun uvForIndex_daytimeUsesDailyMax_nightUsesCurrent() {
+        val today = DailyWeather(date = "2026-08-11", uvIndexMax = 8.0)
+        val air = AirQuality(uvIndex = 2.0)
+        // 白天优先当日最大，避免早晚用当前低值误报
+        assertEquals(8.0, LifeIndexGenerator.uvForIndex(true, air, today))
+        // 当日缺失时回退当前值
+        assertEquals(
+            2.0,
+            LifeIndexGenerator.uvForIndex(true, air, DailyWeather(date = "2026-08-11")),
+        )
+        // 夜间用当前值（夜里几乎为 0）
+        assertEquals(2.0, LifeIndexGenerator.uvForIndex(false, air, today))
+        // 夜间且当前值缺失
+        assertNull(
+            LifeIndexGenerator.uvForIndex(
+                false,
+                AirQuality(),
+                DailyWeather(date = "2026-08-11", uvIndexMax = 8.0),
             ),
         )
     }

@@ -55,12 +55,12 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.RadarFrame
 import com.xiaoxiong.weather.data.RadarMapRepository
+import com.xiaoxiong.weather.data.isWifiConnected
 import com.xiaoxiong.weather.ui.theme.AccentCoral
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -84,17 +84,23 @@ internal fun LiveRadarPane(
     var currentBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     var imageLoading by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
+    var prefetchStarted by remember(city.id, city.latitude, city.longitude) { mutableStateOf(false) }
+    var everPlayed by remember(city.id, city.latitude, city.longitude) { mutableStateOf(false) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
     val appStarted = lifecycleState.isAtLeast(Lifecycle.State.STARTED)
     val zoom = RadarMapRepository.DEFAULT_ZOOM
+    // Wi-Fi 全量预取并自动播放；蜂窝只下底图+最新帧，点播放才预取
+    val wifi = remember(city.id, city.latitude, city.longitude) { context.isWifiConnected() }
 
     // 切城 / 刷新：底图与帧列表并行；先出最新一帧再后台预取其余
     LaunchedEffect(city.id, city.latitude, city.longitude, refreshKey) {
         loading = true
         errorRes = null
         playing = false
+        prefetchStarted = false
+        everPlayed = false
         currentBitmap = null
         frames = emptyList()
         repository.clearRadarFrameCache()
@@ -121,12 +127,8 @@ internal fun LiveRadarPane(
                 val latest = list.last()
                 currentBitmap = repository.loadImage(latest.imageUrl)
                 loading = false
-                playing = true
-                // 其余帧后台并行预取，不挡首屏
-                launch {
-                    val rest = list.dropLast(1).map { it.imageUrl }
-                    repository.prefetchImages(rest)
-                }
+                // Wi-Fi：默认自动播放；蜂窝：停在最新帧，等用户点播放
+                playing = wifi
             }
         } catch (e: CancellationException) {
             throw e
@@ -151,6 +153,23 @@ internal fun LiveRadarPane(
         if (cachedHint == null) imageLoading = true
         currentBitmap = repository.loadImage(frame.imageUrl)
         imageLoading = false
+    }
+
+    // 首次进入播放时预取其余帧：Wi-Fi 加载完即自动播放随即触发；蜂窝由用户点播放触发
+    LaunchedEffect(frames, playing) {
+        if (playing && frames.size > 1 && !prefetchStarted) {
+            prefetchStarted = true
+            repository.prefetchImages(frames.dropLast(1).map { it.imageUrl })
+        }
+    }
+
+    // 首次进入播放（Wi-Fi 自动 / 蜂窝首次点播放）从最早帧开始，按时间正序播到最新；
+    // 暂停后再次播放从当前帧继续，不打断观看进度
+    LaunchedEffect(playing) {
+        if (playing) {
+            if (!everPlayed) frameIndex = 0
+            everPlayed = true
+        }
     }
 
     LaunchedEffect(playing, frames, appStarted) {

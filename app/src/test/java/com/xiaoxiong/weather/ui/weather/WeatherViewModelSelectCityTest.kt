@@ -15,6 +15,7 @@ import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.LocationPermissionSource
 import com.xiaoxiong.weather.data.LocationSession
 import com.xiaoxiong.weather.data.LocationSessionFactory
+import com.xiaoxiong.weather.data.NetworkStateSource
 import com.xiaoxiong.weather.data.PhenologyCache
 import com.xiaoxiong.weather.data.PhenologyCacheStore
 import com.xiaoxiong.weather.data.RadarMapRepository
@@ -33,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -91,6 +93,35 @@ class WeatherViewModelSelectCityTest {
             assertFalse(state.isLoadingWeather)
             assertEquals("网络异常，已显示缓存天气", state.errorMessage)
             assertEquals(1, session.cancelCount)
+        }
+
+    @Test
+    fun networkRecovery_triggersQuietRefresh() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val fetcher = RecordingPhenologyFetcher()
+            val network = FakeNetworkStateSource(online = true)
+            val vm =
+                createViewModel(
+                    fetcher,
+                    FakeWeatherCache(),
+                    RecordingLocationSession(),
+                    networkMonitor = network,
+                )
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            val callsBeforeRefresh = fetcher.weatherCallCount
+            assertTrue(callsBeforeRefresh >= 1)
+
+            // 断网后恢复：应自动触发一次静默刷新，且不打断界面 loading
+            network.setOnline(false)
+            advanceUntilIdle()
+            network.setOnline(true)
+            advanceUntilIdle()
+
+            assertTrue(fetcher.weatherCallCount > callsBeforeRefresh)
+            assertFalse(vm.uiState.value.isLoadingWeather)
         }
 
     @Test
@@ -318,6 +349,7 @@ class WeatherViewModelSelectCityTest {
         cache: WeatherCache,
         session: RecordingLocationSession,
         phenologyCache: PhenologyCache = FakePhenologyCache(),
+        networkMonitor: NetworkStateSource? = null,
     ): WeatherViewModel {
         val app = mockApplication()
         val deps =
@@ -339,6 +371,7 @@ class WeatherViewModelSelectCityTest {
                 locationSessionFactory = LocationSessionFactory { session },
                 presentationEffects = WeatherPresentationEffects.NoOp,
                 popularCitiesLoader = { emptyList() },
+                networkMonitor = networkMonitor,
             )
         return WeatherViewModel(app, deps)
     }
@@ -385,6 +418,18 @@ private class FakeWeatherFetcher(
     override suspend fun fetchWeather(city: City): WeatherSnapshot = block(city)
 }
 
+/** 可编程的在线状态源，模拟断网/恢复。 */
+private class FakeNetworkStateSource(
+    online: Boolean,
+) : NetworkStateSource {
+    private val flow = MutableStateFlow(online)
+    override val isOnline: StateFlow<Boolean> = flow
+
+    fun setOnline(value: Boolean) {
+        flow.value = value
+    }
+}
+
 /** 记录物候/历史拉取次数；默认返回 null（数据不足），可注入具体返回值。 */
 private class RecordingPhenologyFetcher(
     private val weatherBlock: (City) -> WeatherSnapshot = { city ->
@@ -396,12 +441,17 @@ private class RecordingPhenologyFetcher(
     private val phenologyBlock: (City, LocalDate) -> Int? = { _, _ -> null },
     private val historyBlock: (City, LocalDate) -> HistoryWeather? = { _, _ -> null },
 ) : WeatherFetcher {
+    var weatherCallCount = 0
+        private set
     var phenologyCallCount = 0
         private set
     var historyCallCount = 0
         private set
 
-    override suspend fun fetchWeather(city: City): WeatherSnapshot = weatherBlock(city)
+    override suspend fun fetchWeather(city: City): WeatherSnapshot {
+        weatherCallCount++
+        return weatherBlock(city)
+    }
 
     override suspend fun fetchPhenologyShiftDays(
         city: City,
