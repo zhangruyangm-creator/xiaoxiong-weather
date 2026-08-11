@@ -125,6 +125,40 @@ class WeatherViewModelSelectCityTest {
         }
 
     @Test
+    fun refresh_quietDedup_withinWindowSkipsDuplicate() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val fetcher = RecordingPhenologyFetcher()
+            val vm =
+                createViewModel(
+                    fetcher,
+                    FakeWeatherCache(),
+                    RecordingLocationSession(),
+                )
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            val callsAfterSelect = fetcher.weatherCallCount
+            assertTrue(callsAfterSelect >= 1)
+
+            // 第一次静默刷新（如回前台）：距上次请求已过窗口，应执行
+            vm.refresh(quiet = true)
+            advanceUntilIdle()
+            val callsAfterFirstQuiet = fetcher.weatherCallCount
+            assertTrue(callsAfterFirstQuiet > callsAfterSelect)
+
+            // 紧接着第二次静默刷新（如网络恢复叠加）：落在去重窗口内，应被跳过
+            vm.refresh(quiet = true)
+            advanceUntilIdle()
+            assertEquals(callsAfterFirstQuiet, fetcher.weatherCallCount)
+
+            // 手动下拉刷新不受窗口限制，总是执行
+            vm.refresh(quiet = false)
+            advanceUntilIdle()
+            assertTrue(fetcher.weatherCallCount > callsAfterFirstQuiet)
+        }
+
+    @Test
     fun selectCity_cancelsPendingLocateAndDropsStaleFetch() =
         runTest {
             val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)

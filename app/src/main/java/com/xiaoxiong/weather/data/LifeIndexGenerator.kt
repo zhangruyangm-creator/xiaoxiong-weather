@@ -18,6 +18,7 @@ object LifeIndexGenerator {
         daily: List<DailyWeather>,
         airQuality: AirQuality?,
     ): List<LifeIndex> {
+        val upcoming6 = upcomingFromCurrent(hourly, { it.time }, current.time, count = 6)
         val upcoming12 = upcomingFromCurrent(hourly, { it.time }, current.time, count = 12)
         val upcoming18 = upcomingFromCurrent(hourly, { it.time }, current.time, count = 18)
         val today = daily.firstOrNull()
@@ -42,7 +43,7 @@ object LifeIndexGenerator {
                 current.humidityPercent,
                 isApparentTemperature = current.apparentTemperatureC != null,
             ),
-            umbrellaIndex(resources, rainingNow, current.weatherCode, upcoming12),
+            umbrellaIndex(resources, rainingNow, current.weatherCode, upcoming6, upcoming12),
             uvIndex(resources, uv, current.isDay),
             carWashIndex(resources, rainingNow, maxPrecipProb, precipSum, wind),
             laundryIndex(
@@ -159,6 +160,11 @@ object LifeIndexGenerator {
         EXTREME_HEAT,
     }
 
+    /**
+     * 带伞档位汇总。调用方需自行判断两档降水信号并合并进入参：
+     * - 正在下雨 / 下雪，或未来 6 小时内较强降水（≥0.5mm 或概率 ≥70%）→ 必带（POOR）；
+     * - 仅未来 12 小时内毛毛雨（≥0.2mm 或概率 ≥60%）→ 可带可不带（FAIR）。
+     */
     internal fun umbrellaLevel(
         rainingNow: Boolean,
         weatherCode: Int?,
@@ -170,6 +176,27 @@ object LifeIndexGenerator {
             upcomingPrecipSoon -> LifeIndexLevel.FAIR
             else -> LifeIndexLevel.GOOD
         }
+    }
+
+    /**
+     * 未来降水对带伞的分档信号：
+     * - 返回 [Pair]：first = 未来 6 小时内较强降水（≥0.5mm/h 或概率 ≥70%）→「必带」；
+     * - second = 未来 12 小时内毛毛雨（≥0.2mm/h 或概率 ≥60%）→「可带可不带」。
+     * 避免 12 小时窗口里任一小毛毛雨就长期提醒带伞。
+     */
+    internal fun umbrellaPrecip(
+        upcoming6: List<HourlyWeather>,
+        upcoming12: List<HourlyWeather>,
+    ): Pair<Boolean, Boolean> {
+        val heavySoon =
+            upcoming6.any {
+                (it.precipitationMm ?: 0.0) >= 0.5 || (it.precipProbability ?: 0) >= 70
+            }
+        val lightSoon =
+            upcoming12.any {
+                (it.precipitationMm ?: 0.0) >= 0.2 || (it.precipProbability ?: 0) >= 60
+            }
+        return heavySoon to lightSoon
     }
 
     internal fun carWashLevel(
@@ -360,14 +387,11 @@ object LifeIndexGenerator {
         resources: Resources,
         rainingNow: Boolean,
         weatherCode: Int?,
+        upcoming6: List<HourlyWeather>,
         upcoming12: List<HourlyWeather>,
     ): LifeIndex {
-        val snow = weatherCode in setOf(56, 57, 66, 67, 71, 73, 75, 77, 85, 86)
-        val soon =
-            upcoming12.any {
-                (it.precipitationMm ?: 0.0) >= 0.2 || (it.precipProbability ?: 0) >= 60
-            }
-        val level = umbrellaLevel(rainingNow || snow, weatherCode, soon)
+        val (heavySoon, lightSoon) = umbrellaPrecip(upcoming6, upcoming12)
+        val level = umbrellaLevel(rainingNow || heavySoon, weatherCode, lightSoon)
         val (labelRes, summaryRes) =
             when (level) {
                 LifeIndexLevel.POOR ->

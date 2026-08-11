@@ -912,10 +912,10 @@
     <string name="daily_empty">暂无七日预报数据</string>
     <string name="daily_section_title">七日预报</string>
     <string name="daily_section_sub">点按展开风力与日出日落；温度条按整周对齐</string>
-    <string name="daily_precip_line">降水 %1$s · 概率 %2$s · UV %3$s</string>
+    <string name="daily_precip_line">降水 %1$s · 概率 %2$s · 紫外线指数 %3$s</string>
     <string name="daily_chip_precip">雨 %1$s</string>
     <string name="daily_chip_prob">概率 %1$s</string>
-    <string name="daily_chip_uv">UV %1$s</string>
+    <string name="daily_chip_uv">紫外线指数 %1$s</string>
     <string name="daily_expand">展开</string>
     <string name="daily_collapse">收起</string>
     <string name="daily_detail_sunrise">日出 %1$s</string>

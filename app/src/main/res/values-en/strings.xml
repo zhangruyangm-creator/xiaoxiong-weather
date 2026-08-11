@@ -773,10 +773,10 @@
     <string name="daily_empty">No 7-day forecast</string>
     <string name="daily_section_title">7-day forecast</string>
     <string name="daily_section_sub">Tap a day for wind and sun times; bars align to the week</string>
-    <string name="daily_precip_line">Rain %1$s · Chance %2$s · UV %3$s</string>
+    <string name="daily_precip_line">Rain %1$s · Chance %2$s · UV index %3$s</string>
     <string name="daily_chip_precip">Rain %1$s</string>
     <string name="daily_chip_prob">Chance %1$s</string>
-    <string name="daily_chip_uv">UV %1$s</string>
+    <string name="daily_chip_uv">UV index %1$s</string>
     <string name="daily_expand">Expand</string>
     <string name="daily_collapse">Collapse</string>
     <string name="daily_detail_sunrise">Sunrise %1$s</string>

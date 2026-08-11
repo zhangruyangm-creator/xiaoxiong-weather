@@ -203,4 +203,44 @@ class LifeIndexGeneratorTest {
             ),
         )
     }
+
+    @Test
+    fun umbrellaPrecip_heavySoonNeedsStrongRain_prob70Within6h() {
+        fun hour(
+            precip: Double? = null,
+            prob: Int? = null,
+        ) = HourlyWeather(time = "2026-08-11T12:00", precipitationMm = precip, precipProbability = prob)
+
+        // 6 小时内 ≥0.5mm 才触发「必带」；0.2mm 毛毛雨不触发
+        assertEquals(
+            true to false,
+            LifeIndexGenerator.umbrellaPrecip(
+                listOf(hour(precip = 0.5), hour(precip = 0.0)),
+                listOf(hour()),
+            ),
+        )
+        assertEquals(
+            true to true,
+            LifeIndexGenerator.umbrellaPrecip(
+                listOf(hour(precip = 0.2, prob = 75)),
+                listOf(hour(precip = 0.2)),
+            ),
+        )
+        // 6 小时内 0.4mm/60% 不足以必带；12 小时内 0.2mm 仍算「可带」
+        assertEquals(
+            false to true,
+            LifeIndexGenerator.umbrellaPrecip(
+                listOf(hour(precip = 0.4, prob = 60)),
+                listOf(hour(precip = 0.2)),
+            ),
+        )
+        // 均无降水
+        assertEquals(
+            false to false,
+            LifeIndexGenerator.umbrellaPrecip(
+                listOf(hour()),
+                listOf(hour()),
+            ),
+        )
+    }
 }

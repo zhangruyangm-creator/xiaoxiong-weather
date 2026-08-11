@@ -117,6 +117,12 @@ class WeatherViewModel(
 
     private var weatherJob: Job? = null
     private val weatherRequestId = AtomicInteger(0)
+
+    /** 上一次发起天气请求的墙钟时间；用于静默刷新去重，防止多来源叠加重复拉取 */
+    private var lastRefreshAtEpochMs = 0L
+
+    /** 静默刷新去重窗口：窗口内同城静默刷新直接跳过 */
+    private val refreshDedupWindowMs = 5_000L
     private val locationCoordinator = deps.locationSessionFactory.create(viewModelScope)
     private val presentationEffects = deps.presentationEffects
 
@@ -392,6 +398,11 @@ class WeatherViewModel(
         val state = _uiState.value
         // 静默刷新不打断正在进行的可见加载，避免把 spinner 清掉导致短暂空白
         if (quiet && (state.isLoadingWeather || state.isLocating)) return
+        // 静默刷新去重：距上一次天气请求不足窗口则跳过。
+        // 下拉刷新 / 回前台 / 网络恢复等来源会叠加触发，统一收敛为最近一次
+        val now = System.currentTimeMillis()
+        if (quiet && now - lastRefreshAtEpochMs < refreshDedupWindowMs) return
+        lastRefreshAtEpochMs = now
         val city = state.selectedCity
         if (city != null) {
             // 下拉/自动刷新只重拉天气，复用已有坐标；完整 GPS 留给右上角「定位」

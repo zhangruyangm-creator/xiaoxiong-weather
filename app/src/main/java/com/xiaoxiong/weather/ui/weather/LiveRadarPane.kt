@@ -94,6 +94,12 @@ internal fun LiveRadarPane(
     // Wi-Fi 全量预取并自动播放；蜂窝只下底图+最新帧，点播放才预取
     val wifi = remember(city.id, city.latitude, city.longitude) { context.isWifiConnected() }
 
+    // 切城时清空旧城市的帧缓存（帧 URL 含城市坐标，本就不复用）；
+    // 刷新 / 重进不清理，避免把刚下好的帧又清掉，白费流量
+    LaunchedEffect(city.id, city.latitude, city.longitude) {
+        repository.clearRadarFrameCache()
+    }
+
     // 切城 / 刷新：底图与帧列表并行；先出最新一帧再后台预取其余
     LaunchedEffect(city.id, city.latitude, city.longitude, refreshKey) {
         loading = true
@@ -103,7 +109,6 @@ internal fun LiveRadarPane(
         everPlayed = false
         currentBitmap = null
         frames = emptyList()
-        repository.clearRadarFrameCache()
         try {
             coroutineScope {
                 val basemapJob =

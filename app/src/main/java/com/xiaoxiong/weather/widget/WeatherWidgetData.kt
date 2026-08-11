@@ -32,7 +32,7 @@ object WeatherWidgetData {
 
         val city =
             if (selection.useLocation && locationHelper.hasLocationPermission()) {
-                runCatching { locationHelper.resolveCurrentCity() }.getOrDefault(selection.city)
+                runCatching { locationHelper.resolveCurrentCityReuseLast() }.getOrDefault(selection.city)
             } else {
                 selection.city
             }

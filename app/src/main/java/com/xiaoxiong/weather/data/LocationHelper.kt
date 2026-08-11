@@ -53,14 +53,27 @@ class LocationHelper(
     }
 
     /**
-     * 完整定位（坐标 + 地名）。小组件 / Worker 等后台路径使用。
+     * 后台路径（小组件 / Worker）的定位入口：短期内复用最近一次定位结果，
+     * 避免每次刷新都重新走完整定位 + 逆地理（GPS 冷启动 + Geocoder 可能数秒）。
      * UI 主路径请用 [resolveCurrentCoordinates] + [provisionalCity] / [refineCityPlaceName]。
+     *
+     * 规则：
+     * - 最近 [REUSE_FRESH_MS] 内定位过则直接复用，零定位开销；
+     * - 否则重新完整定位（坐标 + 逆地理）并刷新缓存；
+     * - 定位失败时退回最近一次结果（即使超时），保证后台路径不空转。
      */
     @SuppressLint("MissingPermission")
-    suspend fun resolveCurrentCity(): City =
+    suspend fun resolveCurrentCityReuseLast(): City =
         withContext(Dispatchers.IO) {
-            val location = resolveCurrentCoordinates()
-            refineCityPlaceName(provisionalCity(location))
+            reuseLastLocation()?.let { return@withContext it }
+            runCatching {
+                val location = resolveCurrentCoordinates()
+                val city = refineCityPlaceName(provisionalCity(location))
+                rememberLastLocation(city)
+                city
+            }.getOrElse {
+                readLastLocation() ?: error(context.getString(R.string.error_locate_failed))
+            }
         }
 
     /** 只解析坐标，不逆地理——拿到即可拉天气。 */
@@ -595,6 +608,50 @@ class LocationHelper(
         placeCachePrefs.edit().putString(gridKey(lat, lon), value).apply()
     }
 
+    // ---------- 最近一次定位（后台路径复用） ----------
+
+    private fun rememberLastLocation(city: City) {
+        val value =
+            listOf(
+                city.latitude.toString(),
+                city.longitude.toString(),
+                city.name,
+                city.admin1.orEmpty(),
+                city.admin2.orEmpty(),
+                city.country.orEmpty(),
+                System.currentTimeMillis().toString(),
+            ).joinToString("\u001f")
+        placeCachePrefs.edit().putString(LAST_LOCATION_KEY, value).apply()
+    }
+
+    private fun readLastLocation(): City? {
+        val raw = placeCachePrefs.getString(LAST_LOCATION_KEY, null) ?: return null
+        val parts = raw.split('\u001f')
+        if (parts.size < 7) return null
+        val lat = parts[0].toDoubleOrNull() ?: return null
+        val lon = parts[1].toDoubleOrNull() ?: return null
+        return City(
+            id = (("loc-$lat-$lon").hashCode()).toLong(),
+            name = parts[2],
+            latitude = lat,
+            longitude = lon,
+            country = parts[5].ifBlank { null },
+            admin1 = parts[3].ifBlank { null },
+            admin2 = parts[4].ifBlank { null },
+            isCurrentLocation = true,
+        )
+    }
+
+    /** 最近定位在新鲜窗口内则直接复用；否则 null。 */
+    private fun reuseLastLocation(): City? {
+        val raw = placeCachePrefs.getString(LAST_LOCATION_KEY, null) ?: return null
+        val parts = raw.split('\u001f')
+        if (parts.size < 7) return null
+        val savedAt = parts[6].toLongOrNull() ?: return null
+        if (System.currentTimeMillis() - savedAt > REUSE_FRESH_MS) return null
+        return readLastLocation()
+    }
+
     private fun cleanPlace(value: String?): String? {
         val trimmed = value?.trim().orEmpty()
         if (trimmed.isEmpty() || trimmed.matches(Regex("^\\d+$"))) return null
@@ -670,6 +727,10 @@ class LocationHelper(
         private const val GEOCODER_ONCE_TIMEOUT_MS = 2_500L
         private const val PLACE_CACHE_PREFS = "location_place_cache"
         private const val PLACE_CACHE_TTL_MS = 7L * 24 * 60 * 60 * 1000
+
+        /** 最近一次定位的复用新鲜窗口：期间后台路径（小组件/Worker）不重新定位 */
+        private const val REUSE_FRESH_MS = 10L * 60 * 1000
+        private const val LAST_LOCATION_KEY = "last_location"
         private val DISTRICT_IN_LINE =
             Regex("[\u4e00-\u9fff]{1,8}(?:自治县|新区|林区|区|县|旗)")
     }
