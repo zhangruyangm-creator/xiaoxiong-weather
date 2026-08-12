@@ -680,10 +680,30 @@
 
     <!-- History weather -->
     <string name="history_open">View past weather</string>
-    <string name="history_open_sub">Pick a day to see its temperature and weather</string>
+    <string name="history_open_sub">Single-day weather, range extremes</string>
     <string name="history_pick_title">Pick a date</string>
     <string name="history_pick_confirm">View</string>
     <string name="history_cancel">Cancel</string>
+    <string name="history_title">Past weather</string>
+    <string name="history_mode_day">Single day</string>
+    <string name="history_mode_range">Range stats</string>
+    <string name="history_pick_day">Pick a date</string>
+    <string name="history_pick_start">Start date</string>
+    <string name="history_pick_end">End date</string>
+    <string name="history_query">Search</string>
+    <string name="history_empty_day">Pick a date to see that day\'s weather</string>
+    <string name="history_empty_range">Pick a start and end date, then search</string>
+    <string name="history_range_limit">Range supports up to %1$d days</string>
+    <string name="history_range_failed">No data for this range or the request failed</string>
+    <string name="history_range_summary">%1$s ~ %2$s · %3$d days</string>
+    <string name="history_range_max_temp">Hottest</string>
+    <string name="history_range_min_temp">Coldest</string>
+    <string name="history_range_max_precip">Wettest</string>
+    <string name="history_range_extreme_date">On %1$s</string>
+    <string name="history_range_rows_title">Day by day</string>
+    <string name="history_rows_col_min">Min</string>
+    <string name="history_rows_col_max">Max</string>
+    <string name="history_rows_col_precip">Precip</string>
     <string name="history_loading">Loading past weather…</string>
     <string name="history_failed">No data for this date or the request failed</string>
     <string name="history_retry">Pick again</string>

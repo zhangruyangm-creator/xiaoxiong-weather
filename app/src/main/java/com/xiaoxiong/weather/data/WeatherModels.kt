@@ -202,3 +202,25 @@ data class HistoryWeather(
     val sunrise: String? = null,
     val sunset: String? = null,
 )
+
+/** 区间极值：数值 + 出现的日期（+ 当日天气码供 UI 配图标）。 */
+@Serializable
+data class HistoryExtreme(
+    val value: Double,
+    val date: String,
+    val weatherCode: Int? = null,
+)
+
+/**
+ * 历史日期范围的统计结果：完整逐日列表 + 三个极值（最高温/最低温/最多降水）。
+ * 由 Repository 在拉取区间数据后本地聚合，避免 UI 重复计算。
+ */
+@Serializable
+data class HistoryRangeSummary(
+    val startDate: String,
+    val endDate: String,
+    val days: List<HistoryWeather>,
+    val hottest: HistoryExtreme? = null,
+    val coldest: HistoryExtreme? = null,
+    val wettest: HistoryExtreme? = null,
+)

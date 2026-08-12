@@ -10,6 +10,7 @@ import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.DebugWeatherOverride
 import com.xiaoxiong.weather.data.DebugWeatherState
 import com.xiaoxiong.weather.data.DebugWeatherStore
+import com.xiaoxiong.weather.data.HistoryRangeSummary
 import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.WeatherSnapshot
@@ -56,6 +57,10 @@ data class WeatherUiState(
     val historyWeather: HistoryWeather? = null,
     val isHistoryLoading: Boolean = false,
     val historyFailed: Boolean = false,
+    /** 历史日期范围统计结果（最高/最低温、最多降水等）；null = 尚未查询或失败。 */
+    val historyRange: HistoryRangeSummary? = null,
+    val isHistoryRangeLoading: Boolean = false,
+    val historyRangeFailed: Boolean = false,
 )
 
 class WeatherViewModel(
@@ -227,6 +232,9 @@ class WeatherViewModel(
                 historyWeather = null,
                 isHistoryLoading = false,
                 historyFailed = false,
+                historyRange = null,
+                isHistoryRangeLoading = false,
+                historyRangeFailed = false,
                 errorMessage = null,
             )
         }
@@ -428,6 +436,69 @@ class WeatherViewModel(
 
     /** 单日历史查询内存缓存：键 = "城市坐标|日期"。 */
     private val historyCache = mutableMapOf<String, HistoryWeather>()
+
+    /** 区间历史查询内存缓存：键 = "城市坐标|起|止"。 */
+    private val historyRangeCache = mutableMapOf<String, HistoryRangeSummary>()
+
+    private var historyRangeJob: Job? = null
+
+    /**
+     * 日期范围历史查询：按「城市|起|止」内存缓存去重，同城同区间只查一次；
+     * 失败置 historyRange=null 供 UI 提示。
+     */
+    fun fetchHistoryRange(
+        start: LocalDate,
+        end: LocalDate,
+    ) {
+        if (end.isBefore(start)) return
+        val city = _uiState.value.selectedCity ?: return
+        val cacheKey =
+            "%.4f,%.4f|%s|%s".format(city.latitude, city.longitude, start, end)
+        historyRangeCache[cacheKey]?.let { cached ->
+            _uiState.update {
+                it.copy(historyRange = cached, isHistoryRangeLoading = false, historyRangeFailed = false)
+            }
+            return
+        }
+        historyRangeJob?.cancel()
+        historyRangeJob =
+            viewModelScope.launch {
+                _uiState.update {
+                    it.copy(isHistoryRangeLoading = true, historyRange = null, historyRangeFailed = false)
+                }
+                val result =
+                    try {
+                        repository.fetchHistoryRange(city, start, end)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    }
+                if (result != null) {
+                    historyRangeCache[cacheKey] = result
+                }
+                // 查询期间换城则丢弃结果（不覆盖新城市）
+                val current = _uiState.value
+                if (current.selectedCity != null && roughlySameCity(current.selectedCity, city)) {
+                    _uiState.update {
+                        it.copy(
+                            historyRange = result,
+                            isHistoryRangeLoading = false,
+                            historyRangeFailed = result == null,
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isHistoryRangeLoading = false) }
+                }
+            }
+    }
+
+    fun clearHistoryRange() {
+        historyRangeJob?.cancel()
+        _uiState.update {
+            it.copy(historyRange = null, isHistoryRangeLoading = false, historyRangeFailed = false)
+        }
+    }
 
     /**
      * 进入「七日」页时按需补齐物候偏移：

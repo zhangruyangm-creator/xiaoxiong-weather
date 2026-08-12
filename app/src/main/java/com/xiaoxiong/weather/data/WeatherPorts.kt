@@ -28,6 +28,16 @@ fun interface WeatherFetcher {
         city: City,
         date: LocalDate,
     ): HistoryWeather? = null
+
+    /**
+     * 查询一段日期范围的历史天气并聚合极值（最高温/最低温/最多降水）；
+     * 失败或无数据返回 null。默认不实现。
+     */
+    suspend fun fetchHistoryRange(
+        city: City,
+        start: LocalDate,
+        end: LocalDate,
+    ): HistoryRangeSummary? = null
 }
 
 interface WeatherCache {

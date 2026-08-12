@@ -816,10 +816,30 @@
 
     <!-- 历史天气 -->
     <string name="history_open">查看历史天气</string>
-    <string name="history_open_sub">选一天，看看当时的气温与天气</string>
+    <string name="history_open_sub">单日天气、区间极值统计</string>
     <string name="history_pick_title">选择日期</string>
     <string name="history_pick_confirm">查看</string>
     <string name="history_cancel">取消</string>
+    <string name="history_title">历史天气</string>
+    <string name="history_mode_day">单日查询</string>
+    <string name="history_mode_range">区间统计</string>
+    <string name="history_pick_day">选择日期</string>
+    <string name="history_pick_start">开始日期</string>
+    <string name="history_pick_end">结束日期</string>
+    <string name="history_query">查询</string>
+    <string name="history_empty_day">选择一个日期，查看当天天气</string>
+    <string name="history_empty_range">选择起止日期后点查询，查看区间统计</string>
+    <string name="history_range_limit">区间最长支持 %1$d 天</string>
+    <string name="history_range_failed">该区间暂无数据或查询失败</string>
+    <string name="history_range_summary">%1$s ~ %2$s · 共 %3$d 天</string>
+    <string name="history_range_max_temp">最高温</string>
+    <string name="history_range_min_temp">最低温</string>
+    <string name="history_range_max_precip">最多降水</string>
+    <string name="history_range_extreme_date">出现于 %1$s</string>
+    <string name="history_range_rows_title">逐日明细</string>
+    <string name="history_rows_col_min">最低</string>
+    <string name="history_rows_col_max">最高</string>
+    <string name="history_rows_col_precip">降水</string>
     <string name="history_loading">正在查询历史天气…</string>
     <string name="history_failed">该日期暂无数据或查询失败</string>
     <string name="history_retry">重新选择</string>

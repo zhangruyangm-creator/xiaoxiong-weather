@@ -207,6 +207,21 @@ private fun WeatherScreenContent(
             )
             return
         }
+        OverlayScreen.History -> {
+            HistoryWeatherScreen(
+                temperatureUnit = appSettings.temperatureUnit,
+                historyWeather = state.historyWeather,
+                isHistoryLoading = state.isHistoryLoading,
+                historyFailed = state.historyFailed,
+                onPickDate = viewModel::fetchHistoryDay,
+                historyRange = state.historyRange,
+                isHistoryRangeLoading = state.isHistoryRangeLoading,
+                historyRangeFailed = state.historyRangeFailed,
+                onFetchRange = viewModel::fetchHistoryRange,
+                onBack = { overlay = OverlayScreen.None },
+            )
+            return
+        }
         OverlayScreen.None -> Unit
     }
 
@@ -405,10 +420,7 @@ private fun WeatherScreenContent(
                                             lastUpdatedText = state.lastUpdatedText,
                                             phenologyShiftDays = state.phenologyShiftDays,
                                             onPhenologyPageShown = viewModel::ensurePhenologyShift,
-                                            historyWeather = state.historyWeather,
-                                            isHistoryLoading = state.isHistoryLoading,
-                                            historyFailed = state.historyFailed,
-                                            onPickHistoryDate = viewModel::fetchHistoryDay,
+                                            onOpenHistory = { overlay = OverlayScreen.History },
                                             cardLayout = appSettings.dailyCards,
                                         )
                                 }

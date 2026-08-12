@@ -19,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,10 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
-import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.util.formatDateLabel
 import com.xiaoxiong.weather.util.formatHourLabel
 import com.xiaoxiong.weather.util.formatTemperature
@@ -55,79 +50,11 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 /**
- * 七日页底部的历史天气入口与结果展示。
- * 入口卡片点击弹出日历（可选范围 1940 至昨天），选中后回调 [onPickDate] 查询；
- * 结果以 [weather] / [isLoading] / [failed] 三种状态展示。
+ * 七日页底部的历史天气入口卡片：点击打开完整的历史天气页面。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun HistoryWeatherSection(
-    weather: HistoryWeather?,
-    isLoading: Boolean,
-    failed: Boolean,
-    onPickDate: (LocalDate) -> Unit,
-) {
-    var showPicker by remember { mutableStateOf(false) }
-    val tempUnit = LocalTemperatureUnit.current
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (showPicker) {
-            HistoryDatePickerDialog(
-                onConfirm = { date ->
-                    showPicker = false
-                    onPickDate(date)
-                },
-                onDismiss = { showPicker = false },
-            )
-        }
-
-        HistoryEntryCard(onClick = { showPicker = true })
-
-        when {
-            isLoading -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(R.string.history_loading),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            weather != null -> HistoryDayCard(weather = weather, tempUnit = tempUnit)
-
-            failed -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.history_failed),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(onClick = { showPicker = true }) {
-                        Text(stringResource(R.string.history_retry))
-                    }
-                }
-            }
-        }
-    }
+internal fun HistoryWeatherSection(onOpen: () -> Unit) {
+    HistoryEntryCard(onClick = onOpen)
 }
 
 @Composable
@@ -187,9 +114,10 @@ private fun HistoryEntryCard(onClick: () -> Unit) {
 
 /**
  * 单日历史天气卡片：大天气图标 + 日期 + 温度范围 + 平均 + 各项指标。
+ * 供历史天气页面的单日查询复用。
  */
 @Composable
-private fun HistoryDayCard(
+internal fun HistoryDayCard(
     weather: HistoryWeather,
     tempUnit: TemperatureUnit,
 ) {
@@ -329,10 +257,11 @@ private fun HistoryMetaChip(
 
 /**
  * 历史日期选择：范围 [1940-01-01, 昨天]（ERA5 数据延迟约 1 天）。
+ * 供历史天气页面的单日查询复用。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HistoryDatePickerDialog(
+internal fun HistoryDatePickerDialog(
     onConfirm: (LocalDate) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -386,17 +315,26 @@ private fun HistoryDatePickerDialog(
             }
         },
     ) {
-        DatePicker(
-            state = state,
-            title = {
-                Text(
-                    text = stringResource(R.string.history_pick_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            },
-            modifier =
-                Modifier
-                    .verticalScroll(rememberScrollState()),
-        )
+        Column {
+            // 标题放在对话框顶部、独立排版，避免 DatePicker 内置标题区
+            // 在字体缩放/窄屏下被裁剪（material3 已知问题），换行也能完整显示
+            Text(
+                text = stringResource(R.string.history_pick_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, top = 20.dp, end = 24.dp, bottom = 8.dp),
+            )
+            DatePicker(
+                state = state,
+                title = null,
+                modifier =
+                    Modifier
+                        .verticalScroll(rememberScrollState()),
+            )
+        }
     }
 }

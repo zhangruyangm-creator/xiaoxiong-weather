@@ -330,6 +330,105 @@ class WeatherRepositoryHttpTest {
         }
 
     @Test
+    fun fetchHistoryRange_success_aggregatesExtremes() =
+        runBlocking {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(HISTORY_RANGE_JSON),
+            )
+            val summary =
+                repository.fetchHistoryRange(
+                    WeatherFixtures.city("济南"),
+                    start = java.time.LocalDate.of(2026, 8, 1),
+                    end = java.time.LocalDate.of(2026, 8, 3),
+                )
+            assertNotNull(summary)
+            assertEquals(3, summary!!.days.size)
+            assertEquals("2026-08-01", summary.days[0].date)
+            assertEquals("2026-08-03", summary.days[2].date)
+            assertEquals(35.0, summary.hottest!!.value, 0.001)
+            assertEquals("2026-08-02", summary.hottest.date)
+            assertEquals(18.0, summary.coldest!!.value, 0.001)
+            assertEquals("2026-08-02", summary.coldest.date)
+            assertEquals(12.0, summary.wettest!!.value, 0.001)
+            assertEquals("2026-08-03", summary.wettest.date)
+
+            val recorded = server.takeRequest()
+            assertEquals("2026-08-01", recorded.requestUrl?.queryParameter("start_date"))
+            assertEquals("2026-08-03", recorded.requestUrl?.queryParameter("end_date"))
+        }
+
+    @Test
+    fun fetchHistoryRange_filtersDaysOutsideRequestedRange() =
+        runBlocking {
+            // 服务端返回了范围外的日期（异常响应），应按请求区间过滤
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(
+                        """
+                        {
+                          "latitude": 36.65,
+                          "longitude": 117.12,
+                          "timezone": "Asia/Shanghai",
+                          "daily": {
+                            "time": ["2026-07-31","2026-08-01","2026-08-02"],
+                            "weather_code": [0,0,0],
+                            "temperature_2m_max": [40.0,30.0,35.0],
+                            "temperature_2m_min": [10.0,20.0,18.0],
+                            "precipitation_sum": [0.0,5.0,0.0],
+                            "temperature_2m_mean": [25.0,25.0,25.0],
+                            "relative_humidity_2m_mean": [50,60,55],
+                            "wind_speed_10m_max": [10.0,15.0,20.0],
+                            "sunrise": ["2026-07-31T05:00","2026-08-01T05:00","2026-08-02T05:00"],
+                            "sunset": ["2026-07-31T19:00","2026-08-01T19:00","2026-08-02T19:00"]
+                          }
+                        }
+                        """.trimIndent(),
+                    ),
+            )
+            val summary =
+                repository.fetchHistoryRange(
+                    WeatherFixtures.city("济南"),
+                    start = java.time.LocalDate.of(2026, 8, 1),
+                    end = java.time.LocalDate.of(2026, 8, 2),
+                )
+            assertNotNull(summary)
+            // 7-31 在区间外，不应计入；8-1 高温 30、8-2 高温 35 → 最高温应落在 8-2
+            assertEquals(2, summary!!.days.size)
+            assertEquals(listOf("2026-08-01", "2026-08-02"), summary.days.map { it.date })
+            assertEquals(35.0, summary.hottest!!.value, 0.001)
+            assertEquals("2026-08-02", summary.hottest.date)
+        }
+
+    @Test
+    fun fetchHistoryRange_httpError_returnsNull() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+            val summary =
+                repository.fetchHistoryRange(
+                    WeatherFixtures.city("济南"),
+                    start = java.time.LocalDate.of(2026, 8, 1),
+                    end = java.time.LocalDate.of(2026, 8, 3),
+                )
+            assertNull(summary)
+        }
+
+    @Test
+    fun fetchHistoryRange_endBeforeStart_returnsNullWithoutRequest() =
+        runBlocking {
+            val summary =
+                repository.fetchHistoryRange(
+                    WeatherFixtures.city("济南"),
+                    start = java.time.LocalDate.of(2026, 8, 3),
+                    end = java.time.LocalDate.of(2026, 8, 1),
+                )
+            assertNull(summary)
+            assertEquals(0, server.requestCount)
+        }
+
+    @Test
     fun fetchWeather_doesNotFetchArchive() =
         runBlocking {
             server.dispatcher =
@@ -405,6 +504,27 @@ class WeatherRepositoryHttpTest {
                 "wind_speed_10m_max": [15.0],
                 "sunrise": ["${date}T05:00"],
                 "sunset": ["${date}T19:00"]
+              }
+            }
+            """.trimIndent()
+
+        private val HISTORY_RANGE_JSON =
+            """
+            {
+              "latitude": 36.65,
+              "longitude": 117.12,
+              "timezone": "Asia/Shanghai",
+              "daily": {
+                "time": ["2026-08-01","2026-08-02","2026-08-03"],
+                "weather_code": [80,0,51],
+                "temperature_2m_max": [30.0,35.0,28.0],
+                "temperature_2m_min": [20.0,18.0,22.0],
+                "temperature_2m_mean": [25.0,26.5,25.0],
+                "precipitation_sum": [5.0,0.0,12.0],
+                "relative_humidity_2m_mean": [60,55,70],
+                "wind_speed_10m_max": [15.0,20.0,25.0],
+                "sunrise": ["2026-08-01T05:00","2026-08-02T05:00","2026-08-03T05:00"],
+                "sunset": ["2026-08-01T19:00","2026-08-02T19:00","2026-08-03T19:00"]
               }
             }
             """.trimIndent()

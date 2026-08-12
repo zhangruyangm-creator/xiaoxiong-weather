@@ -55,7 +55,6 @@ import com.xiaoxiong.weather.data.DailyCardId
 import com.xiaoxiong.weather.data.DailyCardLayout
 import com.xiaoxiong.weather.data.DailyCardPref
 import com.xiaoxiong.weather.data.DailyWeather
-import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
@@ -71,10 +70,7 @@ internal fun DailyPage(
     lastUpdatedText: String?,
     phenologyShiftDays: Int? = null,
     onPhenologyPageShown: () -> Unit = {},
-    historyWeather: HistoryWeather? = null,
-    isHistoryLoading: Boolean = false,
-    historyFailed: Boolean = false,
-    onPickHistoryDate: (java.time.LocalDate) -> Unit = {},
+    onOpenHistory: () -> Unit = {},
     cardLayout: List<DailyCardPref> = DailyCardLayout.defaults,
 ) {
     val layout = remember(cardLayout) { DailyCardLayout.mergeWithDefaults(cardLayout) }
@@ -146,12 +142,7 @@ internal fun DailyPage(
                     }
                 DailyCardId.HISTORY ->
                     item {
-                        HistoryWeatherSection(
-                            weather = historyWeather,
-                            isLoading = isHistoryLoading,
-                            failed = historyFailed,
-                            onPickDate = onPickHistoryDate,
-                        )
+                        HistoryWeatherSection(onOpen = onOpenHistory)
                     }
             }
         }
