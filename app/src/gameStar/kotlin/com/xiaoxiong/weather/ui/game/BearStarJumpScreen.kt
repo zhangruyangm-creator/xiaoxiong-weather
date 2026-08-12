@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -61,7 +62,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.floor
@@ -451,16 +455,27 @@ fun BearStarJumpScreen(
             StarJumpGame().also { it.best = prefs.getInt("best_jump", 0) }
         }
     val jumpWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
+    // 天气/城市变化时实时更新上报所用值，避免 LaunchedEffect(Unit) 闭包捕获开局时的旧值
+    val reportSceneCode by rememberUpdatedState(sceneCode)
+    val reportCityName by rememberUpdatedState(cityName)
     // 天气变化时更新游戏场景（雨量强度决定雨点多少）
     LaunchedEffect(jumpWeather, sceneCode) {
         game.scene = jumpSceneFromWeather(jumpWeather, sceneCode)
     }
     val bearSprites = rememberBearSprites()
     var frame by remember { mutableLongStateOf(0L) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(Unit) {
         var last = Long.MIN_VALUE
         while (isActive) {
+            // 切后台（ON_STOP）后不再推进对局：锁屏/通知栏等场景下帧回调仍会派发，
+            // 若不暂停，熊会继续下落，玩家回来时可能已经 Game Over 且持续耗电
+            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                last = Long.MIN_VALUE
+                delay(300)
+                continue
+            }
             withFrameNanos { now ->
                 val dt =
                     if (last == Long.MIN_VALUE) {
@@ -494,8 +509,8 @@ fun BearStarJumpScreen(
                                     LeaderboardEntry(
                                         score = score,
                                         timestamp = System.currentTimeMillis(),
-                                        city = cityName,
-                                        weather = leaderboardWeatherOf(context, sceneCode),
+                                        city = reportCityName,
+                                        weather = leaderboardWeatherOf(context, reportSceneCode),
                                     ),
                                 ) ?: 0
                         }
@@ -1091,6 +1106,7 @@ private fun DrawScope.drawJumpWeatherParticles(
                 alpha = 0.6f,
                 yOff = -cam * 0.15f,
             )
+            drawStormLightning(game.time, s, w, h)
         }
         JumpScene.FREEZING_RAIN -> {
             drawFreezingRain(game.time, s, w, h, yOff = -cam * 0.15f)

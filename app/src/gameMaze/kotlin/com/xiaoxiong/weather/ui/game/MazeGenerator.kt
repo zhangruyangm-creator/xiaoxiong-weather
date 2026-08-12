@@ -76,11 +76,20 @@ fun generateMazeLevel(
             )
         if (mazeMapSolvable(level.map)) return level
     }
-    // 兜底：无冰面，极大概率可解
+    // 兜底：无冰面，仍校验可解性；再失败则退化为无锁/无传送门的低难度纯迷宫（必可解）
+    val fallback =
+        generateMazeLevelOnce(
+            seed = seed xor 0xDEADBEEFL,
+            id = id,
+            difficulty = difficulty,
+            themeOverride = themeOverride,
+            allowIce = false,
+        )
+    if (mazeMapSolvable(fallback.map)) return fallback
     return generateMazeLevelOnce(
-        seed = seed xor 0xDEADBEEFL,
+        seed = seed xor 0x5EEDF00DL,
         id = id,
-        difficulty = difficulty,
+        difficulty = 0,
         themeOverride = themeOverride,
         allowIce = false,
     )

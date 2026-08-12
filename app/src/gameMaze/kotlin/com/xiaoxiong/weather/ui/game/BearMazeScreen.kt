@@ -44,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -70,6 +71,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
@@ -90,6 +93,65 @@ private enum class MazeDir(
 }
 
 private enum class MazePhase { SELECT, PLAYING, CLEAR }
+
+/**
+ * 局中会话快照：进程重建（如旋转屏幕）时恢复当前对局。
+ * gridRows 复用 [MazeLevel.parse] 的字符集编码，传送门用 '1'..'9' 表示。
+ */
+@Serializable
+private data class MazeSession(
+    val endless: Boolean,
+    val levelIndex: Int,
+    val endlessWave: Int,
+    val seed: Long,
+    val gridRows: List<String>,
+    val keys: Int,
+    val honeyLeft: Int,
+    val honeyTotal: Int,
+    val moves: Int,
+    val facing: String,
+    val bearR: Int,
+    val bearC: Int,
+    val startR: Int,
+    val startC: Int,
+    val exitR: Int,
+    val exitC: Int,
+    val cleared: Boolean,
+    val clearStars: Int,
+    val needHoneyHintT: Float,
+    val lastHoneyAt: Float,
+    val time: Float,
+)
+
+private val sessionJson = Json { ignoreUnknownKeys = true }
+
+private const val MAZE_SESSION_KEY = "maze_session_v1"
+
+private fun tileToChar(cell: MazeCell): Char =
+    when (cell.tile) {
+        MazeTile.FLOOR -> '.'
+        MazeTile.WALL -> '#'
+        MazeTile.START -> 'S'
+        MazeTile.EXIT -> 'E'
+        MazeTile.HONEY -> 'H'
+        MazeTile.ICE -> 'I'
+        MazeTile.KEY -> 'K'
+        MazeTile.LOCK -> 'L'
+        MazeTile.PORTAL -> '0' + cell.portalId
+    }
+
+private fun charToCell(ch: Char): MazeCell =
+    when (ch) {
+        '#' -> MazeCell(MazeTile.WALL)
+        'S' -> MazeCell(MazeTile.START)
+        'E' -> MazeCell(MazeTile.EXIT)
+        'H' -> MazeCell(MazeTile.HONEY)
+        'I' -> MazeCell(MazeTile.ICE)
+        'K' -> MazeCell(MazeTile.KEY)
+        'L' -> MazeCell(MazeTile.LOCK)
+        in '1'..'9' -> MazeCell(MazeTile.PORTAL, portalId = ch - '0')
+        else -> MazeCell(MazeTile.FLOOR)
+    }
 
 private class MazeGame {
     var phase by mutableStateOf(MazePhase.SELECT)
@@ -157,10 +219,92 @@ private class MazeGame {
         }
     }
 
+    /** 局中会话落盘：旋转屏幕等进程重建后由 [restoreSession] 恢复；选关/结算不保存。 */
+    fun saveSession(prefs: android.content.SharedPreferences) {
+        if (phase == MazePhase.SELECT || phase == MazePhase.CLEAR) {
+            prefs.edit().remove(MAZE_SESSION_KEY).apply()
+            return
+        }
+        if (!::grid.isInitialized) return
+        val rowsEncoded = grid.map { row -> row.joinToString("") { tileToChar(it).toString() } }
+        val session =
+            MazeSession(
+                endless = endless,
+                levelIndex = levelIndex,
+                endlessWave = endlessWave,
+                seed = endlessSessionSeed,
+                gridRows = rowsEncoded,
+                keys = keys,
+                honeyLeft = honeyLeft,
+                honeyTotal = honeyTotal,
+                moves = moves,
+                facing = facing.name,
+                bearR = bearR,
+                bearC = bearC,
+                startR = startR,
+                startC = startC,
+                exitR = exitR,
+                exitC = exitC,
+                cleared = cleared,
+                clearStars = clearStars,
+                needHoneyHintT = needHoneyHintT,
+                lastHoneyAt = lastHoneyAt,
+                time = time,
+            )
+        prefs.edit().putString(MAZE_SESSION_KEY, sessionJson.encodeToString(MazeSession.serializer(), session)).apply()
+    }
+
+    /** 恢复局中会话；无会话或解析失败返回 false。恢复后即删除快照，避免陈旧续玩。 */
+    fun restoreSession(prefs: android.content.SharedPreferences): Boolean {
+        val raw = prefs.getString(MAZE_SESSION_KEY, null) ?: return false
+        val session =
+            runCatching { sessionJson.decodeFromString(MazeSession.serializer(), raw) }.getOrNull()
+                ?: return false
+        // 先按关卡/种子重建初始棋盘（含全部蜂蜜/钥匙/锁），再覆盖为已消耗状态
+        if (session.endless) {
+            endlessSessionSeed = session.seed
+            startEndless(session.endlessWave, freshSeed = false)
+        } else {
+            startLevel(session.levelIndex.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1))
+        }
+        session.gridRows.forEachIndexed { r, line ->
+            line.forEachIndexed { c, ch ->
+                if (r < rows && c < cols) grid[r][c] = charToCell(ch)
+            }
+        }
+        keys = session.keys
+        honeyLeft = session.honeyLeft
+        honeyTotal = session.honeyTotal
+        moves = session.moves
+        facing = runCatching { MazeDir.valueOf(session.facing) }.getOrDefault(MazeDir.RIGHT)
+        bearR = session.bearR
+        bearC = session.bearC
+        fromR = session.bearR
+        fromC = session.bearC
+        startR = session.startR
+        startC = session.startC
+        exitR = session.exitR
+        exitC = session.exitC
+        cleared = session.cleared
+        clearStars = session.clearStars
+        needHoneyHintT = session.needHoneyHintT
+        lastHoneyAt = session.lastHoneyAt
+        time = session.time
+        moveT = 1f
+        sliding = false
+        phase = MazePhase.PLAYING
+        prefs.edit().remove(MAZE_SESSION_KEY).apply()
+        return true
+    }
+
     fun openSelect() {
         phase = MazePhase.SELECT
         cleared = false
         endless = false
+        // 若在移动/冰面滑行动画中退出，立即结束动画，
+        // 否则帧循环继续推进 moveT，落地事件可能在选关界面触发 finishLevel 弹结算
+        sliding = false
+        moveT = 1f
     }
 
     fun startLevel(index: Int) {
@@ -170,10 +314,14 @@ private class MazeGame {
     }
 
     /** 无尽随机：每波用新种子生成，难度随波次上升。 */
-    fun startEndless(wave: Int = 1) {
+    fun startEndless(
+        wave: Int = 1,
+        freshSeed: Boolean = true,
+    ) {
         endless = true
         endlessWave = wave.coerceAtLeast(1)
-        if (wave == 1) endlessSessionSeed = Random.nextLong()
+        // 仅在开新局时掷会话种子；重开（freshSeed=false）复用当前种子，保证同一张图
+        if (freshSeed) endlessSessionSeed = Random.nextLong()
         levelIndex = -1
         val diff = (8 + endlessWave * 2).coerceAtMost(45)
         val seed = endlessSessionSeed xor (endlessWave.toLong() * 0x9E3779B9L)
@@ -233,7 +381,8 @@ private class MazeGame {
 
     fun restart() {
         if (endless) {
-            startEndless(endlessWave)
+            // 重开复用当前会话种子，保持与战役「重开同一关」语义一致
+            startEndless(endlessWave, freshSeed = false)
         } else {
             startLevel(levelIndex)
         }
@@ -390,7 +539,7 @@ private class MazeGame {
         if (needHoneyHintT > 0f) {
             needHoneyHintT = (needHoneyHintT - dt).coerceAtLeast(0f)
         }
-        if (moving) {
+        if (moving && phase == MazePhase.PLAYING) {
             val speed = if (sliding) 7.5f else 5.5f
             moveT = min(1f, moveT + dt * speed)
             if (moveT >= 1f) {
@@ -413,7 +562,18 @@ fun BearMazeScreen(
     val mazeRain = remember(sceneCode) { rainStrengthOf(sceneCode) }
     val mazeFreezingRain = remember(sceneCode) { isFreezingRainCode(sceneCode) }
     val mazeHail = remember(sceneCode) { isHailCode(sceneCode) }
-    val game = remember { MazeGame().also { it.loadProgress(prefs) } }
+    val game =
+        remember {
+            MazeGame().also {
+                it.loadProgress(prefs)
+                // 旋转屏幕等进程重建后恢复局中进度
+                it.restoreSession(prefs)
+            }
+        }
+    // 组合销毁（切屏/旋转重建）时把局中对局落盘，供下次恢复
+    DisposableEffect(Unit) {
+        onDispose { game.saveSession(prefs) }
+    }
     val sprites = rememberBearSprites()
     var frame by remember { mutableStateOf(0L) }
 

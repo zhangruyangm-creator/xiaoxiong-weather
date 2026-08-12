@@ -15,11 +15,11 @@ enum class RainStrength { NONE, LIGHT, MODERATE, HEAVY }
 
 /**
  * 由 sceneCode 推断降水强度。sceneCode 来自 [com.xiaoxiong.weather.util.WeatherCodes.displayCode]，
- * 已把雨量归一化到细分码：51/53/80 小雨，55/61/63/81 中雨，65/82 大雨，95+ 雷暴/冰雹按大雨算。
+ * 已把雨量归一化到细分码：51/52/53/54/80 小雨（毛毛雨），55/61/63/81 中雨，65/82 大雨，95+ 雷暴/冰雹按大雨算。
  */
 fun rainStrengthOf(sceneCode: Int?): RainStrength =
     when (sceneCode) {
-        51, 53, 80 -> RainStrength.LIGHT
+        51, 52, 53, 54, 80 -> RainStrength.LIGHT
         55, 61, 63, 81 -> RainStrength.MODERATE
         65, 82, in 95..99 -> RainStrength.HEAVY
         else -> RainStrength.NONE

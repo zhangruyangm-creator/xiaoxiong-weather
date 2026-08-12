@@ -183,7 +183,14 @@ private class BearFarm(
                     plot.lastTickMs = now
                     dirty = true
                 }
-                var elapsed = (now - plot.lastTickMs).coerceAtLeast(0L)
+                var elapsed = now - plot.lastTickMs
+                if (elapsed < 0L) {
+                    // 时钟回拨（NTP 校时/手动改时间）：把 lastTickMs 收敛到 now，
+                    // 否则 elapsed 恒为 0 且 lastTickMs 停在未来，农场会冻结到墙钟追平
+                    plot.lastTickMs = now
+                    elapsed = 0L
+                    dirty = true
+                }
                 if (elapsed > maxCatchUp) elapsed = maxCatchUp
                 // 未满 200ms 不推进；但 lastTickMs 初值修正仍要写回
                 if (elapsed < minStepMs) return@map plot

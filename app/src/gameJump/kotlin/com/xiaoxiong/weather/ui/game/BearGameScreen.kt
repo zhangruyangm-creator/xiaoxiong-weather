@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -504,6 +505,9 @@ fun BearGameScreen(
         remember {
             BearGame().also { it.best = prefs.getInt("best", 0) }
         }
+    // 天气/城市变化时实时更新上报所用值，避免 LaunchedEffect(Unit) 闭包捕获开局时的旧值
+    val reportSceneCode by rememberUpdatedState(sceneCode)
+    val reportCityName by rememberUpdatedState(cityName)
     // 天气变化时更新游戏场景（雨量强度决定雨点多少）
     LaunchedEffect(gameWeather, sceneCode) {
         game.scene = runSceneFromWeather(gameWeather, sceneCode)
@@ -526,10 +530,11 @@ fun BearGameScreen(
                 // 查看排行榜时暂停：跳过 tick，画面定格
                 if (lb.show) return@withFrameNanos
                 val running = game.phase == GamePhase.RUNNING
-                // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
+                // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组。
+                // 但每 5 帧才 tick 一次，须按真实流逝时间补 dt，否则死亡翻滚/震屏等非对局动画会放慢约 5 倍
                 if (running || slowTick % 5 == 0) {
                     game.tick(
-                        dt,
+                        if (running) dt else dt * 5f,
                         onCoin = {
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         },
@@ -545,8 +550,8 @@ fun BearGameScreen(
                                         LeaderboardEntry(
                                             score = score,
                                             timestamp = System.currentTimeMillis(),
-                                            city = cityName,
-                                            weather = leaderboardWeatherOf(context, sceneCode),
+                                            city = reportCityName,
+                                            weather = leaderboardWeatherOf(context, reportSceneCode),
                                         ),
                                     ) ?: 0
                             }
