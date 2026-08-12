@@ -530,11 +530,10 @@ fun BearGameScreen(
                 // 查看排行榜时暂停：跳过 tick，画面定格
                 if (lb.show) return@withFrameNanos
                 val running = game.phase == GamePhase.RUNNING
-                // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组。
-                // 但每 5 帧才 tick 一次，须按真实流逝时间补 dt，否则死亡翻滚/震屏等非对局动画会放慢约 5 倍
+                // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
                 if (running || slowTick % 5 == 0) {
                     game.tick(
-                        if (running) dt else dt * 5f,
+                        dt,
                         onCoin = {
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         },
