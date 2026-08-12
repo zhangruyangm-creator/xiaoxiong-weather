@@ -27,7 +27,7 @@ enum class TemperatureUnit {
 
 /** 仅影响本 App 的 Compose 字号，不改系统设置。 */
 enum class AppFontScale(
-    @StringRes val labelRes: Int,
+    @param:StringRes val labelRes: Int,
 ) {
     FOLLOW_SYSTEM(R.string.font_follow_system),
     SMALL(R.string.font_small),

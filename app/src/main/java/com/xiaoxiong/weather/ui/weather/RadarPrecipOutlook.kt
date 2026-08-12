@@ -35,7 +35,7 @@ internal data class RadarPrecipOutlook(
     val precipSumMm: Double?,
     val windText: String,
     val visibilityText: String,
-    @StringRes val messageRes: Int,
+    @param:StringRes val messageRes: Int,
 ) {
     companion object {
         fun from(

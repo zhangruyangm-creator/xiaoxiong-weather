@@ -16,8 +16,8 @@ object WeatherAlertGenerator {
     data class Spec(
         val kind: AlertKind,
         val severity: AlertSeverity,
-        @StringRes val titleRes: Int,
-        @StringRes val messageRes: Int,
+        @param:StringRes val titleRes: Int,
+        @param:StringRes val messageRes: Int,
         val messageArg: Any? = null,
         /** 写入 [WeatherAlert.precipMmPerHour]，供未来降雨伞色分档。 */
         val precipIconMm: Double? = null,

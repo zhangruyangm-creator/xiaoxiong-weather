@@ -45,7 +45,7 @@ object WeatherRefreshPolicy {
 /** 用户可选的后台刷新档位（WorkManager 仍可能被系统延迟） */
 enum class BackgroundRefreshInterval(
     val hours: Int,
-    @StringRes val labelRes: Int,
+    @param:StringRes val labelRes: Int,
 ) {
     HOURS_1(1, R.string.settings_refresh_1h),
     HOURS_3(3, R.string.settings_refresh_3h),

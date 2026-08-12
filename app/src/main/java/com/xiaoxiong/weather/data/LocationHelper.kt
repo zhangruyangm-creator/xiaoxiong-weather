@@ -271,6 +271,7 @@ class LocationHelper(
                         }
                     }
 
+                    @Suppress("OVERRIDE_DEPRECATION")
                     @Deprecated("Deprecated in Java")
                     override fun onStatusChanged(
                         provider: String?,

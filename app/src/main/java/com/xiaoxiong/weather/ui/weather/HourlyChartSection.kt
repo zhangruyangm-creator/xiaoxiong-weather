@@ -78,9 +78,9 @@ import kotlin.math.abs
 import kotlin.math.max
 
 enum class HourlyMetric(
-    @StringRes val shortLabelRes: Int,
-    @StringRes val labelCelsiusRes: Int,
-    @StringRes val labelFahrenheitRes: Int,
+    @param:StringRes val shortLabelRes: Int,
+    @param:StringRes val labelCelsiusRes: Int,
+    @param:StringRes val labelFahrenheitRes: Int,
 ) {
     TEMPERATURE(
         R.string.metric_temp_short,
