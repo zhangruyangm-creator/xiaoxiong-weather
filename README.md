@@ -15,6 +15,7 @@
 - **分享卡片**：把当前天气渲染成图片分享
 - **隐私合规门**：未同意前不初始化 Crashlytics / 不入队 WorkManager
 - **彩蛋游戏**（仅 `full` flavor）：搜索框输入口令可进入「小熊跳跳 / 小熊摘星 / 小熊迷宫 / 小熊农场」
+- **小熊农场**：收获入背包买卖、作物图鉴、新一季周目、昼夜氛围、需求气泡与商店道具
 - **调试模式**：隐藏入口可覆盖天气数据用于测试预警/图标
 - **Baseline Profile**：`:baselineprofile` module 通过 macrobenchmark 生成启动性能基线
 
@@ -60,7 +61,7 @@
 ```
 
 - 游戏 id：`jump`（小熊跳跳）、`star`（小熊摘星）、`maze`（小熊迷宫）、`farm`（小熊农场）
-- 未选中的游戏源码集（`app/src/gameXxx/kotlin`）不参与编译，仅编译几行空实现门面（`app/src/gameXxxEmpty/kotlin`），release 下被 R8 消除，未选游戏的代码不进包
+- 未选中的游戏源码集（`app/src/gameXxx/kotlin`）与专属资源（`app/src/gameXxx/res`，如农场插画）都不参与编译，仅编译几行空实现门面（`app/src/gameXxxEmpty/kotlin`），release 下被 R8 消除，未选游戏的代码与图片都不进包；共享精灵（`gameCommon/res`）只在至少启用一个游戏时进包
 - 未选游戏的对应口令不可达；对应的单元测试（`app/src/gameXxxTest/kotlin`）也不会被编译运行
 - 缺省（不传 `-Pgames`）等价于 `all`
 
