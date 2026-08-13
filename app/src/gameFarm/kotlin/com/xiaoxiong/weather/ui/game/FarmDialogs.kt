@@ -1,8 +1,5 @@
 package com.xiaoxiong.weather.ui.game
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -38,7 +35,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,7 +45,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -67,18 +62,6 @@ internal fun FarmUnlockDialog(
     crop: CropDef,
     onDismiss: () -> Unit,
 ) {
-    var appear by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { appear = true }
-    val scale by animateFloatAsState(
-        targetValue = if (appear) 1f else 0.86f,
-        animationSpec = tween(260, easing = FastOutSlowInEasing),
-        label = "unlockScale",
-    )
-    val fade by animateFloatAsState(
-        targetValue = if (appear) 1f else 0f,
-        animationSpec = tween(200),
-        label = "unlockAlpha",
-    )
     Box(
         modifier =
             Modifier
@@ -87,18 +70,13 @@ internal fun FarmUnlockDialog(
                 .clickable(onClick = onDismiss),
         contentAlignment = Alignment.Center,
     ) {
-        val cardModifier =
-            Modifier
-                .fillMaxWidth(0.78f)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    alpha = fade
-                }
         Card(
-            modifier = cardModifier.clickable(enabled = false) {},
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.78f)
+                    .clickable(enabled = false) {},
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+            colors = CardDefaults.cardColors(containerColor = farmScheme().surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         ) {
             Column(
@@ -109,7 +87,7 @@ internal fun FarmUnlockDialog(
                     stringResource(R.string.bear_farm_unlock_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF5D4037),
+                    color = farmScheme().onSurface,
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 Box(contentAlignment = Alignment.Center) {
@@ -140,13 +118,22 @@ internal fun FarmUnlockDialog(
                     crop.nameZh,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5D4037),
+                    color = farmScheme().onSurface,
                 )
                 Text(
                     crop.category,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF8D6E63),
+                    color = farmScheme().onSurfaceVariant,
                 )
+                if (crop.description.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        crop.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = farmScheme().onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FarmUnlockInfoChip(
@@ -165,8 +152,8 @@ internal fun FarmUnlockDialog(
                     shape = RoundedCornerShape(18.dp),
                     colors =
                         ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF81C784),
-                            contentColor = Color(0xFF1B5E20),
+                            containerColor = farmScheme().secondary,
+                            contentColor = farmScheme().onSecondary,
                         ),
                 ) {
                     Text(
@@ -183,7 +170,7 @@ internal fun FarmUnlockDialog(
 private fun FarmUnlockInfoChip(text: String) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFF1E8DC),
+        color = farmScheme().surfaceVariant,
     ) {
         Text(
             text,
@@ -205,6 +192,7 @@ internal fun FarmCatalogDialog(
             listOf(null) + FARM_CROPS.map { it.category }.distinct()
         }
     var selectedCat by remember { mutableStateOf<String?>(null) }
+    var selectedCrop by remember { mutableStateOf<CropDef?>(null) }
     val filtered =
         remember(selectedCat) {
             if (selectedCat == null) FARM_CROPS else FARM_CROPS.filter { it.category == selectedCat }
@@ -223,7 +211,7 @@ internal fun FarmCatalogDialog(
                     .fillMaxWidth(0.94f)
                     .clickable(enabled = false) {},
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+            colors = CardDefaults.cardColors(containerColor = farmScheme().surface),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -232,7 +220,7 @@ internal fun FarmCatalogDialog(
                             stringResource(R.string.bear_farm_catalog_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF5D4037),
+                            color = farmScheme().onSurface,
                         )
                         Text(
                             stringResource(
@@ -241,20 +229,20 @@ internal fun FarmCatalogDialog(
                                 farm.lifetimeHarvests,
                             ),
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF8D6E63),
+                            color = farmScheme().onSurfaceVariant,
                         )
                     }
                     if (farm.completedSeasons > 0) {
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFFE8F5E9),
+                            color = farmScheme().secondaryContainer,
                         ) {
                             Text(
                                 stringResource(R.string.bear_farm_catalog_bonus, seasonGrowthPercent(farm.completedSeasons)),
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2E7D32),
+                                color = farmScheme().onSecondaryContainer,
                             )
                         }
                     }
@@ -274,8 +262,8 @@ internal fun FarmCatalogDialog(
                                 .weight(1f)
                                 .height(6.dp)
                                 .clip(RoundedCornerShape(3.dp)),
-                        color = Color(0xFF81C784),
-                        trackColor = Color(0xFFE8DCC8),
+                        color = farmScheme().secondary,
+                        trackColor = farmScheme().surfaceVariant,
                     )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
@@ -292,15 +280,15 @@ internal fun FarmCatalogDialog(
                         Surface(
                             onClick = { selectedCat = cat },
                             shape = RoundedCornerShape(20.dp),
-                            color = if (sel) Color(0xFF81C784) else Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE0D2C0)),
+                            color = if (sel) farmScheme().secondary else farmScheme().surface,
+                            border = BorderStroke(1.dp, farmScheme().outlineVariant),
                         ) {
                             Text(
                                 label,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
-                                color = if (sel) Color(0xFF1B5E20) else Color(0xFF6D4C41),
+                                color = if (sel) farmScheme().onSecondary else Color(0xFF6D4C41),
                             )
                         }
                     }
@@ -316,9 +304,10 @@ internal fun FarmCatalogDialog(
                         val count = farm.harvestCounts[crop.id] ?: 0
                         val owned = count > 0
                         Card(
+                            onClick = { selectedCrop = crop },
                             colors =
                                 CardDefaults.cardColors(
-                                    containerColor = if (owned) Color(0xFFE8F5E9) else Color(0xFFF5EFE5),
+                                    containerColor = if (owned) farmScheme().secondaryContainer else farmScheme().surfaceVariant,
                                 ),
                             shape = RoundedCornerShape(14.dp),
                         ) {
@@ -339,7 +328,7 @@ internal fun FarmCatalogDialog(
                                     if (!owned) {
                                         Text(
                                             "?",
-                                            color = Color(0xFF8D6E63),
+                                            color = farmScheme().onSurfaceVariant,
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
                                         )
@@ -349,7 +338,7 @@ internal fun FarmCatalogDialog(
                                     crop.nameZh,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 12.sp,
-                                    color = Color(0xFF5D4037),
+                                    color = farmScheme().onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -357,13 +346,13 @@ internal fun FarmCatalogDialog(
                                     Text(
                                         stringResource(R.string.bear_farm_catalog_count, count),
                                         fontSize = 10.sp,
-                                        color = Color(0xFF2E7D32),
+                                        color = farmScheme().onSecondaryContainer,
                                     )
                                 } else {
                                     Text(
                                         stringResource(R.string.bear_farm_catalog_locked),
                                         fontSize = 10.sp,
-                                        color = Color(0xFFA08B72),
+                                        color = farmScheme().onSurfaceVariant,
                                     )
                                 }
                             }
@@ -377,15 +366,15 @@ internal fun FarmCatalogDialog(
                             stringResource(R.string.bear_farm_new_season_ready),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF2E7D32),
+                            color = farmScheme().onSecondaryContainer,
                         )
                         Button(
                             onClick = { farm.showSeasonConfirm = true },
                             shape = RoundedCornerShape(16.dp),
                             colors =
                                 ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF81C784),
-                                    contentColor = Color(0xFF1B5E20),
+                                    containerColor = farmScheme().secondary,
+                                    contentColor = farmScheme().onSecondary,
                                 ),
                         ) {
                             Text(
@@ -398,12 +387,157 @@ internal fun FarmCatalogDialog(
                             stringResource(R.string.bear_farm_new_season_hint, FARM_CROPS.size - farm.collectedCount),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFA08B72),
+                            color = farmScheme().onSurfaceVariant,
                         )
                     }
                     TextButton(onClick = onDismiss) {
                         Text(stringResource(R.string.bear_farm_close_shop))
                     }
+                }
+            }
+        }
+        selectedCrop?.let { crop ->
+            FarmCatalogCropDetail(
+                crop = crop,
+                count = farm.harvestCounts[crop.id] ?: 0,
+                onDismiss = { selectedCrop = null },
+            )
+        }
+    }
+}
+
+/** 图鉴点击放大：作物大图 + 生长/价格/收获次数说明。 */
+@Composable
+private fun FarmCatalogCropDetail(
+    crop: CropDef,
+    count: Int,
+    onDismiss: () -> Unit,
+) {
+    val owned = count > 0
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.55f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.78f)
+                    .clickable(enabled = false) {},
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = farmScheme().surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(R.string.bear_farm_catalog_detail),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = farmScheme().onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(contentAlignment = Alignment.Center) {
+                    // 大图身后的柔光
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(140.dp)
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(
+                                            Color(0xFFFFF59D).copy(alpha = 0.55f),
+                                            Color(0xFFFFF59D).copy(alpha = 0f),
+                                        ),
+                                    ),
+                                    CircleShape,
+                                ),
+                    )
+                    Image(
+                        painter = painterResource(FarmCropArt.ripe(crop)),
+                        contentDescription = crop.nameZh,
+                        modifier =
+                            Modifier
+                                .size(120.dp)
+                                .alpha(if (owned) 1f else 0.45f),
+                        contentScale = ContentScale.Fit,
+                    )
+                    if (!owned) {
+                        Text(
+                            "?",
+                            color = farmScheme().onSurfaceVariant,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    crop.nameZh,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = farmScheme().onSurface,
+                )
+                Text(
+                    crop.category,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = farmScheme().onSurfaceVariant,
+                )
+                if (crop.description.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        crop.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = farmScheme().onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FarmUnlockInfoChip(
+                        text = stringResource(R.string.bear_farm_unlock_growth, crop.totalHours.roundToInt()),
+                    )
+                    FarmUnlockInfoChip(
+                        text = stringResource(R.string.bear_farm_unlock_cost, crop.seedCost),
+                    )
+                    FarmUnlockInfoChip(
+                        text = stringResource(R.string.bear_farm_unlock_sell, crop.sellPrice),
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                if (owned) {
+                    Text(
+                        stringResource(R.string.bear_farm_catalog_count, count),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = farmScheme().onSecondaryContainer,
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.bear_farm_catalog_locked),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = farmScheme().onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(16.dp),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = farmScheme().secondary,
+                            contentColor = farmScheme().onSecondary,
+                        ),
+                ) {
+                    Text(
+                        stringResource(R.string.bear_farm_close_shop),
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
         }
@@ -430,7 +564,7 @@ internal fun NewSeasonConfirmDialog(
                     .fillMaxWidth(0.82f)
                     .clickable(enabled = false) {},
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+            colors = CardDefaults.cardColors(containerColor = farmScheme().surface),
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
@@ -440,7 +574,7 @@ internal fun NewSeasonConfirmDialog(
                     stringResource(R.string.bear_farm_new_season_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5D4037),
+                    color = farmScheme().onSurface,
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
@@ -458,8 +592,8 @@ internal fun NewSeasonConfirmDialog(
                         shape = RoundedCornerShape(16.dp),
                         colors =
                             ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF81C784),
-                                contentColor = Color(0xFF1B5E20),
+                                containerColor = farmScheme().secondary,
+                                contentColor = farmScheme().onSecondary,
                             ),
                     ) {
                         Text(
@@ -496,7 +630,7 @@ internal fun FarmInventoryDialog(
                     .fillMaxWidth(0.94f)
                     .clickable(enabled = false) {},
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+            colors = CardDefaults.cardColors(containerColor = farmScheme().surface),
         ) {
             Column(
                 modifier =
@@ -510,11 +644,11 @@ internal fun FarmInventoryDialog(
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF5D4037),
+                        color = farmScheme().onSurface,
                     )
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFFFFF8E1).copy(alpha = 0.92f),
+                        color = farmScheme().surfaceVariant.copy(alpha = 0.92f),
                     ) {
                         Text(
                             "🪙 ${farm.coins}",
@@ -528,20 +662,20 @@ internal fun FarmInventoryDialog(
                 Text(
                     stringResource(R.string.bear_farm_inventory_hint),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF8D6E63),
+                    color = farmScheme().onSurfaceVariant,
                 )
                 if (bonus > 1f) {
                     Text(
                         stringResource(R.string.bear_farm_inventory_bonus, ((bonus - 1f) * 100).roundToInt()),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF2E7D32),
+                        color = farmScheme().onSecondaryContainer,
                     )
                 } else {
                     Text(
                         stringResource(R.string.bear_farm_inventory_bonus_none),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFFA08B72),
+                        color = farmScheme().onSurfaceVariant,
                     )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
@@ -556,7 +690,7 @@ internal fun FarmInventoryDialog(
                         Text(
                             stringResource(R.string.bear_farm_inventory_empty),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFFA08B72),
+                            color = farmScheme().onSurfaceVariant,
                         )
                     }
                 } else {
@@ -582,15 +716,15 @@ internal fun FarmInventoryDialog(
                             stringResource(R.string.bear_farm_inventory_total, entries.sumOf { it.value }),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF8D6E63),
+                            color = farmScheme().onSurfaceVariant,
                         )
                         Button(
                             onClick = { farm.sellAllInventory(weather) },
                             shape = RoundedCornerShape(16.dp),
                             colors =
                                 ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF81C784),
-                                    contentColor = Color(0xFF1B5E20),
+                                    containerColor = farmScheme().secondary,
+                                    contentColor = farmScheme().onSecondary,
                                 ),
                         ) {
                             Text(
@@ -620,7 +754,7 @@ private fun FarmInventoryCard(
     Card(
         colors =
             CardDefaults.cardColors(
-                containerColor = Color(0xFFE8F5E9),
+                containerColor = farmScheme().secondaryContainer,
             ),
         shape = RoundedCornerShape(14.dp),
     ) {
@@ -638,7 +772,7 @@ private fun FarmInventoryCard(
                 crop.nameZh,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp,
-                color = Color(0xFF5D4037),
+                color = farmScheme().onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -646,12 +780,12 @@ private fun FarmInventoryCard(
                 "×$count",
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp,
-                color = Color(0xFF2E7D32),
+                color = farmScheme().onSecondaryContainer,
             )
             Text(
                 stringResource(R.string.bear_farm_inventory_price, unitPrice),
                 fontSize = 10.sp,
-                color = Color(0xFF8D6E63),
+                color = farmScheme().onSurfaceVariant,
             )
             Button(
                 onClick = onSell,
@@ -659,8 +793,8 @@ private fun FarmInventoryCard(
                 shape = RoundedCornerShape(12.dp),
                 colors =
                     ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF81C784),
-                        contentColor = Color(0xFF1B5E20),
+                        containerColor = farmScheme().secondary,
+                        contentColor = farmScheme().onSecondary,
                     ),
             ) {
                 Text(
@@ -680,11 +814,14 @@ private fun FarmShopItemCard(
     affordable: Boolean,
     onClick: () -> Unit,
 ) {
+    val (interactionSource, pressModifier) = rememberFarmPress()
     Surface(
         onClick = onClick,
+        interactionSource = interactionSource,
+        modifier = pressModifier,
         shape = RoundedCornerShape(14.dp),
-        color = if (affordable) Color(0xFFE8F5E9) else Color(0xFFF1EBE0),
-        border = BorderStroke(1.dp, if (affordable) Color(0xFFC8E6C9) else Color(0xFFE0D2C0)),
+        color = if (affordable) farmScheme().secondaryContainer else farmScheme().surfaceVariant,
+        border = BorderStroke(1.dp, if (affordable) farmScheme().outlineVariant else farmScheme().outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -695,13 +832,13 @@ private fun FarmShopItemCard(
                 stringResource(item.nameRes),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF5D4037),
+                color = farmScheme().onSurface,
                 maxLines = 1,
             )
             Text(
                 stringResource(R.string.bear_farm_item_buy, item.price),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (affordable) Color(0xFF2E7D32) else Color(0xFFB09B80),
+                color = if (affordable) farmScheme().onSecondaryContainer else Color(0xFFB09B80),
             )
         }
     }
@@ -735,7 +872,7 @@ internal fun FarmShopDialog(
                     .fillMaxWidth(0.92f)
                     .clickable(enabled = false) {},
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+            colors = CardDefaults.cardColors(containerColor = farmScheme().surface),
         ) {
             Column(
                 modifier =
@@ -747,13 +884,13 @@ internal fun FarmShopDialog(
                     stringResource(R.string.bear_farm_shop_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5D4037),
+                    color = farmScheme().onSurface,
                 )
                 Text(
                     stringResource(R.string.bear_farm_shop_hint, farm.harvestedTotal) +
                         " · ${farm.unlocked.size}/${FARM_CROPS.size}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF8D6E63),
+                    color = farmScheme().onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -798,15 +935,15 @@ internal fun FarmShopDialog(
                         Surface(
                             onClick = { selectedCat = cat },
                             shape = RoundedCornerShape(20.dp),
-                            color = if (sel) Color(0xFF81C784) else Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE0D2C0)),
+                            color = if (sel) farmScheme().secondary else farmScheme().surface,
+                            border = BorderStroke(1.dp, farmScheme().outlineVariant),
                         ) {
                             Text(
                                 label,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
-                                color = if (sel) Color(0xFF1B5E20) else Color(0xFF6D4C41),
+                                color = if (sel) farmScheme().onSecondary else Color(0xFF6D4C41),
                             )
                         }
                     }
@@ -826,7 +963,7 @@ internal fun FarmShopDialog(
                                 CardDefaults.cardColors(
                                     containerColor =
                                         if (owned) {
-                                            Color(0xFFE8F5E9)
+                                            farmScheme().secondaryContainer
                                         } else {
                                             Color(0xFFFFF3E0).copy(alpha = 0.85f)
                                         },
@@ -850,7 +987,7 @@ internal fun FarmShopDialog(
                                     crop.nameZh,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Color(0xFF5D4037),
+                                    color = farmScheme().onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -859,13 +996,13 @@ internal fun FarmShopDialog(
                                     style = MaterialTheme.typography.labelSmall,
                                     textAlign = TextAlign.Center,
                                     fontSize = 10.sp,
-                                    color = Color(0xFF8D6E63),
+                                    color = farmScheme().onSurfaceVariant,
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 if (owned) {
                                     Text(
                                         stringResource(R.string.bear_farm_shop_owned),
-                                        color = Color(0xFF2E7D32),
+                                        color = farmScheme().onSecondaryContainer,
                                         style = MaterialTheme.typography.labelMedium,
                                     )
                                 } else {

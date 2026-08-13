@@ -42,6 +42,13 @@ class FarmBalanceTest {
     }
 
     @Test
+    fun everyCrop_hasDescription() {
+        FARM_CROPS.forEach { crop ->
+            assertTrue("${crop.id} 缺少介绍文案", crop.description.isNotBlank())
+        }
+    }
+
+    @Test
     fun sellBonus_isHigherOnSunnyAndRainy() {
         assertEquals(1.15f, farmSellBonus(FarmWeather.SUNNY), 1e-4f)
         assertEquals(1.05f, farmSellBonus(FarmWeather.RAINY), 1e-4f)

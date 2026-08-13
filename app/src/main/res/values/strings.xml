@@ -47,6 +47,13 @@
     <string name="bear_maze_hud">蜜 %1$d/%2$d · 钥匙 %3$d · 步数 %4$d/%5$d</string>
     <string name="bear_maze_clear">通关啦！</string>
     <string name="bear_maze_clear_moves">共用了 %1$d 步</string>
+    <string name="bear_maze_failed">挑战失败</string>
+    <string name="bear_maze_failed_detail">到达第 %1$d 波 · %2$d/%3$d 步</string>
+    <string name="bear_maze_abandon_title">无尽第 %1$d 波进行中</string>
+    <string name="bear_maze_abandon_text">退出后进度会保留，下次进入可从第 %1$d 波继续。要放弃进度并从第 1 波重新开始吗？</string>
+    <string name="bear_maze_abandon_keep">保留进度并退出</string>
+    <string name="bear_maze_abandon_discard">放弃进度</string>
+    <string name="bear_maze_abandon_cancel">继续玩</string>
     <string name="bear_maze_restart">重来</string>
     <string name="bear_maze_levels">选关</string>
     <string name="bear_maze_next">下一关</string>
@@ -119,6 +126,7 @@
     <string name="bear_farm_unlock_gotit">收下</string>
     <string name="bear_farm_catalog_icon">📖</string>
     <string name="bear_farm_catalog_title">作物图鉴</string>
+    <string name="bear_farm_catalog_detail">作物详情</string>
     <string name="bear_farm_catalog_meta">第 %1$d 季 · 累计收获 %2$d 次</string>
     <string name="bear_farm_catalog_bonus">🌱 生长 +%1$d%%</string>
     <string name="bear_farm_catalog_progress">已收藏 %1$d/%2$d</string>

@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.game
 
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -202,7 +203,7 @@ fun BearFarmScreen(
                 }
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFFFFF8E1).copy(alpha = 0.92f),
+                    color = farmScheme().surfaceVariant.copy(alpha = 0.92f),
                 ) {
                     Text(
                         "🪙 ${farm.coins}",
@@ -230,12 +231,12 @@ fun BearFarmScreen(
                             .fillMaxWidth()
                             .padding(vertical = 6.dp),
                     shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFFFFF8E1).copy(alpha = 0.94f),
+                    color = farmScheme().surfaceVariant.copy(alpha = 0.94f),
                     shadowElevation = 2.dp,
                 ) {
                     Text(
                         t.text,
-                        color = Color(0xFF5D4037),
+                        color = farmScheme().onSurface,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyMedium,
@@ -295,7 +296,7 @@ fun BearFarmScreen(
                         Surface(
                             onClick = { farm.selectedSeedId = crop.id },
                             shape = RoundedCornerShape(16.dp),
-                            color = if (sel) Color(0xFFFFF59D) else Color.White.copy(alpha = 0.92f),
+                            color = if (sel) Color(0xFFFFF59D) else farmScheme().surface.copy(alpha = 0.92f),
                             border =
                                 if (sel) {
                                     BorderStroke(2.dp, Color(0xFFFF8F00))
@@ -318,12 +319,12 @@ fun BearFarmScreen(
                                     crop.nameZh,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF5D4037),
+                                    color = farmScheme().onSurface,
                                 )
                                 Text(
                                     "${crop.seedCost}币",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF8D6E63),
+                                    color = farmScheme().onSurfaceVariant,
                                 )
                             }
                         }
@@ -355,36 +356,44 @@ fun BearFarmScreen(
             )
         }
 
-        if (farm.showShop) {
+        // 解锁弹卡退出动画期间仍需要作物信息：记住最后一个非空值
+        val lastUnlockCrop = remember { mutableStateOf<CropDef?>(null) }
+        LaunchedEffect(farm.unlockCard) {
+            farm.unlockCard?.let { lastUnlockCrop.value = it }
+        }
+
+        AnimatedVisibility(visible = farm.showShop, enter = farmDialogEnter, exit = farmDialogExit) {
             FarmShopDialog(
                 farm = farm,
                 onDismiss = { farm.showShop = false },
             )
         }
-        if (farm.showCatalog) {
+        AnimatedVisibility(visible = farm.showCatalog, enter = farmDialogEnter, exit = farmDialogExit) {
             FarmCatalogDialog(
                 farm = farm,
                 onDismiss = { farm.showCatalog = false },
             )
         }
-        if (farm.showInventory) {
+        AnimatedVisibility(visible = farm.showInventory, enter = farmDialogEnter, exit = farmDialogExit) {
             FarmInventoryDialog(
                 farm = farm,
                 weather = weather,
                 onDismiss = { farm.showInventory = false },
             )
         }
-        if (farm.showSeasonConfirm) {
+        AnimatedVisibility(visible = farm.showSeasonConfirm, enter = farmDialogEnter, exit = farmDialogExit) {
             NewSeasonConfirmDialog(
                 farm = farm,
                 onDismiss = { farm.showSeasonConfirm = false },
             )
         }
-        farm.unlockCard?.let { crop ->
-            FarmUnlockDialog(
-                crop = crop,
-                onDismiss = { farm.unlockCard = null },
-            )
+        AnimatedVisibility(visible = farm.unlockCard != null, enter = farmDialogEnter, exit = farmDialogExit) {
+            lastUnlockCrop.value?.let { crop ->
+                FarmUnlockDialog(
+                    crop = crop,
+                    onDismiss = { farm.unlockCard = null },
+                )
+            }
         }
     }
 }

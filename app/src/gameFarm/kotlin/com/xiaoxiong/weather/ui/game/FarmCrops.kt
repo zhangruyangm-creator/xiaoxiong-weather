@@ -111,6 +111,9 @@ data class CropDef(
 ) {
     val totalHours: Float get() = stageHours.sum()
 
+    /** 一句话介绍（图鉴详情/解锁弹卡展示）。 */
+    val description: String get() = FARM_CROP_DESCRIPTIONS[id] ?: ""
+
     /**
      * 后期作物加价加时（延缓通关节奏）：种子价/售价按 [costMul] 缩放，
      * 各阶段时长按 [hourMul] 缩放；售价与成本同步缩放以保持利润率。

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -167,6 +168,9 @@ private class MazeGame {
     var endless by mutableStateOf(false)
     var endlessWave by mutableIntStateOf(1)
     var endlessBest by mutableIntStateOf(0)
+
+    /** 是否有可续玩的无尽对局：主动退出/意外中断都会保留，结算后清除。 */
+    var resumeEndless = false
     private var endlessSessionSeed = Random.nextLong()
 
     var rows = 0
@@ -186,6 +190,9 @@ private class MazeGame {
     var moves by mutableIntStateOf(0)
     var facing by mutableStateOf(MazeDir.RIGHT)
     var cleared by mutableStateOf(false)
+
+    /** 无尽超步失败标记：结算界面显示失败，不更新最高波次、不可续玩。 */
+    var failed by mutableStateOf(false)
     var clearStars by mutableIntStateOf(0)
 
     /** 站在出口但蜂蜜未收齐时的提示剩余时间（秒）。 */
@@ -223,7 +230,12 @@ private class MazeGame {
 
     /** 局中会话落盘：旋转屏幕等进程重建后由 [restoreSession] 恢复；选关/结算不保存。 */
     fun saveSession(prefs: android.content.SharedPreferences) {
-        if (phase == MazePhase.SELECT || phase == MazePhase.CLEAR) {
+        if (phase == MazePhase.CLEAR) {
+            prefs.edit { remove(MAZE_SESSION_KEY) }
+            return
+        }
+        // 选关界面：战役对局视为放弃（删除）；无尽对局保留，供下次进入续玩
+        if (phase == MazePhase.SELECT && !resumeEndless) {
             prefs.edit { remove(MAZE_SESSION_KEY) }
             return
         }
@@ -265,8 +277,10 @@ private class MazeGame {
         // 先按关卡/种子重建初始棋盘（含全部蜂蜜/钥匙/锁），再覆盖为已消耗状态
         if (session.endless) {
             endlessSessionSeed = session.seed
+            resumeEndless = true
             startEndless(session.endlessWave, freshSeed = false)
         } else {
+            resumeEndless = false
             startLevel(session.levelIndex.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1))
         }
         session.gridRows.forEachIndexed { r, line ->
@@ -311,6 +325,7 @@ private class MazeGame {
 
     fun startLevel(index: Int) {
         endless = false
+        resumeEndless = false
         levelIndex = index.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1)
         loadLevel(mazeCampaignLevel(levelIndex))
     }
@@ -321,6 +336,7 @@ private class MazeGame {
         freshSeed: Boolean = true,
     ) {
         endless = true
+        resumeEndless = true
         endlessWave = wave.coerceAtLeast(1)
         // 仅在开新局时掷会话种子；重开（freshSeed=false）复用当前种子，保证同一张图
         if (freshSeed) endlessSessionSeed = Random.nextLong()
@@ -349,6 +365,7 @@ private class MazeGame {
         keys = 0
         moves = 0
         cleared = false
+        failed = false
         clearStars = 0
         needHoneyHintT = 0f
         lastHoneyAt = -1f
@@ -509,6 +526,8 @@ private class MazeGame {
     private fun finishLevel() {
         cleared = true
         phase = MazePhase.CLEAR
+        // 结算后不再续玩（死亡/通关后下次从新局开始）
+        resumeEndless = false
         val budget = level.moveBudget
         // 仅在蜂蜜收齐后踩出口才会到这里，直接按步数定星级
         clearStars =
@@ -546,9 +565,23 @@ private class MazeGame {
             moveT = min(1f, moveT + dt * speed)
             if (moveT >= 1f) {
                 moveT = 1f
-                onStepLanded()
+                // 无尽超步：落地前判定，超步即失败（失败优先于拾蜜/踩出口）
+                if (endless && moves > level.moveBudget) {
+                    failEndless()
+                } else {
+                    onStepLanded()
+                }
             }
         }
+    }
+
+    /** 无尽超步失败：结算界面显示失败，不更新最高波次、不可续玩。 */
+    fun failEndless() {
+        if (phase != MazePhase.PLAYING) return
+        failed = true
+        cleared = false
+        resumeEndless = false
+        phase = MazePhase.CLEAR
     }
 }
 
@@ -578,6 +611,7 @@ fun BearMazeScreen(
     }
     val sprites = rememberBearSprites()
     var frame by remember { mutableLongStateOf(0L) }
+    var showAbandonDialog by remember { mutableStateOf(false) }
 
     // 选关列表只需标题/主题等元数据，轻量同步可得；完整关卡（含迷宫图）在
     // 点击某关开始游玩时才生成，避免进入选关界面就批量生成造成等待。
@@ -615,9 +649,21 @@ fun BearMazeScreen(
     }
 
     BackHandler {
-        when (game.phase) {
-            MazePhase.SELECT -> onExit()
-            MazePhase.PLAYING, MazePhase.CLEAR -> game.openSelect()
+        if (showAbandonDialog) {
+            showAbandonDialog = false
+        } else {
+            when (game.phase) {
+                MazePhase.SELECT -> onExit()
+                MazePhase.PLAYING -> {
+                    if (game.endless) {
+                        // 无尽退出前询问：保留进度续玩，或放弃从第 1 波重来
+                        showAbandonDialog = true
+                    } else {
+                        game.openSelect()
+                    }
+                }
+                MazePhase.CLEAR -> game.openSelect()
+            }
         }
     }
 
@@ -641,7 +687,13 @@ fun BearMazeScreen(
                     rainStrength = mazeRain,
                     freezingRain = mazeFreezingRain,
                     hail = mazeHail,
-                    onExitSelect = { game.openSelect() },
+                    onExitSelect = {
+                        if (game.endless && game.phase == MazePhase.PLAYING) {
+                            showAbandonDialog = true
+                        } else {
+                            game.openSelect()
+                        }
+                    },
                     onRestart = { game.restart() },
                     onNext = {
                         if (game.endless) {
@@ -663,7 +715,61 @@ fun BearMazeScreen(
                 )
             }
         }
+
+        if (showAbandonDialog) {
+            AbandonEndlessDialog(
+                wave = game.endlessWave,
+                onContinue = { showAbandonDialog = false },
+                onSaveAndExit = {
+                    game.saveSession(prefs)
+                    showAbandonDialog = false
+                    game.openSelect()
+                },
+                onAbandon = {
+                    prefs.edit { remove(MAZE_SESSION_KEY) }
+                    showAbandonDialog = false
+                    game.openSelect()
+                },
+            )
+        }
     }
+}
+
+/** 无尽退出选择：保留进度续玩，或放弃并从第 1 波重来。 */
+@Composable
+private fun AbandonEndlessDialog(
+    wave: Int,
+    onContinue: () -> Unit,
+    onSaveAndExit: () -> Unit,
+    onAbandon: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onContinue,
+        title = {
+            Text(stringResource(R.string.bear_maze_abandon_title, wave))
+        },
+        text = {
+            Column {
+                Text(stringResource(R.string.bear_maze_abandon_text, wave))
+                TextButton(onClick = onSaveAndExit) {
+                    Text(stringResource(R.string.bear_maze_abandon_keep))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onAbandon) {
+                Text(
+                    stringResource(R.string.bear_maze_abandon_discard),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onContinue) {
+                Text(stringResource(R.string.bear_maze_abandon_cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -951,20 +1057,38 @@ private fun MazePlayField(
                     modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        stringResource(R.string.bear_maze_clear),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        "★".repeat(game.clearStars) + "☆".repeat(3 - game.clearStars),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Color(0xFFFFB300),
-                    )
-                    Text(
-                        stringResource(R.string.bear_maze_clear_moves, game.moves),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    if (game.failed) {
+                        Text(
+                            stringResource(R.string.bear_maze_failed),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Text(
+                            stringResource(
+                                R.string.bear_maze_failed_detail,
+                                game.endlessWave,
+                                game.moves,
+                                game.level.moveBudget,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } else {
+                        Text(
+                            stringResource(R.string.bear_maze_clear),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            "★".repeat(game.clearStars) + "☆".repeat(3 - game.clearStars),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Color(0xFFFFB300),
+                        )
+                        Text(
+                            stringResource(R.string.bear_maze_clear_moves, game.moves),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         TextButton(onClick = onExitSelect) {
                             Text(stringResource(R.string.bear_maze_levels))
@@ -972,7 +1096,7 @@ private fun MazePlayField(
                         Button(onClick = onRestart) {
                             Text(stringResource(R.string.bear_maze_restart))
                         }
-                        if (game.endless || game.levelIndex + 1 < MAZE_CAMPAIGN_SIZE) {
+                        if (!game.failed && (game.endless || game.levelIndex + 1 < MAZE_CAMPAIGN_SIZE)) {
                             Button(onClick = onNext) {
                                 Text(
                                     if (game.endless) {

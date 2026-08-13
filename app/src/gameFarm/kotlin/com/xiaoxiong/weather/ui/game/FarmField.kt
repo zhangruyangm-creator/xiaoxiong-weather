@@ -158,11 +158,13 @@ private fun FarmToolChip(
                 FarmTool.FERTILIZE -> "💛"
                 null -> "⋯"
             }
+    val (interactionSource, pressModifier) = rememberFarmPress()
     Surface(
         onClick = onClick,
-        modifier = modifier,
+        interactionSource = interactionSource,
+        modifier = modifier.then(pressModifier),
         shape = RoundedCornerShape(16.dp),
-        color = if (selected) Color(0xFF81C784) else Color.White.copy(alpha = 0.92f),
+        color = if (selected) farmScheme().secondary else farmScheme().surface.copy(alpha = 0.92f),
         shadowElevation = if (selected) 3.dp else 1.dp,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
     ) {
@@ -175,7 +177,7 @@ private fun FarmToolChip(
                 resolvedLabel,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) Color(0xFF1B5E20) else Color(0xFF5D4037),
+                color = if (selected) farmScheme().onSecondary else farmScheme().onSurface,
                 maxLines = 1,
             )
         }
@@ -189,12 +191,14 @@ internal fun FarmPlotCell(
 ) {
     val crop = cropById(plot.cropId)
     val dry = plot.stage in 1..5 && plot.moisture < 0.25f
+    val (interactionSource, pressModifier) = rememberFarmPress()
     Surface(
         onClick = onClick,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(16.dp),
         color = Color.Transparent,
         shadowElevation = 3.dp,
-        modifier = Modifier.aspectRatio(1f),
+        modifier = Modifier.aspectRatio(1f).then(pressModifier),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             FarmPlotVisual(
@@ -300,7 +304,7 @@ private fun FarmNeedBubble(
         shape = CircleShape,
         color = Color.White.copy(alpha = 0.94f),
         shadowElevation = 2.dp,
-        border = BorderStroke(1.dp, Color(0xFFE0D2C0)),
+        border = BorderStroke(1.dp, farmScheme().outlineVariant),
     ) {
         Text(
             emoji,
@@ -462,10 +466,10 @@ internal fun FloatingRewardItem(
             style =
                 MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFFFFF8E1),
+                    color = farmScheme().surfaceVariant,
                     shadow =
                         Shadow(
-                            color = Color(0xFF5D4037),
+                            color = farmScheme().onSurface,
                             offset = Offset(0f, 2f),
                             blurRadius = 6f,
                         ),
