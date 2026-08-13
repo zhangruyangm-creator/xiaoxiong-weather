@@ -1,0 +1,893 @@
+package com.xiaoxiong.weather.ui.game
+
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.xiaoxiong.weather.R
+import kotlin.math.roundToInt
+
+/** 解锁新种子的弹卡：大图 + 属性 + 入场动画。 */
+@Composable
+internal fun FarmUnlockDialog(
+    crop: CropDef,
+    onDismiss: () -> Unit,
+) {
+    var appear by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appear = true }
+    val scale by animateFloatAsState(
+        targetValue = if (appear) 1f else 0.86f,
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
+        label = "unlockScale",
+    )
+    val fade by animateFloatAsState(
+        targetValue = if (appear) 1f else 0f,
+        animationSpec = tween(200),
+        label = "unlockAlpha",
+    )
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        val cardModifier =
+            Modifier
+                .fillMaxWidth(0.78f)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = fade
+                }
+        Card(
+            modifier = cardModifier.clickable(enabled = false) {},
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(R.string.bear_farm_unlock_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF5D4037),
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Box(contentAlignment = Alignment.Center) {
+                    // 作物身后的柔光
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(112.dp)
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(
+                                            Color(0xFFFFF59D).copy(alpha = 0.55f),
+                                            Color(0xFFFFF59D).copy(alpha = 0f),
+                                        ),
+                                    ),
+                                    CircleShape,
+                                ),
+                    )
+                    Image(
+                        painter = painterResource(FarmCropArt.ripe(crop)),
+                        contentDescription = crop.nameZh,
+                        modifier = Modifier.size(96.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    crop.nameZh,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF5D4037),
+                )
+                Text(
+                    crop.category,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF8D6E63),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FarmUnlockInfoChip(
+                        text = stringResource(R.string.bear_farm_unlock_growth, crop.totalHours.roundToInt()),
+                    )
+                    FarmUnlockInfoChip(
+                        text = stringResource(R.string.bear_farm_unlock_cost, crop.seedCost),
+                    )
+                    FarmUnlockInfoChip(
+                        text = stringResource(R.string.bear_farm_unlock_sell, crop.sellPrice),
+                    )
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(18.dp),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF81C784),
+                            contentColor = Color(0xFF1B5E20),
+                        ),
+                ) {
+                    Text(
+                        stringResource(R.string.bear_farm_unlock_gotit),
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FarmUnlockInfoChip(text: String) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFF1E8DC),
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = Color(0xFF6D4C41),
+        )
+    }
+}
+
+/** 作物图鉴：收集进度 + 每作物累计收获次数 + 新一季入口。 */
+@Composable
+internal fun FarmCatalogDialog(
+    farm: BearFarm,
+    onDismiss: () -> Unit,
+) {
+    val categories =
+        remember {
+            listOf(null) + FARM_CROPS.map { it.category }.distinct()
+        }
+    var selectedCat by remember { mutableStateOf<String?>(null) }
+    val filtered =
+        remember(selectedCat) {
+            if (selectedCat == null) FARM_CROPS else FARM_CROPS.filter { it.category == selectedCat }
+        }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.94f)
+                    .clickable(enabled = false) {},
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.bear_farm_catalog_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF5D4037),
+                        )
+                        Text(
+                            stringResource(
+                                R.string.bear_farm_catalog_meta,
+                                farm.currentSeason,
+                                farm.lifetimeHarvests,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF8D6E63),
+                        )
+                    }
+                    if (farm.completedSeasons > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFE8F5E9),
+                        ) {
+                            Text(
+                                stringResource(R.string.bear_farm_catalog_bonus, seasonGrowthPercent(farm.completedSeasons)),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32),
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.bear_farm_catalog_progress, farm.collectedCount, FARM_CROPS.size),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color(0xFF6D4C41),
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    LinearProgressIndicator(
+                        progress = { farm.collectedCount.toFloat() / FARM_CROPS.size },
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                        color = Color(0xFF81C784),
+                        trackColor = Color(0xFFE8DCC8),
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    categories.forEach { cat ->
+                        val label = cat ?: stringResource(R.string.bear_farm_shop_cat_all)
+                        val sel = selectedCat == cat
+                        Surface(
+                            onClick = { selectedCat = cat },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (sel) Color(0xFF81C784) else Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFE0D2C0)),
+                        ) {
+                            Text(
+                                label,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
+                                color = if (sel) Color(0xFF1B5E20) else Color(0xFF6D4C41),
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.height(340.dp),
+                ) {
+                    itemsIndexed(filtered, key = { _, c -> c.id }) { _, crop ->
+                        val count = farm.harvestCounts[crop.id] ?: 0
+                        val owned = count > 0
+                        Card(
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = if (owned) Color(0xFFE8F5E9) else Color(0xFFF5EFE5),
+                                ),
+                            shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Image(
+                                        painter = painterResource(FarmCropArt.ripe(crop)),
+                                        contentDescription = crop.nameZh,
+                                        modifier =
+                                            Modifier
+                                                .size(42.dp)
+                                                .alpha(if (owned) 1f else 0.32f),
+                                        contentScale = ContentScale.Fit,
+                                    )
+                                    if (!owned) {
+                                        Text(
+                                            "?",
+                                            color = Color(0xFF8D6E63),
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                    }
+                                }
+                                Text(
+                                    crop.nameZh,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF5D4037),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (owned) {
+                                    Text(
+                                        stringResource(R.string.bear_farm_catalog_count, count),
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF2E7D32),
+                                    )
+                                } else {
+                                    Text(
+                                        stringResource(R.string.bear_farm_catalog_locked),
+                                        fontSize = 10.sp,
+                                        color = Color(0xFFA08B72),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (farm.allCollected) {
+                        Text(
+                            stringResource(R.string.bear_farm_new_season_ready),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF2E7D32),
+                        )
+                        Button(
+                            onClick = { farm.showSeasonConfirm = true },
+                            shape = RoundedCornerShape(16.dp),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF81C784),
+                                    contentColor = Color(0xFF1B5E20),
+                                ),
+                        ) {
+                            Text(
+                                stringResource(R.string.bear_farm_new_season),
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    } else {
+                        Text(
+                            stringResource(R.string.bear_farm_new_season_hint, FARM_CROPS.size - farm.collectedCount),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFA08B72),
+                        )
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.bear_farm_close_shop))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 新一季确认：说明重置/保留内容。 */
+@Composable
+internal fun NewSeasonConfirmDialog(
+    farm: BearFarm,
+    onDismiss: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.82f)
+                    .clickable(enabled = false) {},
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(R.string.bear_farm_new_season_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF5D4037),
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.bear_farm_new_season_msg, seasonGrowthPercent(farm.completedSeasons + 1)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF6D4C41),
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.bear_farm_new_season_cancel))
+                    }
+                    Button(
+                        onClick = { farm.startNewSeason() },
+                        shape = RoundedCornerShape(16.dp),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF81C784),
+                                contentColor = Color(0xFF1B5E20),
+                            ),
+                    ) {
+                        Text(
+                            stringResource(R.string.bear_farm_new_season_confirm),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 背包：查看收获的果实，逐种或一键卖出换金币。 */
+@Composable
+internal fun FarmInventoryDialog(
+    farm: BearFarm,
+    weather: FarmWeather,
+    onDismiss: () -> Unit,
+) {
+    val bonus = farmSellBonus(weather)
+    val entries = farm.inventory.entries.sortedBy { it.key }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.94f)
+                    .clickable(enabled = false) {},
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.bear_farm_inventory_title),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF5D4037),
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFFFFF8E1).copy(alpha = 0.92f),
+                    ) {
+                        Text(
+                            "🪙 ${farm.coins}",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6D4C41),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.bear_farm_inventory_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF8D6E63),
+                )
+                if (bonus > 1f) {
+                    Text(
+                        stringResource(R.string.bear_farm_inventory_bonus, ((bonus - 1f) * 100).roundToInt()),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF2E7D32),
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.bear_farm_inventory_bonus_none),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color(0xFFA08B72),
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                if (entries.isEmpty()) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            stringResource(R.string.bear_farm_inventory_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFFA08B72),
+                        )
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.height(340.dp),
+                    ) {
+                        items(entries, key = { it.key }) { (cropId, count) ->
+                            val crop = cropById(cropId) ?: return@items
+                            FarmInventoryCard(
+                                crop = crop,
+                                count = count,
+                                unitPrice = sellPriceOf(crop, weather),
+                                onSell = { farm.sellAll(cropId, weather) },
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.bear_farm_inventory_total, entries.sumOf { it.value }),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF8D6E63),
+                        )
+                        Button(
+                            onClick = { farm.sellAllInventory(weather) },
+                            shape = RoundedCornerShape(16.dp),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF81C784),
+                                    contentColor = Color(0xFF1B5E20),
+                                ),
+                        ) {
+                            Text(
+                                stringResource(R.string.bear_farm_inventory_sell_all),
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End),
+                ) { Text(stringResource(R.string.bear_farm_close_shop)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FarmInventoryCard(
+    crop: CropDef,
+    count: Int,
+    unitPrice: Int,
+    onSell: () -> Unit,
+) {
+    Card(
+        colors =
+            CardDefaults.cardColors(
+                containerColor = Color(0xFFE8F5E9),
+            ),
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Image(
+                painter = painterResource(FarmCropArt.ripe(crop)),
+                contentDescription = crop.nameZh,
+                modifier = Modifier.size(40.dp),
+                contentScale = ContentScale.Fit,
+            )
+            Text(
+                crop.nameZh,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                color = Color(0xFF5D4037),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "×$count",
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = Color(0xFF2E7D32),
+            )
+            Text(
+                stringResource(R.string.bear_farm_inventory_price, unitPrice),
+                fontSize = 10.sp,
+                color = Color(0xFF8D6E63),
+            )
+            Button(
+                onClick = onSell,
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF81C784),
+                        contentColor = Color(0xFF1B5E20),
+                    ),
+            ) {
+                Text(
+                    stringResource(R.string.bear_farm_inventory_sell_one),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+/** 商店道具卡片：点击购买并立即生效。 */
+@Composable
+private fun FarmShopItemCard(
+    item: FarmShopItem,
+    affordable: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (affordable) Color(0xFFE8F5E9) else Color(0xFFF1EBE0),
+        border = BorderStroke(1.dp, if (affordable) Color(0xFFC8E6C9) else Color(0xFFE0D2C0)),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(item.icon, fontSize = 22.sp)
+            Text(
+                stringResource(item.nameRes),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF5D4037),
+                maxLines = 1,
+            )
+            Text(
+                stringResource(R.string.bear_farm_item_buy, item.price),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (affordable) Color(0xFF2E7D32) else Color(0xFFB09B80),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun FarmShopDialog(
+    farm: BearFarm,
+    onDismiss: () -> Unit,
+) {
+    val categories =
+        remember {
+            listOf(null) + FARM_CROPS.map { it.category }.distinct()
+        }
+    var selectedCat by remember { mutableStateOf<String?>(null) }
+    val filtered =
+        remember(selectedCat) {
+            if (selectedCat == null) FARM_CROPS else FARM_CROPS.filter { it.category == selectedCat }
+        }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.92f)
+                    .clickable(enabled = false) {},
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF2)),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    stringResource(R.string.bear_farm_shop_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF5D4037),
+                )
+                Text(
+                    stringResource(R.string.bear_farm_shop_hint, farm.harvestedTotal) +
+                        " · ${farm.unlocked.size}/${FARM_CROPS.size}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF8D6E63),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.bear_farm_item_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF6D4C41),
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FARM_SHOP_ITEMS.forEach { item ->
+                        FarmShopItemCard(
+                            item = item,
+                            affordable = farm.coins >= item.price,
+                            onClick = {
+                                when (item.id) {
+                                    "rain_can" -> farm.rainAll()
+                                    "bug_spray" -> farm.bugAll()
+                                    "weed_killer" -> farm.weedAll()
+                                }
+                            },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    categories.forEach { cat ->
+                        val label = cat ?: stringResource(R.string.bear_farm_shop_cat_all)
+                        val sel = selectedCat == cat
+                        Surface(
+                            onClick = { selectedCat = cat },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (sel) Color(0xFF81C784) else Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFE0D2C0)),
+                        ) {
+                            Text(
+                                label,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
+                                color = if (sel) Color(0xFF1B5E20) else Color(0xFF6D4C41),
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.height(420.dp),
+                ) {
+                    itemsIndexed(filtered, key = { _, c -> c.id }) { _, crop ->
+                        val owned = crop.id in farm.unlocked
+                        val unlockPrice = crop.seedCost * 5
+                        Card(
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor =
+                                        if (owned) {
+                                            Color(0xFFE8F5E9)
+                                        } else {
+                                            Color(0xFFFFF3E0).copy(alpha = 0.85f)
+                                        },
+                                ),
+                            shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .padding(8.dp)
+                                        .alpha(if (owned) 1f else 0.92f),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Image(
+                                    painter = painterResource(FarmCropArt.ripe(crop)),
+                                    contentDescription = crop.nameZh,
+                                    modifier = Modifier.size(40.dp),
+                                    contentScale = ContentScale.Fit,
+                                )
+                                Text(
+                                    crop.nameZh,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF5D4037),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    "约${"%.0f".format(crop.totalHours)}时 · 售${crop.sellPrice}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF8D6E63),
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                if (owned) {
+                                    Text(
+                                        stringResource(R.string.bear_farm_shop_owned),
+                                        color = Color(0xFF2E7D32),
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                } else {
+                                    Button(
+                                        onClick = { farm.buyUnlock(crop.id) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    ) {
+                                        Text(
+                                            stringResource(R.string.bear_farm_shop_unlock_btn, unlockPrice),
+                                            fontSize = 11.sp,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End),
+                ) { Text(stringResource(R.string.bear_farm_close_shop)) }
+            }
+        }
+    }
+}

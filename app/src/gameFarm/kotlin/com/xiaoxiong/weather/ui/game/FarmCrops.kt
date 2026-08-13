@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.ui.game
 import androidx.annotation.StringRes
 import com.xiaoxiong.weather.R
 import kotlinx.serialization.Serializable
+import kotlin.math.roundToInt
 
 data class FarmWeatherEffect(
     @param:StringRes val labelRes: Int,
@@ -109,6 +110,20 @@ data class CropDef(
     val category: String = "蔬菜",
 ) {
     val totalHours: Float get() = stageHours.sum()
+
+    /**
+     * 后期作物加价加时（延缓通关节奏）：种子价/售价按 [costMul] 缩放，
+     * 各阶段时长按 [hourMul] 缩放；售价与成本同步缩放以保持利润率。
+     */
+    fun scaled(
+        costMul: Float,
+        hourMul: Float,
+    ): CropDef =
+        copy(
+            seedCost = (seedCost * costMul).roundToInt(),
+            sellPrice = (sellPrice * costMul).roundToInt(),
+            stageHours = FloatArray(stageHours.size) { i -> stageHours[i] * hourMul },
+        )
 }
 
 private fun crop(
@@ -126,10 +141,10 @@ private fun crop(
 ) = CropDef(id, name, emoji, cost, sell, floatArrayOf(a, b, c), color, leaf, cat)
 
 /**
- * 110 种作物：蔬菜 / 花卉 / 谷物 / 水果 / 香草 / 菇菌 / 其他。
+ * 128 种作物：蔬菜 / 花卉 / 谷物 / 水果 / 香草 / 菇菌 / 其他。
  * 列表顺序即收获解锁顺序；花卉靠前，方便早点种到。
- * 时长单位：小时，偏休闲节奏；最低档约 7.5h（萝卜），中档约 13-20h，
- * 高档约 26-33h，最高的竹子/帝王花等约 37h，几乎都要过夜或好几天。
+ * 时长单位：小时，偏休闲节奏；前期作物约 7.5-20h，中后期约 20-40h，
+ * 末尾作物经 [CropDef.scaled] 加价加时（最慢超过 60h），避免集齐图鉴/开启新一季过快。
  */
 val FARM_CROPS: List<CropDef> =
     listOf(
@@ -267,9 +282,34 @@ val FARM_CROPS: List<CropDef> =
         crop("cactus", "仙人掌", "🌵", 20, 50, 4f, 5.5f, 7f, 0xFF66BB6A, 0xFF2E7D32, "其他"),
         crop("fern", "蕨类", "🌿", 15, 36, 3f, 4f, 5f, 0xFF81C784, 0xFF1B5E20, "其他"),
         crop("moss", "青苔", "🟢", 8, 16, 2f, 2.5f, 3f, 0xFF558B2F, 0xFF33691E, "其他"),
-    )
+    ).let { crops ->
+        // 后期作物加价加时：按解锁顺序分段递进，防止后期通关过快。
+        // 售价与种子价同比例缩放，利润率不变；商店直接解锁价（seedCost×5）随之抬高。
+        crops.mapIndexed { index, crop ->
+            val costMul =
+                when {
+                    index >= 118 -> 2.2f
+                    index >= 104 -> 1.7f
+                    index >= 90 -> 1.4f
+                    else -> 1f
+                }
+            val hourMul =
+                when {
+                    index >= 118 -> 1.8f
+                    index >= 104 -> 1.5f
+                    index >= 90 -> 1.3f
+                    else -> 1f
+                }
+            if (costMul == 1f) crop else crop.scaled(costMul, hourMul)
+        }
+    }
 
-fun cropById(id: String?): CropDef? = id?.let { cid -> FARM_CROPS.find { it.id == cid } }
+/** 收获解锁顺序 = 作物表顺序（避免每次收获都重新 map 一遍 110 项）。 */
+val FARM_CROP_ORDER: List<String> = FARM_CROPS.map { it.id }
+
+private val FARM_CROPS_BY_ID: Map<String, CropDef> = FARM_CROPS.associateBy { it.id }
+
+fun cropById(id: String?): CropDef? = id?.let { FARM_CROPS_BY_ID[it] }
 
 /** 按已解锁数量计算下一次收获解锁所需累计次数。 */
 fun farmUnlockNeed(unlockedCount: Int): Int {
@@ -318,8 +358,78 @@ data class FarmSave(
     var plots: List<FarmPlotState> = List(20) { FarmPlotState() },
     var unlockedCropIds: List<String> = listOf("radish", "cabbage", "wheat", "tomato"),
     var harvestedTotal: Int = 0,
+    /** 每种作物累计收获次数（图鉴数据，跨周目保留）。 */
+    var harvestCounts: Map<String, Int> = emptyMap(),
+    /** 已完成的周目数（开启新一季 +1），当前季 = completedSeasons + 1。 */
+    var completedSeasons: Int = 0,
+    /** 跨周目累计收获总次数（仅统计展示用）。 */
+    var lifetimeHarvests: Int = 0,
+    /** 存档结构版本：1 = 无图鉴/周目字段；2 = 引入图鉴与周目。 */
+    var schemaVersion: Int = 1,
+    /** 背包：作物 id → 数量；收获进包，卖出后换金币。 */
+    var inventory: Map<String, Int> = emptyMap(),
 )
 
 const val FARM_COLS = 5
 const val FARM_ROWS = 4
 const val FARM_PLOT_COUNT = FARM_COLS * FARM_ROWS
+
+/** 每完成一季的永久生长加成（%），上限 5 季（+25%）。 */
+const val SEASON_BONUS_PERCENT = 5
+const val MAX_SEASON_BONUS_PERCENT = 25
+
+fun seasonGrowthPercent(completedSeasons: Int): Int = (SEASON_BONUS_PERCENT * completedSeasons).coerceAtMost(MAX_SEASON_BONUS_PERCENT)
+
+/** 周目生长倍率：1f + 加成百分比 / 100。 */
+fun seasonGrowthMul(completedSeasons: Int): Float = 1f + seasonGrowthPercent(completedSeasons) / 100f
+
+/** 卖出时的天气加成（晴天价更高，雨天次之）。 */
+fun farmSellBonus(weather: FarmWeather): Float =
+    when (weather) {
+        FarmWeather.SUNNY -> 1.15f
+        FarmWeather.RAINY -> 1.05f
+        else -> 1f
+    }
+
+/** 单个作物的卖出价（含当前天气加成，四舍五入）。 */
+fun sellPriceOf(
+    crop: CropDef,
+    weather: FarmWeather,
+): Int = (crop.sellPrice * farmSellBonus(weather)).roundToInt()
+
+/** 金肥料：单次花费与推进小时数。 */
+const val FERTILIZE_COST = 25
+const val FERTILIZE_HOURS = 2f
+
+/** 商店道具价格。 */
+const val RAIN_CAN_COST = 15
+const val BUG_SPRAY_COST = 20
+const val WEED_KILLER_COST = 20
+
+/**
+ * 按给定小时数推进一格作物的生长（离线模拟与金肥料共用同一套进度公式）。
+ * 有杂草/害虫/缺水时生长被阻断，直接返回。
+ */
+fun advanceGrowth(
+    plot: FarmPlotState,
+    crop: CropDef,
+    hours: Float,
+    fx: FarmWeatherEffect,
+    seasonMul: Float,
+) {
+    if (plot.stage !in 1..3) return
+    if (plot.weed || plot.bug || plot.moisture < 0.25f) return
+    val stageIdx = plot.stage - 1
+    val needH = crop.stageHours.getOrElse(stageIdx) { 1f }.coerceAtLeast(0.2f)
+    val mul = fx.growthMul * (0.7f + 0.3f * plot.moisture) * seasonMul
+    plot.stageProgress += (hours / needH) * mul
+    while (plot.stageProgress >= 1f && plot.stage in 1..3) {
+        plot.stageProgress -= 1f
+        plot.stage += 1
+        if (plot.stage >= 4) {
+            plot.stage = 4
+            plot.stageProgress = 1f
+            break
+        }
+    }
+}
