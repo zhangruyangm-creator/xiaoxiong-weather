@@ -58,7 +58,12 @@ class WeatherNotifyDedupStore(
         store.edit { prefs ->
             prefs[KEY_CITY] = cityName
             prefs[KEY_CODE] = weatherCode ?: Int.MIN_VALUE
-            temperatureC?.let { prefs[KEY_TEMP] = it }
+            if (temperatureC != null) {
+                prefs[KEY_TEMP] = temperatureC
+            } else {
+                // 温度缺失时清掉旧值，避免下一轮用过期温度误判「变化」
+                prefs.remove(KEY_TEMP)
+            }
             prefs[KEY_AT] = System.currentTimeMillis()
         }
     }

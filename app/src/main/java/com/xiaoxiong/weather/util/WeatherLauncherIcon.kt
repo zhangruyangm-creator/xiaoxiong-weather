@@ -245,15 +245,30 @@ object WeatherLauncherIcon {
 
         val pm = app.packageManager
         return try {
-            // 不变式：任一时刻只有一个 alias enabled，因此无需遍历全部 21 个，
-            // 只 disable 旧的、enable 新的，把每次切换的 IPC 调用从 21 次降到 2 次。
-            val previousStyle = Style.fromAlias(previous)
-            if (previousStyle != style) {
-                pm.setComponentEnabledSetting(
-                    previousStyle.componentName(app),
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP,
-                )
+            // 不变式：任一时刻只有一个 alias enabled，因此正常时只 disable 旧的、enable 新的，
+            // 把每次切换的 IPC 调用从 21 次降到 2 次。
+            val previousKnown = Style.entries.any { it.aliasSimpleName == previous }
+            if (previousKnown) {
+                val previousStyle = Style.fromAlias(previous)
+                if (previousStyle != style) {
+                    pm.setComponentEnabledSetting(
+                        previousStyle.componentName(app),
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP,
+                    )
+                }
+            } else {
+                // 预置丢失/被清空：无法确定当前启用的 alias，全量校正，
+                // 确保任何时刻只有一个 alias 启用（只在异常恢复时走慢路径）。
+                Style.entries.forEach { candidate ->
+                    if (candidate != style) {
+                        pm.setComponentEnabledSetting(
+                            candidate.componentName(app),
+                            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                            PackageManager.DONT_KILL_APP,
+                        )
+                    }
+                }
             }
             pm.setComponentEnabledSetting(
                 style.componentName(app),

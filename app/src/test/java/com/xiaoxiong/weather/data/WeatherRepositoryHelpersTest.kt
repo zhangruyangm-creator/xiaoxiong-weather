@@ -9,22 +9,22 @@ import org.junit.Test
 class WeatherRepositoryHelpersTest {
     @Test
     fun normalizePlaceQuery_stripsSuffixes() {
-        assertEquals("北京", WeatherRepository.normalizePlaceQuery("北京市"))
-        assertEquals("历下", WeatherRepository.normalizePlaceQuery("历下区"))
-        assertEquals("济南", WeatherRepository.normalizePlaceQuery(" 济南市 "))
+        assertEquals("北京", CitySearchFetcher.normalizePlaceQuery("北京市"))
+        assertEquals("历下", CitySearchFetcher.normalizePlaceQuery("历下区"))
+        assertEquals("济南", CitySearchFetcher.normalizePlaceQuery(" 济南市 "))
     }
 
     @Test
     fun normalizePlaceQuery_keepsShortNames() {
         // 剥掉后不足 2 字则保留原串
-        assertEquals("市", WeatherRepository.normalizePlaceQuery("市"))
+        assertEquals("市", CitySearchFetcher.normalizePlaceQuery("市"))
     }
 
     @Test
     fun containsHan_andPinyin() {
-        assertTrue(WeatherRepository.containsHan("北京"))
-        assertFalse(WeatherRepository.containsHan("Beijing"))
-        assertEquals("beijing", WeatherRepository.toPinyinQuery("北京"))
+        assertTrue(CitySearchFetcher.containsHan("北京"))
+        assertFalse(CitySearchFetcher.containsHan("Beijing"))
+        assertEquals("beijing", CitySearchFetcher.toPinyinQuery("北京"))
     }
 
     @Test
@@ -32,8 +32,8 @@ class WeatherRepositoryHelpersTest {
         val a = WeatherFixtures.city("A", lat = 36.65, lon = 117.12)
         val near = WeatherFixtures.city("B", lat = 36.70, lon = 117.15)
         val far = WeatherFixtures.city("C", lat = 37.00, lon = 117.12)
-        assertTrue(WeatherRepository.nearSamePlace(a, near))
-        assertFalse(WeatherRepository.nearSamePlace(a, far))
+        assertTrue(CitySearchFetcher.nearSamePlace(a, near))
+        assertFalse(CitySearchFetcher.nearSamePlace(a, far))
     }
 
     @Test
@@ -44,7 +44,7 @@ class WeatherRepositoryHelpersTest {
                 WeatherFixtures.city("济南市", lat = 36.66, lon = 117.13), // near-dup
                 WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38),
             )
-        val merged = WeatherRepository.mergeCityResults(preferred, extras)
+        val merged = CitySearchFetcher.mergeCityResults(preferred, extras)
         assertEquals(2, merged.size)
         assertEquals("济南", merged[0].name)
         assertEquals("青岛", merged[1].name)

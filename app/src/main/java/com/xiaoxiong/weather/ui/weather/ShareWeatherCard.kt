@@ -250,13 +250,15 @@ fun ShareWeatherCardDialog(
                         if (sharing) return@Button
                         sharing = true
                         scope.launch {
+                            var raw: Bitmap? = null
+                            var copy: Bitmap? = null
                             try {
-                                val raw = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                raw = graphicsLayer.toImageBitmap().asAndroidBitmap()
                                 // 硬件位图无法 compress；统一拷成软件 ARGB_8888 再导出
-                                val bitmap =
+                                copy =
                                     raw.copy(Bitmap.Config.ARGB_8888, false)
                                         ?: throw IllegalStateException("bitmap copy failed")
-                                shareWeatherCardImage(context, bitmap)
+                                shareWeatherCardImage(context, copy)
                                 onDismiss()
                             } catch (_: Exception) {
                                 Toast
@@ -266,6 +268,8 @@ fun ShareWeatherCardDialog(
                                         Toast.LENGTH_SHORT,
                                     ).show()
                             } finally {
+                                copy?.recycle()
+                                raw?.recycle()
                                 sharing = false
                             }
                         }

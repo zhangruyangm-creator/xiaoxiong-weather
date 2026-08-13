@@ -434,8 +434,19 @@ class WeatherViewModel(
 
     private var phenologyJob: Job? = null
 
-    /** 单日历史查询内存缓存：键 = "城市坐标|日期"。 */
+    /** 单日历史查询内存缓存：键 = "城市坐标|日期"；FIFO 上限防会话内无限增长。 */
+    private val maxHistoryCacheEntries = 30
     private val historyCache = mutableMapOf<String, HistoryWeather>()
+
+    private fun cacheHistory(
+        key: String,
+        value: HistoryWeather,
+    ) {
+        if (historyCache.size >= maxHistoryCacheEntries) {
+            historyCache.keys.firstOrNull()?.let { historyCache.remove(it) }
+        }
+        historyCache[key] = value
+    }
 
     /** 区间历史查询内存缓存：键 = "城市坐标|起|止"。 */
     private val historyRangeCache = mutableMapOf<String, HistoryRangeSummary>()
@@ -565,7 +576,7 @@ class WeatherViewModel(
                         null
                     }
                 if (result != null) {
-                    historyCache[cacheKey] = result
+                    cacheHistory(cacheKey, result)
                 }
                 // 查询期间换城则丢弃结果（不覆盖新城市）
                 val current = _uiState.value
