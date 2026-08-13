@@ -92,3 +92,14 @@ jobs:
               --notes "自动发布：v$VERSION（由 GitHub Actions 构建签名）" \
               --generate-notes
           fi
+
+      - name: Update downloads README
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          VERSION: ${{ steps.version.outputs.tag }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::GH_TOKEN 未配置，跳过下载站 README 更新"
+            exit 0
+          fi
+          python3 tools/update_releases_readme.py "$GH_TOKEN" "$VERSION" app/build/outputs/apk/full/release/app-full-release.apk

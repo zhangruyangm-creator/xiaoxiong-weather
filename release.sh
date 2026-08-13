@@ -80,48 +80,7 @@ echo "$ASSET_JSON" | python3 -c "import sys,json; r=json.load(sys.stdin); print(
 
 # ---------- 更新下载站 README ----------
 echo "==> 更新公开下载站 README"
-python3 - "$TOKEN" "$VERSION" <<'PYEOF'
-import json, base64, os, re, sys, urllib.request
-
-token, version = sys.argv[1], sys.argv[2]
-repo = "zhangruyangm-creator/xiaoxiong-weather-releases"
-h = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
-
-req = urllib.request.Request(f"https://api.github.com/repos/{repo}/contents/README.md", headers=h)
-r = json.load(urllib.request.urlopen(req))
-sha, old = r["sha"], base64.b64decode(r["content"]).decode()
-
-row = f"| {version} | [app-full-release.apk](https://github.com/{repo}/releases/download/v{version}/app-full-release.apk) | 约 12 MB |\n"
-if f"| {version} |" in old:
-    print("README 已含该版本，跳过")
-    sys.exit(0)
-
-# 版本表插入：锚定表头，永远插到第一行（不再硬编码历史版本号）
-ver_header = "| 版本 | 文件 | 大小 |\n|------|------|------|\n"
-new = old.replace(ver_header, ver_header + row, 1)
-
-# 从本地 CHANGELOG 提取该版本的 bullet 摘要
-changelog = open("CHANGELOG.md", encoding="utf-8").read()
-m = re.search(rf"## \[{re.escape(version)}\].*?(?=\n## |\Z)", changelog, re.S)
-bullets = re.findall(r"^\- (.*)$", m.group(0), re.M) if m else []
-summary = "；".join(bullets) if bullets else "见 GitHub Release 说明"
-today = os.popen("date +%F").read().strip()
-log_row = f"| {version} | {today} | {summary} |\n"
-log_header = "| 版本 | 日期 | 主要更新 |\n|------|------|----------|\n"
-new = new.replace(log_header, log_header + log_row, 1)
-
-payload = json.dumps({
-    "message": f"update README for v{version}",
-    "content": base64.b64encode(new.encode()).decode(),
-    "sha": sha,
-}).encode()
-req = urllib.request.Request(
-    f"https://api.github.com/repos/{repo}/contents/README.md",
-    data=payload, method="PUT", headers=h,
-)
-json.load(urllib.request.urlopen(req))
-print("README 已更新")
-PYEOF
+python3 tools/update_releases_readme.py "$TOKEN" "$VERSION" "$APK"
 
 # ---------- 打 tag ----------
 echo "==> 打 tag $VERSION_ARG 并推送"
