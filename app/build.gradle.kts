@@ -115,11 +115,17 @@ android {
             // 共享代码：跳跳/摘星/迷宫/农场任一共用（天气分类、小熊精灵、天空与降水特效、排行榜）
             if (enabledGames.isNotEmpty()) {
                 kotlin.srcDir("src/gameCommon/kotlin")
+                // 共享游戏资源（小熊精灵表）只在至少启用一个游戏时进包
+                res.srcDir("src/gameCommon/res")
             }
             for (id in gameIds) {
                 // 选中的游戏编译真实实现，未选中的编译空实现门面
                 val dir = if (id in enabledGames) "src/game${id.toGameDirName()}/kotlin" else "src/game${id.toGameDirName()}Empty/kotlin"
                 kotlin.srcDir(dir)
+                if (id in enabledGames) {
+                    // 游戏专属资源（如农场插画）只随对应游戏编译进包，防止未选游戏还携带图片
+                    res.srcDir("src/game${id.toGameDirName()}/res")
+                }
             }
         }
         // 单元测试源集只编译选中游戏的测试，避免引用未编译的符号
