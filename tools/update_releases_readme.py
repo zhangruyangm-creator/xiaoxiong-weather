@@ -41,7 +41,8 @@ def main() -> None:
     m = re.search(rf"## \[{re.escape(version)}\].*?(?=\n## |\Z)", changelog, re.S)
     bullets = re.findall(r"^\- (.*)$", m.group(0), re.M) if m else []
     summary = "；".join(bullets) if bullets else "见 GitHub Release 说明"
-    today = datetime.date.today().isoformat()
+    # CI runner 是 UTC，发布记录按北京时间（UTC+8）落日期
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()
     log_header = "| 版本 | 日期 | 主要更新 |\n|------|------|----------|\n"
     log_row = f"| {version} | {today} | {summary} |\n"
     if log_row in old:
