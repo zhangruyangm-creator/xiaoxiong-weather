@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.annotation.DrawableRes
+import androidx.core.content.edit
 import com.xiaoxiong.weather.R
 
 /**
@@ -199,10 +200,10 @@ object WeatherLauncherIcon {
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val current = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
         if (current == style.aliasSimpleName) {
-            prefs.edit().remove(KEY_PENDING).apply()
+            prefs.edit { remove(KEY_PENDING) }
             return
         }
-        prefs.edit().putString(KEY_PENDING, style.aliasSimpleName).apply()
+        prefs.edit { putString(KEY_PENDING, style.aliasSimpleName) }
         Log.d(TAG, "queued launcher icon -> ${style.aliasSimpleName}")
     }
 
@@ -213,7 +214,7 @@ object WeatherLauncherIcon {
         val pending = prefs.getString(KEY_PENDING, null) ?: return
         val ok = apply(app, Style.fromAlias(pending))
         if (ok) {
-            prefs.edit().remove(KEY_PENDING).apply()
+            prefs.edit { remove(KEY_PENDING) }
         } else {
             Log.w(TAG, "keep pending alias=$pending after failed apply")
         }
@@ -238,7 +239,7 @@ object WeatherLauncherIcon {
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val previous = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
         if (previous == style.aliasSimpleName) {
-            prefs.edit().remove(KEY_PENDING).apply()
+            prefs.edit { remove(KEY_PENDING) }
             return true
         }
 
@@ -259,11 +260,10 @@ object WeatherLauncherIcon {
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP,
             )
-            prefs
-                .edit()
-                .putString(KEY_ALIAS, style.aliasSimpleName)
-                .remove(KEY_PENDING)
-                .apply()
+            prefs.edit {
+                putString(KEY_ALIAS, style.aliasSimpleName)
+                remove(KEY_PENDING)
+            }
             Log.d(TAG, "launcher icon -> ${style.aliasSimpleName}")
             true
         } catch (e: Exception) {

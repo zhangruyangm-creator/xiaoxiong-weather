@@ -1,340 +1,183 @@
 package com.xiaoxiong.weather.ui.game
 
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
+import androidx.annotation.DrawableRes
+import com.xiaoxiong.weather.R
 
 /**
- * 自绘作物：替代 emoji，画风与农场整体统一。
- * 按类别（蔬菜/花卉/谷物/水果/香草/菇菌/其他）+ 生长阶段渲染，
- * 用 crop.color / crop.leafColor 区分作物，每株带高光与阴影增加立体感。
+ * 农场插画资源：土壤 / 生长阶段 / 杂草虫灾覆盖物 / 成熟作物。
+ * 阶段图共享；成熟优先按作物 id，再按分类兜底。
  */
-fun DrawScope.drawFarmCrop(
-    crop: CropDef,
-    stage: Int,
-    progress: Float,
-    wilted: Boolean,
-) {
-    val u = size.minDimension
-    val cx = size.width / 2f
-    val baseY = size.height * 0.82f
-    val seed = crop.id.hashCode()
-    val grow =
+internal object FarmCropArt {
+    @DrawableRes
+    fun soil(dry: Boolean): Int = if (dry) R.drawable.farm_soil_dry else R.drawable.farm_soil_moist
+
+    /** stage: 1 种子 / 2 发芽 / 3 成长 / 5 枯萎；成熟走 [ripe]。 */
+    @DrawableRes
+    fun stage(stage: Int): Int? =
         when (stage) {
-            4, 5 -> 1f
-            else -> (0.28f + 0.72f * progress.coerceIn(0f, 1f)).coerceIn(0.28f, 1f)
+            1 -> R.drawable.farm_stage_seed
+            2 -> R.drawable.farm_stage_sprout
+            3 -> R.drawable.farm_stage_grow
+            5 -> R.drawable.farm_stage_wilt
+            else -> null
         }
-    val alpha = if (wilted) 0.5f else 1f
 
-    // 刚种下：只画土丘 + 一粒芽点
-    if (stage == 1 && progress < 0.25f) {
-        drawMound(cx, baseY, u, alpha)
-        drawCircle(Color(0xFF795548), u * 0.045f, Offset(cx, baseY - u * 0.02f), alpha = alpha)
-        return
-    }
+    @DrawableRes
+    fun ripe(crop: CropDef): Int = RIPE_BY_ID[crop.id] ?: ripeByCategory(crop.category)
 
-    if (wilted) {
-        rotate(degrees = 14f, pivot = Offset(cx, baseY)) {
-            drawCropShape(crop, cx, baseY, u, grow, alpha, seed)
+    @DrawableRes
+    fun weed(): Int = R.drawable.farm_overlay_weed
+
+    @DrawableRes
+    fun bug(): Int = R.drawable.farm_overlay_bug
+
+    @DrawableRes
+    private fun ripeByCategory(category: String): Int =
+        when (category) {
+            "花卉" -> R.drawable.farm_ripe_flower
+            "水果" -> R.drawable.farm_ripe_fruit
+            "谷物" -> R.drawable.farm_ripe_wheat
+            "香草" -> R.drawable.farm_ripe_herb
+            "菇菌" -> R.drawable.farm_ripe_mushroom
+            "蔬菜" -> R.drawable.farm_ripe_veg
+            else -> R.drawable.farm_ripe_veg
         }
-    } else {
-        drawCropShape(crop, cx, baseY, u, grow, alpha, seed)
-    }
-}
 
-private fun DrawScope.drawCropShape(
-    crop: CropDef,
-    cx: Float,
-    baseY: Float,
-    u: Float,
-    grow: Float,
-    alpha: Float,
-    seed: Int,
-) {
-    // 地面阴影
-    drawOval(
-        Color.Black.copy(alpha = 0.10f * alpha),
-        topLeft = Offset(cx - u * 0.30f, baseY - u * 0.03f),
-        size = Size(u * 0.60f, u * 0.10f),
-    )
-    when (crop.category) {
-        "花卉" -> drawFlower(crop, cx, baseY, u, grow, alpha, seed)
-        "谷物" -> drawGrain(crop, cx, baseY, u, grow, alpha, seed)
-        "水果" -> drawFruit(crop, cx, baseY, u, grow, alpha, seed)
-        "菇菌" -> drawMushroom(crop, cx, baseY, u, grow, alpha, seed)
-        else -> drawLeafy(crop, cx, baseY, u, grow, alpha, seed)
-    }
-}
-
-/** 叶子：从 (cx,cy) 朝 angle 方向伸出一片带尖叶，带中脉。 */
-private fun DrawScope.drawLeaf(
-    cx: Float,
-    cy: Float,
-    len: Float,
-    angle: Float,
-    color: Color,
-    alpha: Float,
-) {
-    rotate(degrees = angle, pivot = Offset(cx, cy)) {
-        val leaf =
-            Path().apply {
-                moveTo(cx, cy)
-                quadraticTo(cx + len * 0.35f, cy - len * 0.42f, cx + len, cy)
-                quadraticTo(cx + len * 0.35f, cy + len * 0.42f, cx, cy)
-                close()
-            }
-        drawPath(leaf, color.copy(alpha = alpha))
-        drawLine(
-            Color.Black.copy(alpha = 0.12f * alpha),
-            Offset(cx + len * 0.08f, cy),
-            Offset(cx + len * 0.78f, cy),
-            strokeWidth = 1f,
+    private val RIPE_BY_ID: Map<String, Int> =
+        mapOf(
+            // 蔬菜
+            "radish" to R.drawable.farm_ripe_radish,
+            "cabbage" to R.drawable.farm_ripe_cabbage,
+            "tomato" to R.drawable.farm_ripe_tomato,
+            "cucumber" to R.drawable.farm_ripe_cucumber,
+            "carrot" to R.drawable.farm_ripe_carrot,
+            "lettuce" to R.drawable.farm_ripe_lettuce,
+            "potato" to R.drawable.farm_ripe_potato,
+            "onion" to R.drawable.farm_ripe_onion,
+            "garlic" to R.drawable.farm_ripe_garlic,
+            "chili" to R.drawable.farm_ripe_chili,
+            "eggplant" to R.drawable.farm_ripe_eggplant,
+            "spinach" to R.drawable.farm_ripe_spinach,
+            "celery" to R.drawable.farm_ripe_celery,
+            "pea" to R.drawable.farm_ripe_pea,
+            "bean" to R.drawable.farm_ripe_bean,
+            "broccoli" to R.drawable.farm_ripe_broccoli,
+            "squash" to R.drawable.farm_ripe_squash,
+            "pepper_bell" to R.drawable.farm_ripe_pepper_bell,
+            "cauliflower" to R.drawable.farm_ripe_cauliflower,
+            "beet" to R.drawable.farm_ripe_beet,
+            "turnip" to R.drawable.farm_ripe_turnip,
+            "asparagus" to R.drawable.farm_ripe_asparagus,
+            "yam" to R.drawable.farm_ripe_yam,
+            "taro" to R.drawable.farm_ripe_taro,
+            "lotus_root" to R.drawable.farm_ripe_lotus_root,
+            // 花卉
+            "dandelion" to R.drawable.farm_ripe_dandelion,
+            "clover" to R.drawable.farm_ripe_clover,
+            "daisy" to R.drawable.farm_ripe_daisy,
+            "marigold" to R.drawable.farm_ripe_marigold,
+            "cosmos" to R.drawable.farm_ripe_cosmos,
+            "forget_me_not" to R.drawable.farm_ripe_forget_me_not,
+            "bluebell" to R.drawable.farm_ripe_bluebell,
+            "violet" to R.drawable.farm_ripe_violet,
+            "sunflower" to R.drawable.farm_ripe_sunflower,
+            "chrysanthemum" to R.drawable.farm_ripe_chrysanthemum,
+            "jasmine" to R.drawable.farm_ripe_jasmine,
+            "narcissus" to R.drawable.farm_ripe_narcissus,
+            "gardenia" to R.drawable.farm_ripe_gardenia,
+            "hyacinth" to R.drawable.farm_ripe_hyacinth,
+            "lavender" to R.drawable.farm_ripe_lavender,
+            "azalea" to R.drawable.farm_ripe_cherry_blossom,
+            "carnation" to R.drawable.farm_ripe_rose,
+            "poppy" to R.drawable.farm_ripe_poppy,
+            "tulip" to R.drawable.farm_ripe_tulip,
+            "lily" to R.drawable.farm_ripe_lily,
+            "iris" to R.drawable.farm_ripe_iris,
+            "osmanthus" to R.drawable.farm_ripe_marigold,
+            "hibiscus" to R.drawable.farm_ripe_hibiscus,
+            "hydrangea" to R.drawable.farm_ripe_hydrangea,
+            "blossom" to R.drawable.farm_ripe_cherry_blossom,
+            "camellia" to R.drawable.farm_ripe_camellia,
+            "lotus" to R.drawable.farm_ripe_lotus,
+            "rose" to R.drawable.farm_ripe_rose,
+            "magnolia" to R.drawable.farm_ripe_magnolia,
+            "cherry_blossom" to R.drawable.farm_ripe_cherry_blossom,
+            "orchid" to R.drawable.farm_ripe_orchid,
+            "peony" to R.drawable.farm_ripe_peony,
+            "four_leaf" to R.drawable.farm_ripe_four_leaf,
+            "lilac" to R.drawable.farm_ripe_lilac,
+            "begonia" to R.drawable.farm_ripe_hibiscus,
+            "impatiens" to R.drawable.farm_ripe_pansy,
+            "zinnia" to R.drawable.farm_ripe_marigold,
+            "petunia" to R.drawable.farm_ripe_morning_glory,
+            "pansy" to R.drawable.farm_ripe_pansy,
+            "snapdragon" to R.drawable.farm_ripe_tulip,
+            "morning_glory" to R.drawable.farm_ripe_morning_glory,
+            "wisteria" to R.drawable.farm_ripe_wisteria,
+            "plumeria" to R.drawable.farm_ripe_gardenia,
+            "bird_of_paradise" to R.drawable.farm_ripe_orchid,
+            "calla" to R.drawable.farm_ripe_calla,
+            "anthurium" to R.drawable.farm_ripe_anthurium,
+            "protea" to R.drawable.farm_ripe_peony,
+            // 谷物
+            "wheat" to R.drawable.farm_ripe_wheat,
+            "corn" to R.drawable.farm_ripe_corn,
+            "rice" to R.drawable.farm_ripe_rice,
+            "barley" to R.drawable.farm_ripe_wheat,
+            "oat" to R.drawable.farm_ripe_wheat,
+            "sorghum" to R.drawable.farm_ripe_sorghum,
+            "millet" to R.drawable.farm_ripe_millet,
+            "buckwheat" to R.drawable.farm_ripe_buckwheat,
+            // 水果
+            "strawberry" to R.drawable.farm_ripe_strawberry,
+            "watermelon" to R.drawable.farm_ripe_watermelon,
+            "pumpkin" to R.drawable.farm_ripe_pumpkin,
+            "grape" to R.drawable.farm_ripe_grape,
+            "apple" to R.drawable.farm_ripe_apple,
+            "pear" to R.drawable.farm_ripe_pear,
+            "peach" to R.drawable.farm_ripe_peach,
+            "cherry" to R.drawable.farm_ripe_cherry,
+            "banana" to R.drawable.farm_ripe_banana,
+            "orange" to R.drawable.farm_ripe_orange,
+            "lemon" to R.drawable.farm_ripe_lemon,
+            "mango" to R.drawable.farm_ripe_mango,
+            "pineapple" to R.drawable.farm_ripe_pineapple,
+            "kiwi" to R.drawable.farm_ripe_kiwi,
+            "blueberry" to R.drawable.farm_ripe_blueberry,
+            "raspberry" to R.drawable.farm_ripe_raspberry,
+            "melon" to R.drawable.farm_ripe_melon,
+            "coconut" to R.drawable.farm_ripe_coconut,
+            "pomegranate" to R.drawable.farm_ripe_pomegranate,
+            "fig" to R.drawable.farm_ripe_fig,
+            "lychee" to R.drawable.farm_ripe_lychee,
+            "longan" to R.drawable.farm_ripe_longan,
+            "persimmon" to R.drawable.farm_ripe_persimmon,
+            "plum" to R.drawable.farm_ripe_plum,
+            // 香草
+            "mint" to R.drawable.farm_ripe_mint,
+            "basil" to R.drawable.farm_ripe_basil,
+            "rosemary" to R.drawable.farm_ripe_herb,
+            "thyme" to R.drawable.farm_ripe_herb,
+            "sage" to R.drawable.farm_ripe_herb,
+            "cilantro" to R.drawable.farm_ripe_herb,
+            "parsley" to R.drawable.farm_ripe_herb,
+            "ginger" to R.drawable.farm_ripe_ginger,
+            "tea" to R.drawable.farm_ripe_tea,
+            "coffee" to R.drawable.farm_ripe_coffee,
+            "cocoa" to R.drawable.farm_ripe_cocoa,
+            // 菇菌 / 其他
+            "mushroom" to R.drawable.farm_ripe_mushroom,
+            "shiitake" to R.drawable.farm_ripe_mushroom,
+            "enoki" to R.drawable.farm_ripe_enoki,
+            "bamboo" to R.drawable.farm_ripe_bamboo,
+            "cotton" to R.drawable.farm_ripe_cotton,
+            "sugarcane" to R.drawable.farm_ripe_sugarcane,
+            "peanut" to R.drawable.farm_ripe_peanut,
+            "soybean" to R.drawable.farm_ripe_soybean,
+            "sesame" to R.drawable.farm_ripe_sesame,
+            "aloe" to R.drawable.farm_ripe_aloe,
+            "cactus" to R.drawable.farm_ripe_cactus,
+            "fern" to R.drawable.farm_ripe_fern,
+            "moss" to R.drawable.farm_ripe_moss,
         )
-    }
-}
-
-/** 细茎：上段主色 + 底部深色，微弧。 */
-private fun DrawScope.drawStem(
-    x: Float,
-    bottomY: Float,
-    topY: Float,
-    color: Color,
-    width: Float,
-    alpha: Float,
-) {
-    val stem =
-        Path().apply {
-            moveTo(x - width / 2f, bottomY)
-            quadraticTo(x + width * 0.4f, (bottomY + topY) / 2f, x - width / 2f, topY)
-            lineTo(x + width / 2f, topY)
-            quadraticTo(x - width * 0.4f, (bottomY + topY) / 2f, x + width / 2f, bottomY)
-            close()
-        }
-    drawPath(stem, color.copy(alpha = alpha))
-}
-
-/** 果实：圆球 + 高光 + 蒂。 */
-private fun DrawScope.drawFruitBall(
-    center: Offset,
-    r: Float,
-    color: Color,
-    alpha: Float,
-    leafColor: Color,
-) {
-    drawCircle(Color.Black.copy(alpha = 0.12f * alpha), r, center + Offset(0f, r * 0.08f))
-    drawCircle(color.copy(alpha = alpha), r, center)
-    // 高光
-    drawCircle(
-        Color.White.copy(alpha = 0.45f * alpha),
-        r * 0.28f,
-        center + Offset(-r * 0.32f, -r * 0.32f),
-    )
-    // 蒂
-    drawLine(
-        Color(0xFF33691E).copy(alpha = alpha),
-        center + Offset(0f, -r * 0.9f),
-        center + Offset(-r * 0.15f, -r * 1.25f),
-        strokeWidth = 1.4f,
-    )
-    drawCircle(leafColor.copy(alpha = alpha), r * 0.16f, center + Offset(-r * 0.15f, -r * 1.28f))
-}
-
-/** 蔬菜/香草/其他：叶丛 + 中心果实（根茎类浅色或叶球）。 */
-private fun DrawScope.drawLeafy(
-    crop: CropDef,
-    cx: Float,
-    baseY: Float,
-    u: Float,
-    grow: Float,
-    alpha: Float,
-    seed: Int,
-) {
-    val leaf = Color(crop.leafColor)
-    val h = 0.68f * u * grow
-    val topY = baseY - h
-    drawStem(cx, baseY, topY + u * 0.10f, Color(0xFF558B2F), u * 0.07f, alpha)
-    // 3 对叶子，随高度错落
-    for (i in 0 until 3) {
-        val y = topY + u * 0.10f + h * 0.28f * (i + 1)
-        val len = (0.30f - i * 0.05f) * u * grow
-        val sway = if ((seed + i) % 2 == 0) 1f else -1f
-        drawLeaf(cx, y, len, 52f * sway + (i - 1) * 6f, leaf, alpha)
-        drawLeaf(cx, y, len * 0.85f, -52f * sway - (i - 1) * 6f, leaf.copy(alpha = 0.85f), alpha)
-    }
-    // 成熟果实
-    if (grow > 0.92f) {
-        val r = 0.13f * u
-        val fx = cx + ((seed % 5) - 2) * 0.06f * u
-        drawFruitBall(Offset(fx, baseY - r * 0.85f), r, Color(crop.color), alpha, leaf)
-    }
-}
-
-/** 花卉：细茎 + 两对叶 + 顶部花盘（花瓣 + 花蕊）。 */
-private fun DrawScope.drawFlower(
-    crop: CropDef,
-    cx: Float,
-    baseY: Float,
-    u: Float,
-    grow: Float,
-    alpha: Float,
-    seed: Int,
-) {
-    val leaf = Color(crop.leafColor)
-    val stemC = Color(0xFF558B2F)
-    val h = 0.78f * u * grow
-    val topY = baseY - h
-    drawStem(cx, baseY, topY, stemC, u * 0.05f, alpha)
-    drawLeaf(cx, baseY - h * 0.3f, 0.24f * u * grow, -58f, leaf, alpha)
-    drawLeaf(cx, baseY - h * 0.5f, 0.22f * u * grow, 60f, leaf.copy(alpha = 0.9f), alpha)
-    // 花盘
-    val petal = Color(crop.color)
-    val r = 0.20f * u * grow
-    val c = Offset(cx, topY)
-    repeat(6) { i ->
-        val a = Math.PI.toFloat() * 2f * i / 6f + (seed % 7) * 0.05f
-        drawCircle(
-            petal.copy(alpha = alpha),
-            r * 0.52f,
-            c + Offset(cos(a) * r * 0.72f, sin(a) * r * 0.72f),
-        )
-    }
-    drawCircle(Color(0xFFFFC107).copy(alpha = alpha), r * 0.30f, c)
-    drawCircle(Color(0xFFFFF59D).copy(alpha = alpha), r * 0.14f, c)
-}
-
-/** 谷物：直立粗茎 + 顶部下垂穗（籽粒错开）。 */
-private fun DrawScope.drawGrain(
-    crop: CropDef,
-    cx: Float,
-    baseY: Float,
-    u: Float,
-    grow: Float,
-    alpha: Float,
-    seed: Int,
-) {
-    val leaf = Color(crop.leafColor)
-    val h = 0.8f * u * grow
-    val topY = baseY - h
-    drawStem(cx, baseY, topY, Color(0xFF8BC34A), u * 0.06f, alpha)
-    // 窄长叶
-    rotate(degrees = -12f, pivot = Offset(cx, baseY)) {
-        drawLeaf(cx, baseY, 0.5f * u * grow, 0f, leaf, alpha * 0.9f)
-    }
-    // 穗：向上收拢的籽粒列
-    val kernel = Color(crop.color)
-    for (i in 0 until 5) {
-        val t = i / 4f
-        val sy = topY + h * 0.22f - t * h * 0.20f
-        val sx = cx + sin(i * 2.1f + seed) * u * 0.05f
-        val sSize = u * 0.075f * (1f - t * 0.35f)
-        drawOval(
-            kernel.copy(alpha = alpha),
-            topLeft = Offset(sx - sSize * 0.5f, sy - sSize * 0.6f),
-            size = Size(sSize, sSize * 1.2f),
-        )
-    }
-}
-
-/** 水果：低矮灌木叶团 + 枝头果实。 */
-private fun DrawScope.drawFruit(
-    crop: CropDef,
-    cx: Float,
-    baseY: Float,
-    u: Float,
-    grow: Float,
-    alpha: Float,
-    seed: Int,
-) {
-    val leaf = Color(crop.leafColor)
-    val h = 0.5f * u * grow
-    val bushY = baseY - h
-    // 叶团：三簇
-    drawCircle(leaf.copy(alpha = 0.9f * alpha), 0.16f * u * grow, Offset(cx - 0.10f * u, bushY))
-    drawCircle(leaf.copy(alpha = 0.85f * alpha), 0.17f * u * grow, Offset(cx + 0.09f * u, bushY - 0.03f * u))
-    drawCircle(leaf.copy(alpha = alpha), 0.18f * u * grow, Offset(cx, bushY - 0.09f * u))
-    // 果实挂在叶团下缘
-    if (grow > 0.9f) {
-        val r = 0.14f * u
-        val spots = 2 + abs(seed) % 2
-        for (i in 0 until spots) {
-            val fx = cx + (i - (spots - 1) / 2f) * 0.18f * u
-            drawFruitBall(Offset(fx, bushY + r * 0.55f), r, Color(crop.color), alpha, leaf)
-        }
-    }
-}
-
-/** 菇菌：浅柄 + 彩色伞盖（带白点）。 */
-private fun DrawScope.drawMushroom(
-    crop: CropDef,
-    cx: Float,
-    baseY: Float,
-    u: Float,
-    grow: Float,
-    alpha: Float,
-    @Suppress("UNUSED_PARAMETER") seed: Int,
-) {
-    val h = 0.42f * u * grow
-    val topY = baseY - h
-    val stemC = Color(0xFFEFEBE2)
-    val cap = Color(crop.color)
-    // 柄
-    drawRoundRect(
-        stemC.copy(alpha = alpha),
-        topLeft = Offset(cx - u * 0.06f, topY + h * 0.3f),
-        size = Size(u * 0.12f, h * 0.7f),
-        cornerRadius = CornerRadius(u * 0.03f),
-    )
-    // 伞盖
-    drawCircle(cap.copy(alpha = alpha), u * 0.17f * grow, Offset(cx, topY + h * 0.28f))
-    // 伞沿亮色
-    drawArc(
-        cap.lighten().copy(alpha = alpha),
-        startAngle = 180f,
-        sweepAngle = 180f,
-        useCenter = false,
-        topLeft = Offset(cx - u * 0.17f * grow, topY + h * 0.28f - u * 0.17f * grow),
-        size = Size(u * 0.34f * grow, u * 0.34f * grow),
-        style =
-            androidx.compose.ui.graphics.drawscope
-                .Stroke(width = u * 0.04f),
-    )
-    // 白点
-    drawCircle(
-        Color.White.copy(alpha = 0.85f * alpha),
-        u * 0.035f,
-        Offset(cx - u * 0.07f, topY + h * 0.24f),
-    )
-    drawCircle(
-        Color.White.copy(alpha = 0.7f * alpha),
-        u * 0.03f,
-        Offset(cx + u * 0.06f, topY + h * 0.32f),
-    )
-}
-
-/** 刚播种的土丘。 */
-private fun DrawScope.drawMound(
-    cx: Float,
-    baseY: Float,
-    u: Float,
-    alpha: Float,
-) {
-    drawOval(
-        Color(0xFF6D4C41).copy(alpha = 0.22f * alpha),
-        topLeft = Offset(cx - u * 0.22f, baseY - u * 0.10f),
-        size = Size(u * 0.44f, u * 0.16f),
-    )
-}
-
-private fun Color.lighten(): Color {
-    val r = (red * 0.6f + 1f * 0.4f).coerceIn(0f, 1f)
-    val g = (green * 0.6f + 1f * 0.4f).coerceIn(0f, 1f)
-    val b = (blue * 0.6f + 1f * 0.4f).coerceIn(0f, 1f)
-    return Color(r, g, b)
 }

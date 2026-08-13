@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.createBitmap
 import com.xiaoxiong.weather.BuildConfig
 import com.xiaoxiong.weather.data.remote.RainViewerFrame
 import com.xiaoxiong.weather.data.remote.RainViewerMapsResponse
@@ -238,7 +239,7 @@ class RadarMapRepository(
                     }.awaitAll()
 
             var drawn = 0
-            val result = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val result = createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(result)
             tiles.forEach { (job, tile) ->
                 if (tile == null) return@forEach

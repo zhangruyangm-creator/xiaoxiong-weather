@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
@@ -501,7 +502,7 @@ fun BearStarJumpScreen(
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                         if (score > game.best) {
                             game.best = score
-                            prefs.edit().putInt("best_jump", score).apply()
+                            prefs.edit { putInt("best_jump", score) }
                         }
                         if (score > 0) {
                             lb.lastRank =

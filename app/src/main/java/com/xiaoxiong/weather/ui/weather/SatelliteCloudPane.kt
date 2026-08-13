@@ -1,7 +1,6 @@
 package com.xiaoxiong.weather.ui.weather
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.RadarMapRepository
@@ -254,7 +254,7 @@ internal fun SatelliteCloudPane(
         TextButton(
             onClick = {
                 val url = RadarMapRepository.windySatelliteUrl(city.latitude, city.longitude)
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
             },
         ) {
             Icon(

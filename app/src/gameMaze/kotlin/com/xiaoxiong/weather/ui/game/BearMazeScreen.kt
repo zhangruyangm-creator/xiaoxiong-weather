@@ -49,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -69,6 +70,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import com.xiaoxiong.weather.R
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
@@ -222,7 +224,7 @@ private class MazeGame {
     /** 局中会话落盘：旋转屏幕等进程重建后由 [restoreSession] 恢复；选关/结算不保存。 */
     fun saveSession(prefs: android.content.SharedPreferences) {
         if (phase == MazePhase.SELECT || phase == MazePhase.CLEAR) {
-            prefs.edit().remove(MAZE_SESSION_KEY).apply()
+            prefs.edit { remove(MAZE_SESSION_KEY) }
             return
         }
         if (!::grid.isInitialized) return
@@ -251,7 +253,7 @@ private class MazeGame {
                 lastHoneyAt = lastHoneyAt,
                 time = time,
             )
-        prefs.edit().putString(MAZE_SESSION_KEY, sessionJson.encodeToString(MazeSession.serializer(), session)).apply()
+        prefs.edit { putString(MAZE_SESSION_KEY, sessionJson.encodeToString(MazeSession.serializer(), session)) }
     }
 
     /** 恢复局中会话；无会话或解析失败返回 false。恢复后即删除快照，避免陈旧续玩。 */
@@ -293,7 +295,7 @@ private class MazeGame {
         moveT = 1f
         sliding = false
         phase = MazePhase.PLAYING
-        prefs.edit().remove(MAZE_SESSION_KEY).apply()
+        prefs.edit { remove(MAZE_SESSION_KEY) }
         return true
     }
 
@@ -575,7 +577,7 @@ fun BearMazeScreen(
         onDispose { game.saveSession(prefs) }
     }
     val sprites = rememberBearSprites()
-    var frame by remember { mutableStateOf(0L) }
+    var frame by remember { mutableLongStateOf(0L) }
 
     // 选关列表只需标题/主题等元数据，轻量同步可得；完整关卡（含迷宫图）在
     // 点击某关开始游玩时才生成，避免进入选关界面就批量生成造成等待。

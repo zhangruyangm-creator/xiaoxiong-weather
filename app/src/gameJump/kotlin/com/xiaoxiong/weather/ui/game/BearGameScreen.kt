@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
 import kotlinx.coroutines.isActive
@@ -541,7 +542,7 @@ fun BearGameScreen(
                             view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                             if (score > game.best) {
                                 game.best = score
-                                prefs.edit().putInt("best", score).apply()
+                                prefs.edit { putInt("best", score) }
                             }
                             if (score > 0) {
                                 lb.lastRank =

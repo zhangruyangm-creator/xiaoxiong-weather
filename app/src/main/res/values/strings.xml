@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">小熊天气</string>
     <string name="widget_description">当前气温、今明概况与未来几小时走势</string>
     <string name="widget_loading">正在加载天气…</string>
     <string name="widget_empty">打开 App 选择城市后即可显示</string>
     <string name="widget_tomorrow">明天</string>
-    <string name="widget_hourly_hint">未来几小时</string>
-    <string name="permission_location_rationale">用于获取当前位置的天气预报，可拒绝并手动搜索城市</string>
-    <string name="permission_notification_rationale">用于天气变化提醒，可在设置中关闭</string>
+    <string name="widget_preview_city">诸城</string>
+    <string name="widget_preview_emoji">☀️</string>
+    <string name="widget_preview_temp">26°C</string>
+    <string name="widget_preview_summary">晴朗 · 18°C / 28°C</string>
 
     <!-- 主界面 -->
     <string name="cd_locate">定位</string>
     <string name="cd_favorite_add">收藏</string>
     <string name="cd_favorite_remove">取消收藏</string>
-    <string name="cd_refresh">刷新</string>
     <string name="cd_settings">设置</string>
     <string name="cd_share">分享天气卡片</string>
     <string name="share_card_send">分享图片</string>
@@ -38,7 +38,6 @@
     <string name="bear_leaderboard_clear_msg">将删除本游戏的全部成绩记录，此操作不可恢复。</string>
     <string name="bear_leaderboard_clear_confirm">清空</string>
     <string name="bear_jump_title">小熊摘星</string>
-    <string name="bear_jump_tap_start">点一下，起跳！</string>
     <string name="bear_jump_start">开始摘星</string>
     <string name="bear_jump_hint">按住左右拖动控制方向，踩云朵向上跳\n彩虹云跳更高，乌云一踩就碎</string>
     <string name="bear_jump_over">哎呀，掉下来了</string>
@@ -100,6 +99,7 @@
     <string name="bear_farm_toast_unlocked">解锁 %1$s%2$s</string>
     <string name="bear_farm_shop_owned">已解锁</string>
     <string name="bear_farm_shop_unlock_btn">解锁 %1$d</string>
+    <string name="bear_farm_tool_care">照料</string>
     <string name="bear_farm_tool_info">查看</string>
     <string name="bear_farm_tool_plant">播种</string>
     <string name="bear_farm_tool_water">浇水</string>
@@ -107,7 +107,12 @@
     <string name="bear_farm_tool_bug">除虫</string>
     <string name="bear_farm_tool_harvest">收获</string>
     <string name="bear_farm_tool_clear">铲除</string>
-    <string-array name="share_card_quotes">
+    <string name="bear_farm_tool_more">更多</string>
+    <string name="bear_farm_toast_use_plant">空地 · 切到「播种」再点一下</string>
+    <string name="bear_farm_shop_cat_all">全部</string>
+    <string name="bear_farm_shop_locked">未解锁</string>
+    <!-- 中英引语数量不同属预期：分享卡片每次随机抽一句，不按索引对应 -->
+    <string-array name="share_card_quotes" tools:ignore="InconsistentArrays">
         <!-- 古典诗词 · 风雨晴雪 -->
         <item>好雨知时节，当春乃发生。——杜甫</item>
         <item>随风潜入夜，润物细无声。——杜甫</item>
@@ -411,7 +416,6 @@
     <string name="settings_font_sub">仅本 App 生效；系统字过大可选「标准」或「较小」</string>
     <string name="settings_launch">启动</string>
     <string name="settings_launch_sub">打开应用时优先使用的城市来源</string>
-    <string name="settings_location">定位</string>
     <string name="settings_prefer_location">启动时优先定位</string>
     <string name="settings_prefer_location_sub">关闭后优先恢复上次查看的城市</string>
     <string name="settings_today_cards">今天页卡片</string>
@@ -525,12 +529,10 @@
     <string name="offline_cached">离线 · 显示缓存天气</string>
     <string name="offline_updated">离线 · %1$s 更新</string>
     <string name="humidity_short">湿 %1$d%%</string>
-    <string name="humidity_short_na">湿 --</string>
+    <string name="humidity_short_na">湿 —</string>
 
     <!-- 今天页 -->
     <string name="today_empty">暂无今天的天气数据</string>
-    <string name="advice_title">穿衣 / 出行建议</string>
-    <string name="advice_sub">根据体感、降水与紫外线生成</string>
     <string name="life_title">生活指数</string>
     <string name="life_sub">根据当前天气估算，方便日常参考</string>
     <string name="life_level_good">适宜</string>
@@ -752,8 +754,6 @@
     <string name="sun_bear_sleep">小熊睡着了</string>
     <string name="sun_bear_almost_dawn">小熊快醒啦</string>
     <string name="sun_bear_enlarge">查看大图</string>
-    <string name="temp_high">最高</string>
-    <string name="temp_low">最低</string>
     <string name="precip_probability">降水概率</string>
     <string name="day_night">昼夜</string>
     <string name="daytime">白天</string>
@@ -840,7 +840,6 @@
     <string name="history_rows_col_min">最低</string>
     <string name="history_rows_col_max">最高</string>
     <string name="history_rows_col_precip">降水</string>
-    <string name="history_loading">正在查询历史天气…</string>
     <string name="history_failed">该日期暂无数据或查询失败</string>
     <string name="history_retry">重新选择</string>
     <string name="history_temp_range">最高 %1$s · 最低 %2$s</string>
@@ -932,7 +931,6 @@
     <string name="daily_empty">暂无七日预报数据</string>
     <string name="daily_section_title">七日预报</string>
     <string name="daily_section_sub">点按展开风力与日出日落；温度条按整周对齐</string>
-    <string name="daily_precip_line">降水 %1$s · 概率 %2$s · 紫外线指数 %3$s</string>
     <string name="daily_chip_precip">雨 %1$s</string>
     <string name="daily_chip_prob">概率 %1$s</string>
     <string name="daily_chip_uv">紫外线指数 %1$s</string>
@@ -953,12 +951,10 @@
     <string name="wx_freezing_drizzle">冻毛毛雨</string>
     <string name="wx_light_rain">小雨</string>
     <string name="wx_moderate_rain">中雨</string>
-    <string name="wx_rain">雨</string>
     <string name="wx_heavy_rain">大雨</string>
     <string name="wx_violent_rain">暴雨</string>
     <string name="wx_extreme_rain">猛烈阵雨</string>
     <string name="wx_freezing_rain">冻雨</string>
-    <string name="wx_snow">雪</string>
     <string name="wx_light_snow">小雪</string>
     <string name="wx_moderate_snow">中雪</string>
     <string name="wx_heavy_snow">大雪</string>
@@ -967,7 +963,6 @@
     <string name="wx_rain_showers">阵雨</string>
     <string name="wx_heavy_rain_showers">强阵雨</string>
     <string name="wx_snow_showers">阵雪</string>
-    <string name="wx_heavy_snow_showers">强阵雪</string>
     <string name="wx_thunderstorm">雷暴</string>
     <string name="wx_hail">冰雹</string>
     <string name="wx_code_fallback">天气代码 %1$d</string>
@@ -1025,8 +1020,6 @@
     <string name="alert_heavy_rain_soon_warning_msg">未来 24 小时内雨势很大（峰值约 %1$.1f mm/小时），请尽量减少外出，警惕积水、内涝与出行安全。</string>
     <string name="alert_ponding_title">积水提醒</string>
     <string name="alert_ponding_msg">近几小时累计降雨约 %1$.0f mm，低洼与排水不畅路段可能积水，出行请绕行并注意安全。</string>
-    <string name="alert_snow_title">大雪提醒</string>
-    <string name="alert_snow_msg">当前雪势较大，注意道路通行与防寒保暖。</string>
     <string name="alert_heavy_snow_title">强降雪提醒</string>
     <string name="alert_heavy_snow_msg">当前雪势较强，注意道路积雪湿滑与防寒保暖。</string>
     <string name="alert_blizzard_warning_title">暴雪预警</string>

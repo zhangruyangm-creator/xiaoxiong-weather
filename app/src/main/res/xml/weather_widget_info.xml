@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- previewLayout/targetCellWidth/targetCellHeight 为 API 31+ 属性，低版本自动忽略，属预期行为 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:description="@string/widget_description"
     android:initialLayout="@layout/weather_widget_loading"
     android:minWidth="110dp"
@@ -11,4 +13,5 @@
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    tools:ignore="UnusedAttribute" />

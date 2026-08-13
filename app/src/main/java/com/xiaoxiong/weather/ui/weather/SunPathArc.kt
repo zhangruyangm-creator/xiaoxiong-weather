@@ -59,9 +59,9 @@ internal fun SunPathArc(
     phase: SunPathPhase?,
     sunriseLabel: String,
     sunsetLabel: String,
+    modifier: Modifier = Modifier,
     onDate: LocalDate = LocalDate.now(),
     onTime: LocalTime = LocalTime.now(),
-    modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f

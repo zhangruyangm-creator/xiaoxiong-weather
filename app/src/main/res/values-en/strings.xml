@@ -5,14 +5,14 @@
     <string name="widget_loading">Loading weather…</string>
     <string name="widget_empty">Open the app and pick a city to start</string>
     <string name="widget_tomorrow">Tomorrow</string>
-    <string name="widget_hourly_hint">Next hours</string>
-    <string name="permission_location_rationale">Used for local weather. You can deny and search manually.</string>
-    <string name="permission_notification_rationale">Used for weather change alerts. Can be turned off in Settings.</string>
+    <string name="widget_preview_city">Zhucheng</string>
+    <string name="widget_preview_emoji">☀️</string>
+    <string name="widget_preview_temp">26°C</string>
+    <string name="widget_preview_summary">Sunny · 18°C / 28°C</string>
 
     <string name="cd_locate">Locate</string>
     <string name="cd_favorite_add">Add favorite</string>
     <string name="cd_favorite_remove">Remove favorite</string>
-    <string name="cd_refresh">Refresh</string>
     <string name="cd_settings">Settings</string>
     <string name="cd_share">Share weather card</string>
     <string name="share_card_send">Share image</string>
@@ -37,7 +37,6 @@
     <string name="bear_leaderboard_clear_msg">This deletes all scores for this game. This cannot be undone.</string>
     <string name="bear_leaderboard_clear_confirm">Clear</string>
     <string name="bear_jump_title">Star Hop</string>
-    <string name="bear_jump_tap_start">Tap to hop!</string>
     <string name="bear_jump_start">Start hopping</string>
     <string name="bear_jump_hint">Drag to steer. Bounce up on clouds.\nRainbow clouds super-boost, dark clouds crumble!</string>
     <string name="bear_jump_over">Oops, you fell!</string>
@@ -99,6 +98,7 @@
     <string name="bear_farm_toast_unlocked">Unlocked %1$s%2$s</string>
     <string name="bear_farm_shop_owned">Unlocked</string>
     <string name="bear_farm_shop_unlock_btn">Unlock %1$d</string>
+    <string name="bear_farm_tool_care">Tend</string>
     <string name="bear_farm_tool_info">Info</string>
     <string name="bear_farm_tool_plant">Plant</string>
     <string name="bear_farm_tool_water">Water</string>
@@ -106,6 +106,10 @@
     <string name="bear_farm_tool_bug">Bug</string>
     <string name="bear_farm_tool_harvest">Harvest</string>
     <string name="bear_farm_tool_clear">Clear</string>
+    <string name="bear_farm_tool_more">More</string>
+    <string name="bear_farm_toast_use_plant">Empty · switch to Plant, then tap</string>
+    <string name="bear_farm_shop_cat_all">All</string>
+    <string name="bear_farm_shop_locked">Locked</string>
     <string-array name="share_card_quotes">
         <item>Every cloud has a silver lining.</item>
         <item>After rain comes sunshine.</item>
@@ -280,7 +284,6 @@
     <string name="settings_font_sub">App-only. If system text is huge, try Standard or Small.</string>
     <string name="settings_launch">Launch</string>
     <string name="settings_launch_sub">Preferred city source when opening the app</string>
-    <string name="settings_location">Location</string>
     <string name="settings_prefer_location">Prefer locate on launch</string>
     <string name="settings_prefer_location_sub">When off, restore the last viewed city first</string>
     <string name="settings_today_cards">Today page cards</string>
@@ -390,11 +393,9 @@
     <string name="offline_cached">Offline · showing cached weather</string>
     <string name="offline_updated">Offline · updated %1$s</string>
     <string name="humidity_short">H %1$d%%</string>
-    <string name="humidity_short_na">H --</string>
+    <string name="humidity_short_na">H —</string>
 
     <string name="today_empty">No weather data for today</string>
-    <string name="advice_title">Dress / outing tips</string>
-    <string name="advice_sub">Based on feels-like, precip, and UV</string>
     <string name="life_title">Life indices</string>
     <string name="life_sub">Estimated from current weather for everyday reference</string>
     <string name="life_level_good">Good</string>
@@ -616,8 +617,6 @@
     <string name="sun_bear_sleep">Bear is asleep</string>
     <string name="sun_bear_almost_dawn">Bear is almost awake</string>
     <string name="sun_bear_enlarge">View larger</string>
-    <string name="temp_high">High</string>
-    <string name="temp_low">Low</string>
     <string name="precip_probability">Precip chance</string>
     <string name="day_night">Day/night</string>
     <string name="daytime">Day</string>
@@ -704,7 +703,6 @@
     <string name="history_rows_col_min">Min</string>
     <string name="history_rows_col_max">Max</string>
     <string name="history_rows_col_precip">Precip</string>
-    <string name="history_loading">Loading past weather…</string>
     <string name="history_failed">No data for this date or the request failed</string>
     <string name="history_retry">Pick again</string>
     <string name="history_temp_range">High %1$s · Low %2$s</string>
@@ -793,7 +791,6 @@
     <string name="daily_empty">No 7-day forecast</string>
     <string name="daily_section_title">7-day forecast</string>
     <string name="daily_section_sub">Tap a day for wind and sun times; bars align to the week</string>
-    <string name="daily_precip_line">Rain %1$s · Chance %2$s · UV index %3$s</string>
     <string name="daily_chip_precip">Rain %1$s</string>
     <string name="daily_chip_prob">Chance %1$s</string>
     <string name="daily_chip_uv">UV index %1$s</string>
@@ -813,12 +810,10 @@
     <string name="wx_freezing_drizzle">Freezing drizzle</string>
     <string name="wx_light_rain">Light rain</string>
     <string name="wx_moderate_rain">Moderate rain</string>
-    <string name="wx_rain">Rain</string>
     <string name="wx_heavy_rain">Heavy rain</string>
     <string name="wx_violent_rain">Torrential rain</string>
     <string name="wx_extreme_rain">Violent rain showers</string>
     <string name="wx_freezing_rain">Freezing rain</string>
-    <string name="wx_snow">Snow</string>
     <string name="wx_light_snow">Light snow</string>
     <string name="wx_moderate_snow">Moderate snow</string>
     <string name="wx_heavy_snow">Heavy snow</string>
@@ -827,7 +822,6 @@
     <string name="wx_rain_showers">Rain showers</string>
     <string name="wx_heavy_rain_showers">Heavy rain showers</string>
     <string name="wx_snow_showers">Snow showers</string>
-    <string name="wx_heavy_snow_showers">Heavy snow showers</string>
     <string name="wx_thunderstorm">Thunderstorm</string>
     <string name="wx_hail">Hail</string>
     <string name="wx_code_fallback">Weather code %1$d</string>
@@ -883,8 +877,6 @@
     <string name="alert_heavy_rain_soon_warning_msg">Very heavy rain is likely in the next 24 hours (peak about %1$.1f mm/h). Limit travel and watch for flooding.</string>
     <string name="alert_ponding_title">Flooding risk</string>
     <string name="alert_ponding_msg">About %1$.0f mm of rain in recent hours — low areas may flood; detour and travel carefully.</string>
-    <string name="alert_snow_title">Heavy snow alert</string>
-    <string name="alert_snow_msg">Heavy snow now — watch road conditions and stay warm.</string>
     <string name="alert_heavy_snow_title">Heavy snow alert</string>
     <string name="alert_heavy_snow_msg">Snow is falling heavily — watch for slippery roads and stay warm.</string>
     <string name="alert_blizzard_warning_title">Blizzard warning</string>

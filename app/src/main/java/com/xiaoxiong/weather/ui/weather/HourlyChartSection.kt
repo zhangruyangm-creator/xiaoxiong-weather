@@ -64,6 +64,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.toColorInt
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.HourlyWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
@@ -463,7 +464,7 @@ fun HourlyChartSection(
                                 drawMarker(currentIndex, nowColor, android.graphics.Color.RED)
                             }
                             if (selected != null && selected in values.indices && selected != currentIndex) {
-                                drawMarker(selected, SelectedLineColor, android.graphics.Color.parseColor("#F9A825"))
+                                drawMarker(selected, SelectedLineColor, "#F9A825".toColorInt())
                             }
                             val visibleHighlights =
                                 if (selected != null && selected in values.indices) {
@@ -482,7 +483,7 @@ fun HourlyChartSection(
                                 axisPaint.color =
                                     when {
                                         index == currentIndex -> android.graphics.Color.RED
-                                        isSelected -> android.graphics.Color.parseColor("#F9A825")
+                                        isSelected -> "#F9A825".toColorInt()
                                         else -> axisArgb
                                     }
                                 axisPaint.isFakeBoldText = true

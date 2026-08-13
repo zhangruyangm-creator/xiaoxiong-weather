@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
@@ -37,7 +38,7 @@ fun RadarCloudMapSection(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val resources = context.resources
+    val resources = LocalResources.current
     val city = snapshot.city
     val configuration = LocalConfiguration.current
     val outlook =

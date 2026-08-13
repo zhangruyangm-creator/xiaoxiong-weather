@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.edit
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.serialization.Serializable
@@ -89,7 +90,7 @@ class GameLeaderboardStore(
     /** 提交一局成绩；返回当前排名（1 起），未进前 [MAX_ENTRIES] 返回 null。 */
     fun submit(entry: LeaderboardEntry): Int? {
         val merged = (load() + entry).sortedByDescending { it.score }.take(MAX_ENTRIES)
-        prefs.edit().putString(key, leaderboardJson.encodeToString(merged)).apply()
+        prefs.edit { putString(key, leaderboardJson.encodeToString(merged)) }
         cache = merged
         val idx = merged.indexOfFirst { it.timestamp == entry.timestamp && it.score == entry.score }
         return if (idx >= 0) idx + 1 else null
@@ -97,12 +98,10 @@ class GameLeaderboardStore(
 
     /** 清空全部纪录；若配置了 [bestKey]，最高分一并清零。 */
     fun clear() {
-        prefs
-            .edit()
-            .apply {
-                remove(key)
-                if (bestKey != null) remove(bestKey)
-            }.apply()
+        prefs.edit {
+            remove(key)
+            if (bestKey != null) remove(bestKey)
+        }
         cache = emptyList()
     }
 }

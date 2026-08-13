@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.CurrentLocationRequest
@@ -606,7 +607,7 @@ class LocationHelper(
                 System.currentTimeMillis().toString(),
                 place.country.orEmpty(),
             ).joinToString("\u001f")
-        placeCachePrefs.edit().putString(gridKey(lat, lon), value).apply()
+        placeCachePrefs.edit { putString(gridKey(lat, lon), value) }
     }
 
     // ---------- 最近一次定位（后台路径复用） ----------
@@ -622,7 +623,7 @@ class LocationHelper(
                 city.country.orEmpty(),
                 System.currentTimeMillis().toString(),
             ).joinToString("\u001f")
-        placeCachePrefs.edit().putString(LAST_LOCATION_KEY, value).apply()
+        placeCachePrefs.edit { putString(LAST_LOCATION_KEY, value) }
     }
 
     private fun readLastLocation(): City? {
