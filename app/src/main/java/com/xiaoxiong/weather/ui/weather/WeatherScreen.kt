@@ -6,6 +6,7 @@ import android.app.Application
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -54,7 +55,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.annotation.DrawableRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -555,8 +555,7 @@ private fun BoxScope.BearRefreshIndicator(
                     scaleX = scale
                     scaleY = scale
                     translationY = if (isRefreshing) bob else 0f
-                }
-                .shadow(
+                }.shadow(
                     elevation = 4.dp,
                     shape = CircleShape,
                     spotColor = scheme.primary.copy(alpha = 0.25f),
