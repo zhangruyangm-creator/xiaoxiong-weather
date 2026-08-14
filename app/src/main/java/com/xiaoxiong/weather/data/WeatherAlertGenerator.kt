@@ -112,22 +112,43 @@ object WeatherAlertGenerator {
                 (!heavySnowNow || (soonSnowWarning && !blizzardNow))
 
         when (current.weatherCode) {
-            95 ->
+            // 95/96 雷暴常见：仅当有实测强降雨证据时升红色预警，否则黄色提醒，
+            // 避免粗网格模式虚报的雷暴天天弹「红色预警」
+            95, 96 ->
                 alerts +=
-                    Spec(
-                        AlertKind.STORM,
-                        AlertSeverity.WARNING,
-                        R.string.alert_storm_title,
-                        R.string.alert_storm_msg,
-                    )
-            96, 99 ->
+                    if (heavyRainNow) {
+                        Spec(
+                            AlertKind.STORM,
+                            AlertSeverity.WARNING,
+                            R.string.alert_storm_title,
+                            R.string.alert_storm_msg,
+                        )
+                    } else {
+                        Spec(
+                            AlertKind.STORM,
+                            AlertSeverity.WATCH,
+                            R.string.alert_storm_watch_title,
+                            R.string.alert_storm_watch_msg,
+                        )
+                    }
+            // 99 重度冰雹才报冰雹；同样按实测强降雨分档，避免模式虚报
+            99 ->
                 alerts +=
-                    Spec(
-                        AlertKind.HAIL,
-                        AlertSeverity.WARNING,
-                        R.string.alert_hail_title,
-                        R.string.alert_hail_msg,
-                    )
+                    if (heavyRainNow) {
+                        Spec(
+                            AlertKind.HAIL,
+                            AlertSeverity.WARNING,
+                            R.string.alert_hail_title,
+                            R.string.alert_hail_msg,
+                        )
+                    } else {
+                        Spec(
+                            AlertKind.HAIL,
+                            AlertSeverity.WATCH,
+                            R.string.alert_hail_watch_title,
+                            R.string.alert_hail_watch_msg,
+                        )
+                    }
             56, 57, 66, 67 ->
                 alerts +=
                     Spec(

@@ -43,7 +43,7 @@ import com.xiaoxiong.weather.R
 class WeatherAppWidget : GlanceAppWidget() {
     override val sizeMode: SizeMode =
         SizeMode.Responsive(
-            setOf(SIZE_SMALL, SIZE_MEDIUM, SIZE_WIDE, SIZE_TALL),
+            setOf(SIZE_SMALL, SIZE_MEDIUM, SIZE_WIDE, SIZE_EXTRA_WIDE, SIZE_TALL, SIZE_LARGE),
         )
 
     override suspend fun provideGlance(
@@ -62,7 +62,9 @@ class WeatherAppWidget : GlanceAppWidget() {
         val SIZE_SMALL = DpSize(110.dp, 110.dp)
         val SIZE_MEDIUM = DpSize(180.dp, 110.dp)
         val SIZE_WIDE = DpSize(300.dp, 110.dp)
+        val SIZE_EXTRA_WIDE = DpSize(400.dp, 110.dp)
         val SIZE_TALL = DpSize(180.dp, 220.dp)
+        val SIZE_LARGE = DpSize(300.dp, 220.dp)
     }
 }
 
@@ -83,14 +85,17 @@ private fun WeatherWidgetContent(ui: WeatherWidgetUi?) {
     val showWide = size.width >= 260.dp
     val showTall = size.height >= 180.dp
     val showCompact = size.width < 150.dp && size.height < 150.dp
+    val showLarge = size.width >= 280.dp && size.height >= 200.dp
+    val showExtraWide = size.width >= 380.dp
 
     Column(
         modifier =
             GlanceModifier
                 .fillMaxSize()
                 .cornerRadius(20.dp)
-                .background(ColorProvider(Color(0xFF2F80ED)))
-                .padding(if (showCompact) 10.dp else 14.dp)
+                .background(
+                    ImageProvider(ui?.bgRes?.takeIf { it != 0 } ?: R.drawable.widget_bg_sunny),
+                ).padding(if (showCompact) 10.dp else 14.dp)
                 .clickable(openApp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -104,11 +109,16 @@ private fun WeatherWidgetContent(ui: WeatherWidgetUi?) {
             return@Column
         }
 
+        if (showLarge) {
+            LargeWidgetBody(ui)
+            return@Column
+        }
+
         MainWidgetHeader(ui = ui, largeTemp = showWide || showTall)
 
         if (showWide && ui.hours.isNotEmpty()) {
             Spacer(modifier = GlanceModifier.height(8.dp))
-            HourlyStrip(ui.hours)
+            HourlyStrip(ui.hours, count = if (showExtraWide) 8 else 5)
         }
 
         if (showTall) {
@@ -118,7 +128,7 @@ private fun WeatherWidgetContent(ui: WeatherWidgetUi?) {
             }
             if (ui.hours.isNotEmpty() && !showWide) {
                 Spacer(modifier = GlanceModifier.height(8.dp))
-                HourlyStrip(ui.hours)
+                HourlyStrip(ui.hours, count = 5)
             }
             if (ui.tipText.isNotBlank()) {
                 Spacer(modifier = GlanceModifier.height(8.dp))
@@ -133,6 +143,97 @@ private fun WeatherWidgetContent(ui: WeatherWidgetUi?) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun LargeWidgetBody(ui: WeatherWidgetUi) {
+    val context = LocalContext.current
+    Column(modifier = GlanceModifier.fillMaxSize()) {
+        MainWidgetHeader(ui = ui, largeTemp = true)
+        Spacer(modifier = GlanceModifier.height(8.dp))
+        Row(modifier = GlanceModifier.fillMaxWidth()) {
+            MetricTile(
+                modifier = GlanceModifier.defaultWeight(),
+                label = context.getString(R.string.metric_feels_like),
+                value = ui.feelsLikeText,
+            )
+            Spacer(modifier = GlanceModifier.width(8.dp))
+            MetricTile(
+                modifier = GlanceModifier.defaultWeight(),
+                label = context.getString(R.string.metric_humidity),
+                value = ui.humidityText,
+            )
+            Spacer(modifier = GlanceModifier.width(8.dp))
+            MetricTile(
+                modifier = GlanceModifier.defaultWeight(),
+                label = context.getString(R.string.metric_wind),
+                value = ui.windText,
+            )
+            Spacer(modifier = GlanceModifier.width(8.dp))
+            MetricTile(
+                modifier = GlanceModifier.defaultWeight(),
+                label = context.getString(R.string.metric_pressure),
+                value = ui.pressureText,
+            )
+        }
+        if (ui.hours.isNotEmpty()) {
+            Spacer(modifier = GlanceModifier.height(8.dp))
+            HourlyStrip(ui.hours, count = 7)
+        }
+        if (ui.tomorrowHighLowText.isNotBlank()) {
+            Spacer(modifier = GlanceModifier.height(8.dp))
+            TomorrowRow(ui)
+        }
+        if (ui.tipText.isNotBlank()) {
+            Spacer(modifier = GlanceModifier.height(8.dp))
+            Text(
+                text = ui.tipText,
+                style =
+                    TextStyle(
+                        color = ColorProvider(Color(0xFFDCEBFF)),
+                        fontSize = 11.sp,
+                    ),
+                maxLines = 2,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetricTile(
+    modifier: GlanceModifier = GlanceModifier,
+    label: String,
+    value: String,
+) {
+    Column(
+        modifier =
+            modifier
+                .cornerRadius(12.dp)
+                .background(ColorProvider(Color(0x332156D9)))
+                .padding(horizontal = 6.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = value,
+            style =
+                TextStyle(
+                    color = ColorProvider(Color.White),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+            maxLines = 1,
+        )
+        Spacer(modifier = GlanceModifier.height(2.dp))
+        Text(
+            text = label,
+            style =
+                TextStyle(
+                    color = ColorProvider(Color(0xFFB3D4FC)),
+                    fontSize = 10.sp,
+                ),
+            maxLines = 1,
+        )
     }
 }
 
@@ -320,12 +421,15 @@ private fun TomorrowRow(ui: WeatherWidgetUi) {
 }
 
 @Composable
-private fun HourlyStrip(hours: List<WeatherWidgetHourUi>) {
+private fun HourlyStrip(
+    hours: List<WeatherWidgetHourUi>,
+    count: Int = 5,
+) {
     Row(
         modifier = GlanceModifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        hours.take(5).forEach { hour ->
+        hours.take(count).forEach { hour ->
             Column(
                 modifier = GlanceModifier.defaultWeight(),
                 horizontalAlignment = Alignment.CenterHorizontally,

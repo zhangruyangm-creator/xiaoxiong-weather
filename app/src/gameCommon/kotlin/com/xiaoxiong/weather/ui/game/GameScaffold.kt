@@ -30,9 +30,12 @@ fun rememberGamePrefs(): SharedPreferences {
 fun rememberBearSprites(): BearSprites =
     BearSprites(
         runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
+        runDownA = ImageBitmap.imageResource(R.drawable.bear_run_down_a),
+        runPassA = ImageBitmap.imageResource(R.drawable.bear_run_pass_a),
         runPushA = ImageBitmap.imageResource(R.drawable.bear_run_push_a),
-        runPass = ImageBitmap.imageResource(R.drawable.bear_run_pass),
         runB = ImageBitmap.imageResource(R.drawable.bear_run_b),
+        runDownB = ImageBitmap.imageResource(R.drawable.bear_run_down_b),
+        runPassB = ImageBitmap.imageResource(R.drawable.bear_run_pass_b),
         runPushB = ImageBitmap.imageResource(R.drawable.bear_run_push_b),
         jump = ImageBitmap.imageResource(R.drawable.bear_jump),
         fall = ImageBitmap.imageResource(R.drawable.bear_fall),

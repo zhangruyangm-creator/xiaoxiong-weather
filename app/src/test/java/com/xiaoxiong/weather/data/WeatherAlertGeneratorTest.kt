@@ -32,7 +32,9 @@ class WeatherAlertGeneratorTest {
     @Test
     fun weatherCode_mapsToKinds() {
         assertTrue(kindsOf(WeatherFixtures.current(weatherCode = 95)).contains(AlertKind.STORM))
-        assertTrue(kindsOf(WeatherFixtures.current(weatherCode = 96)).contains(AlertKind.HAIL))
+        // 96（轻微冰雹）归一为雷暴，只有 99（重度冰雹）才报冰雹
+        assertTrue(kindsOf(WeatherFixtures.current(weatherCode = 96)).contains(AlertKind.STORM))
+        assertTrue(kindsOf(WeatherFixtures.current(weatherCode = 99)).contains(AlertKind.HAIL))
         assertTrue(
             kindsOf(
                 WeatherFixtures.current(weatherCode = 65, precipitationRateMmPerHour = 8.0),
@@ -49,6 +51,38 @@ class WeatherAlertGeneratorTest {
         )
         assertTrue(kindsOf(WeatherFixtures.current(weatherCode = 66)).contains(AlertKind.FREEZING_RAIN))
         assertTrue(kindsOf(WeatherFixtures.current(weatherCode = 45)).contains(AlertKind.FOG))
+    }
+
+    @Test
+    fun stormSeverity_dependsOnRainEvidence() {
+        // 雷暴码但无实测强降雨：黄色提醒而非红色预警（粗网格模式虚报常见）
+        val watch = first(WeatherFixtures.current(weatherCode = 95))
+        assertEquals(AlertKind.STORM, watch.kind)
+        assertEquals(AlertSeverity.WATCH, watch.severity)
+
+        // 雷暴码且有实测大雨：升为红色预警
+        val warning =
+            first(
+                WeatherFixtures.current(weatherCode = 95, precipitationRateMmPerHour = 8.0),
+            )
+        assertEquals(AlertKind.STORM, warning.kind)
+        assertEquals(AlertSeverity.WARNING, warning.severity)
+    }
+
+    @Test
+    fun hailSeverity_onlyFor99_andDependsOnRain() {
+        // 99（重度冰雹）无强降雨时黄色提醒
+        val watch = first(WeatherFixtures.current(weatherCode = 99))
+        assertEquals(AlertKind.HAIL, watch.kind)
+        assertEquals(AlertSeverity.WATCH, watch.severity)
+
+        // 99 且有实测强降雨：升为红色预警
+        val warning =
+            first(
+                WeatherFixtures.current(weatherCode = 99, precipitationRateMmPerHour = 8.0),
+            )
+        assertEquals(AlertKind.HAIL, warning.kind)
+        assertEquals(AlertSeverity.WARNING, warning.severity)
     }
 
     @Test

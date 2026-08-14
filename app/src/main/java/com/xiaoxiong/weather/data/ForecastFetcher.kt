@@ -5,6 +5,7 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.remote.AirQualityResponse
 import com.xiaoxiong.weather.data.remote.ForecastResponse
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
+import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.indexOfCurrentHour
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -135,7 +136,7 @@ class ForecastFetcher(
                     temperatureC = hourlyDto?.temperature?.getOrNull(index),
                     humidityPercent = hourlyDto?.humidity?.getOrNull(index),
                     visibilityMeters = hourlyDto?.visibility?.getOrNull(index),
-                    weatherCode = hourlyDto?.weatherCode?.getOrNull(index),
+                    weatherCode = WeatherCodes.normalizeCode(hourlyDto?.weatherCode?.getOrNull(index)),
                     precipitationMm = hourlyDto?.precipitation?.getOrNull(index),
                     precipProbability = hourlyDto?.precipProbability?.getOrNull(index),
                     windSpeedKmh = hourlyDto?.windSpeed?.getOrNull(index),
@@ -146,7 +147,7 @@ class ForecastFetcher(
             dailyDto?.time.orEmpty().mapIndexed { index, date ->
                 DailyWeather(
                     date = date,
-                    weatherCode = dailyDto?.weatherCode?.getOrNull(index),
+                    weatherCode = WeatherCodes.normalizeCode(dailyDto?.weatherCode?.getOrNull(index)),
                     tempMaxC = dailyDto?.tempMax?.getOrNull(index),
                     tempMinC = dailyDto?.tempMin?.getOrNull(index),
                     precipSumMm = dailyDto?.precipSum?.getOrNull(index),
@@ -170,7 +171,7 @@ class ForecastFetcher(
                     temperatureC = currentDto.temperature,
                     apparentTemperatureC = currentDto.apparentTemperature,
                     humidityPercent = currentDto.humidity,
-                    weatherCode = currentDto.weatherCode,
+                    weatherCode = WeatherCodes.normalizeCode(currentDto.weatherCode),
                     windSpeedKmh = currentDto.windSpeed,
                     windGustsKmh = currentDto.windGusts,
                     windDirectionDeg = currentDto.windDirection,

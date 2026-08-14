@@ -127,7 +127,8 @@ class WeatherCodesTest {
         assertEquals(R.string.wx_fog, WeatherCodes.descriptionRes(45))
         assertEquals(R.string.wx_heavy_rain, WeatherCodes.descriptionRes(65))
         assertEquals(R.string.wx_thunderstorm, WeatherCodes.descriptionRes(95))
-        assertEquals(R.string.wx_hail, WeatherCodes.descriptionRes(96))
+        assertEquals(R.string.wx_thunderstorm, WeatherCodes.descriptionRes(96))
+        assertEquals(R.string.wx_hail, WeatherCodes.descriptionRes(99))
         assertEquals(R.string.label_unknown, WeatherCodes.descriptionRes(null))
         assertEquals(R.string.wx_code_fallback, WeatherCodes.descriptionRes(999))
     }
@@ -155,6 +156,7 @@ class WeatherCodesTest {
         assertEquals("☀️", WeatherCodes.emoji(0))
         assertEquals("🌫️", WeatherCodes.emoji(48))
         assertEquals("⛈️", WeatherCodes.emoji(95))
+        assertEquals("⛈️", WeatherCodes.emoji(96))
         assertEquals("🧊", WeatherCodes.emoji(99))
         assertEquals("🌡️", WeatherCodes.emoji(999))
     }

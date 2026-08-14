@@ -98,8 +98,8 @@ object WeatherLauncherIcon {
             73 -> Style.MODERATE_SNOW
             75 -> Style.HEAVY_SNOW
             86 -> Style.BLIZZARD
-            95 -> Style.STORM
-            96, 99 -> Style.HAIL
+            95, 96 -> Style.STORM
+            99 -> Style.HAIL
             else -> Style.CLOUDY
         }
 
@@ -114,9 +114,9 @@ object WeatherLauncherIcon {
         isDay: Boolean? = true,
     ): Style {
         when (code) {
-            96, 99 -> return Style.HAIL
+            99 -> return Style.HAIL
             56, 57, 66, 67 -> return Style.FREEZING_RAIN
-            95 -> {
+            95, 96 -> {
                 // 雷暴码：仅当雨强未达暴雨/猛烈时用雷暴图标，否则让红/黑伞胜出
                 return when (WeatherCodes.rainIntensity(precipMmPerHour)) {
                     WeatherCodes.RainIntensity.TORRENTIAL -> Style.VIOLENT_RAIN

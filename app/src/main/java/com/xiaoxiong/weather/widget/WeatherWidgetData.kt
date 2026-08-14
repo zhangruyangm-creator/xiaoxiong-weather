@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.widget
 
 import android.content.Context
+import androidx.annotation.DrawableRes
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.LifeIndexLevel
@@ -107,7 +108,7 @@ object WeatherWidgetData {
                 snapshot.hourly,
                 { it.time },
                 current.time,
-                count = 5,
+                count = 8,
             ).map { hour ->
                 WeatherWidgetHourUi(
                     label = formatHourLabel(hour.time),
@@ -149,8 +150,31 @@ object WeatherWidgetData {
             tomorrowDescription = WeatherCodes.description(context, tomorrow?.weatherCode),
             hours = hours,
             tipText = tip,
+            bgRes = widgetBgRes(current.weatherCode, current.isDay),
+            feelsLikeText = current.apparentTemperatureC?.let { formatTemperature(it, unit) } ?: "",
+            humidityText = current.humidityPercent?.let { "$it%" } ?: "--",
+            windText = current.windSpeedKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--",
+            pressureText = current.pressureHpa?.let { "${"%.0f".format(it)} hPa" } ?: "--",
         )
     }
+
+    /**
+     * 与主 App 天气场景渐变保持一致：按天气码和昼夜挑选背景。
+     * 浅色雪景白字不可读，故雪天使用深色版本。
+     */
+    @DrawableRes
+    private fun widgetBgRes(
+        code: Int?,
+        isDay: Boolean?,
+    ): Int =
+        when {
+            WeatherCodes.isSnowCode(code) -> R.drawable.widget_bg_snow
+            code == 3 || code == 45 || code == 48 -> R.drawable.widget_bg_overcast
+            code == 2 -> R.drawable.widget_bg_cloudy
+            code == 0 || code == 1 || code == null ->
+                if (isDay != false) R.drawable.widget_bg_sunny else R.drawable.widget_bg_night
+            else -> R.drawable.widget_bg_rain
+        }
 
     private fun formatUpdated(
         context: Context,

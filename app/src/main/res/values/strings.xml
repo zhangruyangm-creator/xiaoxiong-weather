@@ -16,6 +16,7 @@
     <string name="cd_favorite_remove">取消收藏</string>
     <string name="cd_settings">设置</string>
     <string name="cd_share">分享天气卡片</string>
+    <string name="cd_pull_to_refresh">下拉刷新天气</string>
     <string name="share_card_send">分享图片</string>
     <string name="share_card_cancel">取消</string>
     <string name="share_card_chooser">分享天气卡片</string>
@@ -1060,8 +1061,12 @@
     <!-- 智能预警 -->
     <string name="alert_storm_title">雷暴预警</string>
     <string name="alert_storm_msg">当前有雷暴风险，尽量减少户外活动，远离高处与金属物。</string>
+    <string name="alert_storm_watch_title">雷暴提醒</string>
+    <string name="alert_storm_watch_msg">当前可能有雷暴，建议减少户外活动，远离高处与空旷地带。</string>
     <string name="alert_hail_title">冰雹预警</string>
     <string name="alert_hail_msg">当前有冰雹风险，注意防护车辆与人员，尽量避免停留在户外空旷处。</string>
+    <string name="alert_hail_watch_title">可能伴有冰雹</string>
+    <string name="alert_hail_watch_msg">雷暴中可能夹带冰雹，留意车辆与人身安全，尽量减少在户外空旷处停留。</string>
     <string name="alert_heavy_rain_title">强降雨提醒</string>
     <string name="alert_heavy_rain_msg">当前雨势较强，注意积水路段与出行安全。</string>
     <string name="alert_heavy_rain_warning_title">强降雨预警</string>

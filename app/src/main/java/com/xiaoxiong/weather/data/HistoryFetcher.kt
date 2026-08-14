@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.data
 
 import com.xiaoxiong.weather.data.remote.ArchiveResponse
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
+import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
@@ -120,7 +121,7 @@ class HistoryFetcher(
 
             HistoryWeather(
                 date = day,
-                weatherCode = daily.weatherCode.getOrNull(0),
+                weatherCode = WeatherCodes.normalizeCode(daily.weatherCode.getOrNull(0)),
                 tempMaxC = daily.tempMax.getOrNull(0),
                 tempMinC = daily.tempMin.getOrNull(0),
                 tempMeanC = daily.temperatureMean.getOrNull(0),
@@ -184,7 +185,7 @@ class HistoryFetcher(
                     if (parsed < start || parsed > end) return@mapIndexedNotNull null
                     HistoryWeather(
                         date = day,
-                        weatherCode = daily.weatherCode.getOrNull(index),
+                        weatherCode = WeatherCodes.normalizeCode(daily.weatherCode.getOrNull(index)),
                         tempMaxC = daily.tempMax.getOrNull(index),
                         tempMinC = daily.tempMin.getOrNull(index),
                         tempMeanC = daily.temperatureMean.getOrNull(index),

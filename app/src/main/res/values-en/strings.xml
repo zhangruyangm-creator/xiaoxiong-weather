@@ -15,6 +15,7 @@
     <string name="cd_favorite_remove">Remove favorite</string>
     <string name="cd_settings">Settings</string>
     <string name="cd_share">Share weather card</string>
+    <string name="cd_pull_to_refresh">Pull to refresh weather</string>
     <string name="share_card_send">Share image</string>
     <string name="share_card_cancel">Cancel</string>
     <string name="share_card_chooser">Share weather card</string>
@@ -917,8 +918,12 @@
 
     <string name="alert_storm_title">Thunderstorm alert</string>
     <string name="alert_storm_msg">Thunderstorm risk now — limit outdoor time and stay away from heights and metal.</string>
+    <string name="alert_storm_watch_title">Thunderstorm possible</string>
+    <string name="alert_storm_watch_msg">Possible thunderstorms — limit outdoor time and stay away from open areas.</string>
     <string name="alert_hail_title">Hail alert</string>
     <string name="alert_hail_msg">Hail risk now — protect people and vehicles; avoid open outdoor areas.</string>
+    <string name="alert_hail_watch_title">Possible hail</string>
+    <string name="alert_hail_watch_msg">Hail may accompany this thunderstorm — protect people and vehicles; avoid open outdoor areas.</string>
     <string name="alert_heavy_rain_title">Heavy rain alert</string>
     <string name="alert_heavy_rain_msg">Heavy rain now — watch for flooding and travel carefully.</string>
     <string name="alert_heavy_rain_warning_title">Heavy rain warning</string>

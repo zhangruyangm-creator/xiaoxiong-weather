@@ -66,8 +66,8 @@ fun weatherSceneOf(
         55, 61, 63, 81 -> WeatherScene.RAIN
         65, 82 -> WeatherScene.HEAVY_RAIN
         56, 57, 66, 67 -> WeatherScene.FREEZING_RAIN
-        95 -> WeatherScene.THUNDER
-        96, 99 -> WeatherScene.HAIL
+        95, 96 -> WeatherScene.THUNDER
+        99 -> WeatherScene.HAIL
         71, 73, 77, 85 -> WeatherScene.SNOW
         75, 86 -> WeatherScene.HEAVY_SNOW
         else -> WeatherScene.UNKNOWN

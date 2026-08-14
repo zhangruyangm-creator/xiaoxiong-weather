@@ -6,14 +6,28 @@ import android.app.Application
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Schedule
@@ -29,19 +43,27 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -58,6 +80,7 @@ import com.xiaoxiong.weather.ui.settings.PrivacyScreen
 import com.xiaoxiong.weather.ui.settings.SettingsScreen
 import com.xiaoxiong.weather.ui.settings.TodayCardsSettingsScreen
 import com.xiaoxiong.weather.util.WeatherCodes
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 
@@ -93,6 +116,7 @@ private fun WeatherScreenContent(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
+    val pullToRefreshState = rememberPullToRefreshState()
     var overlay by remember { mutableStateOf(OverlayScreen.None) }
     var showPrivacyGate by remember { mutableStateOf(false) }
     var showShareCard by remember { mutableStateOf(false) }
@@ -362,10 +386,18 @@ private fun WeatherScreenContent(
                     PullToRefreshBox(
                         isRefreshing = state.isLoadingWeather || state.isLocating,
                         onRefresh = viewModel::refresh,
+                        state = pullToRefreshState,
                         modifier =
                             Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
+                        indicator = {
+                            BearRefreshIndicator(
+                                state = pullToRefreshState,
+                                isRefreshing = state.isLoadingWeather || state.isLocating,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            )
+                        },
                     ) {
                         if ((state.isLoadingWeather || state.isLocating) && state.weather == null) {
                             Column(
@@ -443,3 +475,124 @@ private fun WeatherScreenContent(
         )
     }
 }
+
+/**
+ * 小熊主题的下拉刷新指示器：
+ * - 下拉：浇水帧随进度切换（壶越来越歪、水滴下落）
+ * - 刷新中：奔跑帧循环翻页，配合轻微弹跳
+ */
+@Composable
+private fun BoxScope.BearRefreshIndicator(
+    state: PullToRefreshState,
+    isRefreshing: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val waterFrames = remember { BearRefreshWaterFrames }
+    val runFrames = remember { BearRefreshRunFrames }
+    var frameIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(isRefreshing) {
+        if (!isRefreshing) {
+            frameIndex = 0
+            return@LaunchedEffect
+        }
+        frameIndex = 0
+        while (true) {
+            delay(110)
+            frameIndex = (frameIndex + 1) % runFrames.size
+        }
+    }
+
+    val pullFrame =
+        ((state.distanceFraction.coerceIn(0f, 1f) * waterFrames.lastIndex) + 0.001f)
+            .toInt()
+            .coerceIn(0, waterFrames.lastIndex)
+    val frameRes =
+        if (isRefreshing) {
+            runFrames[frameIndex]
+        } else {
+            waterFrames[pullFrame]
+        }
+
+    val reveal by
+        animateFloatAsState(
+            targetValue = if (isRefreshing) 1f else state.distanceFraction.coerceIn(0f, 1f),
+            animationSpec = tween(durationMillis = 220),
+            label = "refreshReveal",
+        )
+    val bounce by
+        rememberInfiniteTransition(label = "refreshBounce")
+            .animateFloat(
+                initialValue = 0.92f,
+                targetValue = 1.08f,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation = tween(380, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+                label = "refreshBounceScale",
+            )
+    val bob by
+        rememberInfiniteTransition(label = "refreshBob")
+            .animateFloat(
+                initialValue = -1.5f,
+                targetValue = 1.5f,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation = tween(180, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+                label = "refreshBobY",
+            )
+    val scale = if (isRefreshing) bounce else 0.4f + 0.6f * reveal
+    Box(
+        modifier =
+            modifier
+                .size(48.dp)
+                .graphicsLayer {
+                    alpha = reveal
+                    scaleX = scale
+                    scaleY = scale
+                    translationY = if (isRefreshing) bob else 0f
+                }
+                .shadow(
+                    elevation = 4.dp,
+                    shape = CircleShape,
+                    spotColor = scheme.primary.copy(alpha = 0.25f),
+                ).clip(CircleShape)
+                .background(scheme.surface)
+                .border(
+                    width = 1.dp,
+                    color = scheme.outline.copy(alpha = 0.25f),
+                    shape = CircleShape,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        // 帧动画用瞬时切图，不用 Crossfade，否则会糊成幻灯片
+        Image(
+            painter = painterResource(frameRes),
+            contentDescription = stringResource(R.string.cd_pull_to_refresh),
+            modifier = Modifier.size(34.dp),
+        )
+    }
+}
+
+/** 下拉阶段：浇水壶逐渐倾斜、水滴下落。 */
+@DrawableRes
+private val BearRefreshWaterFrames: IntArray =
+    intArrayOf(
+        R.drawable.ic_bear_refresh_water_1,
+        R.drawable.ic_bear_refresh_water_2,
+        R.drawable.ic_bear_refresh_water_3,
+    )
+
+/** 刷新阶段：奔跑循环。 */
+@DrawableRes
+private val BearRefreshRunFrames: IntArray =
+    intArrayOf(
+        R.drawable.ic_bear_refresh_run_1,
+        R.drawable.ic_bear_refresh_run_2,
+        R.drawable.ic_bear_refresh_run_3,
+        R.drawable.ic_bear_refresh_run_4,
+    )

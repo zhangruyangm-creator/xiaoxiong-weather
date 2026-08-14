@@ -41,9 +41,12 @@ class BearRenderTest {
                             val sprites =
                                 BearSprites(
                                     runA = ImageBitmap.imageResource(R.drawable.bear_run_a),
+                                    runDownA = ImageBitmap.imageResource(R.drawable.bear_run_down_a),
+                                    runPassA = ImageBitmap.imageResource(R.drawable.bear_run_pass_a),
                                     runPushA = ImageBitmap.imageResource(R.drawable.bear_run_push_a),
-                                    runPass = ImageBitmap.imageResource(R.drawable.bear_run_pass),
                                     runB = ImageBitmap.imageResource(R.drawable.bear_run_b),
+                                    runDownB = ImageBitmap.imageResource(R.drawable.bear_run_down_b),
+                                    runPassB = ImageBitmap.imageResource(R.drawable.bear_run_pass_b),
                                     runPushB = ImageBitmap.imageResource(R.drawable.bear_run_push_b),
                                     jump = ImageBitmap.imageResource(R.drawable.bear_jump),
                                     fall = ImageBitmap.imageResource(R.drawable.bear_fall),
@@ -58,20 +61,22 @@ class BearRenderTest {
                             ) {
                                 Canvas(modifier = Modifier.size(420.dp, 300.dp)) {
                                     val bs = size.height / 3.2f
-                                    // 上排：跑步 6 拍
+                                    // 上排：跑步 8 拍
                                     val run =
                                         listOf(
                                             BearFrame.RUN_A,
+                                            BearFrame.RUN_DOWN_A,
+                                            BearFrame.RUN_PASS_A,
                                             BearFrame.RUN_PUSH_A,
-                                            BearFrame.RUN_PASS,
                                             BearFrame.RUN_B,
+                                            BearFrame.RUN_DOWN_B,
+                                            BearFrame.RUN_PASS_B,
                                             BearFrame.RUN_PUSH_B,
-                                            BearFrame.RUN_PASS,
                                         )
                                     run.forEachIndexed { i, f ->
                                         drawGameBear(
                                             sprites,
-                                            size.width / 12f * (1 + i * 2),
+                                            size.width / 16f * (1 + i * 2),
                                             size.height * 0.32f,
                                             bs,
                                             BearPose(time = i.toFloat(), frame = f),

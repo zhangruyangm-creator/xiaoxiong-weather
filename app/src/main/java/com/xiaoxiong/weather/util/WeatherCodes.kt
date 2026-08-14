@@ -177,6 +177,13 @@ object WeatherCodes {
 
     fun isDrizzleCode(code: Int?): Boolean = code in drizzleCodes
 
+    /**
+     * WMO 96（雷暴伴轻微冰雹）在粗网格模式里被大量虚报，中国城市 daily 码经常 5/7 天是 96，
+     * 而真实冰雹罕见。统一把 96 归一为 95（雷暴）展示与预警，仅保留 99（重度冰雹）报冰雹。
+     * 所有数据入口（预报/历史）解码后都应调用，保证展示层只见到清洗后的码。
+     */
+    fun normalizeCode(code: Int?): Int? = if (code == 96) 95 else code
+
     /** 天气码为毛毛雨，且小时雨量仍在毛毛雨量级内（含未知/极弱降水）。 */
     fun isStillDrizzle(
         weatherCode: Int?,
@@ -398,8 +405,8 @@ object WeatherCodes {
             82 -> R.string.wx_heavy_rain_showers
             85 -> R.string.wx_snow_showers
             86 -> R.string.wx_blizzard
-            95 -> R.string.wx_thunderstorm
-            96, 99 -> R.string.wx_hail
+            95, 96 -> R.string.wx_thunderstorm
+            99 -> R.string.wx_hail
             null -> R.string.label_unknown
             else -> R.string.wx_code_fallback
         }
@@ -483,8 +490,8 @@ object WeatherCodes {
             71, 77, 85 -> "❄️"
             73 -> "🌨️"
             75, 86 -> "🌨️"
-            95 -> "⛈️"
-            96, 99 -> "🧊"
+            95, 96 -> "⛈️"
+            99 -> "🧊"
             else -> "🌡️"
         }
 }

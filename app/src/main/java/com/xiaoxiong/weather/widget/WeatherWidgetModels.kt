@@ -23,4 +23,11 @@ data class WeatherWidgetUi(
     val tomorrowDescription: String = "",
     val hours: List<WeatherWidgetHourUi> = emptyList(),
     val tipText: String = "",
+    /** 按当前天气场景选择的渐变背景 drawable。 */
+    @get:DrawableRes val bgRes: Int = 0,
+    /** 大尺寸卡片补充指标。 */
+    val feelsLikeText: String = "",
+    val humidityText: String = "",
+    val windText: String = "",
+    val pressureText: String = "",
 )

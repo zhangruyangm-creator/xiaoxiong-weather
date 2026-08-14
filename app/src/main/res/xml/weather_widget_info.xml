@@ -8,6 +8,8 @@
     android:minHeight="110dp"
     android:minResizeWidth="110dp"
     android:minResizeHeight="110dp"
+    android:maxResizeWidth="400dp"
+    android:maxResizeHeight="360dp"
     android:previewLayout="@layout/weather_widget_preview"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="2"

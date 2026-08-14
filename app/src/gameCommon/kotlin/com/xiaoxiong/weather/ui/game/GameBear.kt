@@ -15,16 +15,20 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * 小熊的帧（共 8）：
- * 跑步 6 拍循环 RUN_A → RUN_PUSH_A → RUN_PASS → RUN_B → RUN_PUSH_B → RUN_PASS，
+ * 小熊的帧：
+ * 跑步 8 拍循环（经典跑循环，左右各一套）：
+ *   CONTACT → DOWN → PASS → PUSH →（对侧）…
  * 加上 JUMP（上升）/ FALL（下落）/ LAND（落地）。
- * A/B 均为朝右 3/4 正面，仅迈步对侧。
+ * 各跑步帧均为朝右 3/4 正面。
  */
 enum class BearFrame {
     RUN_A,
+    RUN_DOWN_A,
+    RUN_PASS_A,
     RUN_PUSH_A,
-    RUN_PASS,
     RUN_B,
+    RUN_DOWN_B,
+    RUN_PASS_B,
     RUN_PUSH_B,
     JUMP,
     FALL,
@@ -34,9 +38,12 @@ enum class BearFrame {
 /** 小熊精灵表：各帧位图，由 Screen 层用 imageResource 加载后传入。 */
 class BearSprites(
     val runA: ImageBitmap,
+    val runDownA: ImageBitmap,
+    val runPassA: ImageBitmap,
     val runPushA: ImageBitmap,
-    val runPass: ImageBitmap,
     val runB: ImageBitmap,
+    val runDownB: ImageBitmap,
+    val runPassB: ImageBitmap,
     val runPushB: ImageBitmap,
     val jump: ImageBitmap,
     val fall: ImageBitmap,
@@ -45,9 +52,12 @@ class BearSprites(
     fun of(frame: BearFrame): ImageBitmap =
         when (frame) {
             BearFrame.RUN_A -> runA
+            BearFrame.RUN_DOWN_A -> runDownA
+            BearFrame.RUN_PASS_A -> runPassA
             BearFrame.RUN_PUSH_A -> runPushA
-            BearFrame.RUN_PASS -> runPass
             BearFrame.RUN_B -> runB
+            BearFrame.RUN_DOWN_B -> runDownB
+            BearFrame.RUN_PASS_B -> runPassB
             BearFrame.RUN_PUSH_B -> runPushB
             BearFrame.JUMP -> jump
             BearFrame.FALL -> fall
@@ -135,17 +145,22 @@ fun DrawScope.drawGameBear(
     }
 }
 
-/** 跑步 6 拍循环：按 [runPhase] 分档切帧（A/B 同为朝右正面，对侧迈步）。 */
+/**
+ * 跑步 8 拍循环：按 [runPhase] 分档切帧。
+ * CONTACT → DOWN → PASS → PUSH，左右各一套，避免只剩左右迈步两帧感。
+ */
 fun runCycleFrame(runPhase: Float): BearFrame {
     val twoPi = Math.PI.toFloat() * 2f
     val phase = ((runPhase % twoPi) + twoPi) % twoPi
-    val step = (phase / (twoPi / 6f)).toInt().coerceIn(0, 5)
+    val step = (phase / (twoPi / 8f)).toInt().coerceIn(0, 7)
     return when (step) {
         0 -> BearFrame.RUN_A
-        1 -> BearFrame.RUN_PUSH_A
-        2 -> BearFrame.RUN_PASS
-        3 -> BearFrame.RUN_B
-        4 -> BearFrame.RUN_PUSH_B
-        else -> BearFrame.RUN_PASS
+        1 -> BearFrame.RUN_DOWN_A
+        2 -> BearFrame.RUN_PASS_A
+        3 -> BearFrame.RUN_PUSH_A
+        4 -> BearFrame.RUN_B
+        5 -> BearFrame.RUN_DOWN_B
+        6 -> BearFrame.RUN_PASS_B
+        else -> BearFrame.RUN_PUSH_B
     }
 }

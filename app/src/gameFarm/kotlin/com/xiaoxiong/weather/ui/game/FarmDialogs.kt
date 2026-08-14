@@ -80,7 +80,10 @@ internal fun FarmUnlockDialog(
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -312,7 +315,10 @@ internal fun FarmCatalogDialog(
                             shape = RoundedCornerShape(14.dp),
                         ) {
                             Column(
-                                modifier = Modifier.padding(8.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -432,7 +438,10 @@ private fun FarmCatalogCropDetail(
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -567,7 +576,10 @@ internal fun NewSeasonConfirmDialog(
             colors = CardDefaults.cardColors(containerColor = farmScheme().surface),
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -759,7 +771,10 @@ private fun FarmInventoryCard(
         shape = RoundedCornerShape(14.dp),
     ) {
         Column(
-            modifier = Modifier.padding(8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Image(
@@ -824,7 +839,10 @@ private fun FarmShopItemCard(
         border = BorderStroke(1.dp, if (affordable) farmScheme().outlineVariant else farmScheme().outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(item.icon, fontSize = 22.sp)
@@ -973,6 +991,7 @@ internal fun FarmShopDialog(
                             Column(
                                 modifier =
                                     Modifier
+                                        .fillMaxWidth()
                                         .padding(8.dp)
                                         .alpha(if (owned) 1f else 0.92f),
                                 horizontalAlignment = Alignment.CenterHorizontally,

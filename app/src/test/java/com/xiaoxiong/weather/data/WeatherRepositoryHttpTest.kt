@@ -10,6 +10,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -169,6 +170,39 @@ class WeatherRepositoryHttpTest {
             assertEquals(22.0, snapshot.current.temperatureC)
             assertEquals(95, snapshot.current.weatherCode)
             assertTrue(snapshot.alerts.any { it.kind == AlertKind.STORM })
+        }
+
+    @Test
+    fun fetchWeather_normalizesHailCode96to95() =
+        runBlocking {
+            // 广州实测 daily 5/7 天返回 96（雷暴伴轻微冰雹），粗网格模式虚报严重；
+            // current/hourly/daily 的 96 统一归一为 95（雷暴），只有 99 才保留冰雹
+            val body =
+                FORECAST_JSON
+                    .replace("\"weather_code\": 95,", "\"weather_code\": 96,")
+                    .replace(
+                        "\"weather_code\": [0,0,95,95,0,0],",
+                        "\"weather_code\": [96,0,95,95,0,0],",
+                    ).replace(
+                        "\"weather_code\": [95,0,0,0,0,0,0],",
+                        "\"weather_code\": [96,0,0,0,0,0,0],",
+                    )
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(200).setBody(body),
+                    air = MockResponse().setResponseCode(200).setBody(AIR_JSON),
+                )
+
+            val snapshot = repository.fetchWeather(WeatherFixtures.city("济南"))
+
+            assertEquals(95, snapshot.current.weatherCode)
+            assertEquals(95, snapshot.hourly[0].weatherCode)
+            assertEquals(95, snapshot.hourly[2].weatherCode)
+            assertEquals(95, snapshot.daily[0].weatherCode)
+            // 96 不再触发冰雹预警；雷暴正常触发，且无强降雨证据时是黄色提醒
+            assertFalse(snapshot.alerts.any { it.kind == AlertKind.HAIL })
+            val storm = snapshot.alerts.first { it.kind == AlertKind.STORM }
+            assertEquals(AlertSeverity.WATCH, storm.severity)
         }
 
     @Test

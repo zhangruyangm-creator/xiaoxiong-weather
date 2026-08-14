@@ -134,7 +134,8 @@ class WeatherLauncherIconMappingTest {
         assertEquals(WeatherLauncherIcon.Style.HEAVY_SNOW, WeatherLauncherIcon.fromWeatherCode(75))
         assertEquals(WeatherLauncherIcon.Style.BLIZZARD, WeatherLauncherIcon.fromWeatherCode(86))
         assertEquals(WeatherLauncherIcon.Style.STORM, WeatherLauncherIcon.fromWeatherCode(95))
-        assertEquals(WeatherLauncherIcon.Style.HAIL, WeatherLauncherIcon.fromWeatherCode(96))
+        assertEquals(WeatherLauncherIcon.Style.STORM, WeatherLauncherIcon.fromWeatherCode(96))
+        assertEquals(WeatherLauncherIcon.Style.HAIL, WeatherLauncherIcon.fromWeatherCode(99))
     }
 
     @Test
