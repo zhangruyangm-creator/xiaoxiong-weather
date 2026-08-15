@@ -10,11 +10,11 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
-// 彩蛋游戏可选编译：默认把 4 个小游戏全部编译进 full 版；
+// 彩蛋游戏可选编译：默认把 jump/star/maze/farm/home 全部编译进 full 版；
 // 可用 -Pgames=jump,star,maze,farm 只编译其中若干（逗号分隔），-Pgames=none 不含任何游戏（等价 lite 入口）。
 // 未选中的游戏对应源码集（src/gameXxx/kotlin）不会参与编译，仅编译空实现门面（src/gameXxxEmpty/kotlin），
 // 由 main 的彩蛋入口引用，保证任意组合下 WeatherGameOverlay 都能编译通过。
-val gameIds = listOf("jump", "star", "maze", "farm")
+val gameIds = listOf("jump", "star", "maze", "farm", "home")
 
 fun String.toGameDirName(): String = replaceFirstChar { it.uppercase() }
 
@@ -56,8 +56,8 @@ android {
         applicationId = "com.xiaoxiong.weather"
         minSdk = 26
         targetSdk = 37
-        versionCode = 47
-        versionName = "1.6.3"
+        versionCode = 48
+        versionName = "1.6.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             // 仅保留 ARM 架构：x86/x86_64 只服务于模拟器，2026 年已无实际设备使用

@@ -111,6 +111,10 @@ class LocationHelper(
         }
 
     private fun provisionalPlaceName(location: Location): PlaceName =
+        // 逆地理解析成功前先展示「当前位置 + 经纬度」占位（天气可立即上屏）；
+        // 解析成功后由 refineCityPlaceName 补全为真实地名。
+        // 注意：此占位不会被写入缓存（reverseGeocode 失败不缓存），
+        // 因此不会阻塞后续补全，经纬度只是临时的。
         PlaceName(
             name = context.getString(R.string.location_current),
             admin1 = String.format(Locale.US, "%.2f, %.2f", location.latitude, location.longitude),
@@ -446,23 +450,19 @@ class LocationHelper(
     /**
      * 仅用系统 Geocoder（免费、随用户量扩展无第三方配额）。
      * 同网格结果本地缓存，避免反复逆地理。
+     * 失败（超时/无服务/无结果）返回 null，且**不写缓存**：
+     * 否则占位经纬度会被缓存 7 天，阻塞后续补全真实地名。
      */
     private suspend fun reverseGeocode(
         lat: Double,
         lon: Double,
-    ): PlaceName =
+    ): PlaceName? =
         withContext(Dispatchers.IO) {
             readCachedPlace(lat, lon)?.let { return@withContext it }
 
-            val fromSystem = reverseGeocodeSystem(lat, lon)
-            val place =
-                fromSystem ?: PlaceName(
-                    name = context.getString(R.string.location_current),
-                    admin1 = String.format(Locale.US, "%.2f, %.2f", lat, lon),
-                    country = null,
-                )
-            writeCachedPlace(lat, lon, place)
-            place
+            val fromSystem = reverseGeocodeSystem(lat, lon) ?: return@withContext null
+            writeCachedPlace(lat, lon, fromSystem)
+            fromSystem
         }
 
     private suspend fun reverseGeocodeSystem(

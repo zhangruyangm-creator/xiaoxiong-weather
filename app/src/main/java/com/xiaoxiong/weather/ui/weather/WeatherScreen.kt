@@ -521,31 +521,40 @@ private fun BoxScope.BearRefreshIndicator(
             animationSpec = tween(durationMillis = 220),
             label = "refreshReveal",
         )
-    val bounce by
-        rememberInfiniteTransition(label = "refreshBounce")
-            .animateFloat(
-                initialValue = 0.92f,
-                targetValue = 1.08f,
-                animationSpec =
-                    infiniteRepeatable(
-                        animation = tween(380, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                label = "refreshBounceScale",
-            )
-    val bob by
-        rememberInfiniteTransition(label = "refreshBob")
-            .animateFloat(
-                initialValue = -1.5f,
-                targetValue = 1.5f,
-                animationSpec =
-                    infiniteRepeatable(
-                        animation = tween(180, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                label = "refreshBobY",
-            )
-    val scale = if (isRefreshing) bounce else 0.4f + 0.6f * reveal
+
+    // 刷新中才创建无限动画；闲置/下拉阶段不创建，避免常驻逐帧重组耗电。
+    // 条件组合时把动画值读回局部变量，供下方 graphicsLayer 使用。
+    var bounceScale = 1f
+    var bobY = 0f
+    if (isRefreshing) {
+        val bounce by
+            rememberInfiniteTransition(label = "refreshBounce")
+                .animateFloat(
+                    initialValue = 0.92f,
+                    targetValue = 1.08f,
+                    animationSpec =
+                        infiniteRepeatable(
+                            animation = tween(380, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse,
+                        ),
+                    label = "refreshBounceScale",
+                )
+        val bob by
+            rememberInfiniteTransition(label = "refreshBob")
+                .animateFloat(
+                    initialValue = -1.5f,
+                    targetValue = 1.5f,
+                    animationSpec =
+                        infiniteRepeatable(
+                            animation = tween(180, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse,
+                        ),
+                    label = "refreshBobY",
+                )
+        bounceScale = bounce
+        bobY = bob
+    }
+    val scale = if (isRefreshing) bounceScale else 0.4f + 0.6f * reveal
     Box(
         modifier =
             modifier
@@ -554,7 +563,7 @@ private fun BoxScope.BearRefreshIndicator(
                     alpha = reveal
                     scaleX = scale
                     scaleY = scale
-                    translationY = if (isRefreshing) bob else 0f
+                    translationY = if (isRefreshing) bobY else 0f
                 }.shadow(
                     elevation = 4.dp,
                     shape = CircleShape,

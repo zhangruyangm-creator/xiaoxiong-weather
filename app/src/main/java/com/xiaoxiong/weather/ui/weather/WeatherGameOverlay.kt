@@ -10,20 +10,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
 import com.xiaoxiong.weather.ui.game.BearFarmScreen
 import com.xiaoxiong.weather.ui.game.BearGameScreen
+import com.xiaoxiong.weather.ui.game.BearHomeScreen
 import com.xiaoxiong.weather.ui.game.BearMazeScreen
 import com.xiaoxiong.weather.ui.game.BearStarJumpScreen
 import com.xiaoxiong.weather.ui.game.EASTER_EGG_BEAR_FARM
 import com.xiaoxiong.weather.ui.game.EASTER_EGG_BEAR_GAME
+import com.xiaoxiong.weather.ui.game.EASTER_EGG_BEAR_HOME
 import com.xiaoxiong.weather.ui.game.EASTER_EGG_BEAR_MAZE
 import com.xiaoxiong.weather.ui.game.EASTER_EGG_BEAR_STAR
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * 彩蛋口令触发与 4 个小熊游戏弹窗的统一容器。
- * 口令在搜索框输入后立即触发对应游戏，并清空搜索框/收起键盘；
+ * 彩蛋口令触发与小熊游戏 / 小屋弹窗的统一容器。
+ * 口令在搜索框输入后立即触发对应内容，并清空搜索框/收起键盘；
  * 清空搜索框时保留「当前位置」模式（经 [onClearQuery] 回调，不走常规输入）。
- * 退出游戏时回到首页第一页。
+ * 退出时回到首页第一页。
  */
 @Composable
 internal fun BearGameOverlay(
@@ -40,6 +42,7 @@ internal fun BearGameOverlay(
     var showStarGame by remember { mutableStateOf(false) }
     var showMazeGame by remember { mutableStateOf(false) }
     var showFarmGame by remember { mutableStateOf(false) }
+    var showBearHome by remember { mutableStateOf(false) }
 
     LaunchedEffect(query) {
         when (query.trim()) {
@@ -62,6 +65,11 @@ internal fun BearGameOverlay(
                 onClearQuery()
                 focusManager.clearFocus()
                 showFarmGame = true
+            }
+            EASTER_EGG_BEAR_HOME -> {
+                onClearQuery()
+                focusManager.clearFocus()
+                showBearHome = true
             }
         }
     }
@@ -109,6 +117,32 @@ internal fun BearGameOverlay(
             onExit = {
                 showFarmGame = false
                 onExit()
+            },
+        )
+    }
+    if (showBearHome) {
+        BearHomeScreen(
+            sceneCode = sceneCode,
+            isDay = isDay,
+            onExit = {
+                showBearHome = false
+                onExit()
+            },
+            onOpenJump = {
+                showBearHome = false
+                showBearGame = true
+            },
+            onOpenStar = {
+                showBearHome = false
+                showStarGame = true
+            },
+            onOpenMaze = {
+                showBearHome = false
+                showMazeGame = true
+            },
+            onOpenFarm = {
+                showBearHome = false
+                showFarmGame = true
             },
         )
     }

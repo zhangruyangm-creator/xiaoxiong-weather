@@ -60,8 +60,11 @@ object WeatherAlertGenerator {
                     currentPrecipMm = rateNow,
                     dailyPrecipFallenMm = fallenTodayMm,
                 )
-        // 未来 24h 强降雨：当前已在大雨时，仅当未来峰值升到 WARNING 且当前未达 WARNING 才并报
-        val futurePeakMm = futureHours.maxOfOrNull { it.precipitationMm ?: 0.0 } ?: 0.0
+        // 未来 24h 强降雨峰值：只统计非雪小时，避免未来降雪的液态水当量被误判为强降雨
+        val futurePeakMm =
+            futureHours
+                .filterNot { WeatherCodes.isSnowCode(it.weatherCode) }
+                .maxOfOrNull { it.precipitationMm ?: 0.0 } ?: 0.0
         val soonRainWarning = WeatherCodes.isHeavyRainForecastWarning(futurePeakMm)
         val heavyRainSoon =
             !heavyRainDaily &&

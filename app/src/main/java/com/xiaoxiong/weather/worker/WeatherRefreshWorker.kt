@@ -117,10 +117,11 @@ class WeatherRefreshWorker(
                 }
             }
             Result.success()
-        } catch (e: AppError) {
-            // 4xx（除 429 限流）多为永久性错误（鉴权/接口下线），重试无意义，直接放弃本轮
-            val permanent = e is AppError.Http && e.code in 400..499 && e.code != 429
-            if (permanent) Result.failure() else Result.retry()
+        } catch (_: AppError) {
+            // 周期任务返回 failure 会终止整个周期链（后台刷新/通知永久停摆），
+            // 因此即便是 4xx 永久性错误也只能 retry——对周期任务而言
+            // retry 等价于放弃本轮、等待下一个周期再试，代价可接受。
+            Result.retry()
         } catch (_: Exception) {
             Result.retry()
         }

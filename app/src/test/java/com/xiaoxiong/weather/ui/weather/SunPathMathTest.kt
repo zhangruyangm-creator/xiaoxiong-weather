@@ -397,31 +397,82 @@ class SunPathMathTest {
         val day = LocalDate.of(2026, 8, 6)
         val lunchPool =
             setOf(
-                R.drawable.ic_sun_bear_lunch,
-                R.drawable.ic_sun_bear_lunch_2,
-                R.drawable.ic_sun_bear_lunch_3,
-                R.drawable.ic_sun_bear_lunch_4,
-                R.drawable.ic_sun_bear_lunch_5,
-                R.drawable.ic_sun_bear_lunch_6,
-                R.drawable.ic_sun_bear_lunch_7,
-                R.drawable.ic_sun_bear_lunch_8,
-                R.drawable.ic_sun_bear_lunch_9,
-                R.drawable.ic_sun_bear_lunch_10,
+                R.drawable.ic_sun_bear_lunch_bento,
+                R.drawable.ic_sun_bear_lunch_ramen,
+                R.drawable.ic_sun_bear_lunch_jiaozi,
+                R.drawable.ic_sun_bear_lunch_friedrice,
+                R.drawable.ic_sun_bear_lunch_sushi,
+                R.drawable.ic_sun_bear_lunch_burger,
+                R.drawable.ic_sun_bear_lunch_picnic,
+                R.drawable.ic_sun_bear_lunch_takeout,
+                R.drawable.ic_sun_bear_lunch_pokebowl,
+                R.drawable.ic_sun_bear_lunch_burgerfries,
+                R.drawable.ic_sun_bear_lunch_shawarma,
+                R.drawable.ic_sun_bear_lunch_kebab,
+                R.drawable.ic_sun_bear_lunch_mezze,
+                R.drawable.ic_sun_bear_lunch_kabsa,
+                R.drawable.ic_sun_bear_lunch_falafel,
+                R.drawable.ic_sun_bear_lunch_fattoush,
+                R.drawable.ic_sun_bear_lunch_bibimbap,
+                R.drawable.ic_sun_bear_lunch_kbbq,
+                R.drawable.ic_sun_bear_lunch_tteokbokki,
+                R.drawable.ic_sun_bear_lunch_kimchijjigae,
+                R.drawable.ic_sun_bear_lunch_ramyeon,
+                R.drawable.ic_sun_bear_lunch_padthai,
+                R.drawable.ic_sun_bear_lunch_greencurry,
+                R.drawable.ic_sun_bear_lunch_nasigoreng,
+                R.drawable.ic_sun_bear_lunch_tomyum,
+                R.drawable.ic_sun_bear_lunch_satay,
             )
         val lunchA = SunPathBearMoment.LUNCH.bearResFor(day)
         assertEquals(lunchA, SunPathBearMoment.LUNCH.bearResFor(day))
         assertTrue(lunchA in lunchPool)
-        assertTrue(dailyVariantIndex(day, "LUNCH", 10) in 0..9)
+        assertTrue(dailyVariantIndex(day, "LUNCH", 26) in 0..25)
         val seen =
-            (0L..40L)
+            (0L..120L)
                 .map {
                     SunPathBearMoment.LUNCH.bearResFor(day.plusDays(it))
                 }.toSet()
-        assertTrue(seen.size >= 6)
-        assertNotEquals(
-            SunPathBearMoment.LUNCH.bearResFor(day),
-            SunPathBearMoment.DINNER.bearResFor(day),
-        )
+        assertEquals(26, seen.size)
+        val dinnerPool =
+            setOf(
+                R.drawable.ic_sun_bear_dinner_teishoku,
+                R.drawable.ic_sun_bear_dinner_hotpot,
+                R.drawable.ic_sun_bear_dinner_sushi,
+                R.drawable.ic_sun_bear_dinner_yakitori,
+                R.drawable.ic_sun_bear_dinner_shabu,
+                R.drawable.ic_sun_bear_dinner_spaghetti,
+                R.drawable.ic_sun_bear_dinner_bbq,
+                R.drawable.ic_sun_bear_dinner_pizza,
+                R.drawable.ic_sun_bear_dinner_steak,
+                R.drawable.ic_sun_bear_dinner_italian,
+                R.drawable.ic_sun_bear_dinner_shawarma,
+                R.drawable.ic_sun_bear_dinner_tagine,
+                R.drawable.ic_sun_bear_dinner_kebab,
+                R.drawable.ic_sun_bear_dinner_mansaf,
+                R.drawable.ic_sun_bear_dinner_mezze,
+                R.drawable.ic_sun_bear_dinner_couscous,
+                R.drawable.ic_sun_bear_dinner_galbi,
+                R.drawable.ic_sun_bear_dinner_budaejjigae,
+                R.drawable.ic_sun_bear_dinner_jajangmyeon,
+                R.drawable.ic_sun_bear_dinner_soondubu,
+                R.drawable.ic_sun_bear_dinner_chimaek,
+                R.drawable.ic_sun_bear_dinner_laksa,
+                R.drawable.ic_sun_bear_dinner_massaman,
+                R.drawable.ic_sun_bear_dinner_hainanese,
+                R.drawable.ic_sun_bear_dinner_lau,
+                R.drawable.ic_sun_bear_dinner_banhxeo,
+            )
+        val dinnerA = SunPathBearMoment.DINNER.bearResFor(day)
+        assertEquals(dinnerA, SunPathBearMoment.DINNER.bearResFor(day))
+        assertTrue(dinnerA in dinnerPool)
+        assertTrue(dailyVariantIndex(day, "DINNER", 26) in 0..25)
+        val dinnerSeen =
+            (0L..120L)
+                .map { SunPathBearMoment.DINNER.bearResFor(day.plusDays(it)) }
+                .toSet()
+        assertEquals(26, dinnerSeen.size)
+        assertNotEquals(lunchA, dinnerA)
     }
 
     @Test
@@ -496,18 +547,34 @@ class SunPathMathTest {
                 R.drawable.ic_sun_bear_breakfast_shakshuka,
                 R.drawable.ic_sun_bear_breakfast_dates,
                 R.drawable.ic_sun_bear_breakfast_manakish,
+                R.drawable.ic_sun_bear_breakfast_kimbap,
+                R.drawable.ic_sun_bear_breakfast_koreantoast,
+                R.drawable.ic_sun_bear_breakfast_juk,
+                R.drawable.ic_sun_bear_breakfast_gyeranbap,
+                R.drawable.ic_sun_bear_breakfast_banchan,
+                R.drawable.ic_sun_bear_breakfast_kayatoast,
+                R.drawable.ic_sun_bear_breakfast_nasilemak,
+                R.drawable.ic_sun_bear_breakfast_banhmi,
+                R.drawable.ic_sun_bear_breakfast_roticanai,
+                R.drawable.ic_sun_bear_breakfast_pho,
             )
         val a = SunPathBearMoment.BREAKFAST.bearResFor(day)
         assertTrue(a in pool)
         assertEquals(a, SunPathBearMoment.BREAKFAST.bearResFor(day))
         assertEquals(R.string.sun_bear_breakfast, SunPathBearMoment.BREAKFAST.captionResFor(day))
         val seen =
-            (0L..80L)
+            (0L..120L)
                 .map { SunPathBearMoment.BREAKFAST.bearResFor(day.plusDays(it)) }
                 .toSet()
-        assertEquals(23, seen.size)
+        assertEquals(33, seen.size)
         // 与午饭插画池互不共用
-        assertTrue(a !in setOf(R.drawable.ic_sun_bear_lunch, R.drawable.ic_sun_bear_lunch_2))
+        assertTrue(
+            a !in
+                setOf(
+                    R.drawable.ic_sun_bear_lunch_bento,
+                    R.drawable.ic_sun_bear_lunch_shawarma,
+                ),
+        )
     }
 
     @Test

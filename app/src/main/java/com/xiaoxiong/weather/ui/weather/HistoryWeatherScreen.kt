@@ -431,8 +431,8 @@ private fun RangeQueryContent(
                         )
                     }
                 }
-                items(items = summary.months, key = { "${it.year}-${it.month}" }) { month ->
-                    val key = "${month.year}-${month.month}"
+                items(items = summary.months, key = { monthKey(it.year, it.month) }) { month ->
+                    val key = monthKey(month.year, month.month)
                     val expanded = expandedMonth == key
                     HistoryMonthRow(
                         month = month,
@@ -746,3 +746,9 @@ private const val MAX_RANGE_DAYS = 3660L
 
 /** 短区间上限：超过后改为按月聚合展示（逐日明细折叠进月份里）。 */
 private const val RANGE_DAILY_DETAIL_MAX_DAYS = 62L
+
+/** 月份 key 统一补零（"2026-08"），与 HistoryWeather.date 的 ISO 前缀匹配。 */
+private fun monthKey(
+    year: Int,
+    month: Int,
+): String = "%d-%02d".format(year, month)

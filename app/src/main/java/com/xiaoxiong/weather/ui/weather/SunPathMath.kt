@@ -47,7 +47,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_exercise_hulahoop,
     ),
 
-    /** 工作日通勤前早餐：中式 / 西式 / 阿拉伯式独立插画池，按日轮换。 */
+    /** 工作日通勤前早餐：中式 / 西式 / 阿拉伯式 / 韩式 / 东南亚独立插画池，按日轮换。 */
     BREAKFAST(
         R.string.sun_bear_breakfast,
         // 中式
@@ -76,6 +76,18 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_breakfast_shakshuka,
         R.drawable.ic_sun_bear_breakfast_dates,
         R.drawable.ic_sun_bear_breakfast_manakish,
+        // 韩式
+        R.drawable.ic_sun_bear_breakfast_kimbap,
+        R.drawable.ic_sun_bear_breakfast_koreantoast,
+        R.drawable.ic_sun_bear_breakfast_juk,
+        R.drawable.ic_sun_bear_breakfast_gyeranbap,
+        R.drawable.ic_sun_bear_breakfast_banchan,
+        // 东南亚
+        R.drawable.ic_sun_bear_breakfast_kayatoast,
+        R.drawable.ic_sun_bear_breakfast_nasilemak,
+        R.drawable.ic_sun_bear_breakfast_banhmi,
+        R.drawable.ic_sun_bear_breakfast_roticanai,
+        R.drawable.ic_sun_bear_breakfast_pho,
     ),
     MORNING_OUT(
         R.string.sun_bear_morning_out,
@@ -88,18 +100,40 @@ enum class SunPathBearMoment(
 
     /** 插画由 [workDayBearRes] 按工种选取，此处仅占位。 */
     WORK_MORNING(R.string.sun_bear_work_morning, R.drawable.ic_sun_bear_work_morning),
+    /** 午饭：中式 / 西式 / 阿拉伯式 / 韩式 / 东南亚独立插画池，按日轮换。 */
     LUNCH(
         R.string.sun_bear_lunch,
-        R.drawable.ic_sun_bear_lunch,
-        R.drawable.ic_sun_bear_lunch_2,
-        R.drawable.ic_sun_bear_lunch_3,
-        R.drawable.ic_sun_bear_lunch_4,
-        R.drawable.ic_sun_bear_lunch_5,
-        R.drawable.ic_sun_bear_lunch_6,
-        R.drawable.ic_sun_bear_lunch_7,
-        R.drawable.ic_sun_bear_lunch_8,
-        R.drawable.ic_sun_bear_lunch_9,
-        R.drawable.ic_sun_bear_lunch_10,
+        // 中式
+        R.drawable.ic_sun_bear_lunch_bento,
+        R.drawable.ic_sun_bear_lunch_ramen,
+        R.drawable.ic_sun_bear_lunch_jiaozi,
+        R.drawable.ic_sun_bear_lunch_friedrice,
+        R.drawable.ic_sun_bear_lunch_sushi,
+        // 西式
+        R.drawable.ic_sun_bear_lunch_burger,
+        R.drawable.ic_sun_bear_lunch_picnic,
+        R.drawable.ic_sun_bear_lunch_takeout,
+        R.drawable.ic_sun_bear_lunch_pokebowl,
+        R.drawable.ic_sun_bear_lunch_burgerfries,
+        // 阿拉伯 / 中东式
+        R.drawable.ic_sun_bear_lunch_shawarma,
+        R.drawable.ic_sun_bear_lunch_kebab,
+        R.drawable.ic_sun_bear_lunch_mezze,
+        R.drawable.ic_sun_bear_lunch_kabsa,
+        R.drawable.ic_sun_bear_lunch_falafel,
+        R.drawable.ic_sun_bear_lunch_fattoush,
+        // 韩式
+        R.drawable.ic_sun_bear_lunch_bibimbap,
+        R.drawable.ic_sun_bear_lunch_kbbq,
+        R.drawable.ic_sun_bear_lunch_tteokbokki,
+        R.drawable.ic_sun_bear_lunch_kimchijjigae,
+        R.drawable.ic_sun_bear_lunch_ramyeon,
+        // 东南亚
+        R.drawable.ic_sun_bear_lunch_padthai,
+        R.drawable.ic_sun_bear_lunch_greencurry,
+        R.drawable.ic_sun_bear_lunch_nasigoreng,
+        R.drawable.ic_sun_bear_lunch_tomyum,
+        R.drawable.ic_sun_bear_lunch_satay,
     ),
 
     /** 插画由 [workDayBearRes] 按工种选取，此处仅占位。 */
@@ -179,18 +213,40 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_weekend_return_4,
         R.drawable.ic_sun_bear_weekend_return_5,
     ),
+    /** 晚饭：中式 / 西式 / 阿拉伯式 / 韩式 / 东南亚独立插画池，按日轮换。 */
     DINNER(
         R.string.sun_bear_dinner,
-        R.drawable.ic_sun_bear_dinner,
-        R.drawable.ic_sun_bear_dinner_2,
-        R.drawable.ic_sun_bear_dinner_3,
-        R.drawable.ic_sun_bear_dinner_4,
-        R.drawable.ic_sun_bear_dinner_5,
-        R.drawable.ic_sun_bear_dinner_6,
-        R.drawable.ic_sun_bear_dinner_7,
-        R.drawable.ic_sun_bear_dinner_8,
-        R.drawable.ic_sun_bear_dinner_9,
-        R.drawable.ic_sun_bear_dinner_10,
+        // 中式
+        R.drawable.ic_sun_bear_dinner_teishoku,
+        R.drawable.ic_sun_bear_dinner_hotpot,
+        R.drawable.ic_sun_bear_dinner_sushi,
+        R.drawable.ic_sun_bear_dinner_yakitori,
+        R.drawable.ic_sun_bear_dinner_shabu,
+        // 西式
+        R.drawable.ic_sun_bear_dinner_spaghetti,
+        R.drawable.ic_sun_bear_dinner_bbq,
+        R.drawable.ic_sun_bear_dinner_pizza,
+        R.drawable.ic_sun_bear_dinner_steak,
+        R.drawable.ic_sun_bear_dinner_italian,
+        // 阿拉伯 / 中东式
+        R.drawable.ic_sun_bear_dinner_shawarma,
+        R.drawable.ic_sun_bear_dinner_tagine,
+        R.drawable.ic_sun_bear_dinner_kebab,
+        R.drawable.ic_sun_bear_dinner_mansaf,
+        R.drawable.ic_sun_bear_dinner_mezze,
+        R.drawable.ic_sun_bear_dinner_couscous,
+        // 韩式
+        R.drawable.ic_sun_bear_dinner_galbi,
+        R.drawable.ic_sun_bear_dinner_budaejjigae,
+        R.drawable.ic_sun_bear_dinner_jajangmyeon,
+        R.drawable.ic_sun_bear_dinner_soondubu,
+        R.drawable.ic_sun_bear_dinner_chimaek,
+        // 东南亚
+        R.drawable.ic_sun_bear_dinner_laksa,
+        R.drawable.ic_sun_bear_dinner_massaman,
+        R.drawable.ic_sun_bear_dinner_hainanese,
+        R.drawable.ic_sun_bear_dinner_lau,
+        R.drawable.ic_sun_bear_dinner_banhxeo,
     ),
     EVENING(
         R.string.sun_bear_evening,
@@ -260,6 +316,9 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_almost_dawn_3,
     ),
     ;
+
+    /** 图鉴/小屋用：该片刻全部插画变体（不含按日抽取的工种/通勤特例逻辑）。 */
+    fun bearVariantDrawables(): IntArray = bearVariants
 
     /** 按自然日稳定选取插画，当天不变、隔天可换。 */
     @DrawableRes
@@ -464,7 +523,21 @@ private fun exerciseIndex(
     moment: SunPathBearMoment,
 ): Int = dailyVariantIndex(date, moment.name, EXERCISE_DRAWABLES.size)
 
-/** 办公室上午/下午各一张；其他工种当天上下午同一张。 */
+/** 通用办公室：上午/下午各一张。 */
+private val WORK_OFFICE_GENERIC_MORNING = R.drawable.ic_sun_bear_work_morning
+private val WORK_OFFICE_GENERIC_AFTERNOON = R.drawable.ic_sun_bear_work_afternoon
+
+/** 办公室坐班工种（全天同一张）：程序员、会计等。 */
+private val WORK_OFFICE_JOBS =
+    intArrayOf(
+        R.drawable.ic_sun_bear_work_programmer,
+        R.drawable.ic_sun_bear_work_accountant,
+        R.drawable.ic_sun_bear_work_lawyer,
+        R.drawable.ic_sun_bear_work_librarian,
+        R.drawable.ic_sun_bear_work_architect,
+    )
+
+/** 现场 / 外出工种：当天上下午同一张。 */
 private val WORK_FIELD_JOBS =
     intArrayOf(
         R.drawable.ic_sun_bear_work_brick,
@@ -492,7 +565,6 @@ private val WORK_FIELD_JOBS =
         R.drawable.ic_sun_bear_work_doctor,
         R.drawable.ic_sun_bear_work_police,
         R.drawable.ic_sun_bear_work_pilot,
-        R.drawable.ic_sun_bear_work_programmer,
         R.drawable.ic_sun_bear_work_streamer,
         R.drawable.ic_sun_bear_work_designer,
         R.drawable.ic_sun_bear_work_carpenter,
@@ -501,26 +573,39 @@ private val WORK_FIELD_JOBS =
         R.drawable.ic_sun_bear_work_vet,
         R.drawable.ic_sun_bear_work_photographer,
         R.drawable.ic_sun_bear_work_musician,
+        R.drawable.ic_sun_bear_work_welder,
+        R.drawable.ic_sun_bear_work_blacksmith,
+        R.drawable.ic_sun_bear_work_forklift,
+        R.drawable.ic_sun_bear_work_crane,
+        R.drawable.ic_sun_bear_work_excavator,
+        R.drawable.ic_sun_bear_work_tractor,
+        R.drawable.ic_sun_bear_work_harvester,
+        R.drawable.ic_sun_bear_work_sorter,
+        R.drawable.ic_sun_bear_work_journalist,
+        R.drawable.ic_sun_bear_work_astronaut,
+        R.drawable.ic_sun_bear_work_athlete,
+        R.drawable.ic_sun_bear_work_pharmacist,
+        R.drawable.ic_sun_bear_work_tailor,
+        R.drawable.ic_sun_bear_work_archaeologist,
     )
 
 /**
- * 按天抽工种：0 = 办公室（上午/下午换图），其余为现场工种（全天同一张）。
+ * 按天抽工种：
+ * 0 = 通用办公室（上午/下午换图）；
+ * 其后为办公室坐班工种，再后为现场工种（全天同一张）。
  */
 @DrawableRes
 internal fun workDayBearRes(
     date: LocalDate,
     afternoon: Boolean,
 ): Int {
-    val kindCount = 1 + WORK_FIELD_JOBS.size
+    val kindCount = 1 + WORK_OFFICE_JOBS.size + WORK_FIELD_JOBS.size
     val kind = dailyVariantIndex(date, "WORK_DAY", kindCount)
-    return if (kind == 0) {
-        if (afternoon) {
-            R.drawable.ic_sun_bear_work_afternoon
-        } else {
-            R.drawable.ic_sun_bear_work_morning
-        }
-    } else {
-        WORK_FIELD_JOBS[kind - 1]
+    return when {
+        kind == 0 ->
+            if (afternoon) WORK_OFFICE_GENERIC_AFTERNOON else WORK_OFFICE_GENERIC_MORNING
+        kind <= WORK_OFFICE_JOBS.size -> WORK_OFFICE_JOBS[kind - 1]
+        else -> WORK_FIELD_JOBS[kind - 1 - WORK_OFFICE_JOBS.size]
     }
 }
 

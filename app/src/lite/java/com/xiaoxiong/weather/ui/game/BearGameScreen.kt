@@ -10,6 +10,7 @@ const val EASTER_EGG_BEAR_GAME = "BEAR_GAME_DISABLED"
 const val EASTER_EGG_BEAR_STAR = "BEAR_GAME_DISABLED"
 const val EASTER_EGG_BEAR_MAZE = "BEAR_GAME_DISABLED"
 const val EASTER_EGG_BEAR_FARM = "BEAR_GAME_DISABLED"
+const val EASTER_EGG_BEAR_HOME = "BEAR_GAME_DISABLED"
 
 @Composable
 fun BearGameScreen(
@@ -39,4 +40,15 @@ fun BearFarmScreen(
     @Suppress("UNUSED_PARAMETER") sceneCode: Int?,
     @Suppress("UNUSED_PARAMETER") isDay: Boolean?,
     @Suppress("UNUSED_PARAMETER") onExit: () -> Unit,
+) = Unit
+
+@Composable
+fun BearHomeScreen(
+    @Suppress("UNUSED_PARAMETER") sceneCode: Int?,
+    @Suppress("UNUSED_PARAMETER") isDay: Boolean?,
+    @Suppress("UNUSED_PARAMETER") onExit: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onOpenJump: () -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onOpenStar: () -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onOpenMaze: () -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onOpenFarm: () -> Unit = {},
 ) = Unit
