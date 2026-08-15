@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.weather
 
 import android.app.Application
 import android.content.res.Resources
+import androidx.lifecycle.ViewModel
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.AppSettings
 import com.xiaoxiong.weather.data.AppSettingsSource
@@ -35,7 +36,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
@@ -44,14 +44,53 @@ import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule : TestWatcher() {
-    private val dispatcher = UnconfinedTestDispatcher()
-
     override fun starting(description: Description) {
-        Dispatchers.setMain(dispatcher)
+        MainTestDispatchers.ensureInstalled()
     }
 
     override fun finished(description: Description) {
-        Dispatchers.resetMain()
+        // 取消测试创建的 ViewModel 协程，避免泄漏的 withContext(Default) 续体污染后续测试。
+        // 不 resetMain：Default 续体的取消 resume 仍需要落在有效的 Main 上，
+        // 卸载后 resume 会抛 "Dispatchers.Main accessed after resetMain"。
+        TestViewModelRegistry.cancelAll()
+    }
+}
+
+/** 测试 Main dispatcher：整个测试 JVM 只安装一次、不卸载。 */
+@OptIn(ExperimentalCoroutinesApi::class)
+private object MainTestDispatchers {
+    @Volatile
+    private var installed = false
+
+    fun ensureInstalled() {
+        if (!installed) {
+            Dispatchers.setMain(UnconfinedTestDispatcher())
+            installed = true
+        }
+    }
+}
+
+/**
+ * 登记测试中创建的 ViewModel 以便在测试结束时取消其协程。
+ * ViewModel.viewModelScope 无公开取消入口，用 ViewModel.clear()（package-private）反射调用。
+ */
+internal object TestViewModelRegistry {
+    private val viewModels = java.util.concurrent.CopyOnWriteArrayList<WeatherViewModel>()
+
+    fun register(viewModel: WeatherViewModel) {
+        viewModels += viewModel
+    }
+
+    fun cancelAll() {
+        viewModels.forEach { vm ->
+            runCatching {
+                ViewModel::class.java.getDeclaredMethod("clear").apply {
+                    isAccessible = true
+                    invoke(vm)
+                }
+            }
+        }
+        viewModels.clear()
     }
 }
 
@@ -393,12 +432,12 @@ fun createTestViewModel(
             networkMonitor = networkMonitor,
         )
     return ViewModelTestHarness(
-        vm = WeatherViewModel(app, deps),
+        vm = WeatherViewModel(app, deps).also { TestViewModelRegistry.register(it) },
         effects = presentationEffects,
         session = session,
         favoriteStore = favoriteStore,
         selectedCityStore = selectedCityStore,
-        fetcher = fetcher,
+        fetcher = fetcher as? RecordingFetcher ?: RecordingFetcher(),
     )
 }
 
