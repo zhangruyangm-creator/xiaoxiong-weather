@@ -90,7 +90,7 @@ private fun runSceneFromWeather(
             }
     }
 
-enum class ObstacleType { PUDDLE, SNOWMAN, STORM_CLOUD }
+enum class ObstacleType { PUDDLE, SNOWMAN, STORM_CLOUD, ICE_WALL }
 
 class Obstacle(
     val type: ObstacleType,
@@ -184,6 +184,15 @@ class BearGame {
         val p = (distanceScore / 5000f).coerceIn(0f, 1f)
         return (340f + 610f * sqrt(p)) * s
     }
+
+    /**
+     * 奔跑循环相位速率（rad/s）：开局 ~1.68 循环/s（比旧版 2.16 更从容），
+     * 随速度渐快；速度超过 [runCadenceCapSpeed] 后步频封顶 ~3.2 循环/s，
+     * 剩余增速靠拉长步幅表达，避免高速时 8 帧循环切换逼近刷新率导致抽帧/腿糊。
+     */
+    private val runCadenceCapSpeed get() = 640f * s
+
+    private fun runPhaseRate(): Float = min(speed, runCadenceCapSpeed) * 0.031f / s
 
     fun score(): Int = if (s <= 0f) 0 else (distance / (60f * s)).toInt() + coinCount * 10
 
@@ -302,38 +311,92 @@ class BearGame {
         }
     }
 
+    /**
+     * 场景 → 障碍概率映射（纯函数，可单测）。r ∈ [0,1)。
+     * 雷暴/冰雹天雷云占主导，普通雨天水坑占主导，雪天雪人占主导，晴天较均衡。
+     * 雪/冻雨才出现冰墙（与冰主题一致）。
+     */
+    fun obstacleTypeFor(
+        scene: RunScene,
+        r: Float,
+    ): ObstacleType =
+        when (scene) {
+            RunScene.SNOW ->
+                when {
+                    r < 0.14f -> ObstacleType.PUDDLE
+                    r < 0.52f -> ObstacleType.SNOWMAN
+                    r < 0.76f -> ObstacleType.ICE_WALL
+                    else -> ObstacleType.STORM_CLOUD
+                }
+            RunScene.FREEZING_RAIN ->
+                when {
+                    r < 0.42f -> ObstacleType.PUDDLE
+                    r < 0.60f -> ObstacleType.SNOWMAN
+                    r < 0.78f -> ObstacleType.ICE_WALL
+                    else -> ObstacleType.STORM_CLOUD
+                }
+            // 雷暴/冰雹：雷暴云占主导（50%+），而不是和晴天里一样只是偶尔出现
+            RunScene.STORM, RunScene.HAIL ->
+                when {
+                    r < 0.30f -> ObstacleType.PUDDLE
+                    r < 0.45f -> ObstacleType.SNOWMAN
+                    else -> ObstacleType.STORM_CLOUD
+                }
+            // 普通雨：水坑变多，雪人减少
+            RunScene.RAIN, RunScene.RAIN_LIGHT, RunScene.RAIN_HEAVY ->
+                when {
+                    r < 0.62f -> ObstacleType.PUDDLE
+                    r < 0.80f -> ObstacleType.SNOWMAN
+                    else -> ObstacleType.STORM_CLOUD
+                }
+            RunScene.SUNNY, RunScene.CLOUDY ->
+                when {
+                    r < 0.40f -> ObstacleType.PUDDLE
+                    r < 0.72f -> ObstacleType.SNOWMAN
+                    else -> ObstacleType.STORM_CLOUD
+                }
+        }
+
+    /**
+     * 冰墙高度：单跳（~184·s）够不到、二段跳（~322·s）稳过；
+     * 雪天比冻雨略矮，手感更宽松。
+     */
+    private fun iceWallHeight(scene: RunScene): Float =
+        when (scene) {
+            RunScene.SNOW -> 195f * s
+            else -> 210f * s
+        }
+
+    /** 冰墙出现所需的最低分数：雪天 300、冻雨 200，低分段先不出（需二段跳），前松后紧。 */
+    private fun iceWallMinScore(scene: RunScene): Int =
+        when (scene) {
+            RunScene.SNOW -> 300
+            else -> 200
+        }
+
+    /** 出生障碍类型：冰墙在低分段降级为雪人。 */
+    fun spawnType(
+        scene: RunScene,
+        r: Float,
+        score: Int,
+    ): ObstacleType {
+        val type = obstacleTypeFor(scene, r)
+        return if (type == ObstacleType.ICE_WALL && score < iceWallMinScore(scene)) {
+            ObstacleType.SNOWMAN
+        } else {
+            type
+        }
+    }
+
     private fun spawn() {
         val r = Random.nextFloat()
-        val type =
-            when (scene) {
-                RunScene.SNOW ->
-                    // 雪天：雪人变多，雷暴云消失，水坑减少
-                    when {
-                        r < 0.18f -> ObstacleType.PUDDLE
-                        r < 0.85f -> ObstacleType.SNOWMAN
-                        else -> ObstacleType.STORM_CLOUD
-                    }
-                RunScene.RAIN, RunScene.RAIN_LIGHT, RunScene.RAIN_HEAVY, RunScene.STORM,
-                RunScene.FREEZING_RAIN, RunScene.HAIL,
-                ->
-                    // 雨天：水坑变多，雪人减少
-                    when {
-                        r < 0.62f -> ObstacleType.PUDDLE
-                        r < 0.80f -> ObstacleType.SNOWMAN
-                        else -> ObstacleType.STORM_CLOUD
-                    }
-                RunScene.SUNNY, RunScene.CLOUDY ->
-                    when {
-                        r < 0.40f -> ObstacleType.PUDDLE
-                        r < 0.72f -> ObstacleType.SNOWMAN
-                        else -> ObstacleType.STORM_CLOUD
-                    }
-            }
+        val type = spawnType(scene, r, score())
         val (w, h) =
             when (type) {
                 ObstacleType.PUDDLE -> 78f * s to 20f * s
                 ObstacleType.SNOWMAN -> 56f * s to 84f * s
                 ObstacleType.STORM_CLOUD -> 68f * s to 50f * s
+                ObstacleType.ICE_WALL -> 46f * s to iceWallHeight(scene)
             }
         val x = size.width + 48f * s
         obstacles += Obstacle(type, x, w, h)
@@ -400,7 +463,7 @@ class BearGame {
             if (landed) onLand()
             grounded = true
             // 步频跟速度走：步幅相位驱动四肢摆动与身体起伏
-            runPhase += speed * dt * 0.04f / s
+            runPhase += runPhaseRate() * dt
             bob = -abs(sin(runPhase)) * 3f * s
             // 高速跑动脚下扬尘
             if (speed > 520f * s) {
@@ -476,6 +539,7 @@ class BearGame {
                         ObstacleType.PUDDLE -> groundY - ob.h
                         ObstacleType.SNOWMAN -> groundY - ob.h
                         ObstacleType.STORM_CLOUD -> groundY - ob.h - 4f * s
+                        ObstacleType.ICE_WALL -> groundY - ob.h
                     }
                 val shrinkX = ob.w * 0.16f
                 val shrinkTop = ob.h * 0.14f
@@ -698,6 +762,15 @@ fun BearGameScreen(
                             )
                         }
                         Spacer(modifier = Modifier.height(18.dp))
+                        TextButton(
+                            onClick = {
+                                lb.entries = lb.store.load()
+                                lb.show = true
+                            },
+                        ) {
+                            Text(stringResource(R.string.bear_game_view_rank))
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             TextButton(onClick = onExit) {
                                 Text(stringResource(R.string.bear_game_exit))

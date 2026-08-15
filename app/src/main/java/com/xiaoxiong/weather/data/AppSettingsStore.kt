@@ -52,6 +52,10 @@ data class AppSettings(
     val temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val fontScale: AppFontScale = AppFontScale.STANDARD,
+    /** 跟随系统取色（Material You，仅 Android 12+ 生效）。默认关闭，保留品牌天空蓝配色。 */
+    val dynamicColor: Boolean = false,
+    /** 应用内减弱动画；叠加系统「移除动画」一起生效。 */
+    val reduceMotion: Boolean = false,
     val preferLocationOnLaunch: Boolean = true,
     val privacyAccepted: Boolean = false,
     val backgroundRefreshInterval: BackgroundRefreshInterval = BackgroundRefreshInterval.HOURS_3,
@@ -80,6 +84,8 @@ class AppSettingsStore(
                     prefs[KEY_FONT_SCALE]?.let {
                         runCatching { AppFontScale.valueOf(it) }.getOrDefault(AppFontScale.STANDARD)
                     } ?: AppFontScale.STANDARD,
+                dynamicColor = prefs[KEY_DYNAMIC_COLOR] ?: false,
+                reduceMotion = prefs[KEY_REDUCE_MOTION] ?: false,
                 preferLocationOnLaunch = prefs[KEY_PREFER_LOCATION] ?: true,
                 privacyAccepted = prefs[KEY_PRIVACY] ?: false,
                 backgroundRefreshInterval =
@@ -108,6 +114,14 @@ class AppSettingsStore(
 
     suspend fun setFontScale(scale: AppFontScale) {
         context.appSettingsDataStore.edit { it[KEY_FONT_SCALE] = scale.name }
+    }
+
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.appSettingsDataStore.edit { it[KEY_DYNAMIC_COLOR] = enabled }
+    }
+
+    suspend fun setReduceMotion(enabled: Boolean) {
+        context.appSettingsDataStore.edit { it[KEY_REDUCE_MOTION] = enabled }
     }
 
     suspend fun setPreferLocationOnLaunch(prefer: Boolean) {
@@ -163,6 +177,8 @@ class AppSettingsStore(
         private val KEY_TEMP_UNIT = stringPreferencesKey("temperature_unit")
         private val KEY_THEME = stringPreferencesKey("theme_mode")
         private val KEY_FONT_SCALE = stringPreferencesKey("font_scale")
+        private val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        private val KEY_REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
         private val KEY_PREFER_LOCATION = booleanPreferencesKey("prefer_location")
         private val KEY_PRIVACY = booleanPreferencesKey("privacy_accepted")
         private val KEY_BG_REFRESH_HOURS = intPreferencesKey("bg_refresh_hours")

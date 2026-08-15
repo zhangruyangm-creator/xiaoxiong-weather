@@ -213,6 +213,7 @@ data class HistoryExtreme(
 
 /**
  * 历史日期范围的统计结果：完整逐日列表 + 三个极值（最高温/最低温/最多降水）。
+ * 长区间额外按月聚合出 [months]，供 UI 按月展示、点击展开当月明细。
  * 由 Repository 在拉取区间数据后本地聚合，避免 UI 重复计算。
  */
 @Serializable
@@ -223,4 +224,16 @@ data class HistoryRangeSummary(
     val hottest: HistoryExtreme? = null,
     val coldest: HistoryExtreme? = null,
     val wettest: HistoryExtreme? = null,
+    val months: List<HistoryMonthSummary> = emptyList(),
+)
+
+/** 单月历史汇总：最高/最低温、总降水量、降水天数（日降水量 ≥0.1mm 计一天）。 */
+@Serializable
+data class HistoryMonthSummary(
+    val year: Int,
+    val month: Int,
+    val highestTempC: Double? = null,
+    val lowestTempC: Double? = null,
+    val totalPrecipMm: Double? = null,
+    val precipDays: Int = 0,
 )

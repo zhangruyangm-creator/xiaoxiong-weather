@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.weather
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Button
@@ -55,6 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.HistoryExtreme
+import com.xiaoxiong.weather.data.HistoryMonthSummary
 import com.xiaoxiong.weather.data.HistoryRangeSummary
 import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
@@ -276,10 +280,15 @@ private fun RangeQueryContent(
     // 仅展示「与当前所选区间一致」的查询结果，避免改日期后残留旧区间统计
     var queriedKey by remember { mutableStateOf<String?>(null) }
     val showResult = summary != null && currentKey != null && currentKey == queriedKey
+    // 长区间按月聚合展示，短区间保留逐日明细
+    val useMonthly = rangeDays != null && rangeDays > RANGE_DAILY_DETAIL_MAX_DAYS
+    // 当前展开的月份（"yyyy-MM"）；点击行展开当月明细，再点收回
+    var expandedMonth by remember { mutableStateOf<String?>(null) }
 
     fun runQuery() {
         if (canQuery) {
             queriedKey = currentKey
+            expandedMonth = null
             startDate?.let { s -> endDate?.let { e -> onQuery(s, e) } }
         }
     }
@@ -373,7 +382,76 @@ private fun RangeQueryContent(
                     accent = Color(0xFF4FC3F7),
                 )
             }
-            if (summary.days.isNotEmpty()) {
+            if (useMonthly && summary.months.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.history_range_rows_title_monthly),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = stringResource(R.string.history_rows_col_min),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.width(44.dp),
+                            textAlign = TextAlign.End,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.history_rows_col_max),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.width(44.dp),
+                            textAlign = TextAlign.End,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.history_rows_col_precip),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.width(46.dp),
+                            textAlign = TextAlign.End,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.history_rows_col_rain_days),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.width(40.dp),
+                            textAlign = TextAlign.End,
+                        )
+                    }
+                }
+                items(items = summary.months, key = { "${it.year}-${it.month}" }) { month ->
+                    val key = "${month.year}-${month.month}"
+                    val expanded = expandedMonth == key
+                    HistoryMonthRow(
+                        month = month,
+                        tempUnit = temperatureUnit,
+                        expanded = expanded,
+                        onClick = { expandedMonth = if (expanded) null else key },
+                    )
+                    if (expanded) {
+                        summary.days
+                            .filter { it.date.startsWith(key) }
+                            .forEach { day ->
+                                HistoryDayRow(day = day, tempUnit = temperatureUnit)
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                                )
+                            }
+                    }
+                }
+            } else if (summary.days.isNotEmpty()) {
                 item {
                     Row(
                         modifier =
@@ -600,4 +678,71 @@ private fun HistoryDayRow(
     }
 }
 
-private const val MAX_RANGE_DAYS = 366L
+@Composable
+private fun HistoryMonthRow(
+    month: HistoryMonthSummary,
+    tempUnit: TemperatureUnit,
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.history_month_label, month.year, month.month),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = month.lowestTempC?.let { formatTemperature(it, tempUnit) } ?: "--",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(44.dp),
+            textAlign = TextAlign.End,
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = month.highestTempC?.let { formatTemperature(it, tempUnit) } ?: "--",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.width(44.dp),
+            textAlign = TextAlign.End,
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = month.totalPrecipMm?.let { "%.1f".format(it) } ?: "--",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(46.dp),
+            textAlign = TextAlign.End,
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.history_days_count, month.precipDays),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(40.dp),
+            textAlign = TextAlign.End,
+        )
+        Icon(
+            imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            contentDescription =
+                stringResource(if (expanded) R.string.cd_collapse else R.string.cd_expand),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+private const val MAX_RANGE_DAYS = 3660L
+
+/** 短区间上限：超过后改为按月聚合展示（逐日明细折叠进月份里）。 */
+private const val RANGE_DAILY_DETAIL_MAX_DAYS = 62L

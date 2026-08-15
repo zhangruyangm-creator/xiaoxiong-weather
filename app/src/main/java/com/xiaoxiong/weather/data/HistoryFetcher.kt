@@ -226,6 +226,7 @@ class HistoryFetcher(
                 hottest = extreme({ it.tempMaxC }, preferMax = true),
                 coldest = extreme({ it.tempMinC }, preferMax = false),
                 wettest = extreme({ it.precipSumMm }, preferMax = true),
+                months = monthlySummaries(days),
             )
         }
     }
@@ -245,5 +246,34 @@ class HistoryFetcher(
     companion object {
         /** 常年对比窗口年数（含今年共 N 年），N-1 年用于多年平均。 */
         private const val PHENOLOGY_YEARS = 6
+
+        /** 日降水量 ≥ 此值（mm）计为"降水日"。 */
+        private const val PRECIP_DAY_MM = 0.1
+
+        /**
+         * 按「年-月」聚合逐日数据，返回按月排序的汇总列表：
+         * 最高温取当月 tempMaxC 最大、最低温取 tempMinC 最小、总降水求和、降水天数统计。
+         * 纯函数，供单测；月份按时间升序。
+         */
+        fun monthlySummaries(days: List<HistoryWeather>): List<HistoryMonthSummary> {
+            val byMonth = LinkedHashMap<Pair<Int, Int>, MutableList<HistoryWeather>>()
+            for (day in days) {
+                val date =
+                    runCatching { java.time.LocalDate.parse(day.date) }.getOrNull()
+                        ?: continue
+                byMonth.getOrPut(date.year to date.monthValue) { mutableListOf() } += day
+            }
+            return byMonth.map { (key, list) ->
+                val precip = list.mapNotNull { it.precipSumMm }
+                HistoryMonthSummary(
+                    year = key.first,
+                    month = key.second,
+                    highestTempC = list.mapNotNull { it.tempMaxC }.maxOrNull(),
+                    lowestTempC = list.mapNotNull { it.tempMinC }.minOrNull(),
+                    totalPrecipMm = if (precip.isEmpty()) null else precip.sum(),
+                    precipDays = list.count { (it.precipSumMm ?: 0.0) >= PRECIP_DAY_MM },
+                )
+            }
+        }
     }
 }

@@ -388,6 +388,16 @@ class WeatherRepositoryHttpTest {
             assertEquals(12.0, summary.wettest!!.value, 0.001)
             assertEquals("2026-08-03", summary.wettest.date)
 
+            // 按月聚合：3 天都在 2026-08，最高 35 / 最低 18 / 总降水 17 / 雨日 2
+            assertEquals(1, summary.months.size)
+            val month = summary.months[0]
+            assertEquals(2026, month.year)
+            assertEquals(8, month.month)
+            assertEquals(35.0, month.highestTempC!!, 0.001)
+            assertEquals(18.0, month.lowestTempC!!, 0.001)
+            assertEquals(17.0, month.totalPrecipMm!!, 0.001)
+            assertEquals(2, month.precipDays)
+
             val recorded = server.takeRequest()
             assertEquals("2026-08-01", recorded.requestUrl?.queryParameter("start_date"))
             assertEquals("2026-08-03", recorded.requestUrl?.queryParameter("end_date"))
@@ -435,6 +445,35 @@ class WeatherRepositoryHttpTest {
             assertEquals(35.0, summary.hottest!!.value, 0.001)
             assertEquals("2026-08-02", summary.hottest.date)
         }
+
+    @Test
+    fun monthlySummaries_aggregatesAcrossMonths() {
+        val days =
+            listOf(
+                HistoryWeather(date = "2026-01-05", tempMaxC = 10.0, tempMinC = 2.0, precipSumMm = 1.0),
+                HistoryWeather(date = "2026-01-08", tempMaxC = 12.0, tempMinC = 3.0, precipSumMm = null),
+                HistoryWeather(date = "2026-01-20", tempMaxC = 15.0, tempMinC = 5.0, precipSumMm = 0.0),
+                HistoryWeather(date = "2026-02-01", tempMaxC = 20.0, tempMinC = 8.0, precipSumMm = 12.0),
+            )
+        val months = HistoryFetcher.monthlySummaries(days)
+
+        assertEquals(2, months.size)
+        val jan = months[0]
+        assertEquals(2026, jan.year)
+        assertEquals(1, jan.month)
+        assertEquals(15.0, jan.highestTempC!!, 0.001)
+        assertEquals(2.0, jan.lowestTempC!!, 0.001)
+        // null 降水按 0 计：1.0 + 0.0 = 1.0
+        assertEquals(1.0, jan.totalPrecipMm!!, 0.001)
+        assertEquals(1, jan.precipDays)
+
+        val feb = months[1]
+        assertEquals(2, feb.month)
+        assertEquals(20.0, feb.highestTempC!!, 0.001)
+        assertEquals(8.0, feb.lowestTempC!!, 0.001)
+        assertEquals(12.0, feb.totalPrecipMm!!, 0.001)
+        assertEquals(1, feb.precipDays)
+    }
 
     @Test
     fun fetchHistoryRange_httpError_returnsNull() =

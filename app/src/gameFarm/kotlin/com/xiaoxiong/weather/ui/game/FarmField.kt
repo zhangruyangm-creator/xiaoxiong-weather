@@ -378,7 +378,7 @@ private fun FarmPlotVisual(
                 )
             }
             else -> {
-                val stageRes = FarmCropArt.stage(plot.stage)
+                val stageRes = FarmCropArt.stage(plot.stage, crop)
                 if (stageRes != null) {
                     val scale =
                         when (plot.stage) {

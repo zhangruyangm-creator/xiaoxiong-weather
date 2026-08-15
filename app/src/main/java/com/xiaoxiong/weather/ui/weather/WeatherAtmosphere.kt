@@ -25,7 +25,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import com.xiaoxiong.weather.ui.LocalReduceMotion
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -266,8 +268,9 @@ private fun WeatherAtmosphereOverlay(
             }
         }
 
-    // 除 UNKNOWN 外都有动画元素（粒子/星光/云漂移/太阳光芒）；UNKNOWN 不启动无限动画
-    if (scene == WeatherScene.UNKNOWN) {
+    // 除 UNKNOWN 外都有动画元素（粒子/星光/云漂移/太阳光芒）；UNKNOWN 或减弱动画时不启动无限动画
+    val reduceMotion = LocalReduceMotion.current
+    if (scene == WeatherScene.UNKNOWN || reduceMotion) {
         AtmosphereCanvas(scene, isDay, particles, phase = { 0f }, flash = { 0f }, drift = { 0f })
     } else {
         AnimatedAtmosphereCanvas(scene, isDay, particles)
@@ -326,7 +329,8 @@ private fun AtmosphereCanvas(
     flash: () -> Float,
     drift: () -> Float,
 ) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
+    // 纯装饰背景：明确标记为无语义，TalkBack 直接跳过，天气信息由上层 Text 朗读
+    Canvas(modifier = Modifier.fillMaxSize().clearAndSetSemantics {}) {
         when (scene) {
             WeatherScene.CLEAR -> {
                 if (isDay) {

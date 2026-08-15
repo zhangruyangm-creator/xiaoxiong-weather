@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MyLocation
@@ -216,6 +217,15 @@ fun SettingsScreen(
                                 scope.launch { settingsStore.setThemeMode(ThemeMode.DARK) }
                             },
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        SettingsSwitchRow(
+                            title = stringResource(R.string.settings_dynamic_color),
+                            subtitle = stringResource(R.string.settings_dynamic_color_sub),
+                            checked = settings.dynamicColor,
+                            onCheckedChange = {
+                                scope.launch { settingsStore.setDynamicColor(it) }
+                            },
+                        )
                     }
                 }
                 item {
@@ -235,6 +245,24 @@ fun SettingsScreen(
                                 },
                             )
                         }
+                    }
+                }
+                item {
+                    SoftCard(modifier = Modifier.fillMaxWidth()) {
+                        SectionHeader(
+                            title = stringResource(R.string.settings_accessibility),
+                            subtitle = stringResource(R.string.settings_accessibility_sub),
+                            icon = Icons.Filled.Accessibility,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SettingsSwitchRow(
+                            title = stringResource(R.string.settings_reduce_motion),
+                            subtitle = stringResource(R.string.settings_reduce_motion_sub),
+                            checked = settings.reduceMotion,
+                            onCheckedChange = {
+                                scope.launch { settingsStore.setReduceMotion(it) }
+                            },
+                        )
                     }
                 }
                 item {

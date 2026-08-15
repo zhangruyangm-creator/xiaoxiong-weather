@@ -25,6 +25,7 @@
     <string name="bear_game_tap_start">点一下屏幕，开始奔跑</string>
     <string name="bear_game_hint_jump">点击跳跃 · 空中可再跳一次</string>
     <string name="bear_game_over">哎呀，撞到了</string>
+    <string name="bear_game_view_rank">查看排行榜</string>
     <string name="bear_game_restart">再来一局</string>
     <string name="bear_game_exit">回到天气</string>
     <string name="bear_game_best_label">最高</string>
@@ -467,8 +468,14 @@
     <string name="settings_theme_system">跟随系统</string>
     <string name="settings_theme_light">浅色</string>
     <string name="settings_theme_dark">深色</string>
+    <string name="settings_dynamic_color">动态取色</string>
+    <string name="settings_dynamic_color_sub">跟随系统主题色（Android 12+）</string>
     <string name="settings_font">字体大小</string>
     <string name="settings_font_sub">仅本 App 生效；系统字过大可选「标准」或「较小」</string>
+    <string name="settings_reduce_motion">减弱动画</string>
+    <string name="settings_reduce_motion_sub">天气场景的循环动画改为静态；系统「移除动画」开启时自动生效</string>
+    <string name="settings_accessibility">无障碍</string>
+    <string name="settings_accessibility_sub">对前庭敏感、易眩晕的用户友好</string>
     <string name="settings_launch">启动</string>
     <string name="settings_launch_sub">打开应用时优先使用的城市来源</string>
     <string name="settings_prefer_location">启动时优先定位</string>
@@ -895,6 +902,12 @@
     <string name="history_rows_col_min">最低</string>
     <string name="history_rows_col_max">最高</string>
     <string name="history_rows_col_precip">降水</string>
+    <string name="history_range_rows_title_monthly">按月汇总</string>
+    <string name="history_rows_col_rain_days">雨日</string>
+    <string name="history_month_label">%1$d年%2$d月</string>
+    <string name="history_days_count">%1$d天</string>
+    <string name="cd_expand">展开</string>
+    <string name="cd_collapse">收起</string>
     <string name="history_failed">该日期暂无数据或查询失败</string>
     <string name="history_retry">重新选择</string>
     <string name="history_temp_range">最高 %1$s · 最低 %2$s</string>

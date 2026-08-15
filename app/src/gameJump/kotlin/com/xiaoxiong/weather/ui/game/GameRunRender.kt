@@ -4,6 +4,7 @@ import android.graphics.Paint
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -515,6 +516,64 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                         close()
                     }
                 drawPath(bolt, Color(0xFFFFD54F))
+            }
+            ObstacleType.ICE_WALL -> {
+                val top = groundY - ob.h
+                val w = ob.w
+                // 冰柱本体：半透明冰蓝垂直渐变，窄而高
+                drawRoundRect(
+                    brush =
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xFFE4F3FF).copy(alpha = 0.95f),
+                                Color(0xFFA8D5F7).copy(alpha = 0.90f),
+                                Color(0xFF7CC0EF).copy(alpha = 0.95f),
+                            ),
+                        ),
+                    topLeft = Offset(ob.x, top),
+                    size = Size(w, ob.h),
+                    cornerRadius = CornerRadius(6f * s),
+                )
+                // 顶部积雪帽
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.98f),
+                    topLeft = Offset(ob.x - 5f * s, top - 3f * s),
+                    size = Size(w + 10f * s, 12f * s),
+                    cornerRadius = CornerRadius(6f * s),
+                )
+                // 上缘垂下的冰锥（三根，长短不一）
+                for (fx in floatArrayOf(0.22f, 0.5f, 0.78f)) {
+                    val ix = ob.x + w * fx
+                    val h = (14f + ((fx * 7f) % 8f)) * s
+                    val icicle =
+                        Path().apply {
+                            moveTo(ix - 5f * s, top + 7f * s)
+                            lineTo(ix + 5f * s, top + 7f * s)
+                            lineTo(ix, top + 7f * s + h)
+                            close()
+                        }
+                    drawPath(icicle, Color(0xFFEAF7FF).copy(alpha = 0.92f))
+                }
+                // 侧面高光
+                drawLine(
+                    color = Color.White.copy(alpha = 0.75f),
+                    start = Offset(ob.x + w * 0.24f, top + 20f * s),
+                    end = Offset(ob.x + w * 0.24f, top + ob.h * 0.85f),
+                    strokeWidth = 3.2f * s,
+                    cap = StrokeCap.Round,
+                )
+                // 冻结裂纹
+                val crack =
+                    Path().apply {
+                        moveTo(ob.x + w * 0.62f, top + ob.h * 0.38f)
+                        lineTo(ob.x + w * 0.76f, top + ob.h * 0.54f)
+                        lineTo(ob.x + w * 0.62f, top + ob.h * 0.72f)
+                    }
+                drawPath(
+                    crack,
+                    Color.White.copy(alpha = 0.6f),
+                    style = Stroke(width = 2.2f * s, cap = StrokeCap.Round),
+                )
             }
         }
     }

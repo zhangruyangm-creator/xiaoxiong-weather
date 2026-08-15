@@ -682,6 +682,15 @@ fun BearStarJumpScreen(
                             )
                         }
                         Spacer(modifier = Modifier.height(18.dp))
+                        TextButton(
+                            onClick = {
+                                lb.entries = lb.store.load()
+                                lb.show = true
+                            },
+                        ) {
+                            Text(stringResource(R.string.bear_game_view_rank))
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             TextButton(onClick = onExit) {
                                 Text(stringResource(R.string.bear_game_exit))

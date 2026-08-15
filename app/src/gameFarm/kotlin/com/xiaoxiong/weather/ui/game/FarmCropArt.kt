@@ -5,19 +5,28 @@ import com.xiaoxiong.weather.R
 
 /**
  * 农场插画资源：土壤 / 生长阶段 / 杂草虫灾覆盖物 / 成熟作物。
- * 生长阶段图共享；成熟图按作物 id 一对一映射，缺失时按分类兜底。
+ *
+ * - 种子 / 枯萎：全作物共用
+ * - 发芽 / 成长：按作物分类区分；蔬菜再细分为根菜 / 藤蔓果菜 / 叶菜
+ * - 成熟：按作物 id 一对一映射，缺失时按分类兜底
  */
 internal object FarmCropArt {
     @DrawableRes
     fun soil(dry: Boolean): Int = if (dry) R.drawable.farm_soil_dry else R.drawable.farm_soil_moist
 
-    /** stage: 1 种子 / 2 发芽 / 3 成长 / 5 枯萎；成熟走 [ripe]。 */
+    /**
+     * stage: 1 种子 / 2 发芽 / 3 成长 / 5 枯萎；成熟走 [ripe]。
+     * [crop] 用于发芽/成长阶段按分类（及蔬菜亚型）选图；为空时回退叶菜通用图。
+     */
     @DrawableRes
-    fun stage(stage: Int): Int? =
+    fun stage(
+        stage: Int,
+        crop: CropDef? = null,
+    ): Int? =
         when (stage) {
             1 -> R.drawable.farm_stage_seed
-            2 -> R.drawable.farm_stage_sprout
-            3 -> R.drawable.farm_stage_grow
+            2 -> sproutOf(crop)
+            3 -> growOf(crop)
             5 -> R.drawable.farm_stage_wilt
             else -> null
         }
@@ -30,6 +39,63 @@ internal object FarmCropArt {
 
     @DrawableRes
     fun bug(): Int = R.drawable.farm_overlay_bug
+
+    /** 蔬菜生长形态：根菜 / 藤蔓果菜 / 叶菜。 */
+    private enum class VegMorph { ROOT, VINE, LEAFY }
+
+    @DrawableRes
+    private fun sproutOf(crop: CropDef?): Int {
+        val cat = crop?.category
+        return when (cat) {
+            "花卉" -> R.drawable.farm_stage_sprout_flower
+            "谷物" -> R.drawable.farm_stage_sprout_grain
+            "水果" -> R.drawable.farm_stage_sprout_fruit
+            "香草" -> R.drawable.farm_stage_sprout_herb
+            "菇菌" -> R.drawable.farm_stage_sprout_mushroom
+            "其他" -> R.drawable.farm_stage_sprout_other
+            "蔬菜", null ->
+                when (vegMorph(crop?.id)) {
+                    VegMorph.ROOT -> R.drawable.farm_stage_sprout_veg_root
+                    VegMorph.VINE -> R.drawable.farm_stage_sprout_veg_vine
+                    VegMorph.LEAFY -> R.drawable.farm_stage_sprout
+                }
+            else -> R.drawable.farm_stage_sprout
+        }
+    }
+
+    @DrawableRes
+    private fun growOf(crop: CropDef?): Int {
+        val cat = crop?.category
+        return when (cat) {
+            "花卉" -> R.drawable.farm_stage_grow_flower
+            "谷物" -> R.drawable.farm_stage_grow_grain
+            "水果" -> R.drawable.farm_stage_grow_fruit
+            "香草" -> R.drawable.farm_stage_grow_herb
+            "菇菌" -> R.drawable.farm_stage_grow_mushroom
+            "其他" -> R.drawable.farm_stage_grow_other
+            "蔬菜", null ->
+                when (vegMorph(crop?.id)) {
+                    VegMorph.ROOT -> R.drawable.farm_stage_grow_veg_root
+                    VegMorph.VINE -> R.drawable.farm_stage_grow_veg_vine
+                    VegMorph.LEAFY -> R.drawable.farm_stage_grow
+                }
+            else -> R.drawable.farm_stage_grow
+        }
+    }
+
+    private fun vegMorph(id: String?): VegMorph =
+        when (id) {
+            // 根菜：地下块根/鳞茎，地上为羽状或管状叶
+            "radish", "carrot", "potato", "onion", "garlic",
+            "beet", "turnip", "yam", "taro", "lotus_root",
+            -> VegMorph.ROOT
+            // 藤蔓/果菜：攀缘或灌丛，结小果
+            "tomato", "cucumber", "chili", "eggplant",
+            "pea", "bean", "squash", "pepper_bell",
+            -> VegMorph.VINE
+            // 叶菜：白菜/生菜/花椰菜/芦笋等
+            else -> VegMorph.LEAFY
+        }
 
     @DrawableRes
     private fun ripeByCategory(category: String): Int =
