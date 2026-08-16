@@ -1,5 +1,16 @@
 # 更新记录
 
+## [1.6.5] - 2026-08-16
+
+- 工程重构（无用户可见功能变化）：单模块 `:app` 拆分为 `core/{model,common,domain,network,data,designsystem,test-fixtures}` + `feature/{weather,settings}` + `game/{api,common,jump,star,maze,farm,home}` 的多模块体系
+- 依赖方向铁律：`feature:*` 不互依、`game:*` 不依赖 `feature:*`、任何模块不依赖 `:app`
+- 游戏裁剪机制升级：`-Pgames` 从源码集切换改为 `:app` 对 `:game:*` 的条件动态依赖 + ServiceLoader 装配——未选中的游戏模块不编译（无字节码），`-Pgames=none` 的 full 包比默认小约 12MB
+- 口令常量（`#小熊跳跳` 等）集中到 `:game:api`，小熊的家枢纽经接口层切换其它游戏
+- 修复：小熊的家游乐间改为按装配方注入的可用游戏列表动态显隐入口——`-Pgames` 裁剪时不再显示未编译的游戏按钮
+- 工程加固：R8 保留 `GameEntryProvider` 及实现类（release 下 ServiceLoader 装配不再被剥离）；CI 增加 full release 构建与游戏注册文件断言；ktlint 覆盖扩展到全部模块
+- 单元测试随代码迁移：测试归属对应模块（core/feature/game），CI 改为全量 `test` 覆盖所有模块
+- 文档：README/ENGINEERING/MODULARIZATION 同步多模块结构
+
 ## [1.6.4] - 2026-08-16
 
 - 新增「小熊的家」彩蛋（搜索口令 `#小熊回家`）：客厅枢纽 + 卧室作息 / 厨房三餐图鉴 / 游乐间游戏入口 / 储物间四个房间，各房间配专属插画，游乐间按编译期启用的游戏显隐入口
