@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -59,9 +58,9 @@ import androidx.compose.ui.unit.sp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.weather.SunPathPhase
 import com.xiaoxiong.weather.ui.weather.sunPathBearMoment
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime
-import kotlinx.coroutines.delay
 
 const val EASTER_EGG_BEAR_HOME = "#小熊回家"
 
@@ -238,7 +237,7 @@ private fun HomeHub(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        BoxWithConstraints(
+        Box(
             modifier =
                 Modifier
                     .fillMaxWidth()

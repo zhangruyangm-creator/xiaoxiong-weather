@@ -100,6 +100,7 @@ enum class SunPathBearMoment(
 
     /** 插画由 [workDayBearRes] 按工种选取，此处仅占位。 */
     WORK_MORNING(R.string.sun_bear_work_morning, R.drawable.ic_sun_bear_work_morning),
+
     /** 午饭：中式 / 西式 / 阿拉伯式 / 韩式 / 东南亚独立插画池，按日轮换。 */
     LUNCH(
         R.string.sun_bear_lunch,
@@ -213,6 +214,7 @@ enum class SunPathBearMoment(
         R.drawable.ic_sun_bear_weekend_return_4,
         R.drawable.ic_sun_bear_weekend_return_5,
     ),
+
     /** 晚饭：中式 / 西式 / 阿拉伯式 / 韩式 / 东南亚独立插画池，按日轮换。 */
     DINNER(
         R.string.sun_bear_dinner,
