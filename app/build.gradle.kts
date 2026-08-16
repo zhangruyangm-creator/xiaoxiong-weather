@@ -7,16 +7,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.androidx.baselineprofile)
-    alias(libs.plugins.ktlint)
 }
 
-// 彩蛋游戏可选编译：默认把 jump/star/maze/farm/home 全部编译进 full 版；
-// 可用 -Pgames=jump,star,maze,farm 只编译其中若干（逗号分隔），-Pgames=none 不含任何游戏（等价 lite 入口）。
-// 未选中的游戏对应源码集（src/gameXxx/kotlin）不会参与编译，仅编译空实现门面（src/gameXxxEmpty/kotlin），
-// 由 main 的彩蛋入口引用，保证任意组合下 WeatherGameOverlay 都能编译通过。
+// 彩蛋游戏可选编译：把 jump/star/maze/farm/home 依 -Pgames 动态接入（默认 all）。
+// 与旧「源码集裁剪」不同：未选中的游戏模块不参与编译与打包，classpath 上不存在其字节码，
+// 装配侧用 ServiceLoader（:game:api 的 loadGameEntryProviders()）发现已在 classpath 的入口，天然更彻底。
 val gameIds = listOf("jump", "star", "maze", "farm", "home")
-
-fun String.toGameDirName(): String = replaceFirstChar { it.uppercase() }
 
 val gamesRaw = (project.findProperty("games") as String?)?.trim()?.lowercase()
 val enabledGames: Set<String> =
@@ -109,34 +105,6 @@ android {
             dimension = "edition"
         }
     }
-
-    sourceSets {
-        getByName("full") {
-            // 共享代码：跳跳/摘星/迷宫/农场任一共用（天气分类、小熊精灵、天空与降水特效、排行榜）
-            if (enabledGames.isNotEmpty()) {
-                kotlin.srcDir("src/gameCommon/kotlin")
-                // 共享游戏资源（小熊精灵表）只在至少启用一个游戏时进包
-                res.srcDir("src/gameCommon/res")
-            }
-            for (id in gameIds) {
-                // 选中的游戏编译真实实现，未选中的编译空实现门面
-                val dir = if (id in enabledGames) "src/game${id.toGameDirName()}/kotlin" else "src/game${id.toGameDirName()}Empty/kotlin"
-                kotlin.srcDir(dir)
-                if (id in enabledGames) {
-                    // 游戏专属资源（如农场插画）只随对应游戏编译进包，防止未选游戏还携带图片
-                    res.srcDir("src/game${id.toGameDirName()}/res")
-                }
-            }
-        }
-        // 单元测试源集只编译选中游戏的测试，避免引用未编译的符号
-        getByName("testFull") {
-            for (id in gameIds) {
-                if (id in enabledGames) {
-                    kotlin.srcDir("src/game${id.toGameDirName()}Test/kotlin")
-                }
-            }
-        }
-    }
 }
 
 kotlin {
@@ -148,6 +116,33 @@ kotlin {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:common"))
+    implementation(project(":core:domain"))
+    implementation(project(":core:network"))
+    implementation(project(":core:data"))
+    implementation(project(":core:designsystem"))
+    implementation(project(":feature:weather"))
+    implementation(project(":feature:settings"))
+    implementation(project(":game:api"))
+    // 动态游戏依赖：-Pgames 未选中的游戏模块不编译不进包，装配由 ServiceLoader 发现。
+    // 仅挂在 full flavor（fullImplementation）：lite 版零游戏依赖，符合「lite 零痕迹」语义。
+    if (enabledGames.isNotEmpty()) {
+        "fullImplementation"(project(":game:common"))
+    }
+    if ("jump" in enabledGames) {
+        "fullImplementation"(project(":game:jump"))
+    }
+    if ("star" in enabledGames) {
+        "fullImplementation"(project(":game:star"))
+    }
+    if ("maze" in enabledGames) {
+        "fullImplementation"(project(":game:maze"))
+    }
+    if ("farm" in enabledGames) {
+        "fullImplementation"(project(":game:farm"))
+    }
+    if ("home" in enabledGames) {
+        "fullImplementation"(project(":game:home"))
+    }
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -181,6 +176,7 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockito.core)
+    testImplementation(project(":core:test-fixtures"))
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)

@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alerts_collapse">Collapse</string>
+    <string name="alerts_expand">%1$d alerts · Expand</string>
+    <string name="app_name">Bear Weather</string>
+    <string name="aq_dust">Dust μg/m³</string>
+    <string name="aq_europe">European AQI · %1$s</string>
+    <string name="aq_sub">AQI / particulates / dust / UV</string>
+    <string name="aq_title">Air quality</string>
+    <string name="aq_us">US AQI</string>
+    <string name="aq_uv">UV · %1$s</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_basemap">Basemap</string>
+    <string name="cd_clear">Clear</string>
+    <string name="cd_cloud_map">Satellite cloud map</string>
+    <string name="cd_collapse">Collapse</string>
+    <string name="cd_current_city">Current city</string>
+    <string name="cd_expand">Expand</string>
+    <string name="cd_favorite_add">Add favorite</string>
+    <string name="cd_favorite_remove">Remove favorite</string>
+    <string name="cd_hourly_chart">Hourly %1$s chart, high of %2$s, low of %3$s</string>
+    <string name="cd_locate">Locate</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_precip_chart">Hourly precipitation chart, peak of %1$s mm</string>
+    <string name="cd_radar_echo">Radar echo</string>
+    <string name="cd_refresh_cloud">Refresh cloud map</string>
+    <string name="cd_refresh_radar">Refresh radar</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_share">Share weather card</string>
+    <string name="chart_hourly_detail">Hourly detail</string>
+    <string name="chart_hourly_detail_collapse">Tap to collapse</string>
+    <string name="chart_hourly_detail_expand">Tap to expand hourly values</string>
+    <string name="chart_selected_at">Selected %1$s</string>
+    <string name="chart_sub">Drag across the chart to pick a time</string>
+    <string name="chart_title">Line chart</string>
+    <string name="cloud_attribution">Clouds NASA GIBS / VIIRS · basemap CARTO · fullscreen opens Windy satellite</string>
+    <string name="cloud_date">Image date %1$s (UTC)</string>
+    <string name="cloud_empty">No cloud imagery for this area</string>
+    <string name="cloud_hint">True-color daily mosaic over basemap · red dot is the city</string>
+    <string name="cloud_load_failed">Cloud map failed to load</string>
+    <string name="cloud_scan_detail">Fetching NASA true-color tiles</string>
+    <string name="daily_chip_precip">Rain %1$s</string>
+    <string name="daily_chip_prob">Chance %1$s</string>
+    <string name="daily_chip_uv">UV index %1$s</string>
+    <string name="daily_collapse">Collapse</string>
+    <string name="daily_detail_sunrise">Sunrise %1$s</string>
+    <string name="daily_detail_sunset">Sunset %1$s</string>
+    <string name="daily_detail_wind">Max wind %1$s</string>
+    <string name="daily_empty">No 7-day forecast</string>
+    <string name="daily_expand">Expand</string>
+    <string name="daily_section_sub">Tap a day for wind and sun times; bars align to the week</string>
+    <string name="daily_section_title">7-day forecast</string>
+    <string name="day_night">Day/night</string>
+    <string name="daytime">Day</string>
+    <string name="debug_applied">Debug override applied</string>
+    <string name="debug_banner">DEBUG · tap to edit weather overrides</string>
+    <string name="debug_edit">Edit</string>
+    <string name="debug_entered">Debug mode enabled</string>
+    <string name="debug_exit">Exit debug</string>
+    <string name="debug_exited">Debug mode disabled</string>
+    <string name="debug_override_cleared">Override cleared; live fields restored</string>
+    <string name="error_city_not_found">No results for “%1$s”. Try pinyin or the full name.</string>
+    <string name="error_fetch_weather">Failed to fetch weather</string>
+    <string name="error_network_cached">Network error. Showing cached weather.</string>
+    <string name="error_search_failed">City search failed</string>
+    <string name="extras_sub">Sun path, sunrise and sunset</string>
+    <string name="extras_title">Today extras</string>
+    <string name="gps_location">GPS location</string>
+    <string name="high_low_temps">High %1$s  ·  Low %2$s</string>
+    <string name="history_attribution">Data from Open-Meteo historical reanalysis (ERA5)</string>
+    <string name="history_cancel">Cancel</string>
+    <string name="history_days_count">%1$dd</string>
+    <string name="history_empty_day">Pick a date to see that day\'s weather</string>
+    <string name="history_empty_range">Pick a start and end date, then search</string>
+    <string name="history_failed">No data for this date or the request failed</string>
+    <string name="history_meta_humidity">Humidity %1$s</string>
+    <string name="history_meta_precip">Precip %1$s</string>
+    <string name="history_meta_wind">Max wind %1$s</string>
+    <string name="history_mode_day">Single day</string>
+    <string name="history_mode_range">Range stats</string>
+    <string name="history_month_label">%1$d-%2$02d</string>
+    <string name="history_open">View past weather</string>
+    <string name="history_open_sub">Single-day weather, range extremes</string>
+    <string name="history_pick_confirm">View</string>
+    <string name="history_pick_day">Pick a date</string>
+    <string name="history_pick_end">End date</string>
+    <string name="history_pick_start">Start date</string>
+    <string name="history_pick_title">Pick a date</string>
+    <string name="history_query">Search</string>
+    <string name="history_range_extreme_date">On %1$s</string>
+    <string name="history_range_failed">No data for this range or the request failed</string>
+    <string name="history_range_limit">Range supports up to %1$d days</string>
+    <string name="history_range_max_precip">Wettest</string>
+    <string name="history_range_max_temp">Hottest</string>
+    <string name="history_range_min_temp">Coldest</string>
+    <string name="history_range_rows_title">Day by day</string>
+    <string name="history_range_rows_title_monthly">By month</string>
+    <string name="history_range_summary">%1$s ~ %2$s · %3$d days</string>
+    <string name="history_retry">Pick again</string>
+    <string name="history_rows_col_max">Max</string>
+    <string name="history_rows_col_min">Min</string>
+    <string name="history_rows_col_precip">Precip</string>
+    <string name="history_rows_col_rain_days">Rainy</string>
+    <string name="history_sunrise">Sunrise %1$s</string>
+    <string name="history_sunset">Sunset %1$s</string>
+    <string name="history_temp_mean">Average %1$s</string>
+    <string name="history_temp_range">High %1$s · Low %2$s</string>
+    <string name="history_title">Past weather</string>
+    <string name="hour_detail_date">%1$d/%2$d</string>
+    <string name="info_location_denied">Location denied. You can still search for a city.</string>
+    <string name="info_notification_denied">Notifications are off. You can enable them later in system settings.</string>
+    <string name="label_current">Now</string>
+    <string name="label_now">Now</string>
+    <string name="label_retry">Retry</string>
+    <string name="label_selected">Selected</string>
+    <string name="label_today">Today</string>
+    <string name="label_tomorrow">Tomorrow</string>
+    <string name="life_level_fair">Fair</string>
+    <string name="life_level_good">Good</string>
+    <string name="life_level_poor">Poor</string>
+    <string name="life_sub">Estimated from current weather for everyday reference</string>
+    <string name="life_title">Life indices</string>
+    <string name="local_time_updated">Updated %1$s local time</string>
+    <string name="map_tab_cloud">Satellite</string>
+    <string name="map_tab_radar">Radar</string>
+    <string name="metric_cloud">Clouds</string>
+    <string name="metric_dew_point">Dew point</string>
+    <string name="metric_feels_like">Feels like</string>
+    <string name="metric_gust">Gusts</string>
+    <string name="metric_humidity">Humidity</string>
+    <string name="metric_humidity_short">Humidity</string>
+    <string name="metric_humidity_unit">Humidity (%)</string>
+    <string name="metric_precip">Precip</string>
+    <string name="metric_precip_mm_short">Rainfall</string>
+    <string name="metric_precip_mm_unit">Rainfall (mm)</string>
+    <string name="metric_precip_prob_short">Precip chance</string>
+    <string name="metric_precip_prob_unit">Precip chance (%)</string>
+    <string name="metric_pressure">Pressure</string>
+    <string name="metric_temp_c">Temp (°C)</string>
+    <string name="metric_temp_f">Temp (°F)</string>
+    <string name="metric_temp_short">Temp</string>
+    <string name="metric_visibility">Visibility</string>
+    <string name="metric_visibility_short">Visibility</string>
+    <string name="metric_visibility_unit">Visibility (km)</string>
+    <string name="metric_wind">Wind</string>
+    <string name="metric_wind_dir">Direction</string>
+    <string name="metric_wind_short">Wind</string>
+    <string name="metric_wind_unit">Wind (km/h)</string>
+    <string name="nighttime">Night</string>
+    <string name="offline_cached">Offline · showing cached weather</string>
+    <string name="offline_updated">Offline · updated %1$s</string>
+    <string name="precip_bar_counts">Blue %1$dh · Orange %2$dh</string>
+    <string name="precip_chart_empty">No hourly rainfall data</string>
+    <string name="precip_chart_sub">Past/now (blue) + forecast (orange), mm/hour</string>
+    <string name="precip_chart_title">Hourly rainfall</string>
+    <string name="precip_future_dry">Little rain expected ahead</string>
+    <string name="precip_future_mm">About %1$.1f mm expected ahead</string>
+    <string name="precip_legend_future">Forecast</string>
+    <string name="precip_legend_past">Past/now</string>
+    <string name="precip_past_dry">Little rain in recent hours</string>
+    <string name="precip_past_mm">About %1$.1f mm recently</string>
+    <string name="precip_probability">Precip chance</string>
+    <string name="radar_attribution">Radar RainViewer · basemap © CARTO / OSM</string>
+    <string name="radar_empty">No radar data for this area</string>
+    <string name="radar_fullscreen">Fullscreen</string>
+    <string name="radar_hint_center">Red dot is the city · ~10 min per frame</string>
+    <string name="radar_legend_extreme">Extreme</string>
+    <string name="radar_legend_mid">Mod</string>
+    <string name="radar_legend_note">Warmer colors usually mean stronger echoes (illustrative, not official).</string>
+    <string name="radar_legend_strong">Strong</string>
+    <string name="radar_legend_title">Echo intensity (guide)</string>
+    <string name="radar_legend_weak">Weak</string>
+    <string name="radar_load_failed">Radar failed to load</string>
+    <string name="radar_load_failed_generic">Load failed</string>
+    <string name="radar_msg_active">Rain is falling now — use radar to check intensity and movement.</string>
+    <string name="radar_msg_heavy">Notable rain possible in the next 2 hours — check radar for area and motion.</string>
+    <string name="radar_msg_light">Light or spotty rain possible soon; watch approaching echoes.</string>
+    <string name="radar_msg_quiet">Low short-term precip chance; radar is mainly for monitoring.</string>
+    <string name="radar_prob_2h">2h precip chance</string>
+    <string name="radar_scan_city">Scanning %1$s</string>
+    <string name="radar_scan_detail">Fetching basemap and last 2h radar</string>
+    <string name="radar_scan_sync">Syncing echoes…</string>
+    <string name="radar_sub">Short-term outlook · radar · satellite clouds</string>
+    <string name="radar_sum_2h">2h rain total</string>
+    <string name="radar_title">Precip &amp; radar</string>
+    <string name="radar_visibility">Visibility</string>
+    <string name="radar_wind">Wind</string>
+    <string name="search_city_hint">Beijing, Shanghai, bj, London…</string>
+    <string name="search_city_label">Search city</string>
+    <string name="search_hint_empty">Type a city, pinyin, or English — or pick a popular city</string>
+    <string name="search_popular">Popular</string>
+    <string name="search_recent">Recent</string>
+    <string name="search_recent_clear">Clear</string>
+    <string name="season_autumn_bloom">Autumn bloom</string>
+    <string name="season_blossom_ending">%1$s and similar are winding down — catch them while you can.</string>
+    <string name="season_blossom_peak">Peak bloom season — common locally: %1$s. Fair weather is good for walks.</string>
+    <string name="season_blossom_starting">Bloom is just starting — look for local %1$s and similar.</string>
+    <string name="season_blossom_upcoming">Typical bloom window around %1$s — watch for %2$s and similar.</string>
+    <string name="season_disclaimer">Estimate from latitude and elevation, not field phenology; check local reports.</string>
+    <string name="season_foliage">Foliage season</string>
+    <string name="season_foliage_ending">%1$s and similar are winding down — catch the color while you can.</string>
+    <string name="season_foliage_peak">Peak foliage season — common locally: %1$s. A good weekend for autumn color.</string>
+    <string name="season_foliage_starting">Foliage is starting — %1$s in parks and hills may color first.</string>
+    <string name="season_foliage_upcoming">Typical foliage window around %1$s — watch for %2$s and autumn color.</string>
+    <string name="season_phase_ending">Winding down</string>
+    <string name="season_phase_peak">In season</string>
+    <string name="season_phase_starting">Just starting</string>
+    <string name="season_phase_upcoming">Coming soon</string>
+    <string name="season_phenology_early">Warmer year than usual — phenology about %1$d days early</string>
+    <string name="season_phenology_late">Cooler year than usual — phenology about %1$d days late</string>
+    <string name="season_spring_bloom">Spring bloom</string>
+    <string name="season_sub">%1$s · calendar estimate by latitude</string>
+    <string name="season_summer_bloom">Summer bloom</string>
+    <string name="season_window">%1$d/%2$d–%3$d/%4$d</string>
+    <string name="season_winter_bloom">Winter bloom</string>
+    <string name="share_card_cancel">Cancel</string>
+    <string name="share_card_chooser">Share weather card</string>
+    <string name="share_card_failed">Share failed, please try again</string>
+    <array name="share_card_quotes"><item>Every cloud has a silver lining.</item>
+        <item>After rain comes sunshine.</item>
+        <item>No rain, no flowers.</item>
+        <item>The sun always shines above the clouds.</item>
+        <item>A smooth sea never made a skilled sailor.</item>
+        <item>Storms make trees take deeper roots.</item>
+        <item>The greater the storm, the brighter the rainbow.</item>
+        <item>Wherever you go, no matter the weather, bring your own sunshine.</item>
+        <item>Rain is just confetti from the sky.</item>
+        <item>Let the wind rearrange your thoughts.</item>
+        <item>Cloudy days make you appreciate the sun.</item>
+        <item>Soft rain grows quiet courage.</item>
+        <item>Blue sky days are for deep breaths.</item>
+        <item>Snow turns noise into hush.</item>
+        <item>Fog asks you to walk a little slower.</item>
+        <item>Thunder is only weather clearing its throat.</item>
+        <item>Sunrise is proof that endings can glow.</item>
+        <item>Sunset is the sky signing off kindly.</item>
+        <item>Pack patience with your umbrella.</item>
+        <item>Wear kindness; it works in every climate.</item>
+        <item>A warm drink fixes more than cold hands.</item>
+        <item>Look up: the sky is still doing its best.</item>
+        <item>Weather changes. So can your mood—for the better.</item>
+        <item>Take the long way when the light is good.</item>
+        <item>Leave room in your day for a breeze.</item>
+        <item>If it’s raining, practice soft steps.</item>
+        <item>If it’s windy, hold your hat and your hope.</item>
+        <item>If it’s hot, water yourself like a plant.</item>
+        <item>If it’s cold, share your warmth.</item>
+        <item>May your winters be warm and your springs gentle.</item>
+        <item>Grow toward the sun; walk toward the light.</item>
+        <item>Keep going—frontiers love steady feet.</item>
+        <item>Nothing worth having comes easy.</item>
+        <item>Small steps still count as travel.</item>
+        <item>Today is a good day to begin again.</item>
+        <item>Be the calm in someone else’s weather.</item>
+        <item>Send a forecast of kindness.</item>
+        <item>The best jacket is a good attitude.</item>
+        <item>Clouds are temporary tenants of the sky.</item>
+        <item>Rainbows need both rain and light.</item>
+        <item>Even drizzle deserves a smile.</item>
+        <item>Make tea. Watch the window. Be here.</item>
+        <item>Your pace can match the weather.</item>
+        <item>Clear skies favor clear priorities.</item>
+        <item>Grey days are for soft music and warm soup.</item>
+        <item>Let heat remind you to rest, not rush.</item>
+        <item>Frost writes fine letters on glass.</item>
+        <item>Dew is the morning’s quiet jewelry.</item>
+        <item>Lightning is loud geometry.</item>
+        <item>Hail is winter visiting summer briefly.</item>
+        <item>Mist turns streets into watercolor.</item>
+        <item>Dust after wind means the air is resetting.</item>
+        <item>Humidity is invisible weight—drink water.</item>
+        <item>UV can hide behind thin clouds; protect your skin.</item>
+        <item>Windchill is why “feels like” matters.</item>
+        <item>Pressure drops can make joints complain—be gentle.</item>
+        <item>Urban nights stay warmer—city heat islands are real.</item>
+        <item>The coldest hour is often near dawn.</item>
+        <item>Peak heat usually arrives after noon, not at noon.</item>
+        <item>Blue skies come from scattered sunlight.</item>
+        <item>Red sunsets travel through thicker air.</item>
+        <item>Fog is a cloud that chose the ground.</item>
+        <item>Snowflakes love six-fold symmetry.</item>
+        <item>Thunder arrives late because sound is slower than light.</item>
+        <item>A 30% chance of rain is a probability, not a fraction of the day.</item>
+        <item>Radar shows echoes aloft; ground truth still matters.</item>
+        <item>Satellite “white” is often cloud tops reflecting sun.</item>
+        <item>Dress for the feel, not only the number.</item>
+        <item>Drive slower on wet roads—water lengthens braking.</item>
+        <item>Sip water in dry air; your lips will thank you.</item>
+        <item>Sunglasses help on bright days and snow glare.</item>
+        <item>If winter comes, can spring be far behind? — Percy Shelley</item>
+        <item>The best way out is always through. — Robert Frost</item>
+        <item>Keep your face always toward the sunshine. — Helen Keller</item>
+        <item>Even the darkest night will end and the sun will rise. — Victor Hugo</item>
+        <item>The journey of a thousand miles begins with a single step. — Lao Tzu</item>
+        <item>It always seems impossible until it’s done. — Nelson Mandela</item>
+        <item>What lies behind us and what lies before us are tiny matters compared to what lies within us. — Emerson</item>
+        <item>In the middle of difficulty lies opportunity. — Albert Einstein</item>
+        <item>Do what you can, with what you have, where you are. — Theodore Roosevelt</item>
+        <item>Happiness depends upon ourselves. — Aristotle</item>
+        <item>The only way to do great work is to love what you do. — Steve Jobs</item>
+        <item>Be yourself; everyone else is already taken. — Oscar Wilde</item>
+        <item>Not all those who wander are lost. — J. R. R. Tolkien</item>
+        <item>That which does not kill us makes us stronger. — Nietzsche</item>
+        <item>We are what we repeatedly do. — Will Durant (on Aristotle)</item>
+        <item>Simplicity is the ultimate sophistication. — Leonardo da Vinci</item>
+        <item>Time you enjoy wasting is not wasted time. — Bertrand Russell</item>
+        <item>An investment in knowledge pays the best interest. — Benjamin Franklin</item>
+        <item>Well begun is half done. — Aristotle</item>
+        <item>Fortune favors the bold.</item>
+        <item>Slow and steady wins the race.</item>
+        <item>Hope is a good breakfast.</item>
+        <item>Courage is fear that has said its prayers.</item>
+        <item>Grace under pressure.</item>
+        <item>Stay curious. Stay kind.</item>
+        <item>Ship the care. Share the sky.</item>
+        <item>Ride the wind and break the waves. — Li Bai</item>
+        <item>When one path fades, another village blooms. — Lu You</item>
+        <item>The moon waxes and wanes; so do our days. — Su Shi</item>
+        <item>Walk until the water ends; sit and watch clouds rise. — Wang Wei</item>
+        <item>A little rain knows the season. — Du Fu</item>
+        <item>Spring wind feels like scissors trimming the world green. — He Zhizhang</item>
+        <item>Stars don’t quiz travelers; time still rewards them.</item>
+        <item>With a calm heart, fear less of tomorrow.</item>
+        <item>Life isn’t about waiting for the storm to pass, but learning to dance in the rain.</item>
+        <item>May your inbox hold more clear skies.</item>
+        <item>Send this card like a hello through the weather.</item>
+        <item>You are allowed to rest until the rain softens.</item>
+        <item>The street smells new after rain—so can a day.</item>
+        <item>Clouds can’t cancel your plans forever.</item>
+        <item>Let the breeze say: you’ve got this.</item>
+        <item>Sunshine is free vitamin D—take a minute.</item>
+        <item>Rain sound is nature’s white noise.</item>
+        <item>In fog, focus on the next step.</item>
+        <item>In snow, leave romance to your eyes and care to your feet.</item>
+        <item>In heatwaves, hydrate more than you hustle.</item>
+        <item>When cold air arrives, check on family.</item>
+        <item>Forecasts change; keep your kindness constant.</item>
+        <item>Today suits deep breaths and warm soup.</item>
+        <item>Today suits looking up at clouds and down at the path.</item>
+        <item>Today suits a quiet smile to yourself.</item>
+        <item>Weather is vast; being human is enough.</item>
+        <item>Seasons turn, and so do you—growing.</item>
+        <item>This temperature is perfect for a kind thought.</item>
+        <item>Make today the weather you wanted.</item>
+        <item>Bear says: check the sky, keep the sunshine inside.</item>
+        <item>Bear says: walk slow in rain, jog light in sun.</item>
+        <item>Bear says: hat for wind, layers for cold.</item>
+        <item>Bear says: stay cozy and curious.</item>
+    </array>
+    <string name="share_card_send">Share image</string>
+    <string name="subtitle_current_location">Current location</string>
+    <string name="subtitle_location_updated">Current location · updated %1$s</string>
+    <string name="subtitle_offline_updated">Offline · updated %1$s</string>
+    <string name="subtitle_search_world">Search a city for world weather</string>
+    <string name="subtitle_updated_refresh">Updated %1$s · refresh at :00/:15/:30/:45</string>
+    <string name="sun_bear_enlarge">View larger</string>
+    <string name="sun_bear_fest_christmas">Bear is celebrating Christmas</string>
+    <string name="sun_bear_fest_double">Bear is celebrating both festivals</string>
+    <string name="sun_bear_fest_mid_autumn">Bear is celebrating Mid-Autumn</string>
+    <string name="sun_bear_fest_national">Bear is celebrating National Day</string>
+    <string name="sun_bear_fest_new_year">Bear is ringing in the New Year</string>
+    <string name="sun_bear_fest_spring">Bear is celebrating Spring Festival</string>
+    <string name="sun_bear_fest_spring_cake">Bear is eating New Year cake</string>
+    <string name="sun_bear_fest_spring_couplet">Bear is putting up spring couplets</string>
+    <string name="sun_bear_fest_spring_dinner">Bear is having New Year\'s Eve dinner</string>
+    <string name="sun_bear_fest_spring_dumpling">Bear is making dumplings for the New Year</string>
+    <string name="sun_bear_fest_spring_firecracker">Bear is setting off firecrackers</string>
+    <string name="sun_bear_fest_spring_firework">Bear is watching fireworks</string>
+    <string name="sunrise">Sunrise</string>
+    <string name="sunset">Sunset</string>
+    <string name="today_empty">No weather data for today</string>
+    <string name="error_locate_failed">Location failed</string>
+    <string name="error_need_location_permission">Please grant location permission first</string>
+    <string name="humidity_short_na">H —</string>
+    <string name="hourly_empty">No hourly trend data</string>
+    <string name="hourly_section_title">Hourly trend</string>
+    <string name="hourly_section_sub">Past 12 hours + next 18 hours</string>
+    <string name="humidity_short">H %1$d%%</string>
+    <string name="debug_apply">Apply</string>
+    <string name="debug_clear_override">Clear override</string>
+    <string name="debug_editor_hint">Apply recalculates alerts and life indices. Clear override to restore live values. Entry: tap About 7 times, or search __debug__ / #熊调试.</string>
+    <string name="debug_editor_title">Weather override</string>
+    <string name="debug_field_aqi">European AQI</string>
+    <string name="debug_field_daily_max">Highs from today (comma-separated)</string>
+    <string name="debug_field_daily_min">Lows from today (comma-separated)</string>
+    <string name="debug_field_dust">Dust μg/m³</string>
+    <string name="debug_field_feels">Feels °C</string>
+    <string name="debug_field_gust">Gusts km/h</string>
+    <string name="debug_field_humidity">Humidity %</string>
+    <string name="debug_field_precip">Precip mm/h</string>
+    <string name="debug_field_temp">Temp °C</string>
+    <string name="debug_field_uv">UV</string>
+    <string name="debug_field_visibility">Visibility m</string>
+    <string name="debug_field_weather_code">Weather code (WMO)</string>
+    <string name="debug_field_wind">Wind km/h</string>
+    <string name="debug_no_city">Select a city and load weather first</string>
+    <string name="debug_scene_cold_wave">Cold wave</string>
+    <string name="debug_scene_heat_wave">Heat wave</string>
+    <string name="debug_title">Debug mode</string>
+</resources>

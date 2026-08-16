@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bear_leaderboard_clear">Clear records</string>
+    <string name="bear_leaderboard_clear_confirm">Clear</string>
+    <string name="bear_leaderboard_clear_msg">This deletes all scores for this game. This cannot be undone.</string>
+    <string name="bear_leaderboard_clear_title">Clear records?</string>
+    <string name="bear_leaderboard_empty">No records yet — play a round to set one!</string>
+    <string name="bear_leaderboard_rank_label">Rank %1$d</string>
+    <string name="bear_leaderboard_score_label">%1$d pts</string>
+    <string name="cd_leaderboard">View leaderboard</string>
+    <string name="share_card_cancel">Cancel</string>
+</resources>

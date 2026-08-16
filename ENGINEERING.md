@@ -7,7 +7,7 @@
 `.github/workflows/ci.yml` 已配置：push 到 `main` 或开 PR 时自动运行：
 
 - `lintKotlin`（ktlint 静态检查）
-- `testFullDebugUnitTest`（单元测试）
+- `test`（全模块单元测试：core / feature / game / app）
 - `lintFullDebug`（Android Lint）
 
 无需额外配置即可生效（私有仓库免费额度内）。

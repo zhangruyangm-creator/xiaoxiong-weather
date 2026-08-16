@@ -30,11 +30,30 @@ jobs:
       - name: ktlint
         run: ./gradlew lintKotlin
 
-      - name: Unit tests (full)
-        run: ./gradlew testFullDebugUnitTest --stacktrace
+      - name: Unit tests (all modules)
+        run: ./gradlew test --stacktrace
 
       - name: Lint (full debug)
         run: ./gradlew lintFullDebug
+
+      - name: Build release (full, R8 + shrinkResources)
+        run: ./gradlew :app:assembleFullRelease
+
+      - name: Verify game ServiceLoader registrations survive R8
+        run: |
+          unzip -p app/build/outputs/apk/full/release/app-full-release.apk \
+            META-INF/services/com.xiaoxiong.weather.game.GameEntryProvider \
+            > /tmp/game_providers.txt
+          for provider in \
+            com.xiaoxiong.weather.ui.game.BearGameEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearStarJumpEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearMazeEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearFarmEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearHomeEntryProvider
+          do
+            grep -qx "$provider" /tmp/game_providers.txt \
+              || { echo "ServiceLoader registration missing: $provider"; exit 1; }
+          done
 
       - name: Upload test reports on failure
         if: failure()
@@ -44,3 +63,6 @@ jobs:
           path: |
             app/build/reports/
             app/build/test-results/
+            core/**/build/test-results/
+            feature/**/build/test-results/
+            game/**/build/test-results/

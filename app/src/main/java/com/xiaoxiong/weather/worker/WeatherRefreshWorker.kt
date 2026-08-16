@@ -15,7 +15,6 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.xiaoxiong.weather.MainActivity
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.AlertKind
 import com.xiaoxiong.weather.data.AppError
@@ -138,8 +137,11 @@ class WeatherRefreshWorker(
         text: String,
     ) {
         ensureChannel()
+        val launch =
+            applicationContext.packageManager
+                .getLaunchIntentForPackage(applicationContext.packageName) ?: return
         val openApp =
-            Intent(applicationContext, MainActivity::class.java).apply {
+            launch.apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP

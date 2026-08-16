@@ -71,6 +71,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
+import com.xiaoxiong.weather.game.GameEntry
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.debug.DebugWeatherScreen
 import com.xiaoxiong.weather.ui.settings.DailyCardsSettingsScreen
@@ -89,6 +90,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 fun WeatherScreen(
     settingsStore: AppSettingsStore,
     viewModel: WeatherViewModel? = null,
+    gameEntries: List<GameEntry> = emptyList(),
 ) {
     val app = LocalContext.current.applicationContext as Application
     val resolvedViewModel =
@@ -98,6 +100,7 @@ fun WeatherScreen(
     WeatherScreenContent(
         settingsStore = settingsStore,
         viewModel = resolvedViewModel,
+        gameEntries = gameEntries,
     )
 }
 
@@ -106,6 +109,7 @@ fun WeatherScreen(
 private fun WeatherScreenContent(
     settingsStore: AppSettingsStore,
     viewModel: WeatherViewModel,
+    gameEntries: List<GameEntry>,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appSettings by viewModel.appSettings.collectAsStateWithLifecycle()
@@ -472,6 +476,7 @@ private fun WeatherScreenContent(
             cityName = state.selectedCity?.displayName,
             pagerState = pagerState,
             scope = scope,
+            entries = gameEntries,
         )
     }
 }

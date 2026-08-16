@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bear_maze_abandon_cancel">继续玩</string>
+    <string name="bear_maze_abandon_discard">放弃进度</string>
+    <string name="bear_maze_abandon_keep">保留进度并退出</string>
+    <string name="bear_maze_abandon_text">退出后进度会保留，下次进入可从第 %1$d 波继续。要放弃进度并从第 1 波重新开始吗？</string>
+    <string name="bear_maze_abandon_title">无尽第 %1$d 波进行中</string>
+    <string name="bear_maze_campaign_label">战役关卡（共 %1$d 关，后段随机生成）</string>
+    <string name="bear_maze_clear">通关啦！</string>
+    <string name="bear_maze_clear_moves">共用了 %1$d 步</string>
+    <string name="bear_maze_endless">🎲 无尽随机挑战</string>
+    <string name="bear_maze_endless_best">历史最高波次：%1$d</string>
+    <string name="bear_maze_failed">挑战失败</string>
+    <string name="bear_maze_failed_detail">到达第 %1$d 波 · %2$d/%3$d 步</string>
+    <string name="bear_maze_hud">蜜 %1$d/%2$d · 钥匙 %3$d · 步数 %4$d/%5$d</string>
+    <string name="bear_maze_levels">选关</string>
+    <string name="bear_maze_need_honey">还要收齐蜂蜜才能出门！</string>
+    <string name="bear_maze_next">下一关</string>
+    <string name="bear_maze_next_wave">下一波</string>
+    <string name="bear_maze_restart">重来</string>
+    <string name="bear_maze_select_hint">滑动或用方向键移动 · 收齐蜂蜜才能出门 · 冰面会滑行</string>
+    <string name="bear_maze_tag_gen">随机</string>
+    <string name="bear_maze_tag_hand">精选</string>
+    <string name="bear_maze_title">小熊迷宫</string>
+    <string name="cd_close_game">退出游戏</string>
+</resources>

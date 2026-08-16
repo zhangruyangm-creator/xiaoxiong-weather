@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="font_follow_system">Follow system</string>
+    <string name="font_small">Small</string>
+    <string name="font_standard">Standard</string>
+    <string name="font_large">Large</string>
+    <string name="font_extra_large">Extra large</string>
+    <string name="error_need_location_permission">Please grant location permission first</string>
+    <string name="error_locate_failed">Location failed</string>
+    <string name="location_current">Current location</string>
+    <string name="error_locate_timeout">Location timed out. Make sure system location is on.</string>
+    <string name="error_locate_disabled">Please turn on system location</string>
+    <string name="error_forecast_empty">Current weather data is empty</string>
+
+    <string name="today_card_alerts">Weather alerts</string>
+    <string name="today_card_current">Current conditions</string>
+    <string name="today_card_life">Life indices</string>
+    <string name="today_card_air">Air quality</string>
+    <string name="today_card_radar">Radar &amp; clouds</string>
+    <string name="today_card_sun">Sunrise &amp; sunset</string>
+    <string name="hourly_card_precip">Precipitation bar chart</string>
+    <string name="hourly_card_strip">Hourly temperature strip</string>
+    <string name="hourly_card_chart">Hourly chart</string>
+    <string name="daily_card_forecast">7-day forecast</string>
+    <string name="daily_card_season">Season &amp; phenology</string>
+    <string name="daily_card_history">Past weather</string>
+</resources>

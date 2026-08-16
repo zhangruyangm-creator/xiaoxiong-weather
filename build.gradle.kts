@@ -3,6 +3,7 @@ import org.gradle.api.execution.TaskExecutionGraph
 
 plugins {
     alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.library) apply false
     alias(libs.plugins.android.test) apply false
     alias(libs.plugins.androidx.baselineprofile) apply false
     alias(libs.plugins.kotlin.android) apply false
@@ -12,6 +13,12 @@ plugins {
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.crashlytics) apply false
     alias(libs.plugins.ktlint) apply false
+}
+
+// 全模块统一启用 ktlint：核心/功能/游戏模块的格式检查与 :app 保持一致，
+// 避免模块代码游离于代码风格约束之外（.editorconfig 为唯一规则来源）。
+subprojects {
+    apply(plugin = "io.github.usefulness.ktlint-gradle-plugin")
 }
 
 // 配置缓存开启时每次构建都会向 build/reports/configuration-cache 写入诊断报告，

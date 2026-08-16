@@ -15,29 +15,29 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class BaselineProfileGenerator {
-
     @get:Rule
     val rule = BaselineProfileRule()
 
     @Test
-    fun generate() = rule.collect(
-        packageName = "com.xiaoxiong.weather"
-    ) {
-        pressHome()
-        startActivityAndWait()
+    fun generate() =
+        rule.collect(
+            packageName = "com.xiaoxiong.weather",
+        ) {
+            pressHome()
+            startActivityAndWait()
 
-        // 首次安装会弹隐私协议，先同意进入主界面（按钮文案随系统语言）
-        listOf("同意并继续", "Agree and continue").forEach { text ->
-            device.wait(Until.findObject(By.text(text)), 2_000)?.click()
-        }
-        device.waitForIdle()
+            // 首次安装会弹隐私协议，先同意进入主界面（按钮文案随系统语言）
+            listOf("同意并继续", "Agree and continue").forEach { text ->
+                device.wait(Until.findObject(By.text(text)), 2_000)?.click()
+            }
+            device.waitForIdle()
 
-        // 滚动今日页，覆盖 LazyColumn / 图表 / 卡片的绘制路径
-        device.findObject(By.scrollable(true))?.apply {
-            setGestureMargin(device.displayWidth / 5)
-            fling(Direction.DOWN)
-            fling(Direction.UP)
+            // 滚动今日页，覆盖 LazyColumn / 图表 / 卡片的绘制路径
+            device.findObject(By.scrollable(true))?.apply {
+                setGestureMargin(device.displayWidth / 5)
+                fling(Direction.DOWN)
+                fling(Direction.UP)
+            }
+            device.waitForIdle()
         }
-        device.waitForIdle()
-    }
 }

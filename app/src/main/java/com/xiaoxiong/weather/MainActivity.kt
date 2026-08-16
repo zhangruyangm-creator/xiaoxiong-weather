@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.Density
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.data.ThemeMode
 import com.xiaoxiong.weather.di.appContainer
+import com.xiaoxiong.weather.game.loadGameEntryProviders
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.theme.XiaoxiongWeatherTheme
 import com.xiaoxiong.weather.ui.weather.WeatherScreen
@@ -75,7 +76,10 @@ class MainActivity : ComponentActivity() {
                         contentColor = MaterialTheme.colorScheme.onBackground,
                     ) {
                         CompositionLocalProvider(LocalReduceMotion provides reduceMotion) {
-                            WeatherScreen(settingsStore = settingsStore)
+                            WeatherScreen(
+                                settingsStore = settingsStore,
+                                gameEntries = loadGameEntryProviders(),
+                            )
                         }
                     }
                 }

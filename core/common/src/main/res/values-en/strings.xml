@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_unknown">Unknown</string>
+    <string name="wx_clear">Clear</string>
+    <string name="wx_mainly_clear">Few clouds</string>
+    <string name="wx_partly_cloudy">Partly cloudy</string>
+    <string name="wx_overcast">Overcast</string>
+    <string name="wx_fog">Fog</string>
+    <string name="wx_drizzle">Drizzle</string>
+    <string name="wx_freezing_drizzle">Freezing drizzle</string>
+    <string name="wx_light_rain">Light rain</string>
+    <string name="wx_moderate_rain">Moderate rain</string>
+    <string name="wx_heavy_rain">Heavy rain</string>
+    <string name="wx_violent_rain">Torrential rain</string>
+    <string name="wx_extreme_rain">Violent rain showers</string>
+    <string name="wx_freezing_rain">Freezing rain</string>
+    <string name="wx_light_snow">Light snow</string>
+    <string name="wx_moderate_snow">Moderate snow</string>
+    <string name="wx_heavy_snow">Heavy snow</string>
+    <string name="wx_blizzard">Blizzard</string>
+    <string name="wx_snow_grains">Snow grains</string>
+    <string name="wx_rain_showers">Rain showers</string>
+    <string name="wx_heavy_rain_showers">Heavy rain showers</string>
+    <string name="wx_snow_showers">Snow showers</string>
+    <string name="wx_thunderstorm">Thunderstorm</string>
+    <string name="wx_hail">Hail</string>
+    <string name="wx_code_fallback">Weather code %1$d</string>
+    <string name="aqi_good">Good</string>
+    <string name="aqi_fair">Fair</string>
+    <string name="aqi_moderate">Moderate</string>
+    <string name="aqi_poor">Poor</string>
+    <string name="aqi_very_poor">Very poor</string>
+    <string name="aqi_extremely_poor">Extremely poor</string>
+    <string name="uv_low">Low</string>
+    <string name="uv_moderate">Moderate</string>
+    <string name="uv_high">High</string>
+    <string name="uv_very_high">Very high</string>
+    <string name="uv_extreme">Extreme</string>
+    <string name="wind_n">N</string>
+    <string name="wind_ne">NE</string>
+    <string name="wind_e">E</string>
+    <string name="wind_se">SE</string>
+    <string name="wind_s">S</string>
+    <string name="wind_sw">SW</string>
+    <string name="wind_w">W</string>
+    <string name="wind_nw">NW</string>
+
+    <string name="error_network_request">Network request failed (%1$d)</string>
+    <string name="error_network_unavailable">Network unavailable. Please try again later.</string>
+    <string name="error_data_format">Weather data looks abnormal. Please try again later.</string>
+</resources>

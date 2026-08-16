@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="font_follow_system">跟随系统</string>
+    <string name="font_small">较小</string>
+    <string name="font_standard">标准</string>
+    <string name="font_large">较大</string>
+    <string name="font_extra_large">最大</string>
+    <string name="error_need_location_permission">请先授予定位权限</string>
+    <string name="error_locate_failed">定位失败</string>
+    <string name="location_current">当前位置</string>
+    <string name="error_locate_timeout">定位超时，请确认已开启系统定位</string>
+    <string name="error_locate_disabled">请开启系统定位</string>
+    <string name="error_forecast_empty">当前天气数据为空</string>
+
+    <string name="today_card_alerts">天气预警</string>
+    <string name="today_card_current">实况天气</string>
+    <string name="today_card_life">生活指数</string>
+    <string name="today_card_air">空气质量</string>
+    <string name="today_card_radar">雷达与云图</string>
+    <string name="today_card_sun">日出日落</string>
+    <string name="hourly_card_precip">降水柱状图</string>
+    <string name="hourly_card_strip">小时温度条</string>
+    <string name="hourly_card_chart">小时走势图</string>
+    <string name="daily_card_forecast">七日预报</string>
+    <string name="daily_card_season">时令物候</string>
+    <string name="daily_card_history">历史天气</string>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bear_leaderboard_clear">清空纪录</string>
+    <string name="bear_leaderboard_clear_confirm">清空</string>
+    <string name="bear_leaderboard_clear_msg">将删除本游戏的全部成绩记录，此操作不可恢复。</string>
+    <string name="bear_leaderboard_clear_title">清空纪录？</string>
+    <string name="bear_leaderboard_empty">还没有记录，快去玩一局吧！</string>
+    <string name="bear_leaderboard_rank_label">排名 %1$d</string>
+    <string name="bear_leaderboard_score_label">%1$d 分</string>
+    <string name="cd_leaderboard">查看排行榜</string>
+    <string name="share_card_cancel">取消</string>
+</resources>
