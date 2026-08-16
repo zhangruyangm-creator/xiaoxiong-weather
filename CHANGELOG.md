@@ -1,5 +1,9 @@
 # 更新记录
 
+## [1.6.6] - 2026-08-16
+
+- 修复：1.6.5 release 打开即闪退。根因是彩蛋游戏 `GameEntryProvider` 实现类误用 Kotlin `object`——`ServiceLoader` 需反射调用 public 无参构造器，而 `object` 构造器是 private 的，加载即抛 `ServiceConfigurationError: Unable to get public no-arg constructor`。已将 5 个 provider 改为普通 `class`，并补充各模块回归测试 + 文档约定说明
+
 ## [1.6.5] - 2026-08-16
 
 - 工程重构（无用户可见功能变化）：单模块 `:app` 拆分为 `core/{model,common,domain,network,data,designsystem,test-fixtures}` + `feature/{weather,settings}` + `game/{api,common,jump,star,maze,farm,home}` 的多模块体系
