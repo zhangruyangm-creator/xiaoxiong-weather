@@ -135,7 +135,7 @@ interface GameEntry {
 ```
 
 - `WeatherGameOverlay` 已改造为接收 `List<GameEntry>` 按口令匹配，同一时刻单游戏激活（保持历史互斥行为）
-- 阶段 5 落定：门面全部删除；各游戏模块实现 `object XxxEntry : GameEntry` + `object XxxEntryProvider : GameEntryProvider`，经 `META-INF/services` 注册；`MainActivity` 用 `loadGameEntryProviders()`（ServiceLoader）装配，未选中模块根本不编译，裁剪效果优于状态前
+- 阶段 5 落定：门面全部删除；各游戏模块实现 `object XxxEntry : GameEntry` + `class XxxEntryProvider : GameEntryProvider`（provider 必须是普通 class 而非 object，ServiceLoader 需反射调用 public 无参构造器），经 `META-INF/services` 注册；`MainActivity` 用 `loadGameEntryProviders()`（ServiceLoader）装配，未选中模块根本不编译，裁剪效果优于状态前
 - 口令常量集中 `:game:api`（`EasterEggPasswords.kt`）：home 枢纽引用其它游戏口令依赖接口层
 
 ### 4.2 SunPathMath 下沉（阶段 3）
@@ -290,7 +290,7 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 **核心机制——`-Pgames` 退役，改动态依赖 + ServiceLoader 装配**：
 
 1. `:app` 依 `-Pgames`（默认 all、`none`、逗号列表）对五个游戏模块做 `fullImplementation` **条件动态依赖**；未选中的模块不参与编译，classpath 上不存在其字节码。
-2. 各游戏模块通过 `META-INF/services/com.xiaoxiong.weather.game.GameEntryProvider` 注册 provider（`GameEntryProvider.entry` 暴露各自的 `GameEntry` object）。
+2. 各游戏模块通过 `META-INF/services/com.xiaoxiong.weather.game.GameEntryProvider` 注册 provider（`GameEntryProvider.entry` 暴露各自的 `GameEntry` object）。provider 必须是**普通 class**（public 无参构造器），不能用 Kotlin `object`——`ServiceLoader` 靠反射 `newInstance()` 实例化，`object` 构造器是 private 的，启动即抛 `ServiceConfigurationError`。
 3. `MainActivity` 用 `:game:api` 的 `loadGameEntryProviders()`（`ServiceLoader`）装配 `gameEntries`——比旧源码集机制更彻底：未选中的游戏**连字节码都不存在**，无需 Empty 门面。
 4. `gameXxxEmpty` 门面、`app/src/lite` 的游戏禁用 facade、`src/gameXxxTest` 测试源集全部删除；游戏测试随各模块走。
 

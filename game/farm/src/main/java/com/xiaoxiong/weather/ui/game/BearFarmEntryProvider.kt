@@ -4,6 +4,6 @@ import com.xiaoxiong.weather.game.GameEntry
 import com.xiaoxiong.weather.game.GameEntryProvider
 
 /** ServiceLoader 提供者：装配方据此发现 [BearFarmEntry]。 */
-object BearFarmEntryProvider : GameEntryProvider {
+class BearFarmEntryProvider : GameEntryProvider {
     override val entry: GameEntry = BearFarmEntry
 }
