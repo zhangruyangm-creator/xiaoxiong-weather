@@ -1,5 +1,11 @@
 # 更新记录
 
+## [未发布]
+
+- 工程加固：R8 keep 规则显式保留 `GameEntryProvider` 实现的无参构造器；CI 新增 dex 级 provider 构造器验证 + `-Pgames=none` 裁剪构建与注册清零断言
+- 架构：`WeatherGameOverlay` 从 `:feature:weather` 上移至 `:app`（消除 feature 对 `:game:api` 的依赖，游戏装配完全由薄壳层承载）；`MainActivity` 用 `remember` 缓存 ServiceLoader 装配结果，避免每次重组重复扫描
+- 文档：修正 README/MODULARIZATION 中「lite 零痕迹」表述——lite 不含任何游戏实现模块字节码，但 `:game:api` 接口契约层（约 1-2KB）仍由 `:app` 无条件引用，属预期
+
 ## [1.6.6] - 2026-08-16
 
 - 修复：1.6.5 release 打开即闪退。根因是彩蛋游戏 `GameEntryProvider` 实现类误用 Kotlin `object`——`ServiceLoader` 需反射调用 public 无参构造器，而 `object` 构造器是 private 的，加载即抛 `ServiceConfigurationError: Unable to get public no-arg constructor`。已将 5 个 provider 改为普通 `class`，并补充各模块回归测试 + 文档约定说明

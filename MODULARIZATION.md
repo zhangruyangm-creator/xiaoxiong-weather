@@ -75,7 +75,7 @@ xiaoxiong-weather/
 :core:data         ← :core:model, :core:common, :core:domain, :core:network
 :core:designsystem ← :core:model, :core:common, :core:domain
 :core:test-fixtures← :core:model
-:feature:weather   ← core:{model,network,domain,data,designsystem,common}, :game:api
+:feature:weather   ← core:{model,network,domain,data,designsystem,common}（不依赖 :game:api，游戏装配由 :app 承载）
 :feature:settings  ← core:{model,data,designsystem,common}
 :game:common       ← :game:api, core:{designsystem,common,model}
 :game:xxx          ← :game:api, :game:common, core:{designsystem,common}
@@ -300,7 +300,7 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 2. **`GameWeatherFx` 的 DrawScope 特效改 public**——`drawStormLightning`/`drawRainLayered` 等被 jump/star 跨模块调用，从 internal 放开。
 3. **HomePlayroom 不再判 `DISABLED` 哨兵**——动态依赖下口令恒为真实值，游乐间四个入口恒展示；某游戏未装配时其入口无效由装配层（`onOpenGame` → overlay 注册表）兜底。
 4. **生活片刻插画 85 张随 home 拷贝**——`ic_sun_bear_{breakfast,lunch,dinner}_*` 已在 `:core:designsystem`，但 Android Library 编译期 `R` 只含自持资源，gameHome 所需插画按「代码引用 → 同步迁移」拷入 `:game:home` res（机械操作）。
-5. **lite 版零游戏依赖**——动态游戏依赖仅挂 `fullImplementation`，lite 的 `ServiceLoader` 返回空列表，包内零游戏痕迹。
+5. **lite 版零游戏实现**——动态游戏依赖仅挂 `fullImplementation`，lite 不含任何游戏实现模块（jump/star/maze/farm/home 字节码为零）。注意 `:game:api` 接口契约层仍由 `:app` 无条件依赖（MainActivity/WeatherGameOverlay 需引用 `GameEntry` 类型），lite 包保留约 1-2KB 接口字节码，属预期——「零痕迹」指零游戏实现，非零接口契约。
 
 **验收（已全部通过）**：
 - `-Pgames=all` / `jump` / `none` 三档编译 ✓

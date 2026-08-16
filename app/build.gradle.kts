@@ -122,6 +122,9 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":feature:weather"))
     implementation(project(":feature:settings"))
+    // :game:api 是无实现的接口契约层（GameEntry/口令常量/装配函数），:app 需无条件引用
+    // （MainActivity/WeatherScreen/WeatherGameOverlay 均引用 GameEntry 类型）。lite 包仍
+    // 保留该接口层字节码（约 1-2KB），但不含任何游戏实现模块——见 MODULARIZATION.md。
     implementation(project(":game:api"))
     // 动态游戏依赖：-Pgames 未选中的游戏模块不编译不进包，装配由 ServiceLoader 发现。
     // 仅挂在 full flavor（fullImplementation）：lite 版零游戏依赖，符合「lite 零痕迹」语义。

@@ -16,9 +16,10 @@
 -keep class com.xiaoxiong.weather.data.remote.** { *; }
 
 # 彩蛋游戏入口：GameEntryProvider 经 ServiceLoader 反射实例化，
-# provider 实现类与接口必须保留，否则 R8 会把游戏列表剥离为空
+# provider 实现类、接口与无参构造器必须保留，否则 R8 会把游戏列表剥离为空
+# 或在运行期抛 ServiceConfigurationError（Unable to get public no-arg constructor）
 -keep interface com.xiaoxiong.weather.game.GameEntryProvider
--keep class * implements com.xiaoxiong.weather.game.GameEntryProvider
+-keep class * implements com.xiaoxiong.weather.game.GameEntryProvider { <init>(); }
 
 # OkHttp / platform
 -dontwarn okhttp3.**

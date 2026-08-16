@@ -55,6 +55,53 @@ jobs:
               || { echo "ServiceLoader registration missing: $provider"; exit 1; }
           done
 
+      # R8 后 provider 类与 <init>() 必须在 dex 中真实存在，否则运行期抛
+      # ServiceConfigurationError（见 1.6.5 闪退）。dexdump 来自 build-tools。
+      - name: Verify provider constructors survive R8 in dex
+        run: |
+          DEXDUMP=$(find "$ANDROID_HOME/build-tools" -name dexdump | sort -V | tail -1)
+          [ -n "$DEXDUMP" ] || { echo "dexdump not found"; exit 1; }
+          rm -rf /tmp/apk_dex && mkdir -p /tmp/apk_dex
+          unzip -q app/build/outputs/apk/full/release/app-full-release.apk \
+            'classes*.dex' -d /tmp/apk_dex
+          found=0
+          for provider in \
+            com.xiaoxiong.weather.ui.game.BearGameEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearStarJumpEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearMazeEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearFarmEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearHomeEntryProvider
+          do
+            # 全限定名转 dex 内部描述符：com.a.B -> Lcom/a/B;
+            cls="L$(echo "$provider" | tr '.' '/');"
+            class_ok=0
+            for dex in /tmp/apk_dex/classes*.dex; do
+              if "$DEXDUMP" "$dex" 2>/dev/null | grep -q "$cls" \
+                  && "$DEXDUMP" "$dex" 2>/dev/null | grep -A8 "$cls" | grep -q "<init>"; then
+                class_ok=1
+                break
+              fi
+            done
+            if [ "$class_ok" -ne 1 ]; then
+              echo "Provider class or <init> missing in dex: $provider"; exit 1
+            fi
+            found=$((found + 1))
+          done
+          echo "Verified $found provider constructors in dex"
+
+      - name: Build release (full, games=none)
+        run: ./gradlew :app:assembleFullRelease -Pgames=none
+
+      - name: Verify games=none APK has no game registrations
+        run: |
+          COUNT=$(unzip -p app/build/outputs/apk/full/release/app-full-release.apk \
+            META-INF/services/com.xiaoxiong.weather.game.GameEntryProvider 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$COUNT" != "0" ]; then
+            echo "games=none APK should have no GameEntryProvider registrations, found $COUNT"
+            exit 1
+          fi
+          echo "games=none APK is clean (0 registrations)"
+
       - name: Upload test reports on failure
         if: failure()
         uses: actions/upload-artifact@v4

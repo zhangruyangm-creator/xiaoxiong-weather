@@ -76,9 +76,11 @@ class MainActivity : ComponentActivity() {
                         contentColor = MaterialTheme.colorScheme.onBackground,
                     ) {
                         CompositionLocalProvider(LocalReduceMotion provides reduceMotion) {
+                            // ServiceLoader 扫描有成本，只在首次进入时执行一次，避免每次重组重复扫描
+                            val gameEntries = remember { loadGameEntryProviders() }
                             WeatherScreen(
                                 settingsStore = settingsStore,
-                                gameEntries = loadGameEntryProviders(),
+                                gameEntries = gameEntries,
                             )
                         }
                     }
