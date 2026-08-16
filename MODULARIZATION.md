@@ -84,6 +84,32 @@ xiaoxiong-weather/
 
 **铁律**：`feature:*` 不得互相依赖；`game:*` 不得依赖 `feature:*`；任何模块不得依赖 `:app`。
 
+### 3.3 天气—游戏联动契约
+
+游戏随天气联动（雨雪粒子、雷暴闪电、冻雨冰晶、冰雹、昼夜、排行榜天气文本）**不依赖天气 UI 模块**，通过运行期值传递 + 共享契约模块实现：
+
+```
+数据流
+WeatherViewModel 刷新
+  → WeatherCodes.displayCode(...)   // :core:common 天气码归一化 → sceneCode: Int?
+  → bgCurrent.isDay                 // 昼夜
+  → cityName                        // 城市名
+  → BearGameOverlay(sceneCode, isDay, cityName)   // :app 游戏装配
+  → game Content(sceneCode, isDay, cityName)
+```
+
+| 联动契约 | 下沉位置 | 用途 |
+|---|---|---|
+| `WeatherCodes`（`displayCode`/`description`） | `:core:common` | 场景归一化 + 排行榜天气文本（`GameLeaderboard.description`） |
+| `SunPathPhase`/`SunPathBearMoment`/`sunPathBearMoment` | `:core:designsystem` | 天气页 + `game:home` 共用生活片刻 |
+| `sceneCode: Int?` / `isDay: Boolean?` / `cityName: String?` | 参数（无 import） | 游戏侧纯函数自分类为 `FarmWeather`/`RainStrength` |
+
+**关键约束**：
+1. 游戏侧不 import 任何 `feature:weather` 类型；只消费 `sceneCode`/`isDay`/`cityName` 三个值
+2. 天气码映射逻辑（`FarmWeather.kt` 的 `farmWeatherFromScene`/`rainStrengthOf`）留在 `:game:common`，随游戏走——新增游戏类型改映射只影响游戏模块
+3. `WeatherCodes` 自带的 `R.string`（排行榜天气文本）随代码迁入 `:core:common`
+4. 天气层只负责"把复杂天气归一化成场景码"，不关心游戏如何渲染——分工不变，只是固化为编译边界
+
 ---
 
 ## 4. 核心难点与对策
@@ -141,16 +167,23 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 
 ### 阶段 1：`:core:model` + `:core:common`（1~2 天）
 
-**迁移清单（纯移动，零 R）**：
+**策略**：**物理迁移 + 保留包名**——新模块保持 `com.xiaoxiong.weather.data` / `.util` 包路径，30+ 消费文件的 import 零改动；统一包名整理留到阶段 6 收尾。
+
+**迁移清单（已完成）**：
 
 | 目标模块 | 文件 |
 |---|---|
-| `:core:model` | `data/WeatherModels.kt`、`data/CardLayoutModel.kt`（若含 R 则挪至 designsystem）、`data/remote/WeatherDtos.kt` |
-| `:core:common` | `util/ChineseLunarCalendar.kt`、`util/HourlyUtils.kt`、`data/AppError.kt`（若引 R 则字符串随迁） |
+| `:core:model` | `data/WeatherModels.kt`、`data/remote/WeatherDtos.kt` |
+| `:core:common` | `util/HourlyUtils.kt`（含从 WeatherCodes 迁入的 `formatHourLabel`）、`util/ChineseLunarCalendar.kt` |
 
-**注意**：`AppError.kt`、`WeatherModels.kt` 实际引用 R 字符串，需将对应 strings 块迁入模块自建 `res/values/strings.xml`。
+**已处理依赖**：
+- `HourlyUtils.formatHourDetailLabel` 依赖 `formatHourLabel`（原在 WeatherCodes），已将 `formatHourLabel` 迁入 `:core:common` 的 `HourlyUtils.kt`（同包纯函数，消费端 `import ...util.formatHourLabel` 零改动）
+- app 测试对 core:model 类型的跨模块 nullable smart cast 失效（`summary.hottest!!.value`），改局部 val 消除
+- `ChineseLunarCalendarTest` / `HourlyUtilsTest` 随迁至 `:core:common`
 
-**验收**：`./gradlew test` 全绿；`:app` 改依赖后行为不变。
+**未迁移（留在 app）**：`WeatherCodes`（含 Compose `stringResource` UI 部分）、`AppError`（依赖 `Resources`/`R`，属 Android 层，随 core:domain 阶段走）、`CardLayoutModel`（含 `StringRes`，随 designsystem 阶段走）。
+
+**验收**：`./gradlew test lintKotlin lintFullDebug` 全绿 ✓
 
 ### 阶段 2：`:core:network` + `:core:domain`（2~3 天）
 

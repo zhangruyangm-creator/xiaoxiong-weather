@@ -109,6 +109,9 @@ fun parseFlexibleDateTime(value: String): LocalDateTime? {
     }
 }
 
+/** 小时标签：`2026-08-16T08:00` → `08:00`。 */
+fun formatHourLabel(isoTime: String): String = isoTime.substringAfter('T', isoTime).take(5)
+
 /**
  * 小时明细用：今天/明天/具体日期 + 时刻（相对 [referenceIsoTime] 的日期）。
  * [otherDateLabel] 接收月、日，例如「8月5日」或「8/5」。

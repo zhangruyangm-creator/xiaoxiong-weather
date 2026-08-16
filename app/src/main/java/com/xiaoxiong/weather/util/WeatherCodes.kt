@@ -560,8 +560,6 @@ fun convertCelsiusForDisplay(
     }
 }
 
-fun formatHourLabel(isoTime: String): String = isoTime.substringAfter('T', isoTime).take(5)
-
 fun formatDateLabel(isoDate: String): String {
     val parts = isoDate.split("-")
     return if (parts.size >= 3) "${parts[1]}/${parts[2]}" else isoDate

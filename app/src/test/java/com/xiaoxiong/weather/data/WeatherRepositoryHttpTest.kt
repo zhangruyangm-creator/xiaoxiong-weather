@@ -381,12 +381,18 @@ class WeatherRepositoryHttpTest {
             assertEquals(3, summary!!.days.size)
             assertEquals("2026-08-01", summary.days[0].date)
             assertEquals("2026-08-03", summary.days[2].date)
-            assertEquals(35.0, summary.hottest!!.value, 0.001)
-            assertEquals("2026-08-02", summary.hottest.date)
-            assertEquals(18.0, summary.coldest!!.value, 0.001)
-            assertEquals("2026-08-02", summary.coldest.date)
-            assertEquals(12.0, summary.wettest!!.value, 0.001)
-            assertEquals("2026-08-03", summary.wettest.date)
+            val hottest = summary.hottest
+            assertNotNull(hottest)
+            assertEquals(35.0, hottest!!.value, 0.001)
+            assertEquals("2026-08-02", hottest.date)
+            val coldest = summary.coldest
+            assertNotNull(coldest)
+            assertEquals(18.0, coldest!!.value, 0.001)
+            assertEquals("2026-08-02", coldest.date)
+            val wettest = summary.wettest
+            assertNotNull(wettest)
+            assertEquals(12.0, wettest!!.value, 0.001)
+            assertEquals("2026-08-03", wettest.date)
 
             // 按月聚合：3 天都在 2026-08，最高 35 / 最低 18 / 总降水 17 / 雨日 2
             assertEquals(1, summary.months.size)
@@ -442,8 +448,10 @@ class WeatherRepositoryHttpTest {
             // 7-31 在区间外，不应计入；8-1 高温 30、8-2 高温 35 → 最高温应落在 8-2
             assertEquals(2, summary!!.days.size)
             assertEquals(listOf("2026-08-01", "2026-08-02"), summary.days.map { it.date })
-            assertEquals(35.0, summary.hottest!!.value, 0.001)
-            assertEquals("2026-08-02", summary.hottest.date)
+            val hottest = summary.hottest
+            assertNotNull(hottest)
+            assertEquals(35.0, hottest!!.value, 0.001)
+            assertEquals("2026-08-02", hottest.date)
         }
 
     @Test

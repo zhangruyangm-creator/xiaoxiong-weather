@@ -23,3 +23,5 @@ dependencyResolutionManagement {
 rootProject.name = "XiaoxiongWeather"
 include(":app")
 include(":baselineprofile")
+include(":core:model")
+include(":core:common")
