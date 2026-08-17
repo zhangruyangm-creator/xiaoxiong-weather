@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.di
 
 import android.content.Context
+import com.xiaoxiong.weather.BuildConfig
 import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
 import com.xiaoxiong.weather.data.DebugWeatherStore
@@ -15,6 +16,7 @@ import com.xiaoxiong.weather.data.SelectedCityStore
 import com.xiaoxiong.weather.data.WeatherCacheStore
 import com.xiaoxiong.weather.data.WeatherNotifyDedupStore
 import com.xiaoxiong.weather.data.WeatherRepository
+import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
 import com.xiaoxiong.weather.domain.CitySearchUseCase
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -42,6 +44,10 @@ class AppContainer(
             .connectTimeout(20, TimeUnit.SECONDS)
             // 网络切换后旧连接可能半死，10s 响应等待避免「卡住 1 分钟才失败」
             .readTimeout(10, TimeUnit.SECONDS)
+            // 总耗时兜底：VPN/半死连接黑洞下 connectTimeout+readTimeout+重试可能累计 30-40s
+            // 期间 UI 一直 loading 且不显示离线缓存。callTimeout 强制整条调用（含重试）15s 内失败，
+            // 让 ViewModel 尽快回退到本地缓存 + 离线标识。
+            .callTimeout(15, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
     }
@@ -72,6 +78,8 @@ class AppContainer(
     val json by lazy { WeatherRepository.createJson() }
 
     val weatherRepository by lazy {
+        // OpenMeteoHttp 是 object 单例，启动时注入版本号用于 User-Agent
+        OpenMeteoHttp.versionName = BuildConfig.VERSION_NAME
         WeatherRepository(
             resources = appContext.resources,
             client = httpClient,
@@ -81,7 +89,7 @@ class AppContainer(
     }
 
     val radarMapRepository by lazy {
-        RadarMapRepository(client = radarHttpClient, json = json)
+        RadarMapRepository(client = radarHttpClient, json = json, versionName = BuildConfig.VERSION_NAME)
     }
 
     val locationHelper by lazy { LocationHelper(appContext) }

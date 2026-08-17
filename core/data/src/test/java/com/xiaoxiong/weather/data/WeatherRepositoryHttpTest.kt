@@ -14,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
@@ -335,15 +336,18 @@ class WeatherRepositoryHttpTest {
         }
 
     @Test
-    fun fetchHistoryDay_httpError_returnsNull() =
+    fun fetchHistoryDay_httpError_throwsAppError() =
         runBlocking {
             server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
-            val day =
+            try {
                 repository.fetchHistoryDay(
                     WeatherFixtures.city("济南"),
                     date = java.time.LocalDate.of(2026, 8, 10),
                 )
-            assertNull(day)
+                fail("expected AppError.Http(503)")
+            } catch (expected: AppError.Http) {
+                assertEquals(503, expected.code)
+            }
         }
 
     @Test
@@ -484,16 +488,19 @@ class WeatherRepositoryHttpTest {
     }
 
     @Test
-    fun fetchHistoryRange_httpError_returnsNull() =
+    fun fetchHistoryRange_httpError_throwsAppError() =
         runBlocking {
             server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
-            val summary =
+            try {
                 repository.fetchHistoryRange(
                     WeatherFixtures.city("济南"),
                     start = java.time.LocalDate.of(2026, 8, 1),
                     end = java.time.LocalDate.of(2026, 8, 3),
                 )
-            assertNull(summary)
+                fail("expected AppError.Http(503)")
+            } catch (expected: AppError.Http) {
+                assertEquals(503, expected.code)
+            }
         }
 
     @Test

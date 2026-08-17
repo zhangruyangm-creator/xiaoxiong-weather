@@ -18,7 +18,8 @@ fun interface WeatherFetcher {
     ): Int? = null
 
     /**
-     * 查询某天的历史天气（Archive / ERA5）；失败或无数据返回 null。
+     * 查询某天的历史天气（Archive / ERA5）；该日期确实无数据返回 null，
+     * 网络/服务端错误抛 [AppError]（HTTP、连接失败、响应解析失败）。
      * 用户主动触发，默认不实现（UI 未接入口时为无操作）。
      */
     suspend fun fetchHistoryDay(
@@ -28,7 +29,7 @@ fun interface WeatherFetcher {
 
     /**
      * 查询一段日期范围的历史天气并聚合极值（最高温/最低温/最多降水）；
-     * 失败或无数据返回 null。默认不实现。
+     * 区间内无任何可用数据返回 null，网络/服务端错误抛 [AppError]。默认不实现。
      */
     suspend fun fetchHistoryRange(
         city: City,

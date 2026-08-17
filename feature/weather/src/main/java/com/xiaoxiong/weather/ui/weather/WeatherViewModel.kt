@@ -13,6 +13,7 @@ import com.xiaoxiong.weather.data.DebugWeatherStore
 import com.xiaoxiong.weather.data.HistoryRangeSummary
 import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.RadarMapRepository
+import com.xiaoxiong.weather.data.WeatherCacheStore
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.coroutines.CancellationException
@@ -53,14 +54,26 @@ data class WeatherUiState(
      * 独立于天气快照，主天气刷新不影响该值；null = 无数据/尚未拉取。
      */
     val phenologyShiftDays: Int? = null,
-    /** 历史天气查询结果（用户主动选日）；null = 尚未查询或查询失败。 */
+    /**
+     * 历史天气查询结果（用户主动选日）；null = 尚未查询或该日期无数据。
+     * 网络/服务端错误时置 [historyNetworkFailed]。
+     */
     val historyWeather: HistoryWeather? = null,
     val isHistoryLoading: Boolean = false,
+    /** 该日期确实无数据（请求成功但 archive 无该日数据）。 */
     val historyFailed: Boolean = false,
-    /** 历史日期范围统计结果（最高/最低温、最多降水等）；null = 尚未查询或失败。 */
+    /** 网络/服务端不可用导致查询失败（区别于无数据，可重试）。 */
+    val historyNetworkFailed: Boolean = false,
+    /**
+     * 历史日期范围统计结果（最高/最低温、最多降水等）；
+     * null = 尚未查询或区间内无数据。网络/服务端错误置 [historyRangeNetworkFailed]。
+     */
     val historyRange: HistoryRangeSummary? = null,
     val isHistoryRangeLoading: Boolean = false,
+    /** 区间内确实无可用数据。 */
     val historyRangeFailed: Boolean = false,
+    /** 网络/服务端不可用导致区间查询失败（区别于无数据，可重试）。 */
+    val historyRangeNetworkFailed: Boolean = false,
 )
 
 class WeatherViewModel(
@@ -232,9 +245,11 @@ class WeatherViewModel(
                 historyWeather = null,
                 isHistoryLoading = false,
                 historyFailed = false,
+                historyNetworkFailed = false,
                 historyRange = null,
                 isHistoryRangeLoading = false,
                 historyRangeFailed = false,
+                historyRangeNetworkFailed = false,
                 errorMessage = null,
             )
         }
@@ -250,7 +265,7 @@ class WeatherViewModel(
         weatherJob =
             viewModelScope.launch {
                 if (!quiet) {
-                    val cached = weatherCacheStore.get(city)
+                    val cached = readCacheSafely(city)
                     if (cached != null && requestId == weatherRequestId.get()) {
                         publishWeather(
                             requestId = requestId,
@@ -284,7 +299,7 @@ class WeatherViewModel(
                     throw e
                 } catch (e: Exception) {
                     if (requestId != weatherRequestId.get()) return@launch
-                    val cached = weatherCacheStore.get(city)
+                    val cached = readCacheSafely(city)
                     if (cached != null) {
                         publishWeather(
                             requestId = requestId,
@@ -457,7 +472,7 @@ class WeatherViewModel(
 
     /**
      * 日期范围历史查询：按「城市|起|止」内存缓存去重，同城同区间只查一次；
-     * 失败置 historyRange=null 供 UI 提示。
+     * 区间内无数据置 historyRangeFailed，网络/服务端错误置 historyRangeNetworkFailed。
      */
     fun fetchHistoryRange(
         start: LocalDate,
@@ -469,7 +484,12 @@ class WeatherViewModel(
             "%.4f,%.4f|%s|%s".format(city.latitude, city.longitude, start, end)
         historyRangeCache[cacheKey]?.let { cached ->
             _uiState.update {
-                it.copy(historyRange = cached, isHistoryRangeLoading = false, historyRangeFailed = false)
+                it.copy(
+                    historyRange = cached,
+                    isHistoryRangeLoading = false,
+                    historyRangeFailed = false,
+                    historyRangeNetworkFailed = false,
+                )
             }
             return
         }
@@ -477,14 +497,21 @@ class WeatherViewModel(
         historyRangeJob =
             viewModelScope.launch {
                 _uiState.update {
-                    it.copy(isHistoryRangeLoading = true, historyRange = null, historyRangeFailed = false)
+                    it.copy(
+                        isHistoryRangeLoading = true,
+                        historyRange = null,
+                        historyRangeFailed = false,
+                        historyRangeNetworkFailed = false,
+                    )
                 }
+                var networkFailed = false
                 val result =
                     try {
                         repository.fetchHistoryRange(city, start, end)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
+                        networkFailed = true
                         null
                     }
                 if (result != null) {
@@ -497,7 +524,8 @@ class WeatherViewModel(
                         it.copy(
                             historyRange = result,
                             isHistoryRangeLoading = false,
-                            historyRangeFailed = result == null,
+                            historyRangeFailed = result == null && !networkFailed,
+                            historyRangeNetworkFailed = networkFailed,
                         )
                     }
                 } else {
@@ -509,7 +537,12 @@ class WeatherViewModel(
     fun clearHistoryRange() {
         historyRangeJob?.cancel()
         _uiState.update {
-            it.copy(historyRange = null, isHistoryRangeLoading = false, historyRangeFailed = false)
+            it.copy(
+                historyRange = null,
+                isHistoryRangeLoading = false,
+                historyRangeFailed = false,
+                historyRangeNetworkFailed = false,
+            )
         }
     }
 
@@ -554,27 +587,32 @@ class WeatherViewModel(
 
     /**
      * 单日历史查询：按「城市|日期」做内存缓存去重，同城同日只查一次；
-     * 换城后缓存键不同，自然不串城。失败置 historyWeather=null 供 UI 提示。
+     * 换城后缓存键不同，自然不串城。该日无数据置 historyFailed，
+     * 网络/服务端错误置 historyNetworkFailed。
      */
     fun fetchHistoryDay(date: LocalDate) {
         val city = _uiState.value.selectedCity ?: return
         val cacheKey = "%.4f,%.4f|%s".format(city.latitude, city.longitude, date)
         historyCache[cacheKey]?.let { cached ->
             _uiState.update {
-                it.copy(historyWeather = cached, isHistoryLoading = false, historyFailed = false)
+                it.copy(historyWeather = cached, isHistoryLoading = false, historyFailed = false, historyNetworkFailed = false)
             }
             return
         }
         historyJob?.cancel()
         historyJob =
             viewModelScope.launch {
-                _uiState.update { it.copy(isHistoryLoading = true, historyWeather = null, historyFailed = false) }
+                _uiState.update {
+                    it.copy(isHistoryLoading = true, historyWeather = null, historyFailed = false, historyNetworkFailed = false)
+                }
+                var networkFailed = false
                 val result =
                     try {
                         repository.fetchHistoryDay(city, date)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
+                        networkFailed = true
                         null
                     }
                 if (result != null) {
@@ -587,7 +625,8 @@ class WeatherViewModel(
                         it.copy(
                             historyWeather = result,
                             isHistoryLoading = false,
-                            historyFailed = result == null,
+                            historyFailed = result == null && !networkFailed,
+                            historyNetworkFailed = networkFailed,
                         )
                     }
                 } else {
@@ -598,7 +637,9 @@ class WeatherViewModel(
 
     fun clearHistoryDay() {
         historyJob?.cancel()
-        _uiState.update { it.copy(historyWeather = null, isHistoryLoading = false, historyFailed = false) }
+        _uiState.update {
+            it.copy(historyWeather = null, isHistoryLoading = false, historyFailed = false, historyNetworkFailed = false)
+        }
     }
 
     fun enableDebugMode() = debugController.enable()
@@ -689,6 +730,20 @@ class WeatherViewModel(
     }
 
     private fun nowText(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+
+    /**
+     * 读本地天气缓存。缓存只是「应急展示」用的，读失败不应影响主流程：
+     * 若 DataStore 偶发 IO 异常直接向上抛，会让协程卡在 loading 且不回退（昨晚全城加载不出）。
+     * 这里吞掉异常按无缓存处理，让外层 catch 走错误分支而非卡死。
+     */
+    private suspend fun readCacheSafely(city: City): WeatherCacheStore.CacheEntry? =
+        try {
+            weatherCacheStore.get(city)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
 
     private fun formatCacheTime(epochMs: Long): String =
         LocalDateTime

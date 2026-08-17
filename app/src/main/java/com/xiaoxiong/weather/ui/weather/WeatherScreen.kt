@@ -241,10 +241,12 @@ private fun WeatherScreenContent(
                 historyWeather = state.historyWeather,
                 isHistoryLoading = state.isHistoryLoading,
                 historyFailed = state.historyFailed,
+                historyNetworkFailed = state.historyNetworkFailed,
                 onPickDate = viewModel::fetchHistoryDay,
                 historyRange = state.historyRange,
                 isHistoryRangeLoading = state.isHistoryRangeLoading,
                 historyRangeFailed = state.historyRangeFailed,
+                historyRangeNetworkFailed = state.historyRangeNetworkFailed,
                 onFetchRange = viewModel::fetchHistoryRange,
                 onBack = { overlay = OverlayScreen.None },
             )

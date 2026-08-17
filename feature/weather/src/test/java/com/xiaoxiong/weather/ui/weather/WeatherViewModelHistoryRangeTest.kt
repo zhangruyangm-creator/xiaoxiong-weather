@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.weather
 
+import com.xiaoxiong.weather.data.AppError
 import com.xiaoxiong.weather.data.HistoryExtreme
 import com.xiaoxiong.weather.data.HistoryRangeSummary
 import com.xiaoxiong.weather.fixtures.WeatherFixtures
@@ -55,7 +56,7 @@ class WeatherViewModelHistoryRangeTest {
     fun fetchHistoryRange_failure_marksFailed() =
         runTest {
             val city = WeatherFixtures.city("济南")
-            val fetcher = RecordingFetcher() // 默认返回 null（失败/无数据）
+            val fetcher = RecordingFetcher() // 默认返回 null（区间无数据）
             val vm = createTestViewModel(fetcher).vm
 
             vm.selectCity(city)
@@ -65,12 +66,34 @@ class WeatherViewModelHistoryRangeTest {
 
             assertNull(vm.uiState.value.historyRange)
             assertTrue(vm.uiState.value.historyRangeFailed)
+            assertFalse(vm.uiState.value.historyRangeNetworkFailed)
             assertFalse(vm.uiState.value.isHistoryRangeLoading)
 
             // 失败不缓存：再查会重试
             vm.fetchHistoryRange(start, end)
             advanceUntilIdle()
             assertEquals(2, fetcher.historyRangeCallCount)
+        }
+
+    @Test
+    fun fetchHistoryRange_networkError_marksNetworkFailed() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val fetcher =
+                RecordingFetcher(
+                    historyRangeBlock = { _, _, _ -> throw AppError.NetworkUnavailable() },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.fetchHistoryRange(start, end)
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.historyRange)
+            assertFalse(vm.uiState.value.historyRangeFailed)
+            assertTrue(vm.uiState.value.historyRangeNetworkFailed)
+            assertFalse(vm.uiState.value.isHistoryRangeLoading)
         }
 
     @Test

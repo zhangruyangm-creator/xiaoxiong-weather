@@ -37,10 +37,12 @@ class HistoryWeatherScreenTest {
         historyWeather: HistoryWeather? = null,
         isHistoryLoading: Boolean = false,
         historyFailed: Boolean = false,
+        historyNetworkFailed: Boolean = false,
         onPickDate: () -> Unit = {},
         historyRange: HistoryRangeSummary? = null,
         isHistoryRangeLoading: Boolean = false,
         historyRangeFailed: Boolean = false,
+        historyRangeNetworkFailed: Boolean = false,
         onFetchRange: (LocalDate, LocalDate) -> Unit = { _, _ -> },
         onBack: () -> Unit = {},
     ) {
@@ -51,10 +53,12 @@ class HistoryWeatherScreenTest {
                     historyWeather = historyWeather,
                     isHistoryLoading = isHistoryLoading,
                     historyFailed = historyFailed,
+                    historyNetworkFailed = historyNetworkFailed,
                     onPickDate = { onPickDate() },
                     historyRange = historyRange,
                     isHistoryRangeLoading = isHistoryRangeLoading,
                     historyRangeFailed = historyRangeFailed,
+                    historyRangeNetworkFailed = historyRangeNetworkFailed,
                     onFetchRange = onFetchRange,
                     onBack = onBack,
                 )
@@ -81,9 +85,15 @@ class HistoryWeatherScreenTest {
     fun dayMode_failed_showsErrorAndRetryReopensPicker() {
         val retried = mutableStateOf(false)
         setContent(historyFailed = true, onPickDate = { retried.value = true })
-        composeRule.onNodeWithText("该日期暂无数据或查询失败").assertIsDisplayed()
+        composeRule.onNodeWithText("该日期暂无数据").assertIsDisplayed()
         composeRule.onNodeWithText("重新选择").performClick()
         assertTrue(retried.value)
+    }
+
+    @Test
+    fun dayMode_networkFailed_showsNetworkMessage() {
+        setContent(historyNetworkFailed = true)
+        composeRule.onNodeWithText("网络不可用，查询失败，请稍后重试").assertIsDisplayed()
     }
 
     @Test
@@ -125,7 +135,14 @@ class HistoryWeatherScreenTest {
     fun rangeMode_failed_showsError() {
         setContent(historyRangeFailed = true)
         composeRule.onNodeWithText("区间统计").performClick()
-        composeRule.onNodeWithText("该区间暂无数据或查询失败").assertIsDisplayed()
+        composeRule.onNodeWithText("该区间暂无数据").assertIsDisplayed()
+    }
+
+    @Test
+    fun rangeMode_networkFailed_showsNetworkMessage() {
+        setContent(historyRangeNetworkFailed = true)
+        composeRule.onNodeWithText("区间统计").performClick()
+        composeRule.onNodeWithText("网络不可用，查询失败，请稍后重试").assertIsDisplayed()
     }
 
     @Test

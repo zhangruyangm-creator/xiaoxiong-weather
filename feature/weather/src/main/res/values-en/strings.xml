@@ -73,13 +73,14 @@
     <string name="history_days_count">%1$dd</string>
     <string name="history_empty_day">Pick a date to see that day\'s weather</string>
     <string name="history_empty_range">Pick a start and end date, then search</string>
-    <string name="history_failed">No data for this date or the request failed</string>
+    <string name="history_failed">No data for this date</string>
     <string name="history_meta_humidity">Humidity %1$s</string>
     <string name="history_meta_precip">Precip %1$s</string>
     <string name="history_meta_wind">Max wind %1$s</string>
     <string name="history_mode_day">Single day</string>
     <string name="history_mode_range">Range stats</string>
     <string name="history_month_label">%1$d-%2$02d</string>
+    <string name="history_network_failed">Network unavailable. Try again later</string>
     <string name="history_open">View past weather</string>
     <string name="history_open_sub">Single-day weather, range extremes</string>
     <string name="history_pick_confirm">View</string>
@@ -89,7 +90,8 @@
     <string name="history_pick_title">Pick a date</string>
     <string name="history_query">Search</string>
     <string name="history_range_extreme_date">On %1$s</string>
-    <string name="history_range_failed">No data for this range or the request failed</string>
+    <string name="history_range_failed">No data for this range</string>
+    <string name="history_range_network_failed">Network unavailable. Try again later</string>
     <string name="history_range_limit">Range supports up to %1$d days</string>
     <string name="history_range_max_precip">Wettest</string>
     <string name="history_range_max_temp">Hottest</string>

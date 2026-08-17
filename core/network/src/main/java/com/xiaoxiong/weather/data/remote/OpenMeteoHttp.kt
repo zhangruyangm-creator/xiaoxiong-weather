@@ -7,6 +7,9 @@ import java.io.IOException
 
 /** Open-Meteo 通用 GET：统一错误映射（HTTP → AppError.Http，IO → NetworkUnavailable）。 */
 object OpenMeteoHttp {
+    /** App 启动时由 [com.xiaoxiong.weather.di.AppContainer] 注入，用于 User-Agent。 */
+    var versionName: String? = null
+
     fun execute(
         url: String,
         client: OkHttpClient,
@@ -16,7 +19,7 @@ object OpenMeteoHttp {
                 .Builder()
                 .url(url)
                 .header("Accept", "application/json")
-                .header("User-Agent", "XiaoxiongWeather (Android)")
+                .header("User-Agent", userAgent())
                 .get()
                 .build()
         try {
@@ -32,5 +35,10 @@ object OpenMeteoHttp {
         } catch (e: IOException) {
             throw AppError.NetworkUnavailable(e)
         }
+    }
+
+    private fun userAgent(): String {
+        val ver = versionName
+        return if (ver != null) "XiaoxiongWeather/$ver (Android)" else "XiaoxiongWeather (Android)"
     }
 }

@@ -81,10 +81,12 @@ fun HistoryWeatherScreen(
     historyWeather: HistoryWeather?,
     isHistoryLoading: Boolean,
     historyFailed: Boolean,
+    historyNetworkFailed: Boolean,
     onPickDate: (LocalDate) -> Unit,
     historyRange: HistoryRangeSummary?,
     isHistoryRangeLoading: Boolean,
     historyRangeFailed: Boolean,
+    historyRangeNetworkFailed: Boolean,
     onFetchRange: (LocalDate, LocalDate) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -172,6 +174,7 @@ fun HistoryWeatherScreen(
                         weather = historyWeather,
                         isLoading = isHistoryLoading,
                         failed = historyFailed,
+                        networkFailed = historyNetworkFailed,
                         onPick = { showDayPicker = true },
                     )
                 } else {
@@ -182,6 +185,7 @@ fun HistoryWeatherScreen(
                         summary = historyRange,
                         isLoading = isHistoryRangeLoading,
                         failed = historyRangeFailed,
+                        networkFailed = historyRangeNetworkFailed,
                         onPickStart = { showStartPicker = true },
                         onPickEnd = { showEndPicker = true },
                         onQuery = onFetchRange,
@@ -218,6 +222,7 @@ private fun DayQueryContent(
     weather: HistoryWeather?,
     isLoading: Boolean,
     failed: Boolean,
+    networkFailed: Boolean,
     onPick: () -> Unit,
 ) {
     LazyColumn(
@@ -235,10 +240,17 @@ private fun DayQueryContent(
         }
         if (isLoading) {
             item { LoadingRow() }
-        } else if (failed) {
+        } else if (failed || networkFailed) {
             item {
                 FailedCard(
-                    message = stringResource(R.string.history_failed),
+                    message =
+                        stringResource(
+                            if (networkFailed) {
+                                R.string.history_network_failed
+                            } else {
+                                R.string.history_failed
+                            },
+                        ),
                     onRetry = onPick,
                 )
             }
@@ -260,6 +272,7 @@ private fun RangeQueryContent(
     summary: HistoryRangeSummary?,
     isLoading: Boolean,
     failed: Boolean,
+    networkFailed: Boolean,
     onPickStart: () -> Unit,
     onPickEnd: () -> Unit,
     onQuery: (LocalDate, LocalDate) -> Unit,
@@ -333,10 +346,17 @@ private fun RangeQueryContent(
         }
         if (isLoading) {
             item { LoadingRow() }
-        } else if (failed) {
+        } else if (failed || networkFailed) {
             item {
                 FailedCard(
-                    message = stringResource(R.string.history_range_failed),
+                    message =
+                        stringResource(
+                            if (networkFailed) {
+                                R.string.history_range_network_failed
+                            } else {
+                                R.string.history_range_failed
+                            },
+                        ),
                     onRetry = ::runQuery,
                 )
             }

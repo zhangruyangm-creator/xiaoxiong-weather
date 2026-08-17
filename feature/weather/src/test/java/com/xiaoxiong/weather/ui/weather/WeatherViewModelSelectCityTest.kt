@@ -294,12 +294,37 @@ class WeatherViewModelSelectCityTest {
 
             assertNull(vm.uiState.value.historyWeather)
             assertTrue(vm.uiState.value.historyFailed)
+            assertFalse(vm.uiState.value.historyNetworkFailed)
             assertFalse(vm.uiState.value.isHistoryLoading)
 
             // 失败不缓存：再查会重试
             vm.fetchHistoryDay(date)
             advanceUntilIdle()
             assertEquals(2, fetcher.historyCallCount)
+        }
+
+    @Test
+    fun fetchHistoryDay_networkError_marksNetworkFailed() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val date = LocalDate.now().minusDays(2)
+            val fetcher =
+                RecordingFetcher(
+                    historyBlock = { _, _ ->
+                        throw AppError.NetworkUnavailable()
+                    },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.fetchHistoryDay(date)
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.historyWeather)
+            assertFalse(vm.uiState.value.historyFailed)
+            assertTrue(vm.uiState.value.historyNetworkFailed)
+            assertFalse(vm.uiState.value.isHistoryLoading)
         }
 
     @Test

@@ -45,6 +45,7 @@ data class SatelliteCloudMap(
 class RadarMapRepository(
     private val client: OkHttpClient,
     private val json: Json = defaultJson(),
+    private val versionName: String = "",
 ) {
     private val cacheMutex = Mutex()
 
@@ -305,7 +306,7 @@ class RadarMapRepository(
             Request
                 .Builder()
                 .url(url)
-                .header("User-Agent", "XiaoxiongWeather (Android; personal use)")
+                .header("User-Agent", userAgent())
                 .get()
                 .build()
         client.newCall(request).execute().use { response ->
@@ -351,7 +352,7 @@ class RadarMapRepository(
                 .Builder()
                 .url(url)
                 .header("Accept", "application/json")
-                .header("User-Agent", "XiaoxiongWeather (Android; personal use)")
+                .header("User-Agent", userAgent())
                 .get()
                 .build()
         try {
@@ -368,6 +369,13 @@ class RadarMapRepository(
             throw AppError.NetworkUnavailable(e)
         }
     }
+
+    private fun userAgent(): String =
+        if (versionName.isNotEmpty()) {
+            "XiaoxiongWeather/$versionName (Android; personal use)"
+        } else {
+            "XiaoxiongWeather (Android; personal use)"
+        }
 
     companion object {
         private const val MAPS_JSON_URL =

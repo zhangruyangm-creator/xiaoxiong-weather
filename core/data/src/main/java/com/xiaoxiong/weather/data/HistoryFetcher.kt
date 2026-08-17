@@ -71,7 +71,8 @@ class HistoryFetcher(
         }
 
     /**
-     * 查询某天的历史天气（Archive / ERA5），失败或无数据返回 null。
+     * 查询某天的历史天气（Archive / ERA5）；该日期确实无数据返回 null，
+     * 网络/服务端错误抛 [AppError]（HTTP、连接失败、响应解析失败）。
      *
      * 用户主动查询单日，不参与主天气加载；date 通常为昨天或更早
      * （ERA5 延迟约 1 天）。单日请求极小，ViewModel 层再按内存缓存去重。
@@ -111,8 +112,10 @@ class HistoryFetcher(
                     decodeArchive(OpenMeteoHttp.execute(url.toString(), client))
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
+                } catch (e: AppError) {
+                    throw e
                 } catch (e: Exception) {
-                    return@withContext null
+                    throw AppError.DataFormat(e)
                 }
             val daily = response.daily ?: return@withContext null
             val day = daily.time.firstOrNull() ?: return@withContext null
@@ -137,6 +140,7 @@ class HistoryFetcher(
      * 查询一段日期范围的历史天气（Archive / ERA5）并本地聚合三个极值：
      * 最高温（temperature_2m_max 最大）、最低温（temperature_2m_min 最小）、
      * 最多降水（precipitation_sum 最大）。逐日列表也一并返回供 UI 展示。
+     * 区间内无任何可用数据返回 null；网络/服务端错误抛 [AppError]。
      */
     suspend fun fetchHistoryRange(
         city: City,
@@ -175,8 +179,10 @@ class HistoryFetcher(
                     decodeArchive(OpenMeteoHttp.execute(url.toString(), client)).daily
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
+                } catch (e: AppError) {
+                    throw e
                 } catch (e: Exception) {
-                    null
+                    throw AppError.DataFormat(e)
                 } ?: return@withContext null
 
             val days =
