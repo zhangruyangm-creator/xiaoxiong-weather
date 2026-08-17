@@ -8,6 +8,7 @@ import com.xiaoxiong.weather.data.DebugWeatherStore
 import com.xiaoxiong.weather.data.FavoriteCityStore
 import com.xiaoxiong.weather.data.LocationHelper
 import com.xiaoxiong.weather.data.NetworkMonitor
+import com.xiaoxiong.weather.data.PerformanceInterceptor
 import com.xiaoxiong.weather.data.PhenologyCacheStore
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.RecentCityStore
@@ -40,6 +41,7 @@ class AppContainer(
         OkHttpClient
             .Builder()
             .cache(httpCache)
+            .addInterceptor(PerformanceInterceptor())
             .addInterceptor(RetryInterceptor())
             .connectTimeout(20, TimeUnit.SECONDS)
             // 网络切换后旧连接可能半死，10s 响应等待避免「卡住 1 分钟才失败」
