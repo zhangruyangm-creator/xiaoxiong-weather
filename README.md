@@ -18,6 +18,7 @@
 - **小熊的家**：客厅枢纽 + 卧室作息 / 厨房三餐图鉴 / 游乐间游戏入口 / 储物间
 - **调试模式**：隐藏入口可覆盖天气数据用于测试预警/图标
 - **Baseline Profile**：`:baselineprofile` module 通过 macrobenchmark 生成启动性能基线
+- **性能监控**（Debug 构建）：冷启动 / 网络请求 / 内存指标采集，环形缓冲区 + 守护线程汇总；Release 包零开销
 
 ## 构建命令
 
@@ -100,13 +101,13 @@ xiaoxiong-weather/
 │       └── util/CrashReporting.kt
 ├── core/
 │   ├── model/                # 纯 Kotlin 数据模型 + 温度单位
-│   ├── common/               # WeatherCodes、AppError、格式化工具（带 res）
+│   ├── common/               # WeatherCodes、AppError、格式化工具、性能监控（带 res）
 │   ├── network/              # OkHttp + DTO + 城市别名 assets
 │   ├── domain/               # 纯逻辑生成器（LifeIndex/预警/季节贴士等）
 │   ├── data/                 # Store、Repository、城市目录、区域进 assets
 │   ├── test-fixtures/        # 测试夹具（WeatherFixtures），仅测试依赖
 │   ├── designsystem/         # Compose 主题 + SunPathMath + WeatherScene + 预警/图标
-│   └── res-illustrations/    # 纯资源模块：266 张 ic_sun_bear_* 场景插画（单一数据源）
+│   └── res-illustrations/    # 纯资源模块：270 张 ic_sun_bear_* 场景插画（单一数据源）
 ├── feature/
 │   ├── weather/              # WeatherViewModel / 天气页 / 雷达 / 分享 / 调试
 │   └── settings/             # 设置 / 隐私门 / 卡片设置
@@ -143,7 +144,7 @@ xiaoxiong-weather/
 - **时区对齐**：小时序列按城市本地墙钟时间对齐，不用 `ZoneId.systemDefault()`，避免跨时区偏一小时甚至整天
 - **降水强度分档**：中国气象局小时暴雨 ≥16mm、英式 violent >32mm、毛毛雨 <0.5mm；`displayCode` 在天气码与实测雨量不一致时只升不降（不降级雷暴/冰雹/冻雨）
 - **前台整点对齐刷新**：`:00 / :15 / :30 / :45` 对齐，退后台停轮询，留给 WorkManager
-- **隐私合规**：`WeatherApp.initializeAfterConsent()` 用 `AtomicBoolean` 保证幂等，未同意前不初始化 Crashlytics / 不入队 WorkManager
+- **隐私合规**：`WeatherApp.initializeAfterConsent()` 用 `AtomicBoolean` 保证幂等，未同意前不初始化 Crashlytics / 不入队 WorkManager / 不启用性能监控
 
 ## 最低要求
 

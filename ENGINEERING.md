@@ -59,6 +59,27 @@ git push origin v1.5.0
 
 未放入配置文件时应用正常运行，仅无崩溃上报。
 
+## 性能监控（Debug 构建）
+
+代码已就绪（`PerformanceMonitor` + `PerformanceInterceptor`），**仅 Debug 构建启用**，Release 包零开销（`enabled=false` 时单次 volatile 读即返回）。
+
+### 监控维度
+
+| 指标 | 采集方式 | 说明 |
+|------|---------|------|
+| 冷启动 | `WeatherApp.onCreate` 记录耗时 | 超 2s 输出 warn |
+| 网络请求 | OkHttp `PerformanceInterceptor` 按路径分组 | 超 1s 计入慢请求 |
+| 内存使用 | 守护线程每 30s 采样 | 记录已用 MB |
+| 帧渲染 | Compose `SideEffect`（可选接入） | 超 16ms 计入慢帧 |
+
+### 查看报告
+
+在 Logcat 中过滤 `PerfMonitor` 标签，每 60 秒自动汇总输出 avg/p50/p95/max 统计。也可在代码中调用 `PerformanceMonitor.report()` 获取文本报告。
+
+### 数据安全
+
+所有指标仅存储在内存环形缓冲区（固定 64 条），不写磁盘、不上报、不离开设备。
+
 ## 数据源降级（待决策）
 
 当前全部依赖 Open-Meteo 免费接口，无多源降级。若希望接入国内数据源（和风天气/心知天气）作为
