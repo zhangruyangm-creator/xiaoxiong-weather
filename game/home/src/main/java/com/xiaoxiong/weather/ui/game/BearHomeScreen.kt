@@ -429,67 +429,65 @@ private fun HomeBedroom(
 private fun HomeKitchen() {
     var slot by remember { mutableStateOf(HomeMealSlot.BREAKFAST) }
     val groups = remember(slot) { slot.groups() }
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            // 抵消 contentPadding，横幅仍全宽贴边
-            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = (-12).dp)) {
-                HomeRoomHero(
-                    artRes = R.drawable.ic_bear_home_kitchen,
-                    contentDescription = stringResource(R.string.bear_home_room_kitchen),
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 横幅插画全宽贴边
+        HomeRoomHero(
+            artRes = R.drawable.ic_bear_home_kitchen,
+            contentDescription = stringResource(R.string.bear_home_room_kitchen),
+        )
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Text(
+                    text = stringResource(R.string.bear_home_meal_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
             }
-        }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Text(
-                text = stringResource(R.string.bear_home_meal_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-            )
-        }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                HomeMealSlot.entries.forEach { s ->
-                    val selected = s == slot
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (selected) Color(0xFFFFCC80) else Color.White,
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .clickable { slot = s },
-                    ) {
-                        Text(
-                            text = stringResource(s.titleRes),
-                            modifier = Modifier.padding(vertical = 10.dp).fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 14.sp,
-                        )
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    HomeMealSlot.entries.forEach { s ->
+                        val selected = s == slot
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (selected) Color(0xFFFFCC80) else Color.White,
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .clickable { slot = s },
+                        ) {
+                            Text(
+                                text = stringResource(s.titleRes),
+                                modifier = Modifier.padding(vertical = 10.dp).fillMaxWidth(),
+                                textAlign = TextAlign.Center,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 14.sp,
+                            )
+                        }
                     }
                 }
             }
-        }
-        groups.forEach { group ->
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = stringResource(group.cuisine.titleRes),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-                )
-            }
-            items(group.dishes) { dish ->
-                MealDexCard(dish = dish)
+            groups.forEach { group ->
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(
+                        text = stringResource(group.cuisine.titleRes),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                    )
+                }
+                items(group.dishes) { dish ->
+                    MealDexCard(dish = dish)
+                }
             }
         }
     }
