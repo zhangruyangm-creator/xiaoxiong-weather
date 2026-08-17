@@ -191,35 +191,43 @@ enum class SunPathBearMoment(
     ),
     WEEKEND_MORNING(
         R.string.sun_bear_weekend_morning,
-        IllustR.drawable.ic_sun_bear_weekend_morning_1,
-        IllustR.drawable.ic_sun_bear_weekend_morning_2,
-        IllustR.drawable.ic_sun_bear_weekend_morning_3,
-        IllustR.drawable.ic_sun_bear_weekend_morning_4,
-        IllustR.drawable.ic_sun_bear_weekend_morning_5,
+        // 插画由 [WEEKEND_DAY_DRAWABLES] 与下午共用，此处仅占位。
+        IllustR.drawable.ic_sun_bear_weekend_station,
     ),
     WEEKEND_EXPLORE(
         R.string.sun_bear_weekend_explore,
-        IllustR.drawable.ic_sun_bear_weekend_explore_1,
-        IllustR.drawable.ic_sun_bear_weekend_explore_2,
-        IllustR.drawable.ic_sun_bear_weekend_explore_3,
-        IllustR.drawable.ic_sun_bear_weekend_explore_4,
-        IllustR.drawable.ic_sun_bear_weekend_explore_5,
+        IllustR.drawable.ic_sun_bear_weekend_explore_tokyotower,
+        IllustR.drawable.ic_sun_bear_weekend_explore_fuji,
+        IllustR.drawable.ic_sun_bear_weekend_explore_museum,
+        IllustR.drawable.ic_sun_bear_weekend_explore_boat,
+        IllustR.drawable.ic_sun_bear_weekend_explore_hiking,
+        IllustR.drawable.ic_sun_bear_weekend_explore_ginza,
+        IllustR.drawable.ic_sun_bear_weekend_explore_shibuya,
+        IllustR.drawable.ic_sun_bear_weekend_explore_shinjuku,
+        IllustR.drawable.ic_sun_bear_weekend_explore_akihabara,
+        IllustR.drawable.ic_sun_bear_weekend_explore_ikebukuro,
+        IllustR.drawable.ic_sun_bear_weekend_explore_timessquare,
+        IllustR.drawable.ic_sun_bear_weekend_explore_fifthavenue,
+        IllustR.drawable.ic_sun_bear_weekend_explore_champselysees,
+        IllustR.drawable.ic_sun_bear_weekend_explore_gangnam,
+        IllustR.drawable.ic_sun_bear_weekend_explore_causewaybay,
+        IllustR.drawable.ic_sun_bear_weekend_explore_qingdao,
+        IllustR.drawable.ic_sun_bear_weekend_explore_qushuiting,
+        IllustR.drawable.ic_sun_bear_weekend_explore_fuzimiao,
+        IllustR.drawable.ic_sun_bear_weekend_explore_weihai,
     ),
     WEEKEND_AFTERNOON(
         R.string.sun_bear_weekend_afternoon,
-        IllustR.drawable.ic_sun_bear_weekend_afternoon_1,
-        IllustR.drawable.ic_sun_bear_weekend_afternoon_2,
-        IllustR.drawable.ic_sun_bear_weekend_afternoon_3,
-        IllustR.drawable.ic_sun_bear_weekend_afternoon_4,
-        IllustR.drawable.ic_sun_bear_weekend_afternoon_5,
+        // 插画由 [WEEKEND_DAY_DRAWABLES] 与上午共用，此处仅占位。
+        IllustR.drawable.ic_sun_bear_weekend_beach,
     ),
     WEEKEND_RETURN(
         R.string.sun_bear_weekend_return,
-        IllustR.drawable.ic_sun_bear_weekend_return_1,
-        IllustR.drawable.ic_sun_bear_weekend_return_2,
-        IllustR.drawable.ic_sun_bear_weekend_return_3,
-        IllustR.drawable.ic_sun_bear_weekend_return_4,
-        IllustR.drawable.ic_sun_bear_weekend_return_5,
+        IllustR.drawable.ic_sun_bear_weekend_return_luggage,
+        IllustR.drawable.ic_sun_bear_weekend_return_train,
+        IllustR.drawable.ic_sun_bear_weekend_return_souvenir,
+        IllustR.drawable.ic_sun_bear_weekend_return_scooter,
+        IllustR.drawable.ic_sun_bear_weekend_return_bags,
     ),
 
     /** 晚饭：中式 / 西式 / 阿拉伯式 / 韩式 / 东南亚独立插画池，按日轮换。 */
@@ -327,7 +335,11 @@ enum class SunPathBearMoment(
     ;
 
     /** 图鉴/小屋用：该片刻全部插画变体（不含按日抽取的工种/通勤特例逻辑）。 */
-    fun bearVariantDrawables(): IntArray = bearVariants
+    fun bearVariantDrawables(): IntArray =
+        when (this) {
+            WEEKEND_MORNING, WEEKEND_AFTERNOON -> WEEKEND_DAY_DRAWABLES
+            else -> bearVariants
+        }
 
     /** 按自然日稳定选取插画，当天不变、隔天可换。 */
     @DrawableRes
@@ -338,6 +350,10 @@ enum class SunPathBearMoment(
             MORNING_OUT, HEAD_HOME -> return commuteBearRes(this, date)
             MORNING_EXERCISE, EVENING_EXERCISE ->
                 return EXERCISE_DRAWABLES[exerciseIndex(date, this)]
+            WEEKEND_MORNING, WEEKEND_AFTERNOON ->
+                return WEEKEND_DAY_DRAWABLES[
+                    dailyVariantIndex(date, name, WEEKEND_DAY_DRAWABLES.size),
+                ]
             else -> Unit
         }
         if (bearVariants.isEmpty()) return IllustR.drawable.ic_sun_bear_morning_out
@@ -494,6 +510,43 @@ private val EXERCISE_DRAWABLES =
         IllustR.drawable.ic_sun_bear_exercise_tennis,
         IllustR.drawable.ic_sun_bear_exercise_hulahoop,
     )
+
+/**
+ * 周末白天玩乐共享池（上午出门 + 下午逛逛 + 室内休闲等）。
+ * [WEEKEND_MORNING] / [WEEKEND_AFTERNOON] 各自按日从该池抽一张，互不绑定。
+ */
+private val WEEKEND_DAY_DRAWABLES =
+    intArrayOf(
+        IllustR.drawable.ic_sun_bear_weekend_station,
+        IllustR.drawable.ic_sun_bear_weekend_bike,
+        IllustR.drawable.ic_sun_bear_weekend_airport,
+        IllustR.drawable.ic_sun_bear_weekend_roadtrip,
+        IllustR.drawable.ic_sun_bear_weekend_brunch,
+        IllustR.drawable.ic_sun_bear_weekend_beach,
+        IllustR.drawable.ic_sun_bear_weekend_bazaar,
+        IllustR.drawable.ic_sun_bear_weekend_kayak,
+        IllustR.drawable.ic_sun_bear_weekend_kite,
+        IllustR.drawable.ic_sun_bear_weekend_park_kite,
+        IllustR.drawable.ic_sun_bear_weekend_mall,
+        IllustR.drawable.ic_sun_bear_weekend_furniture,
+        IllustR.drawable.ic_sun_bear_weekend_soccer,
+        IllustR.drawable.ic_sun_bear_weekend_cafe,
+        IllustR.drawable.ic_sun_bear_weekend_bookstore,
+        IllustR.drawable.ic_sun_bear_weekend_cinema,
+        IllustR.drawable.ic_sun_bear_weekend_boardgame,
+        IllustR.drawable.ic_sun_bear_weekend_pottery,
+        IllustR.drawable.ic_sun_bear_weekend_bakeclass,
+        IllustR.drawable.ic_sun_bear_weekend_swim,
+        IllustR.drawable.ic_sun_bear_weekend_karaoke,
+        IllustR.drawable.ic_sun_bear_weekend_camp,
+        IllustR.drawable.ic_sun_bear_weekend_nightmarket,
+        IllustR.drawable.ic_sun_bear_weekend_dessert,
+        IllustR.drawable.ic_sun_bear_weekend_flowermarket,
+        IllustR.drawable.ic_sun_bear_weekend_wetmarket,
+        IllustR.drawable.ic_sun_bear_weekend_petcafe,
+        IllustR.drawable.ic_sun_bear_weekend_library,
+    )
+
 private val EXERCISE_MORNING_CAPTIONS =
     intArrayOf(
         R.string.sun_bear_exercise_run_morning,
@@ -556,6 +609,7 @@ private val WORK_OFFICE_JOBS =
         IllustR.drawable.ic_sun_bear_work_lawyer,
         IllustR.drawable.ic_sun_bear_work_librarian,
         IllustR.drawable.ic_sun_bear_work_architect,
+        IllustR.drawable.ic_sun_bear_work_receptionist,
     )
 
 /** 现场 / 外出工种：当天上下午同一张。 */
@@ -568,13 +622,19 @@ private val WORK_FIELD_JOBS =
         IllustR.drawable.ic_sun_bear_work_farm,
         IllustR.drawable.ic_sun_bear_work_courier,
         IllustR.drawable.ic_sun_bear_work_shop,
+        IllustR.drawable.ic_sun_bear_work_stocker,
+        IllustR.drawable.ic_sun_bear_work_streetfood,
+        IllustR.drawable.ic_sun_bear_work_zhuchengpork,
+        IllustR.drawable.ic_sun_bear_work_grilledfish,
         IllustR.drawable.ic_sun_bear_work_mechanic,
         IllustR.drawable.ic_sun_bear_work_teacher,
         IllustR.drawable.ic_sun_bear_work_nurse,
         IllustR.drawable.ic_sun_bear_work_firefighter,
         IllustR.drawable.ic_sun_bear_work_driver,
+        IllustR.drawable.ic_sun_bear_work_truck,
         IllustR.drawable.ic_sun_bear_work_barista,
         IllustR.drawable.ic_sun_bear_work_fisher,
+        IllustR.drawable.ic_sun_bear_work_harbor,
         IllustR.drawable.ic_sun_bear_work_warehouse,
         IllustR.drawable.ic_sun_bear_work_cleaner,
         IllustR.drawable.ic_sun_bear_work_barber,
@@ -657,7 +717,8 @@ fun sunPathBearMoment(
  * → 早餐(07:15–08:15) → 上班通勤(08:15–09:00) → 上午忙
  * → 午饭(11:30–12:30) → 下午忙 → 下午茶(15:00–15:45) → 下午忙(至18:00)
  * → 回家通勤(18:00–18:45) → 傍晚锻炼(18:45–19:00) → 晚饭(19:00–20:00)。
- * 周末仍用周末片刻，不拆通勤/锻炼/早餐。
+ * 周末：上午出门(日出~09:00) → 旅行(09:00–11:30 与 12:30–15:00) → 午饭
+ * → 下午玩乐(15:00–18:00) → 归途(18:00 起)；不拆通勤/锻炼/早餐。
  */
 private fun dayBearMoment(
     date: LocalDate,
@@ -676,7 +737,7 @@ private fun dayBearMoment(
         minutes < 12 * 60 + 30 ->
             SunPathBearMoment.LUNCH
         minutes < 15 * 60 ->
-            if (weekend) SunPathBearMoment.WEEKEND_AFTERNOON else SunPathBearMoment.WORK_AFTERNOON
+            if (weekend) SunPathBearMoment.WEEKEND_EXPLORE else SunPathBearMoment.WORK_AFTERNOON
         !weekend && minutes in (15 * 60) until (15 * 60 + 45) ->
             SunPathBearMoment.AFTERNOON_TEA
         minutes < 18 * 60 ->

@@ -81,8 +81,9 @@ fun DrawScope.drawHailPellets(
 }
 
 /**
- * 双层雨：背景层细、淡、飘得慢，前景层粗、亮、落得快，形成景深。
- * 雨滴长短/粗细固定两档，视觉比单层更立体。供跑酷/摘星/迷宫共用。
+ * 双层雨 + 底部溅射：背景层细淡慢，前景层粗亮快，雨滴带微摆动；
+ * 落到画面底部 10% 区域时产生小水花粒子，增强真实感。
+ * 供跑酷/摘星/迷宫共用。
  */
 fun DrawScope.drawRainLayered(
     fgCount: Int,
@@ -97,30 +98,45 @@ fun DrawScope.drawRainLayered(
     fgColor: Color = Color(0xFFB4D2F0),
     bgColor: Color = Color(0xFFD9E9F8),
 ) {
-    // 背景层：细、淡、稍慢
+    val splashThreshold = height * 0.88f + yOff
+
+    // 背景层：细、淡、稍慢，带微摆动
     for (i in 0 until bgCount) {
         val speed = 700f * scale + (i % 3) * 110f * scale
         val x = ((i * 131 + time * (speed * 0.5f)) % (width + 60)) - 30
         val y = ((i * 71 + time * speed) % (height + 80) + (height + 80)) % (height + 80) - 40 + yOff
+        val wobble = sin(time * 2.2f + i * 0.7f) * 1.8f * scale
+        val dropLen = 9f * scale * lenMul
         drawLine(
             color = bgColor.copy(alpha = alpha * 0.4f),
-            start = Offset(x, y),
-            end = Offset(x - 2.2f * scale, y + 9f * scale * lenMul),
+            start = Offset(x + wobble, y),
+            end = Offset(x + wobble - 2.2f * scale, y + dropLen),
             strokeWidth = 1.2f * scale,
             cap = StrokeCap.Round,
         )
     }
-    // 前景层：粗、亮、更快
+
+    // 前景层：粗、亮、更快，带更明显的摆动
     for (i in 0 until fgCount) {
         val speed = 1080f * scale + (i % 4) * 160f * scale
         val x = ((i * 97 + time * (speed * 0.55f)) % (width + 60)) - 30
         val y = ((i * 53 + time * speed) % (height + 80) + (height + 80)) % (height + 80) - 40 + yOff
+        val wobble = sin(time * 3.1f + i * 1.1f) * 2.8f * scale
+        val dropLen = 15f * scale * lenMul
         drawLine(
             color = fgColor.copy(alpha = alpha),
-            start = Offset(x, y),
-            end = Offset(x - 3.5f * scale, y + 15f * scale * lenMul),
+            start = Offset(x + wobble, y),
+            end = Offset(x + wobble - 3.5f * scale, y + dropLen),
             strokeWidth = 2.1f * scale,
             cap = StrokeCap.Round,
         )
+        // 溅射粒子：雨滴到达底部区域时画一个小圆点水花
+        if (y > splashThreshold && i % 2 == 0) {
+            drawCircle(
+                color = fgColor.copy(alpha = alpha * 0.35f),
+                radius = 1.5f * scale,
+                center = Offset(x + wobble, splashThreshold + 2f * scale),
+            )
+        }
     }
 }

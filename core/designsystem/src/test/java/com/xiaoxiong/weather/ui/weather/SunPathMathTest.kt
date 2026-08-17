@@ -176,6 +176,10 @@ class SunPathMathTest {
             sunPathBearMoment(day, saturday, LocalTime.of(12, 15)),
         )
         assertEquals(
+            SunPathBearMoment.WEEKEND_EXPLORE,
+            sunPathBearMoment(day, saturday, LocalTime.of(13, 30)),
+        )
+        assertEquals(
             SunPathBearMoment.WEEKEND_AFTERNOON,
             sunPathBearMoment(day, saturday, LocalTime.of(15, 0)),
         )
@@ -191,6 +195,15 @@ class SunPathMathTest {
                     SunPathBearMoment.WEEKEND_EXPLORE.bearResFor(saturday.plusWeeks(it))
                 }.toSet()
         assertTrue(seen.size > 1)
+        // 上午/下午共用大池，各自按日抽取（盐不同），同一天可以不同图
+        val morningPool = SunPathBearMoment.WEEKEND_MORNING.bearVariantDrawables().toSet()
+        val afternoonPool = SunPathBearMoment.WEEKEND_AFTERNOON.bearVariantDrawables().toSet()
+        assertEquals(morningPool, afternoonPool)
+        assertTrue(morningPool.size >= 28)
+        val morning = SunPathBearMoment.WEEKEND_MORNING.bearResFor(saturday)
+        val afternoon = SunPathBearMoment.WEEKEND_AFTERNOON.bearResFor(saturday)
+        assertTrue(morning in morningPool)
+        assertTrue(afternoon in afternoonPool)
     }
 
     @Test

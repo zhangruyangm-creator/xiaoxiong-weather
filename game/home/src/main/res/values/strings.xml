@@ -191,6 +191,15 @@
     <string name="bear_home_room_kitchen">厨房</string>
     <string name="bear_home_room_living">客厅</string>
     <string name="bear_home_room_playroom">游乐间</string>
+    <string name="bear_home_room_balcony">阳台</string>
+    <string name="balcony_weather_sunny">晴天</string>
+    <string name="balcony_weather_clear_night">晴朗夜晚</string>
+    <string name="balcony_weather_cloudy">多云</string>
+    <string name="balcony_weather_rain_light">小雨</string>
+    <string name="balcony_weather_rain_heavy">大雨</string>
+    <string name="balcony_weather_storm">雷暴</string>
+    <string name="balcony_weather_snow">下雪</string>
+    <string name="balcony_weather_fog">大雾</string>
     <string name="bear_home_routine_done">已过</string>
     <string name="bear_home_routine_now">进行中</string>
     <string name="bear_home_routine_soon">未到</string>

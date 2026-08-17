@@ -191,6 +191,15 @@
     <string name="bear_home_room_kitchen">Kitchen</string>
     <string name="bear_home_room_living">Living room</string>
     <string name="bear_home_room_playroom">Playroom</string>
+    <string name="bear_home_room_balcony">Balcony</string>
+    <string name="balcony_weather_sunny">Sunny</string>
+    <string name="balcony_weather_clear_night">Clear night</string>
+    <string name="balcony_weather_cloudy">Cloudy</string>
+    <string name="balcony_weather_rain_light">Light rain</string>
+    <string name="balcony_weather_rain_heavy">Heavy rain</string>
+    <string name="balcony_weather_storm">Thunderstorm</string>
+    <string name="balcony_weather_snow">Snow</string>
+    <string name="balcony_weather_fog">Fog</string>
     <string name="bear_home_routine_done">Done</string>
     <string name="bear_home_routine_now">Now</string>
     <string name="bear_home_routine_soon">Later</string>
