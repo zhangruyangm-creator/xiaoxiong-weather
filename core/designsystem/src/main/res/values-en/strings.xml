@@ -27,6 +27,9 @@
     <string name="sun_bear_commute_bus_out">Bear is taking the bus to work</string>
     <string name="sun_bear_commute_taxi_out">Bear is taking a taxi to work</string>
     <string name="sun_bear_commute_drive_out">Bear is driving to work</string>
+    <string name="sun_bear_commute_ebike_out">Bear is riding an e-bike to work</string>
+    <string name="sun_bear_commute_cycle_out">Bear is cycling to work</string>
+    <string name="sun_bear_commute_ferry_out">Bear is taking the ferry to work</string>
     <string name="sun_bear_work_morning">Bear is hard at work</string>
     <string name="sun_bear_lunch">Bear is having lunch</string>
     <string name="sun_bear_work_afternoon">Bear keeps busy this afternoon</string>
@@ -43,6 +46,9 @@
     <string name="sun_bear_commute_bus_home">Bear is taking the bus home</string>
     <string name="sun_bear_commute_taxi_home">Bear is taking a taxi home</string>
     <string name="sun_bear_commute_drive_home">Bear is driving home</string>
+    <string name="sun_bear_commute_ebike_home">Bear is riding an e-bike home</string>
+    <string name="sun_bear_commute_cycle_home">Bear is cycling home</string>
+    <string name="sun_bear_commute_ferry_home">Bear is taking the ferry home</string>
     <string name="sun_bear_evening_exercise">Bear is evening training</string>
     <string name="sun_bear_exercise_run_evening">Bear is out for an evening run</string>
     <string name="sun_bear_exercise_basketball_evening">Bear is playing basketball this evening</string>

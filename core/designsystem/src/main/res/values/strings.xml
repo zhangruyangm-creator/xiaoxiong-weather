@@ -27,6 +27,9 @@
     <string name="sun_bear_commute_bus_out">小熊坐公交上班</string>
     <string name="sun_bear_commute_taxi_out">小熊打车上班</string>
     <string name="sun_bear_commute_drive_out">小熊开车上班</string>
+    <string name="sun_bear_commute_ebike_out">小熊骑电瓶车上班</string>
+    <string name="sun_bear_commute_cycle_out">小熊骑自行车上班</string>
+    <string name="sun_bear_commute_ferry_out">小熊坐轮渡上班</string>
     <string name="sun_bear_work_morning">小熊专心上班中</string>
     <string name="sun_bear_lunch">小熊在吃午饭</string>
     <string name="sun_bear_work_afternoon">小熊下午继续忙</string>
@@ -43,6 +46,9 @@
     <string name="sun_bear_commute_bus_home">小熊坐公交回家</string>
     <string name="sun_bear_commute_taxi_home">小熊打车回家</string>
     <string name="sun_bear_commute_drive_home">小熊开车回家</string>
+    <string name="sun_bear_commute_ebike_home">小熊骑电瓶车回家</string>
+    <string name="sun_bear_commute_cycle_home">小熊骑自行车回家</string>
+    <string name="sun_bear_commute_ferry_home">小熊坐轮渡回家</string>
     <string name="sun_bear_evening_exercise">小熊傍晚锻炼</string>
     <string name="sun_bear_exercise_run_evening">小熊傍晚跑步</string>
     <string name="sun_bear_exercise_basketball_evening">小熊傍晚打篮球</string>
