@@ -110,46 +110,45 @@ fun BearHomeScreen(
                 .fillMaxSize()
                 .background(Color(0xFFFFF6E8)),
     ) {
-        Column(
+        // 内容全屏铺满；顶栏叠在上方，插画贴顶贴边
+        when (room) {
+            HomeRoom.HUB ->
+                HomeHub(
+                    bearRes = bearRes,
+                    isDay = isDayTheme,
+                    onOpenBedroom = { room = HomeRoom.BEDROOM },
+                    onOpenKitchen = { room = HomeRoom.KITCHEN },
+                    onOpenPlayroom = { room = HomeRoom.PLAYROOM },
+                    onOpenCloset = { room = HomeRoom.CLOSET },
+                    onTapBear = { showNowDialog = true },
+                )
+            HomeRoom.BEDROOM -> HomeBedroom(date = today, time = now)
+            HomeRoom.KITCHEN -> HomeKitchen()
+            HomeRoom.PLAYROOM ->
+                HomePlayroom(
+                    games = otherGames,
+                    onOpenGame = onOpenGame,
+                )
+            HomeRoom.CLOSET -> HomeCloset()
+        }
+        HomeTopBar(
+            title =
+                when (room) {
+                    HomeRoom.HUB -> stringResource(R.string.bear_home_title)
+                    HomeRoom.BEDROOM -> stringResource(R.string.bear_home_room_bedroom)
+                    HomeRoom.KITCHEN -> stringResource(R.string.bear_home_room_kitchen)
+                    HomeRoom.PLAYROOM -> stringResource(R.string.bear_home_room_playroom)
+                    HomeRoom.CLOSET -> stringResource(R.string.bear_home_room_closet)
+                },
+            showBack = room != HomeRoom.HUB,
+            onBack = { room = HomeRoom.HUB },
+            onClose = onExit,
             modifier =
                 Modifier
-                    .fillMaxSize()
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
                     .statusBarsPadding(),
-        ) {
-            HomeTopBar(
-                title =
-                    when (room) {
-                        HomeRoom.HUB -> stringResource(R.string.bear_home_title)
-                        HomeRoom.BEDROOM -> stringResource(R.string.bear_home_room_bedroom)
-                        HomeRoom.KITCHEN -> stringResource(R.string.bear_home_room_kitchen)
-                        HomeRoom.PLAYROOM -> stringResource(R.string.bear_home_room_playroom)
-                        HomeRoom.CLOSET -> stringResource(R.string.bear_home_room_closet)
-                    },
-                showBack = room != HomeRoom.HUB,
-                onBack = { room = HomeRoom.HUB },
-                onClose = onExit,
-            )
-            when (room) {
-                HomeRoom.HUB ->
-                    HomeHub(
-                        bearRes = bearRes,
-                        isDay = isDayTheme,
-                        onOpenBedroom = { room = HomeRoom.BEDROOM },
-                        onOpenKitchen = { room = HomeRoom.KITCHEN },
-                        onOpenPlayroom = { room = HomeRoom.PLAYROOM },
-                        onOpenCloset = { room = HomeRoom.CLOSET },
-                        onTapBear = { showNowDialog = true },
-                    )
-                HomeRoom.BEDROOM -> HomeBedroom(date = today, time = now)
-                HomeRoom.KITCHEN -> HomeKitchen()
-                HomeRoom.PLAYROOM ->
-                    HomePlayroom(
-                        games = otherGames,
-                        onOpenGame = onOpenGame,
-                    )
-                HomeRoom.CLOSET -> HomeCloset()
-            }
-        }
+        )
     }
 
     if (showNowDialog) {
@@ -172,12 +171,19 @@ private fun HomeTopBar(
     showBack: Boolean,
     onBack: () -> Unit,
     onClose: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+            modifier
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xE6FFF6E8),
+                            Color(0x00FFF6E8),
+                        ),
+                    ),
+                ).padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (showBack) {
@@ -221,84 +227,87 @@ private fun HomeHub(
         } else {
             Brush.verticalGradient(listOf(Color(0xFF1A237E), Color(0xFFFFF6E8)))
         }
-    Column(
+    Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(sky)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+                .background(sky),
     ) {
-        Box(
+        // 宽度顶满、贴顶；FillWidth 保证不留左右边距，高度随图比例
+        Image(
+            painter = painterResource(R.drawable.ic_bear_home_hub),
+            contentDescription = stringResource(R.string.bear_home_title),
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-        ) {
-            Image(
-                painter = painterResource(R.drawable.ic_bear_home_hub),
-                contentDescription = stringResource(R.string.bear_home_title),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .align(Alignment.Center),
-                contentScale = ContentScale.Fit,
-            )
-            // 热区：按画面大致分区叠透明按钮
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .align(Alignment.Center),
-            ) {
-                Row(modifier = Modifier.weight(1.1f).fillMaxWidth()) {
-                    HotZone(
-                        modifier = Modifier.weight(1f).fillMaxSize(),
-                        label = stringResource(R.string.bear_home_room_bedroom),
-                        onClick = onOpenBedroom,
-                    )
-                    HotZone(
-                        modifier = Modifier.weight(1.2f).fillMaxSize(),
-                        label = stringResource(R.string.bear_home_room_living),
-                        onClick = onTapBear,
-                    )
-                    HotZone(
-                        modifier = Modifier.weight(1f).fillMaxSize(),
-                        label = stringResource(R.string.bear_home_room_kitchen),
-                        onClick = onOpenKitchen,
-                    )
-                }
-                Row(modifier = Modifier.weight(0.9f).fillMaxWidth()) {
-                    HotZone(
-                        modifier = Modifier.weight(1f).fillMaxSize(),
-                        label = stringResource(R.string.bear_home_room_playroom),
-                        onClick = onOpenPlayroom,
-                    )
-                    HotZone(
-                        modifier = Modifier.weight(1f).fillMaxSize(),
-                        label = stringResource(R.string.bear_home_room_closet),
-                        onClick = onOpenCloset,
-                    )
-                }
-            }
-        }
-        Image(
-            painter = painterResource(bearRes),
-            contentDescription = stringResource(R.string.bear_home_room_living),
+                    .align(Alignment.TopCenter),
+            contentScale = ContentScale.FillWidth,
+        )
+        // 热区与插画同宽同顶：Hub 为 9:16 竖图，热区按同一比例叠在画面上
+        Column(
             modifier =
                 Modifier
-                    .size(96.dp)
-                    .clickable(onClick = onTapBear)
-                    .padding(bottom = 8.dp),
-        )
-        Text(
-            text = stringResource(R.string.bear_home_summary_stub),
-            style = MaterialTheme.typography.labelMedium,
-            color = Color(0xFF8D6E63),
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
+                    .fillMaxWidth()
+                    .aspectRatio(9f / 16f)
+                    .align(Alignment.TopCenter),
+        ) {
+            Row(modifier = Modifier.weight(1.1f).fillMaxWidth()) {
+                HotZone(
+                    modifier = Modifier.weight(1f).fillMaxSize(),
+                    label = stringResource(R.string.bear_home_room_bedroom),
+                    onClick = onOpenBedroom,
+                )
+                HotZone(
+                    modifier = Modifier.weight(1.2f).fillMaxSize(),
+                    label = stringResource(R.string.bear_home_room_living),
+                    onClick = onTapBear,
+                )
+                HotZone(
+                    modifier = Modifier.weight(1f).fillMaxSize(),
+                    label = stringResource(R.string.bear_home_room_kitchen),
+                    onClick = onOpenKitchen,
+                )
+            }
+            Row(modifier = Modifier.weight(0.9f).fillMaxWidth()) {
+                HotZone(
+                    modifier = Modifier.weight(1f).fillMaxSize(),
+                    label = stringResource(R.string.bear_home_room_playroom),
+                    onClick = onOpenPlayroom,
+                )
+                HotZone(
+                    modifier = Modifier.weight(1f).fillMaxSize(),
+                    label = stringResource(R.string.bear_home_room_closet),
+                    onClick = onOpenCloset,
+                )
+            }
+        }
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0x00FFF6E8), Color(0xFFFFF6E8)),
+                        ),
+                    ).padding(top = 32.dp, bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Image(
+                painter = painterResource(bearRes),
+                contentDescription = stringResource(R.string.bear_home_room_living),
+                modifier =
+                    Modifier
+                        .size(96.dp)
+                        .clickable(onClick = onTapBear),
+            )
+            Text(
+                text = stringResource(R.string.bear_home_summary_stub),
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFF8D6E63),
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 }
 
@@ -336,15 +345,12 @@ private fun HomeRoomHero(
     @androidx.annotation.DrawableRes artRes: Int,
     contentDescription: String,
 ) {
+    // 宽度顶满、贴顶；FillWidth 按原图比例撑开高度，不裁切、不留左右边
     Image(
         painter = painterResource(artRes),
         contentDescription = contentDescription,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-                .aspectRatio(1f),
-        contentScale = ContentScale.Fit,
+        modifier = Modifier.fillMaxWidth(),
+        contentScale = ContentScale.FillWidth,
     )
 }
 
@@ -355,7 +361,7 @@ private fun HomeBedroom(
 ) {
     val slots = remember(date) { homeRoutineSlots(date) }
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -370,7 +376,7 @@ private fun HomeBedroom(
                 text = stringResource(R.string.bear_home_routine_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
         items(slots, key = { "${it.moment.name}-${it.startMinute}" }) { slot ->
@@ -379,7 +385,7 @@ private fun HomeBedroom(
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = if (highlight) Color(0xFFFFE0B2) else Color.White,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
@@ -425,16 +431,19 @@ private fun HomeKitchen() {
     val groups = remember(slot) { slot.groups() }
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
-        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            HomeRoomHero(
-                artRes = R.drawable.ic_bear_home_kitchen,
-                contentDescription = stringResource(R.string.bear_home_room_kitchen),
-            )
+            // 抵消 contentPadding，横幅仍全宽贴边
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = (-12).dp)) {
+                HomeRoomHero(
+                    artRes = R.drawable.ic_bear_home_kitchen,
+                    contentDescription = stringResource(R.string.bear_home_room_kitchen),
+                )
+            }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Text(
@@ -480,18 +489,22 @@ private fun HomeKitchen() {
                 )
             }
             items(group.dishes) { dish ->
-                MealDexCard(dish)
+                MealDexCard(dish = dish)
             }
         }
     }
 }
 
 @Composable
-private fun MealDexCard(dish: HomeMealDish) {
+private fun MealDexCard(
+    dish: HomeMealDish,
+    modifier: Modifier = Modifier,
+) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = Color.White,
         shadowElevation = 2.dp,
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -535,7 +548,8 @@ private fun HomePlayroom(
     onOpenGame: (GameEntry) -> Unit,
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
@@ -550,7 +564,10 @@ private fun HomePlayroom(
                     text = stringResource(R.string.bear_home_playroom_empty),
                     color = Color(0xFF8D6E63),
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 24.dp),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -562,6 +579,7 @@ private fun HomePlayroom(
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                             .clickable(onClick = { onOpenGame(game) }),
                 ) {
                     Text(
@@ -582,8 +600,7 @@ private fun HomeCloset() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         HomeRoomHero(
@@ -595,6 +612,7 @@ private fun HomeCloset() {
             text = stringResource(R.string.bear_home_closet_stub),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -602,6 +620,8 @@ private fun HomeCloset() {
             style = MaterialTheme.typography.bodyMedium,
             color = Color(0xFF8D6E63),
             textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
