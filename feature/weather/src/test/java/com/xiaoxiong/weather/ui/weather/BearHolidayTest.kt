@@ -6,6 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import com.xiaoxiong.weather.resillustrations.R as IllustR
 
 class BearHolidayTest {
     @Test
@@ -75,13 +76,13 @@ class BearHolidayTest {
         assertEquals(a, BearHoliday.SPRING_FESTIVAL.bearResFor(eve))
         val pool =
             setOf(
-                R.drawable.ic_sun_bear_fest_spring,
-                R.drawable.ic_sun_bear_fest_spring_2,
-                R.drawable.ic_sun_bear_fest_spring_3,
-                R.drawable.ic_sun_bear_fest_spring_4,
-                R.drawable.ic_sun_bear_fest_spring_5,
-                R.drawable.ic_sun_bear_fest_spring_6,
-                R.drawable.ic_sun_bear_fest_spring_7,
+                IllustR.drawable.ic_sun_bear_fest_spring,
+                IllustR.drawable.ic_sun_bear_fest_spring_2,
+                IllustR.drawable.ic_sun_bear_fest_spring_3,
+                IllustR.drawable.ic_sun_bear_fest_spring_4,
+                IllustR.drawable.ic_sun_bear_fest_spring_5,
+                IllustR.drawable.ic_sun_bear_fest_spring_6,
+                IllustR.drawable.ic_sun_bear_fest_spring_7,
             )
         assertTrue(a in pool)
         val week =
@@ -105,13 +106,13 @@ class BearHolidayTest {
             val res = BearHoliday.SPRING_FESTIVAL.bearResFor(d)
             val idx =
                 listOf(
-                    R.drawable.ic_sun_bear_fest_spring,
-                    R.drawable.ic_sun_bear_fest_spring_2,
-                    R.drawable.ic_sun_bear_fest_spring_3,
-                    R.drawable.ic_sun_bear_fest_spring_4,
-                    R.drawable.ic_sun_bear_fest_spring_5,
-                    R.drawable.ic_sun_bear_fest_spring_6,
-                    R.drawable.ic_sun_bear_fest_spring_7,
+                    IllustR.drawable.ic_sun_bear_fest_spring,
+                    IllustR.drawable.ic_sun_bear_fest_spring_2,
+                    IllustR.drawable.ic_sun_bear_fest_spring_3,
+                    IllustR.drawable.ic_sun_bear_fest_spring_4,
+                    IllustR.drawable.ic_sun_bear_fest_spring_5,
+                    IllustR.drawable.ic_sun_bear_fest_spring_6,
+                    IllustR.drawable.ic_sun_bear_fest_spring_7,
                 ).indexOf(res)
             assertEquals(captions[idx], BearHoliday.SPRING_FESTIVAL.captionResFor(d))
         }

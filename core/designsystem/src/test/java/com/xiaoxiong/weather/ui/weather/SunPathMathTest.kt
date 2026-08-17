@@ -10,6 +10,7 @@ import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import com.xiaoxiong.weather.resillustrations.R as IllustR
 
 class SunPathMathTest {
     private val sunrise = LocalDateTime.of(2026, 8, 6, 6, 0)
@@ -138,12 +139,12 @@ class SunPathMathTest {
         )
         val drinks =
             listOf(
-                R.drawable.ic_sun_bear_tea_coffee to R.string.sun_bear_tea_coffee,
-                R.drawable.ic_sun_bear_tea_tea to R.string.sun_bear_tea_tea,
-                R.drawable.ic_sun_bear_tea_milk to R.string.sun_bear_tea_milk,
-                R.drawable.ic_sun_bear_tea_juice to R.string.sun_bear_tea_juice,
-                R.drawable.ic_sun_bear_tea_cocoa to R.string.sun_bear_tea_cocoa,
-                R.drawable.ic_sun_bear_tea_dessert to R.string.sun_bear_tea_dessert,
+                IllustR.drawable.ic_sun_bear_tea_coffee to R.string.sun_bear_tea_coffee,
+                IllustR.drawable.ic_sun_bear_tea_tea to R.string.sun_bear_tea_tea,
+                IllustR.drawable.ic_sun_bear_tea_milk to R.string.sun_bear_tea_milk,
+                IllustR.drawable.ic_sun_bear_tea_juice to R.string.sun_bear_tea_juice,
+                IllustR.drawable.ic_sun_bear_tea_cocoa to R.string.sun_bear_tea_cocoa,
+                IllustR.drawable.ic_sun_bear_tea_dessert to R.string.sun_bear_tea_dessert,
             )
         val seen = mutableSetOf<Int>()
         for (i in 0L..50L) {
@@ -254,26 +255,26 @@ class SunPathMathTest {
         val day = LocalDate.of(2026, 8, 6)
         val pairs =
             listOf(
-                R.drawable.ic_sun_bear_evening to R.string.sun_bear_evening_tea,
-                R.drawable.ic_sun_bear_evening_game to R.string.sun_bear_evening_game,
-                R.drawable.ic_sun_bear_evening_book to R.string.sun_bear_evening_book,
-                R.drawable.ic_sun_bear_evening_phone to R.string.sun_bear_evening_phone,
-                R.drawable.ic_sun_bear_evening_tv to R.string.sun_bear_evening_tv,
-                R.drawable.ic_sun_bear_evening_music to R.string.sun_bear_evening_music,
-                R.drawable.ic_sun_bear_evening_knit to R.string.sun_bear_evening_knit,
-                R.drawable.ic_sun_bear_evening_diary to R.string.sun_bear_evening_diary,
-                R.drawable.ic_sun_bear_evening_pet to R.string.sun_bear_evening_pet,
-                R.drawable.ic_sun_bear_evening_guitar to R.string.sun_bear_evening_guitar,
-                R.drawable.ic_sun_bear_evening_treadmill to R.string.sun_bear_evening_treadmill,
-                R.drawable.ic_sun_bear_evening_yoga to R.string.sun_bear_evening_yoga,
-                R.drawable.ic_sun_bear_evening_draw to R.string.sun_bear_evening_draw,
-                R.drawable.ic_sun_bear_evening_balcony to R.string.sun_bear_evening_balcony,
-                R.drawable.ic_sun_bear_evening_cityview to R.string.sun_bear_evening_cityview,
-                R.drawable.ic_sun_bear_evening_lounge to R.string.sun_bear_evening_lounge,
-                R.drawable.ic_sun_bear_evening_videocall to R.string.sun_bear_evening_videocall,
-                R.drawable.ic_sun_bear_evening_boardgame to R.string.sun_bear_evening_boardgame,
-                R.drawable.ic_sun_bear_evening_lego to R.string.sun_bear_evening_lego,
-                R.drawable.ic_sun_bear_evening_study to R.string.sun_bear_evening_study,
+                IllustR.drawable.ic_sun_bear_evening to R.string.sun_bear_evening_tea,
+                IllustR.drawable.ic_sun_bear_evening_game to R.string.sun_bear_evening_game,
+                IllustR.drawable.ic_sun_bear_evening_book to R.string.sun_bear_evening_book,
+                IllustR.drawable.ic_sun_bear_evening_phone to R.string.sun_bear_evening_phone,
+                IllustR.drawable.ic_sun_bear_evening_tv to R.string.sun_bear_evening_tv,
+                IllustR.drawable.ic_sun_bear_evening_music to R.string.sun_bear_evening_music,
+                IllustR.drawable.ic_sun_bear_evening_knit to R.string.sun_bear_evening_knit,
+                IllustR.drawable.ic_sun_bear_evening_diary to R.string.sun_bear_evening_diary,
+                IllustR.drawable.ic_sun_bear_evening_pet to R.string.sun_bear_evening_pet,
+                IllustR.drawable.ic_sun_bear_evening_guitar to R.string.sun_bear_evening_guitar,
+                IllustR.drawable.ic_sun_bear_evening_treadmill to R.string.sun_bear_evening_treadmill,
+                IllustR.drawable.ic_sun_bear_evening_yoga to R.string.sun_bear_evening_yoga,
+                IllustR.drawable.ic_sun_bear_evening_draw to R.string.sun_bear_evening_draw,
+                IllustR.drawable.ic_sun_bear_evening_balcony to R.string.sun_bear_evening_balcony,
+                IllustR.drawable.ic_sun_bear_evening_cityview to R.string.sun_bear_evening_cityview,
+                IllustR.drawable.ic_sun_bear_evening_lounge to R.string.sun_bear_evening_lounge,
+                IllustR.drawable.ic_sun_bear_evening_videocall to R.string.sun_bear_evening_videocall,
+                IllustR.drawable.ic_sun_bear_evening_boardgame to R.string.sun_bear_evening_boardgame,
+                IllustR.drawable.ic_sun_bear_evening_lego to R.string.sun_bear_evening_lego,
+                IllustR.drawable.ic_sun_bear_evening_study to R.string.sun_bear_evening_study,
             )
         val seen = mutableSetOf<Int>()
         for (i in 0L..80L) {
@@ -296,15 +297,15 @@ class SunPathMathTest {
         val day = LocalDate.of(2026, 8, 6)
         val pairs =
             listOf(
-                R.drawable.ic_sun_bear_bedtime_pajamas to R.string.sun_bear_bedtime_pajamas,
-                R.drawable.ic_sun_bear_bedtime_bath to R.string.sun_bear_bedtime_bath,
-                R.drawable.ic_sun_bear_bedtime_nightlight to R.string.sun_bear_bedtime_nightlight,
-                R.drawable.ic_sun_bear_bedtime_makebed to R.string.sun_bear_bedtime_makebed,
-                R.drawable.ic_sun_bear_bedtime_story to R.string.sun_bear_bedtime_story,
-                R.drawable.ic_sun_bear_bedtime_plush to R.string.sun_bear_bedtime_plush,
-                R.drawable.ic_sun_bear_bedtime_alarm to R.string.sun_bear_bedtime_alarm,
-                R.drawable.ic_sun_bear_bedtime_footbath to R.string.sun_bear_bedtime_footbath,
-                R.drawable.ic_sun_bear_bedtime_book to R.string.sun_bear_bedtime_book,
+                IllustR.drawable.ic_sun_bear_bedtime_pajamas to R.string.sun_bear_bedtime_pajamas,
+                IllustR.drawable.ic_sun_bear_bedtime_bath to R.string.sun_bear_bedtime_bath,
+                IllustR.drawable.ic_sun_bear_bedtime_nightlight to R.string.sun_bear_bedtime_nightlight,
+                IllustR.drawable.ic_sun_bear_bedtime_makebed to R.string.sun_bear_bedtime_makebed,
+                IllustR.drawable.ic_sun_bear_bedtime_story to R.string.sun_bear_bedtime_story,
+                IllustR.drawable.ic_sun_bear_bedtime_plush to R.string.sun_bear_bedtime_plush,
+                IllustR.drawable.ic_sun_bear_bedtime_alarm to R.string.sun_bear_bedtime_alarm,
+                IllustR.drawable.ic_sun_bear_bedtime_footbath to R.string.sun_bear_bedtime_footbath,
+                IllustR.drawable.ic_sun_bear_bedtime_book to R.string.sun_bear_bedtime_book,
             )
         val seen = mutableSetOf<Int>()
         for (i in 0L..40L) {
@@ -324,27 +325,27 @@ class SunPathMathTest {
         val day = LocalDate.of(2026, 8, 6)
         val pool =
             setOf(
-                R.drawable.ic_sun_bear_sleep,
-                R.drawable.ic_sun_bear_sleep_bed_pink,
-                R.drawable.ic_sun_bear_sleep_bed_yellow,
-                R.drawable.ic_sun_bear_sleep_bed_purple,
-                R.drawable.ic_sun_bear_sleep_tatami,
-                R.drawable.ic_sun_bear_sleep_tatami_orange,
-                R.drawable.ic_sun_bear_sleep_kang,
-                R.drawable.ic_sun_bear_sleep_hammock,
-                R.drawable.ic_sun_bear_sleep_tent,
-                R.drawable.ic_sun_bear_sleep_sofa,
-                R.drawable.ic_sun_bear_sleep_train,
-                R.drawable.ic_sun_bear_sleep_igloo,
-                R.drawable.ic_sun_bear_sleep_treehouse,
-                R.drawable.ic_sun_bear_sleep_sleepingbag,
-                R.drawable.ic_sun_bear_sleep_bunk,
-                R.drawable.ic_sun_bear_sleep_campcot,
-                R.drawable.ic_sun_bear_sleep_lounge,
-                R.drawable.ic_sun_bear_sleep_crib,
-                R.drawable.ic_sun_bear_sleep_petpile,
-                R.drawable.ic_sun_bear_sleep_sofa_lie,
-                R.drawable.ic_sun_bear_sleep_dorm,
+                IllustR.drawable.ic_sun_bear_sleep,
+                IllustR.drawable.ic_sun_bear_sleep_bed_pink,
+                IllustR.drawable.ic_sun_bear_sleep_bed_yellow,
+                IllustR.drawable.ic_sun_bear_sleep_bed_purple,
+                IllustR.drawable.ic_sun_bear_sleep_tatami,
+                IllustR.drawable.ic_sun_bear_sleep_tatami_orange,
+                IllustR.drawable.ic_sun_bear_sleep_kang,
+                IllustR.drawable.ic_sun_bear_sleep_hammock,
+                IllustR.drawable.ic_sun_bear_sleep_tent,
+                IllustR.drawable.ic_sun_bear_sleep_sofa,
+                IllustR.drawable.ic_sun_bear_sleep_train,
+                IllustR.drawable.ic_sun_bear_sleep_igloo,
+                IllustR.drawable.ic_sun_bear_sleep_treehouse,
+                IllustR.drawable.ic_sun_bear_sleep_sleepingbag,
+                IllustR.drawable.ic_sun_bear_sleep_bunk,
+                IllustR.drawable.ic_sun_bear_sleep_campcot,
+                IllustR.drawable.ic_sun_bear_sleep_lounge,
+                IllustR.drawable.ic_sun_bear_sleep_crib,
+                IllustR.drawable.ic_sun_bear_sleep_petpile,
+                IllustR.drawable.ic_sun_bear_sleep_sofa_lie,
+                IllustR.drawable.ic_sun_bear_sleep_dorm,
             )
         val seen = mutableSetOf<Int>()
         for (i in 0L..80L) {
@@ -367,11 +368,11 @@ class SunPathMathTest {
             val d = weekday.plusDays(i)
             val am = workDayBearRes(d, afternoon = false)
             val pm = workDayBearRes(d, afternoon = true)
-            if (am == R.drawable.ic_sun_bear_work_morning &&
-                pm == R.drawable.ic_sun_bear_work_afternoon
+            if (am == IllustR.drawable.ic_sun_bear_work_morning &&
+                pm == IllustR.drawable.ic_sun_bear_work_afternoon
             ) {
                 officeDay = d
-            } else if (am == pm && am != R.drawable.ic_sun_bear_work_morning) {
+            } else if (am == pm && am != IllustR.drawable.ic_sun_bear_work_morning) {
                 fieldDay = d
             }
             if (officeDay != null && fieldDay != null) break
@@ -379,11 +380,11 @@ class SunPathMathTest {
         assertTrue(officeDay != null)
         assertTrue(fieldDay != null)
         assertEquals(
-            R.drawable.ic_sun_bear_work_morning,
+            IllustR.drawable.ic_sun_bear_work_morning,
             SunPathBearMoment.WORK_MORNING.bearResFor(officeDay!!),
         )
         assertEquals(
-            R.drawable.ic_sun_bear_work_afternoon,
+            IllustR.drawable.ic_sun_bear_work_afternoon,
             SunPathBearMoment.WORK_AFTERNOON.bearResFor(officeDay),
         )
         assertEquals(
@@ -397,32 +398,32 @@ class SunPathMathTest {
         val day = LocalDate.of(2026, 8, 6)
         val lunchPool =
             setOf(
-                R.drawable.ic_sun_bear_lunch_bento,
-                R.drawable.ic_sun_bear_lunch_ramen,
-                R.drawable.ic_sun_bear_lunch_jiaozi,
-                R.drawable.ic_sun_bear_lunch_friedrice,
-                R.drawable.ic_sun_bear_lunch_sushi,
-                R.drawable.ic_sun_bear_lunch_burger,
-                R.drawable.ic_sun_bear_lunch_picnic,
-                R.drawable.ic_sun_bear_lunch_takeout,
-                R.drawable.ic_sun_bear_lunch_pokebowl,
-                R.drawable.ic_sun_bear_lunch_burgerfries,
-                R.drawable.ic_sun_bear_lunch_shawarma,
-                R.drawable.ic_sun_bear_lunch_kebab,
-                R.drawable.ic_sun_bear_lunch_mezze,
-                R.drawable.ic_sun_bear_lunch_kabsa,
-                R.drawable.ic_sun_bear_lunch_falafel,
-                R.drawable.ic_sun_bear_lunch_fattoush,
-                R.drawable.ic_sun_bear_lunch_bibimbap,
-                R.drawable.ic_sun_bear_lunch_kbbq,
-                R.drawable.ic_sun_bear_lunch_tteokbokki,
-                R.drawable.ic_sun_bear_lunch_kimchijjigae,
-                R.drawable.ic_sun_bear_lunch_ramyeon,
-                R.drawable.ic_sun_bear_lunch_padthai,
-                R.drawable.ic_sun_bear_lunch_greencurry,
-                R.drawable.ic_sun_bear_lunch_nasigoreng,
-                R.drawable.ic_sun_bear_lunch_tomyum,
-                R.drawable.ic_sun_bear_lunch_satay,
+                IllustR.drawable.ic_sun_bear_lunch_bento,
+                IllustR.drawable.ic_sun_bear_lunch_ramen,
+                IllustR.drawable.ic_sun_bear_lunch_jiaozi,
+                IllustR.drawable.ic_sun_bear_lunch_friedrice,
+                IllustR.drawable.ic_sun_bear_lunch_sushi,
+                IllustR.drawable.ic_sun_bear_lunch_burger,
+                IllustR.drawable.ic_sun_bear_lunch_picnic,
+                IllustR.drawable.ic_sun_bear_lunch_takeout,
+                IllustR.drawable.ic_sun_bear_lunch_pokebowl,
+                IllustR.drawable.ic_sun_bear_lunch_burgerfries,
+                IllustR.drawable.ic_sun_bear_lunch_shawarma,
+                IllustR.drawable.ic_sun_bear_lunch_kebab,
+                IllustR.drawable.ic_sun_bear_lunch_mezze,
+                IllustR.drawable.ic_sun_bear_lunch_kabsa,
+                IllustR.drawable.ic_sun_bear_lunch_falafel,
+                IllustR.drawable.ic_sun_bear_lunch_fattoush,
+                IllustR.drawable.ic_sun_bear_lunch_bibimbap,
+                IllustR.drawable.ic_sun_bear_lunch_kbbq,
+                IllustR.drawable.ic_sun_bear_lunch_tteokbokki,
+                IllustR.drawable.ic_sun_bear_lunch_kimchijjigae,
+                IllustR.drawable.ic_sun_bear_lunch_ramyeon,
+                IllustR.drawable.ic_sun_bear_lunch_padthai,
+                IllustR.drawable.ic_sun_bear_lunch_greencurry,
+                IllustR.drawable.ic_sun_bear_lunch_nasigoreng,
+                IllustR.drawable.ic_sun_bear_lunch_tomyum,
+                IllustR.drawable.ic_sun_bear_lunch_satay,
             )
         val lunchA = SunPathBearMoment.LUNCH.bearResFor(day)
         assertEquals(lunchA, SunPathBearMoment.LUNCH.bearResFor(day))
@@ -436,32 +437,32 @@ class SunPathMathTest {
         assertEquals(26, seen.size)
         val dinnerPool =
             setOf(
-                R.drawable.ic_sun_bear_dinner_teishoku,
-                R.drawable.ic_sun_bear_dinner_hotpot,
-                R.drawable.ic_sun_bear_dinner_sushi,
-                R.drawable.ic_sun_bear_dinner_yakitori,
-                R.drawable.ic_sun_bear_dinner_shabu,
-                R.drawable.ic_sun_bear_dinner_spaghetti,
-                R.drawable.ic_sun_bear_dinner_bbq,
-                R.drawable.ic_sun_bear_dinner_pizza,
-                R.drawable.ic_sun_bear_dinner_steak,
-                R.drawable.ic_sun_bear_dinner_italian,
-                R.drawable.ic_sun_bear_dinner_shawarma,
-                R.drawable.ic_sun_bear_dinner_tagine,
-                R.drawable.ic_sun_bear_dinner_kebab,
-                R.drawable.ic_sun_bear_dinner_mansaf,
-                R.drawable.ic_sun_bear_dinner_mezze,
-                R.drawable.ic_sun_bear_dinner_couscous,
-                R.drawable.ic_sun_bear_dinner_galbi,
-                R.drawable.ic_sun_bear_dinner_budaejjigae,
-                R.drawable.ic_sun_bear_dinner_jajangmyeon,
-                R.drawable.ic_sun_bear_dinner_soondubu,
-                R.drawable.ic_sun_bear_dinner_chimaek,
-                R.drawable.ic_sun_bear_dinner_laksa,
-                R.drawable.ic_sun_bear_dinner_massaman,
-                R.drawable.ic_sun_bear_dinner_hainanese,
-                R.drawable.ic_sun_bear_dinner_lau,
-                R.drawable.ic_sun_bear_dinner_banhxeo,
+                IllustR.drawable.ic_sun_bear_dinner_teishoku,
+                IllustR.drawable.ic_sun_bear_dinner_hotpot,
+                IllustR.drawable.ic_sun_bear_dinner_sushi,
+                IllustR.drawable.ic_sun_bear_dinner_yakitori,
+                IllustR.drawable.ic_sun_bear_dinner_shabu,
+                IllustR.drawable.ic_sun_bear_dinner_spaghetti,
+                IllustR.drawable.ic_sun_bear_dinner_bbq,
+                IllustR.drawable.ic_sun_bear_dinner_pizza,
+                IllustR.drawable.ic_sun_bear_dinner_steak,
+                IllustR.drawable.ic_sun_bear_dinner_italian,
+                IllustR.drawable.ic_sun_bear_dinner_shawarma,
+                IllustR.drawable.ic_sun_bear_dinner_tagine,
+                IllustR.drawable.ic_sun_bear_dinner_kebab,
+                IllustR.drawable.ic_sun_bear_dinner_mansaf,
+                IllustR.drawable.ic_sun_bear_dinner_mezze,
+                IllustR.drawable.ic_sun_bear_dinner_couscous,
+                IllustR.drawable.ic_sun_bear_dinner_galbi,
+                IllustR.drawable.ic_sun_bear_dinner_budaejjigae,
+                IllustR.drawable.ic_sun_bear_dinner_jajangmyeon,
+                IllustR.drawable.ic_sun_bear_dinner_soondubu,
+                IllustR.drawable.ic_sun_bear_dinner_chimaek,
+                IllustR.drawable.ic_sun_bear_dinner_laksa,
+                IllustR.drawable.ic_sun_bear_dinner_massaman,
+                IllustR.drawable.ic_sun_bear_dinner_hainanese,
+                IllustR.drawable.ic_sun_bear_dinner_lau,
+                IllustR.drawable.ic_sun_bear_dinner_banhxeo,
             )
         val dinnerA = SunPathBearMoment.DINNER.bearResFor(day)
         assertEquals(dinnerA, SunPathBearMoment.DINNER.bearResFor(day))
@@ -480,19 +481,19 @@ class SunPathMathTest {
         val day = LocalDate.of(2026, 8, 6)
         val outPool =
             listOf(
-                R.drawable.ic_sun_bear_morning_out,
-                R.drawable.ic_sun_bear_morning_metro,
-                R.drawable.ic_sun_bear_morning_bus,
-                R.drawable.ic_sun_bear_morning_taxi,
-                R.drawable.ic_sun_bear_morning_drive,
+                IllustR.drawable.ic_sun_bear_morning_out,
+                IllustR.drawable.ic_sun_bear_morning_metro,
+                IllustR.drawable.ic_sun_bear_morning_bus,
+                IllustR.drawable.ic_sun_bear_morning_taxi,
+                IllustR.drawable.ic_sun_bear_morning_drive,
             )
         val homePool =
             listOf(
-                R.drawable.ic_sun_bear_head_home,
-                R.drawable.ic_sun_bear_home_metro,
-                R.drawable.ic_sun_bear_home_bus,
-                R.drawable.ic_sun_bear_home_taxi,
-                R.drawable.ic_sun_bear_home_drive,
+                IllustR.drawable.ic_sun_bear_head_home,
+                IllustR.drawable.ic_sun_bear_home_metro,
+                IllustR.drawable.ic_sun_bear_home_bus,
+                IllustR.drawable.ic_sun_bear_home_taxi,
+                IllustR.drawable.ic_sun_bear_home_drive,
             )
         val out = SunPathBearMoment.MORNING_OUT.bearResFor(day)
         val home = SunPathBearMoment.HEAD_HOME.bearResFor(day)
@@ -524,39 +525,39 @@ class SunPathMathTest {
         val day = LocalDate.of(2026, 8, 6)
         val pool =
             setOf(
-                R.drawable.ic_sun_bear_breakfast_youtiao,
-                R.drawable.ic_sun_bear_breakfast_baozi,
-                R.drawable.ic_sun_bear_breakfast_congee,
-                R.drawable.ic_sun_bear_breakfast_jianbing,
-                R.drawable.ic_sun_bear_breakfast_milkbread,
-                R.drawable.ic_sun_bear_breakfast_eggtoast,
-                R.drawable.ic_sun_bear_breakfast_noodles,
-                R.drawable.ic_sun_bear_breakfast_sandwich,
-                R.drawable.ic_sun_bear_breakfast_oatmeal,
-                R.drawable.ic_sun_bear_breakfast_changfen,
-                R.drawable.ic_sun_bear_breakfast_bacon_eggs,
-                R.drawable.ic_sun_bear_breakfast_waffle,
-                R.drawable.ic_sun_bear_breakfast_bagel,
-                R.drawable.ic_sun_bear_breakfast_frenchtoast,
-                R.drawable.ic_sun_bear_breakfast_omelette,
-                R.drawable.ic_sun_bear_breakfast_cereal,
-                R.drawable.ic_sun_bear_breakfast_english,
-                R.drawable.ic_sun_bear_breakfast_hummus,
-                R.drawable.ic_sun_bear_breakfast_arabtea,
-                R.drawable.ic_sun_bear_breakfast_falafel,
-                R.drawable.ic_sun_bear_breakfast_shakshuka,
-                R.drawable.ic_sun_bear_breakfast_dates,
-                R.drawable.ic_sun_bear_breakfast_manakish,
-                R.drawable.ic_sun_bear_breakfast_kimbap,
-                R.drawable.ic_sun_bear_breakfast_koreantoast,
-                R.drawable.ic_sun_bear_breakfast_juk,
-                R.drawable.ic_sun_bear_breakfast_gyeranbap,
-                R.drawable.ic_sun_bear_breakfast_banchan,
-                R.drawable.ic_sun_bear_breakfast_kayatoast,
-                R.drawable.ic_sun_bear_breakfast_nasilemak,
-                R.drawable.ic_sun_bear_breakfast_banhmi,
-                R.drawable.ic_sun_bear_breakfast_roticanai,
-                R.drawable.ic_sun_bear_breakfast_pho,
+                IllustR.drawable.ic_sun_bear_breakfast_youtiao,
+                IllustR.drawable.ic_sun_bear_breakfast_baozi,
+                IllustR.drawable.ic_sun_bear_breakfast_congee,
+                IllustR.drawable.ic_sun_bear_breakfast_jianbing,
+                IllustR.drawable.ic_sun_bear_breakfast_milkbread,
+                IllustR.drawable.ic_sun_bear_breakfast_eggtoast,
+                IllustR.drawable.ic_sun_bear_breakfast_noodles,
+                IllustR.drawable.ic_sun_bear_breakfast_sandwich,
+                IllustR.drawable.ic_sun_bear_breakfast_oatmeal,
+                IllustR.drawable.ic_sun_bear_breakfast_changfen,
+                IllustR.drawable.ic_sun_bear_breakfast_bacon_eggs,
+                IllustR.drawable.ic_sun_bear_breakfast_waffle,
+                IllustR.drawable.ic_sun_bear_breakfast_bagel,
+                IllustR.drawable.ic_sun_bear_breakfast_frenchtoast,
+                IllustR.drawable.ic_sun_bear_breakfast_omelette,
+                IllustR.drawable.ic_sun_bear_breakfast_cereal,
+                IllustR.drawable.ic_sun_bear_breakfast_english,
+                IllustR.drawable.ic_sun_bear_breakfast_hummus,
+                IllustR.drawable.ic_sun_bear_breakfast_arabtea,
+                IllustR.drawable.ic_sun_bear_breakfast_falafel,
+                IllustR.drawable.ic_sun_bear_breakfast_shakshuka,
+                IllustR.drawable.ic_sun_bear_breakfast_dates,
+                IllustR.drawable.ic_sun_bear_breakfast_manakish,
+                IllustR.drawable.ic_sun_bear_breakfast_kimbap,
+                IllustR.drawable.ic_sun_bear_breakfast_koreantoast,
+                IllustR.drawable.ic_sun_bear_breakfast_juk,
+                IllustR.drawable.ic_sun_bear_breakfast_gyeranbap,
+                IllustR.drawable.ic_sun_bear_breakfast_banchan,
+                IllustR.drawable.ic_sun_bear_breakfast_kayatoast,
+                IllustR.drawable.ic_sun_bear_breakfast_nasilemak,
+                IllustR.drawable.ic_sun_bear_breakfast_banhmi,
+                IllustR.drawable.ic_sun_bear_breakfast_roticanai,
+                IllustR.drawable.ic_sun_bear_breakfast_pho,
             )
         val a = SunPathBearMoment.BREAKFAST.bearResFor(day)
         assertTrue(a in pool)
@@ -571,8 +572,8 @@ class SunPathMathTest {
         assertTrue(
             a !in
                 setOf(
-                    R.drawable.ic_sun_bear_lunch_bento,
-                    R.drawable.ic_sun_bear_lunch_shawarma,
+                    IllustR.drawable.ic_sun_bear_lunch_bento,
+                    IllustR.drawable.ic_sun_bear_lunch_shawarma,
                 ),
         )
     }
@@ -582,25 +583,25 @@ class SunPathMathTest {
         val day = LocalDate.of(2026, 8, 6)
         val pool =
             listOf(
-                R.drawable.ic_sun_bear_exercise_run,
-                R.drawable.ic_sun_bear_exercise_basketball,
-                R.drawable.ic_sun_bear_exercise_pingpong,
-                R.drawable.ic_sun_bear_exercise_bar,
-                R.drawable.ic_sun_bear_exercise_badminton,
-                R.drawable.ic_sun_bear_exercise_jumprope,
-                R.drawable.ic_sun_bear_exercise_bike,
-                R.drawable.ic_sun_bear_exercise_soccer,
-                R.drawable.ic_sun_bear_exercise_yoga,
-                R.drawable.ic_sun_bear_exercise_taichi,
-                R.drawable.ic_sun_bear_exercise_baduanjin,
-                R.drawable.ic_sun_bear_exercise_squaredance,
-                R.drawable.ic_sun_bear_exercise_jianzi,
-                R.drawable.ic_sun_bear_exercise_taichisword,
-                R.drawable.ic_sun_bear_exercise_dogwalk,
-                R.drawable.ic_sun_bear_exercise_briskwalk,
-                R.drawable.ic_sun_bear_exercise_diabolo,
-                R.drawable.ic_sun_bear_exercise_tennis,
-                R.drawable.ic_sun_bear_exercise_hulahoop,
+                IllustR.drawable.ic_sun_bear_exercise_run,
+                IllustR.drawable.ic_sun_bear_exercise_basketball,
+                IllustR.drawable.ic_sun_bear_exercise_pingpong,
+                IllustR.drawable.ic_sun_bear_exercise_bar,
+                IllustR.drawable.ic_sun_bear_exercise_badminton,
+                IllustR.drawable.ic_sun_bear_exercise_jumprope,
+                IllustR.drawable.ic_sun_bear_exercise_bike,
+                IllustR.drawable.ic_sun_bear_exercise_soccer,
+                IllustR.drawable.ic_sun_bear_exercise_yoga,
+                IllustR.drawable.ic_sun_bear_exercise_taichi,
+                IllustR.drawable.ic_sun_bear_exercise_baduanjin,
+                IllustR.drawable.ic_sun_bear_exercise_squaredance,
+                IllustR.drawable.ic_sun_bear_exercise_jianzi,
+                IllustR.drawable.ic_sun_bear_exercise_taichisword,
+                IllustR.drawable.ic_sun_bear_exercise_dogwalk,
+                IllustR.drawable.ic_sun_bear_exercise_briskwalk,
+                IllustR.drawable.ic_sun_bear_exercise_diabolo,
+                IllustR.drawable.ic_sun_bear_exercise_tennis,
+                IllustR.drawable.ic_sun_bear_exercise_hulahoop,
             )
         val morningCaptions =
             listOf(

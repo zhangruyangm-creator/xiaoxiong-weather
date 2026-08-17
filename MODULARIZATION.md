@@ -53,7 +53,8 @@ xiaoxiong-weather/
 ├── :core:network            # OkHttp 基础设施 + 雷达/卫星 DTO + 城市别名 assets
 ├── :core:domain             # 纯逻辑生成器（Android Library，自带 res）
 ├── :core:data               # Store、缓存、Repository 门面、fetch 聚合器、城市目录、卡片偏好协议
-├── :core:designsystem       # Compose 主题 + SunPathMath + WeatherScene + 生活片刻/预警插画
+├── :core:designsystem       # Compose 主题 + SunPathMath + WeatherScene + 生活片刻枚举 + 预警/图标（插画资源在 res-illustrations）
+├── :core:res-illustrations  # 纯资源模块：266 张 ic_sun_bear_* 场景插画（三餐/作息/节日…），单一数据源，无代码
 ├── :core:common             # WeatherCodes、AppError、格式化工具（Android Library，自带 res，无 Compose 依赖）
 ├── :core:test-fixtures      # 测试共享 fixture（WeatherFixtures）
 ├── :feature:weather         # WeatherViewModel/各页面/雷达/分享（WeatherScreen 由 :app 装配）
@@ -73,12 +74,14 @@ xiaoxiong-weather/
 :core:network      ← :core:model, :core:common
 :core:domain       ← :core:model, :core:common
 :core:data         ← :core:model, :core:common, :core:domain, :core:network
-:core:designsystem ← :core:model, :core:common, :core:domain
+:core:designsystem ← :core:model, :core:common, :core:domain, :core:res-illustrations（api，资源透传）
+:core:res-illustrations ← 无依赖（纯 res）
 :core:test-fixtures← :core:model
-:feature:weather   ← core:{model,network,domain,data,designsystem,common}（不依赖 :game:api，游戏装配由 :app 承载）
+:feature:weather   ← core:{model,network,domain,data,designsystem,common,res-illustrations}（不依赖 :game:api，游戏装配由 :app 承载）
 :feature:settings  ← core:{model,data,designsystem,common}
 :game:common       ← :game:api, core:{designsystem,common,model}
 :game:xxx          ← :game:api, :game:common, core:{designsystem,common}
+:game:home         ← 另显式依赖 :core:res-illustrations（三餐插画直接用）
 :app               ← 全部 feature / game / widget* / worker*（游戏装配经 ServiceLoader 发现，:app 仅依赖 :game:api 接口）
 ```
 
@@ -140,7 +143,7 @@ interface GameEntry {
 
 ### 4.2 SunPathMath 下沉（阶段 3）
 
-`SunPathMath.kt` 含两个职责：日弧数学（天气页）+ 小熊生活片刻枚举（200+ 插画，gameHome 依赖）。整体迁入 `:core:designsystem`，附带其专属插画。
+`SunPathMath.kt` 含两个职责：日弧数学（天气页）+ 小熊生活片刻枚举（200+ 插画，gameHome 依赖）。整体迁入 `:core:designsystem`；其专属插画收在 `:core:res-illustrations`，SunPathMath 经 `IllustR` 引用。
 
 ### 4.3 widget/worker 循环依赖（阶段 4）
 
@@ -226,7 +229,7 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 | 目标模块 | 文件（帷幕） |
 |---|---|
 | `:core:data` | Store 层 8 个（`AppSettingsStore`/`FavoriteCityStore`/`RecentCityStore`/`SelectedCityStore`/`WeatherCacheStore`/`PhenologyCacheStore`/`DebugWeatherStore`/`WeatherNotifyDedupStore`）+ `LocationHelper`/`NetworkMonitor`/`ChinaCityCatalog`（`china_cities.json` 随迁）+ `CitySearchFetcher`/`ForecastFetcher`/`HistoryFetcher` + `WeatherRepository` 门面 + `WeatherPorts` 数据接口 + `CardLayoutModel`/`TodayCardLayout`/`HourlyCardLayout`/`DailyCardLayout`（卡片偏好协议，含 12 个 card 字符串）+ 对应 7 个测试 |
-| `:core:designsystem` | `ui/theme/*`（Color/Theme/Type）、`ui/weather/SunPathMath.kt`、`ui/weather/WeatherIcon.kt`、`util/AlertBearIcon.kt`、`util/WeatherLauncherIcon.kt`、新增 `ui/weather/WeatherScene.kt`（从 `WeatherAtmosphere.kt` 抽出 `WeatherScene`enum + `weatherSceneOf`）+ 286 张 `ic_sun_bear_*`/`ic_alert_bear_*`/`ic_launcher_bear_*` 插画 + 101 个生活片刻字符串 + `SunPathMathTest` |
+| `:core:designsystem` | `ui/theme/*`（Color/Theme/Type）、`ui/weather/SunPathMath.kt`、`ui/weather/WeatherIcon.kt`、`util/AlertBearIcon.kt`、`util/WeatherLauncherIcon.kt`、新增 `ui/weather/WeatherScene.kt`（从 `WeatherAtmosphere.kt` 抽出 `WeatherScene`enum + `weatherSceneOf`）+ 286 张 `ic_sun_bear_*`/`ic_alert_bear_*`/`ic_launcher_bear_*` 插画 + 101 个生活片刻字符串 + `SunPathMathTest`（注：`ic_sun_bear_*` 场景插画后续再抽出至 `:core:res-illustrations`，见阶段 6） |
 
 **关键决策（偏离初稿）**：
 
@@ -299,7 +302,7 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 1. **口令常量集中到 `:game:api`**——`EASTER_EGG_BEAR_{GAME,STAR,MAZE,FARM,HOME}` 从各游戏 Screen 文件上移至 `EasterEggPasswords.kt`，home 枢纽引用其它游戏口令从此依赖接口层而非实现对。
 2. **`GameWeatherFx` 的 DrawScope 特效改 public**——`drawStormLightning`/`drawRainLayered` 等被 jump/star 跨模块调用，从 internal 放开。
 3. **HomePlayroom 不再判 `DISABLED` 哨兵**——动态依赖下口令恒为真实值，游乐间四个入口恒展示；某游戏未装配时其入口无效由装配层（`onOpenGame` → overlay 注册表）兜底。
-4. **生活片刻插画 85 张随 home 拷贝**——`ic_sun_bear_{breakfast,lunch,dinner}_*` 已在 `:core:designsystem`，但 Android Library 编译期 `R` 只含自持资源，gameHome 所需插画按「代码引用 → 同步迁移」拷入 `:game:home` res（机械操作）。
+4. ~~**生活片刻插画 85 张随 home 拷贝**~~（阶段 6 已取消）——`ic_sun_bear_{breakfast,lunch,dinner}_*` 已在 `:core:designsystem`，但 Android Library 编译期 `R` 只含自持资源，曾把 gameHome 所需插画按「代码引用 → 同步迁移」拷入 `:game:home` res；阶段 6 起统一收至 `:core:res-illustrations`，home 直接 `api` 依赖，插画处处只打一份。
 5. **lite 版零游戏实现**——动态游戏依赖仅挂 `fullImplementation`，lite 不含任何游戏实现模块（jump/star/maze/farm/home 字节码为零）。注意 `:game:api` 接口契约层仍由 `:app` 无条件依赖（MainActivity/WeatherGameOverlay 需引用 `GameEntry` 类型），lite 包保留约 1-2KB 接口字节码，属预期——「零痕迹」指零游戏实现，非零接口契约。
 
 **验收（已全部通过）**：
@@ -315,6 +318,10 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
   - app 残留 3 个测试（`WeatherCodesTest`/`WeatherLauncherIconMappingTest`/`AlertBearIconTest`）随代码分别迁入 `core:common` / `core:designsystem`；`app/src/test` 删除（app 不再有单元测试，装配层留薄）
   - `mock-maker-inline` 配置删除（Mockito 5.14 默认内联，冗余）
 - 文档：README 项目结构/游戏裁剪改为动态依赖描述（5 个游戏 + ServiceLoader）；ENGINEERING CI 说明改为全量 `test`；CHANGELOG 新增「未发布」多模块重构记录；CI workflow 用 `./gradlew test` 覆盖全模块并把测试报告路径扩到 core/feature/game
+- 资源去重（`ic_sun_bear_*` 场景插画单一数据源）：
+  - 新建 `:core:res-illustrations` 纯资源模块，收纳全部 266 张 `ic_sun_bear_*`（designsystem 247 + 节日 19），删除 `game:home` 重复的 85 张与 `app`/`feature:weather` 的 fest 副本
+  - `core:designsystem` 与 `game:home`/`feature:weather` 以 `api(project(":core:res-illustrations"))` 依赖；`nonTransitiveRClass=true` 下跨模块引用用 `import ...R as IllustR` 别名（ktlint 要求 alias 在 import 区末尾）
+  - 验证：全量 `test`/`lintKotlin`/`assembleFullRelease` 通过，APK 内 `ic_sun_bear_*` 仅 266 个唯一条目（每张只打一份）
 
 ---
 

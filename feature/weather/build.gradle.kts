@@ -39,6 +39,8 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:network"))
     implementation(project(":core:designsystem"))
+    // 场景插画（ic_sun_bear_*）来自共享资源模块；nonTransitiveRClass=true 需 api 暴露 R
+    api(project(":core:res-illustrations"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

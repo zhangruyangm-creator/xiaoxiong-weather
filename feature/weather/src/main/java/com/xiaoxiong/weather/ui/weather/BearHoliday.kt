@@ -6,6 +6,7 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.util.ChineseLunarCalendar
 import java.time.LocalDate
 import java.time.Month
+import com.xiaoxiong.weather.resillustrations.R as IllustR
 
 /**
  * 节日小熊主题：命中节日时覆盖日常插画与文案（睡觉/快醒除外）。
@@ -20,49 +21,49 @@ enum class BearHoliday(
 ) {
     SPRING_FESTIVAL(
         R.string.sun_bear_fest_spring,
-        R.drawable.ic_sun_bear_fest_spring,
-        R.drawable.ic_sun_bear_fest_spring_2,
-        R.drawable.ic_sun_bear_fest_spring_3,
-        R.drawable.ic_sun_bear_fest_spring_4,
-        R.drawable.ic_sun_bear_fest_spring_5,
-        R.drawable.ic_sun_bear_fest_spring_6,
-        R.drawable.ic_sun_bear_fest_spring_7,
+        IllustR.drawable.ic_sun_bear_fest_spring,
+        IllustR.drawable.ic_sun_bear_fest_spring_2,
+        IllustR.drawable.ic_sun_bear_fest_spring_3,
+        IllustR.drawable.ic_sun_bear_fest_spring_4,
+        IllustR.drawable.ic_sun_bear_fest_spring_5,
+        IllustR.drawable.ic_sun_bear_fest_spring_6,
+        IllustR.drawable.ic_sun_bear_fest_spring_7,
     ),
     CHRISTMAS(
         R.string.sun_bear_fest_christmas,
-        R.drawable.ic_sun_bear_fest_christmas,
-        R.drawable.ic_sun_bear_fest_christmas_2,
-        R.drawable.ic_sun_bear_fest_christmas_3,
+        IllustR.drawable.ic_sun_bear_fest_christmas,
+        IllustR.drawable.ic_sun_bear_fest_christmas_2,
+        IllustR.drawable.ic_sun_bear_fest_christmas_3,
     ),
     NEW_YEAR(
         R.string.sun_bear_fest_new_year,
-        R.drawable.ic_sun_bear_fest_new_year,
-        R.drawable.ic_sun_bear_fest_new_year_2,
+        IllustR.drawable.ic_sun_bear_fest_new_year,
+        IllustR.drawable.ic_sun_bear_fest_new_year_2,
     ),
 
     /** 中秋 ∩ 国庆：双节同庆。 */
     MID_AUTUMN_NATIONAL(
         R.string.sun_bear_fest_double,
-        R.drawable.ic_sun_bear_fest_double,
-        R.drawable.ic_sun_bear_fest_double_2,
+        IllustR.drawable.ic_sun_bear_fest_double,
+        IllustR.drawable.ic_sun_bear_fest_double_2,
     ),
     MID_AUTUMN(
         R.string.sun_bear_fest_mid_autumn,
-        R.drawable.ic_sun_bear_fest_mid_autumn,
-        R.drawable.ic_sun_bear_fest_mid_autumn_2,
+        IllustR.drawable.ic_sun_bear_fest_mid_autumn,
+        IllustR.drawable.ic_sun_bear_fest_mid_autumn_2,
     ),
     NATIONAL_DAY(
         R.string.sun_bear_fest_national,
-        R.drawable.ic_sun_bear_fest_national,
-        R.drawable.ic_sun_bear_fest_national_2,
-        R.drawable.ic_sun_bear_fest_national_3,
+        IllustR.drawable.ic_sun_bear_fest_national,
+        IllustR.drawable.ic_sun_bear_fest_national_2,
+        IllustR.drawable.ic_sun_bear_fest_national_3,
     ),
     ;
 
     /** 按自然日选取插画：春节初一/初二可不同，明年春节也可不同。 */
     @DrawableRes
     fun bearResFor(date: LocalDate): Int {
-        if (bearVariants.isEmpty()) return R.drawable.ic_sun_bear_fest_spring
+        if (bearVariants.isEmpty()) return IllustR.drawable.ic_sun_bear_fest_spring
         if (bearVariants.size == 1) return bearVariants[0]
         return bearVariants[dailyVariantIndex(date, "FEST_$name", bearVariants.size)]
     }

@@ -105,7 +105,8 @@ xiaoxiong-weather/
 │   ├── domain/               # 纯逻辑生成器（LifeIndex/预警/季节贴士等）
 │   ├── data/                 # Store、Repository、城市目录、区域进 assets
 │   ├── test-fixtures/        # 测试夹具（WeatherFixtures），仅测试依赖
-│   └── designsystem/         # Compose 主题 + SunPathMath + WeatherScene + 插画
+│   ├── designsystem/         # Compose 主题 + SunPathMath + WeatherScene + 预警/图标
+│   └── res-illustrations/    # 纯资源模块：266 张 ic_sun_bear_* 场景插画（单一数据源）
 ├── feature/
 │   ├── weather/              # WeatherViewModel / 天气页 / 雷达 / 分享 / 调试
 │   └── settings/             # 设置 / 隐私门 / 卡片设置
@@ -117,7 +118,7 @@ xiaoxiong-weather/
 └── build.gradle.kts          # 根构建脚本
 ```
 
-- **资源归属**：各模块自持所需 `R.string` / `R.drawable`（Android Library 编译期只认自己 res）
+- **资源归属**：各模块自持所需 `R.string` / `R.drawable`（Android Library 编译期只认自己 res）；`ic_sun_bear_*` 场景插画统一收在 `:core:res-illustrations`，消费方经 `R as IllustR` 别名引用
 - **依赖方向铁律**：`feature:*` 不得互依；`game:*` 不得依赖 `feature:*`；任何模块不得依赖 `:app`
 - **游戏裁剪**：`:app` 依 `-Pgames` 对 `:game:*` 建条件动态依赖，未选模块不编译
 

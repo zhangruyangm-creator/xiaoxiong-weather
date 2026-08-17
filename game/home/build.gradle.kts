@@ -34,6 +34,8 @@ dependencies {
     implementation(project(":game:api"))
     implementation(project(":game:common"))
     implementation(project(":core:designsystem"))
+    // 三餐插画收在共享资源模块；nonTransitiveRClass=true 下直接 api 暴露便于 R 引用
+    api(project(":core:res-illustrations"))
     implementation(project(":core:common"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
