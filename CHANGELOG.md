@@ -1,10 +1,14 @@
 # 更新记录
 
-## [未发布]
+## [1.6.7] - 2026-08-17
 
-- 工程加固：R8 keep 规则显式保留 `GameEntryProvider` 实现的无参构造器；CI 新增 dex 级 provider 构造器验证 + `-Pgames=none` 裁剪构建与注册清零断言
-- 架构：`WeatherGameOverlay` 从 `:feature:weather` 上移至 `:app`（消除 feature 对 `:game:api` 的依赖，游戏装配完全由薄壳层承载）；`MainActivity` 用 `remember` 缓存 ServiceLoader 装配结果，避免每次重组重复扫描
-- 文档：修正 README/MODULARIZATION 中「lite 零痕迹」表述——lite 不含任何游戏实现模块字节码，但 `:game:api` 接口契约层（约 1-2KB）仍由 `:app` 无条件引用，属预期
+- 小熊的家：各房间布局优化——顶栏改为叠层悬浮、内容全屏铺满、插画贴顶贴边；卧室/厨房/游乐间/储物间/客厅 5 张房间主插画升级为更高清版本
+- 修复：历史天气查询区分「网络不可用」与「该日期暂无数据」——网络/服务端错误抛错并提示可重试，只有确实无数据才显示「暂无数据」；刷新失败时优先回退上次数据并标识（离线缓存兜底），不再长时间卡加载
+- 工程加固：OkHttp 增加整条调用 15s 超时兜底（VPN/半死连接不再卡 30-40s）；缓存读取加异常兜底避免 DataStore 异常卡死加载态；User-Agent 注入版本号
+- 架构：新建纯资源模块 `:core:res-illustrations`，266 张 `ic_sun_bear_*` 场景插画全部收拢为单一数据源（消除 designsystem/home/app 之间重复副本），插画在 APK 中只打一份
+- 工程加固：R8 keep 规则显式保留 `GameEntryProvider` 实现的无参构造器；CI 新增 dex 级 provider 构造器验证 + `-Pgames=none` 裁剪构建与注册清零断言；CI 超时放宽到 45 分钟
+- 架构：`WeatherGameOverlay` 从 `:feature:weather` 上移至 `:app`（消除 feature 对 `:game:api` 的依赖）；`MainActivity` 用 `remember` 缓存 ServiceLoader 装配结果
+- 文档：修正 README/MODULARIZATION 中「lite 零痕迹」表述——lite 不含游戏实现字节码，但保留 `:game:api` 接口契约层约 1-2KB，属预期
 
 ## [1.6.6] - 2026-08-16
 
