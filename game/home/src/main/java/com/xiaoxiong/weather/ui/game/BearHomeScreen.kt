@@ -522,7 +522,7 @@ private fun HomeSummary(
                         Text(
                             text = stringResource(
                                 R.string.bear_home_summary_now_doing,
-                                stringResource(currentMoment.captionResFor(date)),
+                                stringResource(currentMoment.moment.captionResFor(date)),
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFE65100),
