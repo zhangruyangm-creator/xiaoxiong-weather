@@ -215,6 +215,17 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_weekend_explore_qushuiting,
         IllustR.drawable.ic_sun_bear_weekend_explore_fuzimiao,
         IllustR.drawable.ic_sun_bear_weekend_explore_weihai,
+        IllustR.drawable.ic_sun_bear_weekend_explore_sapporo,
+        IllustR.drawable.ic_sun_bear_weekend_explore_nanjingroad,
+        IllustR.drawable.ic_sun_bear_weekend_explore_baoan,
+        IllustR.drawable.ic_sun_bear_weekend_explore_shenzhenbay,
+        IllustR.drawable.ic_sun_bear_weekend_explore_tangye,
+        IllustR.drawable.ic_sun_bear_weekend_explore_luomashi,
+        IllustR.drawable.ic_sun_bear_weekend_explore_qianmen,
+        IllustR.drawable.ic_sun_bear_weekend_explore_gulangyu,
+        IllustR.drawable.ic_sun_bear_weekend_explore_hongyadong,
+        IllustR.drawable.ic_sun_bear_weekend_explore_rio,
+        IllustR.drawable.ic_sun_bear_weekend_explore_yellowstone,
     ),
     WEEKEND_AFTERNOON(
         R.string.sun_bear_weekend_afternoon,
@@ -626,7 +637,10 @@ private val WORK_FIELD_JOBS =
         IllustR.drawable.ic_sun_bear_work_streetfood,
         IllustR.drawable.ic_sun_bear_work_zhuchengpork,
         IllustR.drawable.ic_sun_bear_work_grilledfish,
+        IllustR.drawable.ic_sun_bear_work_stinkytofu,
+        IllustR.drawable.ic_sun_bear_work_grilledsausage,
         IllustR.drawable.ic_sun_bear_work_mechanic,
+        IllustR.drawable.ic_sun_bear_work_phonerepair,
         IllustR.drawable.ic_sun_bear_work_teacher,
         IllustR.drawable.ic_sun_bear_work_nurse,
         IllustR.drawable.ic_sun_bear_work_firefighter,
@@ -651,11 +665,14 @@ private val WORK_FIELD_JOBS =
         IllustR.drawable.ic_sun_bear_work_carpenter,
         IllustR.drawable.ic_sun_bear_work_electrician,
         IllustR.drawable.ic_sun_bear_work_miner,
+        IllustR.drawable.ic_sun_bear_work_oilworker,
         IllustR.drawable.ic_sun_bear_work_vet,
         IllustR.drawable.ic_sun_bear_work_photographer,
         IllustR.drawable.ic_sun_bear_work_musician,
         IllustR.drawable.ic_sun_bear_work_welder,
         IllustR.drawable.ic_sun_bear_work_blacksmith,
+        IllustR.drawable.ic_sun_bear_work_fitter,
+        IllustR.drawable.ic_sun_bear_work_lathe,
         IllustR.drawable.ic_sun_bear_work_forklift,
         IllustR.drawable.ic_sun_bear_work_crane,
         IllustR.drawable.ic_sun_bear_work_excavator,
@@ -700,6 +717,7 @@ fun sunPathBearMoment(
     phase: SunPathPhase?,
     date: LocalDate = LocalDate.now(),
     time: LocalTime = LocalTime.now(),
+    sunrise: LocalTime? = null,
 ): SunPathBearMoment {
     if (phase == null) {
         return if (isWeekend(date)) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_EXERCISE
@@ -708,7 +726,7 @@ fun sunPathBearMoment(
     return if (phase.isDay) {
         dayBearMoment(date, minutes)
     } else {
-        nightBearMoment(date, minutes)
+        nightBearMoment(date, minutes, phase.progress, sunrise)
     }
 }
 
@@ -753,16 +771,27 @@ private fun dayBearMoment(
 
 /**
  * 夜晚：工作日若日落早，用黄昏补上回家通勤(~18:45前)与傍晚锻炼(~19:00前)，
- * 再晚饭(19:00–20:00) → 歇一会儿(~23:00前) → 入睡准备(23:00–24:00) → 睡觉(~05:00前) → 临近天亮。
+ * 再晚饭(19:00–20:00) → 歇一会儿(~23:00前) → 入睡准备(23:00–24:00) → 睡觉 → 临近天亮（日出前 30 分钟）。
  * 夏天日落晚时，通勤/锻炼已在白天完成，入夜会较快落到晚饭。
  */
 private fun nightBearMoment(
     date: LocalDate,
     minutes: Int,
+    nightProgress: Float = 0f,
+    sunrise: LocalTime? = null,
 ): SunPathBearMoment {
     val weekend = isWeekend(date)
+    // 快天亮：日出前 30 分钟 ~ 日出。有 sunrise 时精确计算，否则按 progress 兜底。
+    val isAlmostDawn = if (sunrise != null) {
+        val sunriseMin = sunrise.hour * 60 + sunrise.minute
+        val dawnStart = sunriseMin - 30
+        minutes in dawnStart until sunriseMin
+    } else {
+        // progress ≈ 1.0 时即日出；30min / 典型夜长 12h ≈ 0.042
+        nightProgress > 0.96f
+    }
     return when {
-        minutes in (5 * 60) until (9 * 60) -> SunPathBearMoment.ALMOST_DAWN
+        isAlmostDawn -> SunPathBearMoment.ALMOST_DAWN
         minutes < 5 * 60 -> SunPathBearMoment.SLEEP
         minutes >= 23 * 60 -> SunPathBearMoment.BEDTIME_PREP
         !weekend && minutes < 18 * 60 + 45 -> SunPathBearMoment.HEAD_HOME

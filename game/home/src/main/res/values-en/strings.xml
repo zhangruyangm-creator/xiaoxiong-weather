@@ -205,6 +205,10 @@
     <string name="bear_home_routine_soon">Later</string>
     <string name="bear_home_routine_title">Today\'s routine</string>
     <string name="bear_home_summary_stub">Day summary</string>
+    <string name="bear_home_summary_weather_title">Today\'s Weather</string>
+    <string name="bear_home_summary_progress">%1$d / %2$d tasks done today</string>
+    <string name="bear_home_summary_now_doing">Bear is %1$s</string>
+    <string name="bear_home_summary_timeline_title">Today\'s Timeline</string>
     <string name="bear_home_title">Bear\'s Home</string>
     <string name="bear_jump_title">Star Hop</string>
     <string name="bear_maze_title">Bear Maze</string>

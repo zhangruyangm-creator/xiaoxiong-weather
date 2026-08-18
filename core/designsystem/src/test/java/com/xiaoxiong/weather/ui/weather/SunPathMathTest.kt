@@ -257,9 +257,15 @@ class SunPathMathTest {
             SunPathBearMoment.SLEEP,
             sunPathBearMoment(night, weekday, LocalTime.of(2, 0)),
         )
+        // 快天亮：日出前 30 分钟，需传入 sunrise
         assertEquals(
             SunPathBearMoment.ALMOST_DAWN,
-            sunPathBearMoment(night, weekday, LocalTime.of(5, 30)),
+            sunPathBearMoment(night, weekday, LocalTime.of(5, 30), sunrise = LocalTime.of(6, 0)),
+        )
+        // 没传 sunrise 时走 progress 兜底，progress=0.5 不触发（5:00 前仍是睡觉）
+        assertEquals(
+            SunPathBearMoment.SLEEP,
+            sunPathBearMoment(night, weekday, LocalTime.of(4, 0)),
         )
     }
 

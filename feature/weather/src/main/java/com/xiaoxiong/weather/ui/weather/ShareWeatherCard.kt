@@ -302,7 +302,7 @@ private fun shareBearArtwork(snapshot: WeatherSnapshot): BearArtwork {
         } else {
             null
         }
-    val moment = sunPathBearMoment(phase, date, time)
+    val moment = sunPathBearMoment(phase, date, time, sunrise = rise?.toLocalTime())
     val holiday = holidayBearOverride(date, moment)
     return if (holiday != null) {
         BearArtwork(holiday.bearResFor(date), holiday.captionResFor(date))

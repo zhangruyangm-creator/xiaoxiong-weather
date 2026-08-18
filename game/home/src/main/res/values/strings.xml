@@ -205,6 +205,10 @@
     <string name="bear_home_routine_soon">未到</string>
     <string name="bear_home_routine_title">今日作息</string>
     <string name="bear_home_summary_stub">今天小结</string>
+    <string name="bear_home_summary_weather_title">今日天气</string>
+    <string name="bear_home_summary_progress">今日已完成 %1$d / %2$d 项</string>
+    <string name="bear_home_summary_now_doing">小熊现在在%1$s</string>
+    <string name="bear_home_summary_timeline_title">今日时间线</string>
     <string name="bear_home_title">小熊的家</string>
     <string name="bear_jump_title">小熊摘星</string>
     <string name="bear_maze_title">小熊迷宫</string>

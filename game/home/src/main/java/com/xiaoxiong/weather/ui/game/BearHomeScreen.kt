@@ -73,6 +73,7 @@ private enum class HomeRoom {
     PLAYROOM,
     CLOSET,
     BALCONY,
+    SUMMARY,
 }
 
 /**
@@ -126,7 +127,8 @@ fun BearHomeScreen(
                     onOpenPlayroom = { room = HomeRoom.PLAYROOM },
                     onOpenCloset = { room = HomeRoom.CLOSET },
                     onOpenBalcony = { room = HomeRoom.BALCONY },
-                    onTapBear = { room = HomeRoom.BALCONY },
+                    onOpenLiving = { showNowDialog = true },
+                    onOpenSummary = { room = HomeRoom.SUMMARY },
                 )
             HomeRoom.BEDROOM -> HomeBedroom(date = today, time = now)
             HomeRoom.KITCHEN -> HomeKitchen()
@@ -137,6 +139,7 @@ fun BearHomeScreen(
                 )
             HomeRoom.CLOSET -> HomeCloset()
             HomeRoom.BALCONY -> HomeBalcony(sceneCode = sceneCode, isDay = isDay)
+            HomeRoom.SUMMARY -> HomeSummary(sceneCode = sceneCode, isDay = isDay, date = today, time = now)
         }
         HomeTopBar(
             title =
@@ -147,6 +150,7 @@ fun BearHomeScreen(
                     HomeRoom.PLAYROOM -> stringResource(R.string.bear_home_room_playroom)
                     HomeRoom.CLOSET -> stringResource(R.string.bear_home_room_closet)
                     HomeRoom.BALCONY -> stringResource(R.string.bear_home_room_balcony)
+                    HomeRoom.SUMMARY -> stringResource(R.string.bear_home_summary_stub)
                 },
             showBack = room != HomeRoom.HUB,
             onBack = { room = HomeRoom.HUB },
@@ -228,7 +232,8 @@ private fun HomeHub(
     onOpenPlayroom: () -> Unit,
     onOpenCloset: () -> Unit,
     onOpenBalcony: () -> Unit,
-    onTapBear: () -> Unit,
+    onOpenLiving: () -> Unit,
+    onOpenSummary: () -> Unit,
 ) {
     val sky =
         if (isDay) {
@@ -260,26 +265,24 @@ private fun HomeHub(
                     .aspectRatio(9f / 16f)
                     .align(Alignment.TopCenter),
         ) {
-            // 上层：卧室、客厅（含窗户）、厨房
+            // 上层：卧室、客厅（窗户顶部窄条进阳台）、厨房
             Row(modifier = Modifier.weight(1.2f).fillMaxWidth()) {
                 HotZone(
                     modifier = Modifier.weight(1f).fillMaxSize(),
                     label = stringResource(R.string.bear_home_room_bedroom),
                     onClick = onOpenBedroom,
                 )
-                // 客厅区域：窗户在上方，客厅在下方
+                // 客厅占主要面积；阳台只占窗户上方窄条，避免抢走客厅点击
                 Column(modifier = Modifier.weight(1.3f).fillMaxSize()) {
-                    // 窗户热区（客厅窗户位置）- 点击进入阳台
                     HotZone(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        modifier = Modifier.weight(0.28f).fillMaxWidth(),
                         label = stringResource(R.string.bear_home_room_balcony),
                         onClick = onOpenBalcony,
                     )
-                    // 客厅热区 - 点击显示小熊在做什么
                     HotZone(
-                        modifier = Modifier.weight(1.2f).fillMaxWidth(),
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                         label = stringResource(R.string.bear_home_room_living),
-                        onClick = onTapBear,
+                        onClick = onOpenLiving,
                     )
                 }
                 HotZone(
@@ -311,16 +314,14 @@ private fun HomeHub(
                         Brush.verticalGradient(
                             listOf(Color(0x00FFF6E8), Color(0xFFFFF6E8)),
                         ),
-                    ).padding(top = 32.dp, bottom = 16.dp),
+                    ).padding(top = 32.dp, bottom = 16.dp)
+                    .clickable(onClick = onOpenSummary),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Image(
                 painter = painterResource(bearRes),
-                contentDescription = stringResource(R.string.bear_home_room_living),
-                modifier =
-                    Modifier
-                        .size(96.dp)
-                        .clickable(onClick = onTapBear),
+                contentDescription = stringResource(R.string.bear_home_summary_stub),
+                modifier = Modifier.size(96.dp),
             )
             Text(
                 text = stringResource(R.string.bear_home_summary_stub),
@@ -421,6 +422,150 @@ private fun HomeBedroom(
                         Text(
                             text = stringResource(slot.moment.captionResFor(date)),
                             fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = formatHomeMinuteRange(slot.startMinute, slot.endMinute),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF8D6E63),
+                        )
+                    }
+                    Text(
+                        text = stringResource(homeRoutineStatusLabel(status)),
+                        style = MaterialTheme.typography.labelMedium,
+                        color =
+                            when (status) {
+                                HomeRoutineStatus.NOW -> Color(0xFFE65100)
+                                HomeRoutineStatus.DONE -> Color(0xFF9E9E9E)
+                                HomeRoutineStatus.SOON -> Color(0xFF5D4037)
+                            },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 今天小结：天气概况 + 今日作息时间线。 */
+@Composable
+private fun HomeSummary(
+    sceneCode: Int?,
+    isDay: Boolean?,
+    date: LocalDate,
+    time: LocalTime,
+) {
+    val weatherLabel = remember(sceneCode, isDay) {
+        val code = sceneCode ?: return@remember "—"
+        when (code) {
+            in 95..99 -> "雷暴"
+            in 71..77, 86 -> "下雪"
+            in 45..48 -> "大雾"
+            51, 52, 53, 54, 80 -> "小雨"
+            55, 56, 57, 61, 63, 66, 67, 81, 82 -> "大雨"
+            0, 1 -> if (isDay == false) "晴朗夜晚" else "晴天"
+            2, 3 -> "多云"
+            else -> "多云"
+        }
+    }
+    val slots = remember(date) { homeRoutineSlots(date) }
+    val doneCount = remember(slots, time) {
+        slots.count { homeRoutineStatus(it, time) == HomeRoutineStatus.DONE }
+    }
+    val currentMoment = remember(slots, time) {
+        slots.firstOrNull { homeRoutineStatus(it, time) == HomeRoutineStatus.NOW }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // 天气概况卡片
+        item {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color.White,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.bear_home_summary_weather_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = weatherLabel,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF5D4037),
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = if (isDay != false) "☀" else "🌙",
+                            fontSize = 28.sp,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.bear_home_summary_progress,
+                            doneCount,
+                            slots.size,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF8D6E63),
+                    )
+                    if (currentMoment != null) {
+                        Text(
+                            text = stringResource(
+                                R.string.bear_home_summary_now_doing,
+                                stringResource(currentMoment.captionResFor(date)),
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFE65100),
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+        }
+        // 今日作息时间线
+        item {
+            Text(
+                text = stringResource(R.string.bear_home_summary_timeline_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+        items(slots, key = { "${it.moment.name}-${it.startMinute}" }) { slot ->
+            val status = homeRoutineStatus(slot, time)
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = when (status) {
+                    HomeRoutineStatus.NOW -> Color(0xFFFFE0B2)
+                    HomeRoutineStatus.DONE -> Color(0xFFF5F5F5)
+                    HomeRoutineStatus.SOON -> Color.White
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Image(
+                        painter = painterResource(slot.moment.bearResFor(date)),
+                        contentDescription = null,
+                        modifier = Modifier.size(44.dp),
+                    )
+                    Column(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
+                        Text(
+                            text = stringResource(slot.moment.captionResFor(date)),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -672,7 +817,7 @@ private fun balconyWeatherFrom(
         55, 56, 57, 61, 63, 66, 67, 81, 82 -> BalconyWeather.RAIN_HEAVY
         0, 1 -> if (isDay == false) BalconyWeather.SUNNY_NIGHT else BalconyWeather.SUNNY_DAY
         2, 3 -> BalconyWeather.CLOUDY
-        else -> BalconyWeather.CLOUDY
+        else -> if (isDay == false) BalconyWeather.SUNNY_NIGHT else BalconyWeather.SUNNY_DAY
     }
 }
 
@@ -692,14 +837,14 @@ private fun skyGradient(w: BalconyWeather): List<Color> =
 /** 远景颜色（城市/山景剪影）。 */
 private fun distantColor(w: BalconyWeather): Color =
     when (w) {
-        BalconyWeather.SUNNY_DAY -> Color(0xFF90A4AE).copy(alpha = 0.5f)
-        BalconyWeather.SUNNY_NIGHT -> Color(0xFF1A237E).copy(alpha = 0.7f)
-        BalconyWeather.CLOUDY -> Color(0xFF78909C).copy(alpha = 0.6f)
-        BalconyWeather.RAIN_LIGHT -> Color(0xFF546E7A).copy(alpha = 0.65f)
-        BalconyWeather.RAIN_HEAVY -> Color(0xFF37474F).copy(alpha = 0.75f)
-        BalconyWeather.STORM -> Color(0xFF263238).copy(alpha = 0.8f)
-        BalconyWeather.SNOW -> Color(0xFFB0BEC5).copy(alpha = 0.5f)
-        BalconyWeather.FOG -> Color(0xFF90A4AE).copy(alpha = 0.35f)
+        BalconyWeather.SUNNY_DAY -> Color(0xFF78909C).copy(alpha = 0.65f)
+        BalconyWeather.SUNNY_NIGHT -> Color(0xFF1A237E).copy(alpha = 0.8f)
+        BalconyWeather.CLOUDY -> Color(0xFF455A64).copy(alpha = 0.8f)
+        BalconyWeather.RAIN_LIGHT -> Color(0xFF37474F).copy(alpha = 0.75f)
+        BalconyWeather.RAIN_HEAVY -> Color(0xFF263238).copy(alpha = 0.85f)
+        BalconyWeather.STORM -> Color(0xFF1A1A2E).copy(alpha = 0.9f)
+        BalconyWeather.SNOW -> Color(0xFF90A4AE).copy(alpha = 0.6f)
+        BalconyWeather.FOG -> Color(0xFF78909C).copy(alpha = 0.5f)
     }
 
 /**
