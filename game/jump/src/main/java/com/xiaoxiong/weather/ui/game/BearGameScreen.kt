@@ -52,8 +52,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.min
@@ -576,11 +579,19 @@ fun BearGameScreen(
     }
     val bearSprites = rememberBearSprites()
     var frame by remember { mutableLongStateOf(0L) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(Unit) {
         var last = Long.MIN_VALUE
         var slowTick = 0
         while (isActive) {
+            // 切后台（ON_STOP）后不再推进对局：锁屏/通知栏等场景下帧回调仍会派发，
+            // 若不暂停，熊会继续跑并碰障翻车，玩家回来时可能已 Game Over 且持续耗电
+            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                last = Long.MIN_VALUE
+                delay(300)
+                continue
+            }
             withFrameNanos { now ->
                 val dt =
                     if (last == Long.MIN_VALUE) {

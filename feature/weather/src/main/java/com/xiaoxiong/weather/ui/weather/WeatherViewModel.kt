@@ -467,6 +467,7 @@ class WeatherViewModel(
 
     /** 区间历史查询内存缓存：键 = "城市坐标|起|止"。 */
     private val historyRangeCache = mutableMapOf<String, HistoryRangeSummary>()
+    private val maxHistoryRangeCacheEntries = 30
 
     private var historyRangeJob: Job? = null
 
@@ -515,6 +516,9 @@ class WeatherViewModel(
                         null
                     }
                 if (result != null) {
+                    if (historyRangeCache.size >= maxHistoryRangeCacheEntries) {
+                        historyRangeCache.keys.firstOrNull()?.let { historyRangeCache.remove(it) }
+                    }
                     historyRangeCache[cacheKey] = result
                 }
                 // 查询期间换城则丢弃结果（不覆盖新城市）
