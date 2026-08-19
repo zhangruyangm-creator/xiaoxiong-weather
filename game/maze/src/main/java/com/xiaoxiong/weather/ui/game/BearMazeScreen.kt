@@ -945,8 +945,6 @@ private fun MazePlayField(
                         detectTapGestures { /* 吞掉，避免误触 */ }
                     },
         ) {
-            @Suppress("UNUSED_EXPRESSION")
-            frame
             drawMazeWorld(game, sprites, style)
             drawMazeWeather(game, weather, rainStrength, freezingRain, hail)
         }

@@ -54,6 +54,18 @@ fun homeRoutineSlots(date: LocalDate): List<HomeRoutineSlot> =
     }
 
 /**
+ * 作息以凌晨 5:00 为日界：在 [00:00, 05:00) 的“凌晨段”仍属于前一天的作息日，
+ * 因此取前一天为展示日期，避免把新一天尚未开始的时段误判为已结束（DONE）。
+ */
+fun homeRoutineDay(
+    date: LocalDate,
+    now: LocalTime,
+): LocalDate {
+    val m = now.hour * 60 + now.minute
+    return if (m < 5 * 60) date.minusDays(1) else date
+}
+
+/**
  * 以凌晨 5:00 为日界，把钟点映射到可比较的时间轴，便于判断已过/未到。
  * SLEEP 的 [0, 5:00) 映射到轴末端。
  */

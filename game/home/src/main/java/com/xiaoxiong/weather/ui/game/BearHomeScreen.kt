@@ -272,10 +272,10 @@ private fun HomeHub(
                     label = stringResource(R.string.bear_home_room_bedroom),
                     onClick = onOpenBedroom,
                 )
-                // 客厅占主要面积；阳台只占窗户上方窄条，避免抢走客厅点击
+                // 客厅占主要面积；阳台在客厅上方，位置稍低避免贴顶
                 Column(modifier = Modifier.weight(1.3f).fillMaxSize()) {
                     HotZone(
-                        modifier = Modifier.weight(0.28f).fillMaxWidth(),
+                        modifier = Modifier.weight(0.28f).fillMaxWidth().padding(top = 32.dp),
                         label = stringResource(R.string.bear_home_room_balcony),
                         onClick = onOpenBalcony,
                     )
@@ -381,7 +381,8 @@ private fun HomeBedroom(
     date: LocalDate,
     time: LocalTime,
 ) {
-    val slots = remember(date) { homeRoutineSlots(date) }
+    val routineDay = homeRoutineDay(date, time)
+    val slots = remember(routineDay) { homeRoutineSlots(routineDay) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
@@ -414,13 +415,13 @@ private fun HomeBedroom(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Image(
-                        painter = painterResource(slot.moment.bearResFor(date)),
+                        painter = painterResource(slot.moment.bearResFor(routineDay)),
                         contentDescription = null,
                         modifier = Modifier.size(52.dp),
                     )
                     Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
                         Text(
-                            text = stringResource(slot.moment.captionResFor(date)),
+                            text = stringResource(slot.moment.captionResFor(routineDay)),
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -455,26 +456,33 @@ private fun HomeSummary(
     date: LocalDate,
     time: LocalTime,
 ) {
-    val weatherLabel = remember(sceneCode, isDay) {
-        val code = sceneCode ?: return@remember "—"
-        when (code) {
-            in 95..99 -> "雷暴"
-            in 71..77, 86 -> "下雪"
-            in 45..48 -> "大雾"
-            51, 52, 53, 54, 80 -> "小雨"
-            55, 56, 57, 61, 63, 66, 67, 81, 82 -> "大雨"
-            0, 1 -> if (isDay == false) "晴朗夜晚" else "晴天"
-            2, 3 -> "多云"
-            else -> "多云"
+    val weatherLabel =
+        remember(sceneCode, isDay) {
+            val code = sceneCode ?: return@remember "—"
+            // 复用统一天气分类口径（与阳台/其它小游戏一致），避免各组件映射漂移
+            when (farmWeatherFromScene(code, isDay)) {
+                FarmWeather.STORMY -> "雷暴"
+                FarmWeather.SNOWY -> "下雪"
+                FarmWeather.FOGGY -> "大雾"
+                FarmWeather.RAINY ->
+                    when (rainStrengthOf(code)) {
+                        RainStrength.LIGHT -> "小雨"
+                        else -> "大雨"
+                    }
+                FarmWeather.SUNNY -> if (isDay == false) "晴朗夜晚" else "晴天"
+                FarmWeather.CLOUDY -> "多云"
+            }
         }
-    }
-    val slots = remember(date) { homeRoutineSlots(date) }
-    val doneCount = remember(slots, time) {
-        slots.count { homeRoutineStatus(it, time) == HomeRoutineStatus.DONE }
-    }
-    val currentMoment = remember(slots, time) {
-        slots.firstOrNull { homeRoutineStatus(it, time) == HomeRoutineStatus.NOW }
-    }
+    val routineDay = homeRoutineDay(date, time)
+    val slots = remember(routineDay) { homeRoutineSlots(routineDay) }
+    val doneCount =
+        remember(slots, time) {
+            slots.count { homeRoutineStatus(it, time) == HomeRoutineStatus.DONE }
+        }
+    val currentMoment =
+        remember(slots, time) {
+            slots.firstOrNull { homeRoutineStatus(it, time) == HomeRoutineStatus.NOW }
+        }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -510,20 +518,22 @@ private fun HomeSummary(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = stringResource(
-                            R.string.bear_home_summary_progress,
-                            doneCount,
-                            slots.size,
-                        ),
+                        text =
+                            stringResource(
+                                R.string.bear_home_summary_progress,
+                                doneCount,
+                                slots.size,
+                            ),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF8D6E63),
                     )
                     if (currentMoment != null) {
                         Text(
-                            text = stringResource(
-                                R.string.bear_home_summary_now_doing,
-                                stringResource(currentMoment.moment.captionResFor(date)),
-                            ),
+                            text =
+                                stringResource(
+                                    R.string.bear_home_summary_now_doing,
+                                    stringResource(currentMoment.moment.captionResFor(routineDay)),
+                                ),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFE65100),
                             modifier = Modifier.padding(top = 4.dp),
@@ -545,11 +555,12 @@ private fun HomeSummary(
             val status = homeRoutineStatus(slot, time)
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = when (status) {
-                    HomeRoutineStatus.NOW -> Color(0xFFFFE0B2)
-                    HomeRoutineStatus.DONE -> Color(0xFFF5F5F5)
-                    HomeRoutineStatus.SOON -> Color.White
-                },
+                color =
+                    when (status) {
+                        HomeRoutineStatus.NOW -> Color(0xFFFFE0B2)
+                        HomeRoutineStatus.DONE -> Color(0xFFF5F5F5)
+                        HomeRoutineStatus.SOON -> Color.White
+                    },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             ) {
                 Row(
@@ -557,13 +568,13 @@ private fun HomeSummary(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Image(
-                        painter = painterResource(slot.moment.bearResFor(date)),
+                        painter = painterResource(slot.moment.bearResFor(routineDay)),
                         contentDescription = null,
                         modifier = Modifier.size(44.dp),
                     )
                     Column(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
                         Text(
-                            text = stringResource(slot.moment.captionResFor(date)),
+                            text = stringResource(slot.moment.captionResFor(routineDay)),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp,
                             maxLines = 1,
@@ -792,60 +803,125 @@ private fun HomeCloset() {
 
 // ── 阳台观景 ──────────────────────────────────────────────────────
 
-/** 阳台天气场景分类：由 sceneCode 映射，控制天空渐变、远景、粒子。 */
-private enum class BalconyWeather {
-    SUNNY_DAY,
-    SUNNY_NIGHT,
-    CLOUDY,
-    RAIN_LIGHT,
-    RAIN_HEAVY,
-    STORM,
-    SNOW,
-    FOG,
+/** 阳台天气场景分类：复用游戏共用的 [farmWeatherFromScene] 口径，再细分日夜与粒子。 */
+private sealed interface BalconyWeather {
+    val weather: FarmWeather
+
+    data class Day(
+        override val weather: FarmWeather,
+    ) : BalconyWeather
+
+    data class Night(
+        override val weather: FarmWeather,
+    ) : BalconyWeather
+
+    /** 是否夜晚（决定星空/灯火与暖色小熊）。 */
+    val isNight: Boolean
+        get() = this is Night
 }
 
+/** 由 sceneCode / isDay 映射：先复用统一天气分类，再按日夜细分。 */
 private fun balconyWeatherFrom(
     sceneCode: Int?,
     isDay: Boolean?,
 ): BalconyWeather {
-    val code = sceneCode ?: return if (isDay == false) BalconyWeather.SUNNY_NIGHT else BalconyWeather.SUNNY_DAY
-    return when (code) {
-        in 95..99 -> BalconyWeather.STORM
-        in 71..77, 86 -> BalconyWeather.SNOW
-        in 45..48 -> BalconyWeather.FOG
-        51, 52, 53, 54, 80 -> BalconyWeather.RAIN_LIGHT
-        55, 56, 57, 61, 63, 66, 67, 81, 82 -> BalconyWeather.RAIN_HEAVY
-        0, 1 -> if (isDay == false) BalconyWeather.SUNNY_NIGHT else BalconyWeather.SUNNY_DAY
-        2, 3 -> BalconyWeather.CLOUDY
-        else -> if (isDay == false) BalconyWeather.SUNNY_NIGHT else BalconyWeather.SUNNY_DAY
+    val weather = farmWeatherFromScene(sceneCode, isDay)
+    return if (isDay == false) BalconyWeather.Night(weather) else BalconyWeather.Day(weather)
+}
+
+/** 雨/雪类天气需 60fps 粒子动画；晴/多云/雾降频即可省电。 */
+private val BalconyWeather.needsHighFps: Boolean
+    get() =
+        when (weather) {
+            FarmWeather.RAINY, FarmWeather.STORMY, FarmWeather.SNOWY -> true
+            else -> false
+        }
+
+/** 灯光/雨雪等粒子是否存在。 */
+private val BalconyWeather.hasParticles: Boolean
+    get() =
+        when (weather) {
+            FarmWeather.RAINY, FarmWeather.STORMY, FarmWeather.SNOWY, FarmWeather.FOGGY -> true
+            else -> false
+        }
+
+/** 天空渐变色。 */
+private fun skyGradient(w: BalconyWeather): List<Color> {
+    val night = w.isNight
+    return when (w.weather) {
+        FarmWeather.SUNNY ->
+            if (night) {
+                listOf(Color(0xFF0D1B2A), Color(0xFF1B2838), Color(0xFF2C3E50))
+            } else {
+                listOf(Color(0xFF4A90D9), Color(0xFF87CEEB), Color(0xFFB0E0FF))
+            }
+        FarmWeather.CLOUDY ->
+            if (night) {
+                listOf(Color(0xFF263238), Color(0xFF37474F), Color(0xFF4A5568))
+            } else {
+                listOf(Color(0xFF6B7B8D), Color(0xFF8E9EAB), Color(0xFFB0BEC5))
+            }
+        FarmWeather.RAINY ->
+            if (night) {
+                listOf(Color(0xFF1A1A2E), Color(0xFF263238), Color(0xFF37474F))
+            } else {
+                listOf(Color(0xFF4A5568), Color(0xFF6B7B8D), Color(0xFF8E9EAB))
+            }
+        FarmWeather.STORMY ->
+            listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF2D3748))
+        FarmWeather.SNOWY ->
+            if (night) {
+                listOf(Color(0xFF37474F), Color(0xFF4A5568), Color(0xFF6B7B8D))
+            } else {
+                listOf(Color(0xFFCBD5E0), Color(0xFFE2E8F0), Color(0xFFF7FAFC))
+            }
+        FarmWeather.FOGGY ->
+            if (night) {
+                listOf(Color(0xFF37474F), Color(0xFF4A5568), Color(0xFF6B7B8D))
+            } else {
+                listOf(Color(0xFFA0AEC0), Color(0xFFCBD5E0), Color(0xFFE2E8F0))
+            }
     }
 }
 
-/** 天空渐变色。 */
-private fun skyGradient(w: BalconyWeather): List<Color> =
-    when (w) {
-        BalconyWeather.SUNNY_DAY -> listOf(Color(0xFF4A90D9), Color(0xFF87CEEB), Color(0xFFB0E0FF))
-        BalconyWeather.SUNNY_NIGHT -> listOf(Color(0xFF0D1B2A), Color(0xFF1B2838), Color(0xFF2C3E50))
-        BalconyWeather.CLOUDY -> listOf(Color(0xFF6B7B8D), Color(0xFF8E9EAB), Color(0xFFB0BEC5))
-        BalconyWeather.RAIN_LIGHT -> listOf(Color(0xFF4A5568), Color(0xFF6B7B8D), Color(0xFF8E9EAB))
-        BalconyWeather.RAIN_HEAVY -> listOf(Color(0xFF2D3748), Color(0xFF4A5568), Color(0xFF6B7B8D))
-        BalconyWeather.STORM -> listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF2D3748))
-        BalconyWeather.SNOW -> listOf(Color(0xFFCBD5E0), Color(0xFFE2E8F0), Color(0xFFF7FAFC))
-        BalconyWeather.FOG -> listOf(Color(0xFFA0AEC0), Color(0xFFCBD5E0), Color(0xFFE2E8F0))
-    }
-
 /** 远景颜色（城市/山景剪影）。 */
-private fun distantColor(w: BalconyWeather): Color =
-    when (w) {
-        BalconyWeather.SUNNY_DAY -> Color(0xFF78909C).copy(alpha = 0.65f)
-        BalconyWeather.SUNNY_NIGHT -> Color(0xFF1A237E).copy(alpha = 0.8f)
-        BalconyWeather.CLOUDY -> Color(0xFF455A64).copy(alpha = 0.8f)
-        BalconyWeather.RAIN_LIGHT -> Color(0xFF37474F).copy(alpha = 0.75f)
-        BalconyWeather.RAIN_HEAVY -> Color(0xFF263238).copy(alpha = 0.85f)
-        BalconyWeather.STORM -> Color(0xFF1A1A2E).copy(alpha = 0.9f)
-        BalconyWeather.SNOW -> Color(0xFF90A4AE).copy(alpha = 0.6f)
-        BalconyWeather.FOG -> Color(0xFF78909C).copy(alpha = 0.5f)
+private fun distantColor(w: BalconyWeather): Color {
+    val night = w.isNight
+    return when (w.weather) {
+        FarmWeather.SUNNY ->
+            if (night) {
+                Color(0xFF1A237E).copy(alpha = 0.8f)
+            } else {
+                Color(0xFF78909C).copy(alpha = 0.65f)
+            }
+        FarmWeather.CLOUDY ->
+            if (night) {
+                Color(0xFF1A237E).copy(alpha = 0.85f)
+            } else {
+                Color(0xFF455A64).copy(alpha = 0.8f)
+            }
+        FarmWeather.RAINY ->
+            if (night) {
+                Color(0xFF101B2D).copy(alpha = 0.85f)
+            } else {
+                Color(0xFF37474F).copy(alpha = 0.75f)
+            }
+        FarmWeather.STORMY ->
+            Color(0xFF1A1A2E).copy(alpha = 0.9f)
+        FarmWeather.SNOWY ->
+            if (night) {
+                Color(0xFF37474F).copy(alpha = 0.7f)
+            } else {
+                Color(0xFF90A4AE).copy(alpha = 0.6f)
+            }
+        FarmWeather.FOGGY ->
+            if (night) {
+                Color(0xFF37474F).copy(alpha = 0.6f)
+            } else {
+                Color(0xFF78909C).copy(alpha = 0.5f)
+            }
     }
+}
 
 /**
  * 阳台观景：天气驱动的全屏场景。
@@ -857,12 +933,26 @@ private fun HomeBalcony(
     isDay: Boolean?,
 ) {
     val w = remember(sceneCode, isDay) { balconyWeatherFrom(sceneCode, isDay) }
-    var time by remember { mutableStateOf(0f) }
-    LaunchedEffect(Unit) {
-        val start = System.nanoTime()
+    // 用 Double 累计秒，避免 Float 长期累加后精度饱和导致动画停滞/相位劣化
+    var time by remember { mutableStateOf(0.0) }
+    LaunchedEffect(w) {
+        var last = Long.MIN_VALUE
+        var slowTick = 0
+        // 以帧时钟刷新：雨/雪/雷暴 60fps；晴/多云/雾每 5 帧更新一次（约 12fps）省电
         while (true) {
-            time = (System.nanoTime() - start) / 1_000_000_000f
-            delay(16) // ~60fps
+            androidx.compose.runtime.withFrameNanos { now ->
+                val dt =
+                    if (last == Long.MIN_VALUE) {
+                        1.0 / 60.0
+                    } else {
+                        ((now - last) / 1e9).coerceIn(0.0, 0.05)
+                    }
+                last = now
+                slowTick++
+                if (w.needsHighFps || slowTick % 5 == 0) {
+                    time += dt
+                }
+            }
         }
     }
 
@@ -887,12 +977,14 @@ private fun HomeBalcony(
         }
 
         // 3) 天气粒子层（雨/雪/雷）
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize(),
-        ) {
-            CanvasDrawWeatherParticles(weather = w, time = time)
+        if (w.hasParticles) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize(),
+            ) {
+                CanvasDrawWeatherParticles(weather = w, time = time)
+            }
         }
 
         // 4) 天气信息文字
@@ -918,9 +1010,9 @@ private fun HomeBalcony(
                     .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // 小熊插画
+            // 小熊按天气/昼夜选插画，而不是一概用「傍晚阳台」
             Image(
-                painter = painterResource(com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening_balcony),
+                painter = painterResource(balconyBearRes(w)),
                 contentDescription = stringResource(R.string.bear_home_room_balcony),
                 modifier = Modifier.size(160.dp),
                 contentScale = ContentScale.Fit,
@@ -941,25 +1033,86 @@ private fun HomeBalcony(
     }
 }
 
-@androidx.annotation.StringRes
-private fun balconyWeatherLabel(w: BalconyWeather): Int =
-    when (w) {
-        BalconyWeather.SUNNY_DAY -> R.string.balcony_weather_sunny
-        BalconyWeather.SUNNY_NIGHT -> R.string.balcony_weather_clear_night
-        BalconyWeather.CLOUDY -> R.string.balcony_weather_cloudy
-        BalconyWeather.RAIN_LIGHT -> R.string.balcony_weather_rain_light
-        BalconyWeather.RAIN_HEAVY -> R.string.balcony_weather_rain_heavy
-        BalconyWeather.STORM -> R.string.balcony_weather_storm
-        BalconyWeather.SNOW -> R.string.balcony_weather_snow
-        BalconyWeather.FOG -> R.string.balcony_weather_fog
+/**
+ * 阳台小熊插画：白天/夜晚与天气匹配，尽量用现有插画资源让场景「有戏」:
+ * 雨天看雨、雪天看雪、夜晚观景/休息。
+ */
+@androidx.annotation.DrawableRes
+private fun balconyBearRes(w: BalconyWeather): Int =
+    when (w.weather) {
+        FarmWeather.RAINY, FarmWeather.STORMY ->
+            // 雨天：夜晚看雨/白天撑伞看雨（用晚间阳台/听雨类插画表达）
+            if (w.isNight) {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening_balcony
+            } else {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_weekend_dessert
+            }
+        FarmWeather.SNOWY ->
+            // 雪天：看雪（用夜间暖屋/观景插画）
+            if (w.isNight) {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening_cityview
+            } else {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_weekend_nightmarket
+            }
+        FarmWeather.FOGGY ->
+            // 雾天：室内或阳台静观
+            if (w.isNight) {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening_balcony
+            } else {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening
+            }
+        FarmWeather.SUNNY ->
+            // 晴：白天城市观景，夜晚观星/放松
+            if (w.isNight) {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening_cityview
+            } else {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening
+            }
+        FarmWeather.CLOUDY ->
+            if (w.isNight) {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening_balcony
+            } else {
+                com.xiaoxiong.weather.resillustrations.R.drawable.ic_sun_bear_evening
+            }
     }
+
+@androidx.annotation.StringRes
+private fun balconyWeatherLabel(w: BalconyWeather): Int {
+    val night = w.isNight
+    return when (w.weather) {
+        FarmWeather.SUNNY -> if (night) R.string.balcony_weather_clear_night else R.string.balcony_weather_sunny
+        FarmWeather.CLOUDY -> R.string.balcony_weather_cloudy
+        FarmWeather.RAINY -> R.string.balcony_weather_rain_light
+        FarmWeather.STORMY -> R.string.balcony_weather_storm
+        FarmWeather.SNOWY -> R.string.balcony_weather_snow
+        FarmWeather.FOGGY -> R.string.balcony_weather_fog
+    }
+}
+
+/** 城市天际线建筑位置/高度（横向比例, 高度比例），常量以避免每帧分配。 */
+private val BALCONY_BUILDINGS =
+    listOf(
+        0.05f to 0.55f,
+        0.12f to 0.70f,
+        0.20f to 0.45f,
+        0.28f to 0.80f,
+        0.35f to 0.60f,
+        0.42f to 0.50f,
+        0.50f to 0.75f,
+        0.58f to 0.55f,
+        0.65f to 0.65f,
+        0.72f to 0.85f,
+        0.80f to 0.50f,
+        0.88f to 0.60f,
+        0.95f to 0.45f,
+    )
 
 /** 远景层：用 Canvas 绘制城市/山景剪影，雨天更暗，雾天更淡。 */
 @Composable
 private fun CanvasDrawDistantLayer(
     color: Color,
     weather: BalconyWeather,
-    time: Float,
+    time: Double,
 ) {
     androidx.compose.foundation.Canvas(
         modifier = Modifier.fillMaxSize(),
@@ -967,23 +1120,7 @@ private fun CanvasDrawDistantLayer(
         val w = size.width
         val h = size.height
         // 城市天际线（多栋高楼剪影）
-        val buildings =
-            listOf(
-                0.05f to 0.55f,
-                0.12f to 0.70f,
-                0.20f to 0.45f,
-                0.28f to 0.80f,
-                0.35f to 0.60f,
-                0.42f to 0.50f,
-                0.50f to 0.75f,
-                0.58f to 0.55f,
-                0.65f to 0.65f,
-                0.72f to 0.85f,
-                0.80f to 0.50f,
-                0.88f to 0.60f,
-                0.95f to 0.45f,
-            )
-        for ((xFrac, hFrac) in buildings) {
+        for ((xFrac, hFrac) in BALCONY_BUILDINGS) {
             val bw = w * 0.06f
             val bx = xFrac * w - bw / 2
             val bh = h * hFrac
@@ -996,7 +1133,7 @@ private fun CanvasDrawDistantLayer(
             )
         }
         // 山景剪影（雾/雪天时更突出）
-        if (weather == BalconyWeather.FOG || weather == BalconyWeather.SNOW) {
+        if (weather.weather == FarmWeather.FOGGY || weather.weather == FarmWeather.SNOWY) {
             val mountainColor = color.copy(alpha = color.alpha * 0.6f)
             drawLine(
                 color = mountainColor,
@@ -1017,16 +1154,16 @@ private fun CanvasDrawDistantLayer(
                 strokeWidth = 3f,
             )
         }
-        // 夜晚城市灯火
-        if (weather == BalconyWeather.SUNNY_NIGHT) {
+        // 夜晚城市灯火：固定在建筑位置闪烁，不左右游走
+        if (weather.isNight) {
             for (i in 0 until 20) {
-                val lx = ((i * 137 + time * 8f) % w)
-                val ly = h * (0.4f + (i % 5) * 0.12f)
-                val flicker = 0.5f + 0.5f * sin(time * 2f + i * 1.3f)
+                val bx = BALCONY_BUILDINGS[i % BALCONY_BUILDINGS.size].first * w
+                val ly = h * (0.35f + (i % 4) * 0.12f)
+                val flicker = (0.5 + 0.5 * sin(time * 2.0 + i * 1.3)).toFloat()
                 drawCircle(
                     color = Color(0xFFFFE082).copy(alpha = flicker * 0.7f),
                     radius = 1.5f,
-                    center = Offset(lx, ly),
+                    center = Offset(bx, ly),
                 )
             }
         }
@@ -1037,22 +1174,21 @@ private fun CanvasDrawDistantLayer(
 @Composable
 private fun CanvasDrawWeatherParticles(
     weather: BalconyWeather,
-    time: Float,
+    time: Double,
 ) {
     androidx.compose.foundation.Canvas(
         modifier = Modifier.fillMaxSize(),
     ) {
         val w = size.width
         val h = size.height
-        when (weather) {
-            BalconyWeather.RAIN_LIGHT -> drawBalconyRain(time, w, h, count = 24, lenMul = 0.8f, alpha = 0.5f)
-            BalconyWeather.RAIN_HEAVY -> drawBalconyRain(time, w, h, count = 56, lenMul = 1.1f, alpha = 0.65f)
-            BalconyWeather.STORM -> {
+        when (weather.weather) {
+            FarmWeather.RAINY -> drawBalconyRain(time, w, h, count = 32, lenMul = 0.9f, alpha = 0.55f)
+            FarmWeather.STORMY -> {
                 drawBalconyRain(time, w, h, count = 48, lenMul = 1.2f, alpha = 0.6f)
                 drawBalconyLightning(time, w, h)
             }
-            BalconyWeather.SNOW -> drawBalconySnow(time, w, h, count = 30)
-            BalconyWeather.FOG -> drawBalconyFog(time, w, h)
+            FarmWeather.SNOWY -> drawBalconySnow(time, w, h, count = 30)
+            FarmWeather.FOGGY -> drawBalconyFog(time, w, h)
             else -> Unit
         }
     }
@@ -1060,18 +1196,20 @@ private fun CanvasDrawWeatherParticles(
 
 /** 阳台雨：双层雨滴，带微摆动。 */
 private fun DrawScope.drawBalconyRain(
-    time: Float,
+    time: Double,
     w: Float,
     h: Float,
     count: Int,
     lenMul: Float,
     alpha: Float,
 ) {
+    val wd = w.toDouble()
+    val hd = h.toDouble()
     for (i in 0 until count) {
-        val speed = 900f + (i % 4) * 150f
-        val x = ((i * 97 + time * speed * 0.55f) % (w + 40)) - 20
-        val y = ((i * 53 + time * speed) % (h + 60) + (h + 60)) % (h + 60) - 30
-        val wobble = sin(time * 3f + i * 1.1f) * 2.5f
+        val speed = 900.0 + (i % 4) * 150.0
+        val x = (((i * 97.0 + time * speed * 0.55) % (wd + 40.0)) - 20.0).toFloat()
+        val y = ((((i * 53.0 + time * speed) % (hd + 60.0) + (hd + 60.0)) % (hd + 60.0)) - 30.0).toFloat()
+        val wobble = (sin(time * 3.0 + i * 1.1) * 2.5).toFloat()
         val dropLen = 14f * lenMul
         drawLine(
             color = Color(0xFFB4D2F0).copy(alpha = alpha),
@@ -1085,11 +1223,11 @@ private fun DrawScope.drawBalconyRain(
 
 /** 阳台闪电：两条亮线周期性闪现。 */
 private fun DrawScope.drawBalconyLightning(
-    time: Float,
+    time: Double,
     w: Float,
     h: Float,
 ) {
-    if (sin(time * 6f) > 0.88f) {
+    if (sin(time * 6.0) > 0.88) {
         drawLine(
             color = Color(0xFFFFF59D).copy(alpha = 0.85f),
             start = Offset(w * 0.72f, 0f),
@@ -1107,14 +1245,16 @@ private fun DrawScope.drawBalconyLightning(
 
 /** 阳台雪花：带水平飘动的白色圆点。 */
 private fun DrawScope.drawBalconySnow(
-    time: Float,
+    time: Double,
     w: Float,
     h: Float,
     count: Int,
 ) {
+    val wd = w.toDouble()
+    val hd = h.toDouble()
     for (i in 0 until count) {
-        val x = ((i * 83 + time * 20f + sin(time * 1.2f + i) * 15f) % (w + 30))
-        val y = ((i * 61 + time * 45f) % (h + 30))
+        val x = ((i * 83.0 + time * 20.0 + sin(time * 1.2 + i) * 15.0) % (wd + 30.0)).toFloat()
+        val y = ((i * 61.0 + time * 45.0) % (hd + 30.0)).toFloat()
         val size = 2f + (i % 3) * 0.8f
         drawCircle(Color.White.copy(alpha = 0.85f), size, Offset(x, y))
     }
@@ -1122,14 +1262,14 @@ private fun DrawScope.drawBalconySnow(
 
 /** 阳台雾气：水平飘动的半透明条带。 */
 private fun DrawScope.drawBalconyFog(
-    time: Float,
+    time: Double,
     w: Float,
     h: Float,
 ) {
     for (i in 0 until 8) {
         val y = h * (0.2f + i * 0.1f)
-        val xOff = sin(time * 0.3f + i * 0.8f) * 40f
-        val fogAlpha = 0.12f + 0.05f * sin(time * 0.5f + i)
+        val xOff = (sin(time * 0.3 + i * 0.8) * 40.0).toFloat()
+        val fogAlpha = (0.12 + 0.05 * sin(time * 0.5 + i)).toFloat()
         drawLine(
             color = Color.White.copy(alpha = fogAlpha),
             start = Offset(-20f + xOff, y),

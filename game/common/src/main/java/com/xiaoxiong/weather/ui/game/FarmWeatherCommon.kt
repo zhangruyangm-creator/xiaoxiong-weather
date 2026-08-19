@@ -38,7 +38,7 @@ fun farmWeatherFromScene(
     val code = sceneCode ?: return if (isDay == false) FarmWeather.CLOUDY else FarmWeather.SUNNY
     return when (code) {
         in 95..99 -> FarmWeather.STORMY
-        in 71..86, 77 -> FarmWeather.SNOWY
+        in 71..77, 85, 86 -> FarmWeather.SNOWY
         in 45..48 -> FarmWeather.FOGGY
         in 51..67, 80, 81, 82 -> FarmWeather.RAINY
         0, 1 -> if (isDay == false) FarmWeather.CLOUDY else FarmWeather.SUNNY

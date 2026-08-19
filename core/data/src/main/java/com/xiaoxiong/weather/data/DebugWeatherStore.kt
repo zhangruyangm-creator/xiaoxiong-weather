@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.xiaoxiong.weather.util.indexOfCurrentHour
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -149,12 +150,16 @@ class DebugWeatherStore(
             if (hourly.isNotEmpty() &&
                 (override.precipitationRateMmPerHour != null || override.weatherCode != null)
             ) {
-                hourly[0] =
-                    hourly[0].copy(
+                // hourly[0] 是 24 小时前的桶（ForecastFetcher 带 past_hours=24）；需覆盖当前小时桶
+                // 才能作用于预警 / 临近降水逻辑
+                val idx = indexOfCurrentHour(hourly.map { it.time }, base.current.time).coerceAtLeast(0)
+                val target = hourly[idx]
+                hourly[idx] =
+                    target.copy(
                         precipitationMm =
                             override.precipitationRateMmPerHour
-                                ?: hourly[0].precipitationMm,
-                        weatherCode = override.weatherCode ?: hourly[0].weatherCode,
+                                ?: target.precipitationMm,
+                        weatherCode = override.weatherCode ?: target.weatherCode,
                     )
             }
             // daily 温度覆盖：支持模拟连续高温/寒潮（长度不足处保留实况）

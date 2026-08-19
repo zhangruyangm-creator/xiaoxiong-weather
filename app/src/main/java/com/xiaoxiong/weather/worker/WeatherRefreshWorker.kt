@@ -92,7 +92,6 @@ class WeatherRefreshWorker(
                             }
                         showNotification("${city.name} · $alertTitle", alertText)
                         dedup.rememberNotifiedSoon(soonSignature(city.name, soonSpec))
-                        dedup.rememberNotified(city.name, current.weatherCode, current.temperatureC)
                     }
                     dedup.shouldNotify(city.name, current.weatherCode, current.temperatureC) -> {
                         val displayCode = WeatherCodes.displayCode(current.weatherCode, precipRate)

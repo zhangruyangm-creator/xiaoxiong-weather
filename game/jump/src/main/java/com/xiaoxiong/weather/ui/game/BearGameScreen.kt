@@ -652,7 +652,6 @@ fun BearGameScreen(
 
         GameHud(
             game = game,
-            frame = frame,
             onExit = onExit,
             onLeaderboard = {
                 lb.entries = lb.store.load()
@@ -787,13 +786,9 @@ fun BearGameScreen(
 @Composable
 private fun GameHud(
     game: BearGame,
-    frame: Long,
     onExit: () -> Unit,
     onLeaderboard: () -> Unit,
 ) {
-    // frame 仅用于驱动 HUD 每帧刷新分数
-    @Suppress("UNUSED_EXPRESSION")
-    frame
     Row(
         modifier =
             Modifier

@@ -307,13 +307,17 @@ private fun WeatherScreenContent(
 
     CompositionLocalProvider(LocalTemperatureUnit provides appSettings.temperatureUnit) {
         // 放在温度单位 Provider 内，分享卡片才能跟设置一致（°C / °F）
+        // weather 为空（换城/静默刷新清空）时在效果中关闭，避免组合期写回状态
+        LaunchedEffect(showShareCard, state.weather) {
+            if (showShareCard && state.weather == null) showShareCard = false
+        }
         if (showShareCard) {
             state.weather?.let { weather ->
                 ShareWeatherCardDialog(
                     snapshot = weather,
                     onDismiss = { showShareCard = false },
                 )
-            } ?: run { showShareCard = false }
+            }
         }
 
         AppScreenBackground(

@@ -68,4 +68,16 @@ class BearHomeLogicTest {
         val explore = slots.first { it.moment.name == "WEEKEND_EXPLORE" }
         assertEquals(HomeRoutineStatus.NOW, homeRoutineStatus(explore, LocalTime.of(10, 0)))
     }
+
+    @Test
+    fun routineDay_usesPreviousDayBefore5am() {
+        val date = java.time.LocalDate.of(2026, 8, 6) // Thursday
+        assertEquals(date, homeRoutineDay(date, LocalTime.of(6, 0)))
+        assertEquals(date, homeRoutineDay(date, LocalTime.of(23, 59)))
+        // 凌晨 [00:00, 05:00) 属于前一天（以 5:00 为日界）
+        assertEquals(date.minusDays(1), homeRoutineDay(date, LocalTime.of(0, 0)))
+        assertEquals(date.minusDays(1), homeRoutineDay(date, LocalTime.of(4, 59)))
+        // 5:00 整点起为新一天
+        assertEquals(date, homeRoutineDay(date, LocalTime.of(5, 0)))
+    }
 }

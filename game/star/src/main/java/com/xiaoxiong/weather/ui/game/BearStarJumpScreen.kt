@@ -552,8 +552,6 @@ fun BearStarJumpScreen(
                         }
                     },
         ) {
-            @Suppress("UNUSED_EXPRESSION")
-            frame
             if (game.w <= 0f || game.h <= 0f) return@Canvas
             val shake = if (game.shakeT > 0f) game.shakeT * 14f * game.s else 0f
             withTransform({
@@ -568,7 +566,6 @@ fun BearStarJumpScreen(
 
         JumpHud(
             game = game,
-            frame = frame,
             onExit = onExit,
             onLeaderboard = {
                 lb.entries = lb.store.load()
@@ -707,12 +704,9 @@ fun BearStarJumpScreen(
 @Composable
 private fun JumpHud(
     game: StarJumpGame,
-    frame: Long,
     onExit: () -> Unit,
     onLeaderboard: () -> Unit,
 ) {
-    @Suppress("UNUSED_EXPRESSION")
-    frame
     Row(
         modifier =
             Modifier
