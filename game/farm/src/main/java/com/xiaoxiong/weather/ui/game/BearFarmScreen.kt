@@ -57,6 +57,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -70,6 +72,7 @@ fun BearFarmScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val appContext = remember(context) { context.applicationContext }
     val farm = remember(appContext) { BearFarm(appContext).also { it.load() } }
     val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
@@ -100,6 +103,13 @@ fun BearFarmScreen(
                 weather == FarmWeather.STORMY ||
                 weather == FarmWeather.SNOWY
         while (isActive) {
+            // 切后台（ON_STOP）后不再推进 farm 模拟：挂机期间作物持续生长/枯萎，
+            // 且 withFrameNanos 在后台仍会派发，dt 累计错位；与 BearGameScreen 等保持一致
+            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                last = Long.MIN_VALUE
+                delay(300)
+                continue
+            }
             withFrameNanos { now ->
                 val dt =
                     if (last == Long.MIN_VALUE) {

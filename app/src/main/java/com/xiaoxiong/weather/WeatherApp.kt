@@ -28,6 +28,7 @@ class WeatherApp : Application() {
 
         // 性能监控：Debug 构建启用，Release 包零开销
         PerformanceMonitor.enabled = BuildConfig.DEBUG
+        PerformanceMonitor.startLoggingIfEnabled()
         startMemoryTracking()
 
         container = AppContainer(this)

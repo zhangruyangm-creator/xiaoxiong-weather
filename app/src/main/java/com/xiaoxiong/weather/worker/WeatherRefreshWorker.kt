@@ -115,6 +115,9 @@ class WeatherRefreshWorker(
                 }
             }
             Result.success()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // 系统取消时必须透传，让 Worker 正常结束而不是被当作"网络失败"重试
+            throw e
         } catch (_: AppError) {
             // 周期任务返回 failure 会终止整个周期链（后台刷新/通知永久停摆），
             // 因此即便是 4xx 永久性错误也只能 retry——对周期任务而言

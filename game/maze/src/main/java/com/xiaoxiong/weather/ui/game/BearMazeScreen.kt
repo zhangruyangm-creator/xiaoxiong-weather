@@ -72,7 +72,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -609,6 +612,7 @@ fun BearMazeScreen(
     val sprites = rememberBearSprites()
     var frame by remember { mutableLongStateOf(0L) }
     var showAbandonDialog by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // 选关列表只需标题/主题等元数据，轻量同步可得；完整关卡（含迷宫图）在
     // 点击某关开始游玩时才生成，避免进入选关界面就批量生成造成等待。
@@ -617,6 +621,13 @@ fun BearMazeScreen(
     LaunchedEffect(Unit) {
         var last = Long.MIN_VALUE
         while (isActive) {
+            // 切后台（ON_STOP）后不再推进对局：与 BearGameScreen / BearStarJumpScreen 一致，
+            // 否则挂机期间熊会一直走，玩家回来时可能已通关且持续耗电
+            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                last = Long.MIN_VALUE
+                delay(300)
+                continue
+            }
             withFrameNanos { now ->
                 val dt =
                     if (last == Long.MIN_VALUE) {

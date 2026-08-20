@@ -47,15 +47,22 @@ object WeatherWidgetData {
                 moved
 
         if (stale) {
+            // 显式透传 CancellationException：Glance 取消 widget update 时 runCatching
+            // 会吞掉取消信号，导致挂后台的 widget 协程"僵尸"继续跑、且最终走 cached 分支
+            // 返回旧数据，看起来"在线但不刷新"
             val refreshed =
-                runCatching {
+                try {
                     val snapshot = container.weatherRepository.fetchWeather(city)
                     cacheStore.save(snapshot)
                     if (selection.useLocation) {
                         container.selectedCityStore.save(city, useLocation = true)
                     }
                     snapshot to System.currentTimeMillis()
-                }.getOrNull()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
 
             if (refreshed != null) {
                 return toUi(context, refreshed.first, refreshed.second, offline = false, unit = unit)

@@ -52,7 +52,23 @@ object PerformanceMonitor {
 
     // ── 定时日志线程 ────────────────────────────────────────────
 
-    private val logThread: Thread =
+    // 改为 by lazy：原实现是 object 初始化时立即 start，但 [enabled] 默认 false，
+    // 导致 Release 包里线程仍每 60s 被 sleep 唤醒一次（有上下文切换开销），
+    // 与"Release 零开销"原则不符。现在仅在首次访问时启动线程——由 WeatherApp 设置
+    // [enabled]=true 后调用 [startLoggingIfEnabled] 显式触发，避免任何无意义唤醒
+    private val logThread: Thread? by lazy { createLogThread() }
+
+    /**
+     * 应用启动时调用：若 [enabled] 为 true 则启动定时日志线程，false 时直接返回。
+     * 这样 Release 包 ([enabled]=false) 完全不会有定时线程和睡眠唤醒。
+     */
+    fun startLoggingIfEnabled() {
+        if (!enabled) return
+        // 触发 lazy 初始化线程
+        logThread
+    }
+
+    private fun createLogThread(): Thread =
         Thread({
             while (!Thread.currentThread().isInterrupted) {
                 try {

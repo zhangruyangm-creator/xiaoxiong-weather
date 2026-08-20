@@ -28,7 +28,18 @@ class ForecastFetcher(
         withContext(Dispatchers.IO) {
             coroutineScope {
                 val forecastDeferred = async { fetchForecast(city) }
-                val airDeferred = async { runCatching { fetchAirQuality(city) }.getOrNull() }
+                // 空气质量是辅助数据，失败不应阻塞主天气加载；显式透传 CancellationException
+                // 避免 runCatching 吞掉取消信号导致挂后台后协程变"僵尸"继续跑
+                val airDeferred =
+                    async {
+                        try {
+                            fetchAirQuality(city)
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
 
                 val forecast = forecastDeferred.await()
                 val airQuality = airDeferred.await()

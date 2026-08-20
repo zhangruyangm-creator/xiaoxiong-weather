@@ -118,7 +118,11 @@ class HistoryFetcher(
                     throw AppError.DataFormat(e)
                 }
             val daily = response.daily ?: return@withContext null
-            val day = daily.time.firstOrNull() ?: return@withContext null
+            // 单天请求 API 应只返回一行；如返回多天（API 异常或请求参数被改），
+            // 此前会静默取首行导致用户查的是 5/10 却拿到 5/1 的数据而 UI 不报错，
+            // 这里只接受唯一一行，多行则视为数据异常返回 null
+            if (daily.time.size != 1) return@withContext null
+            val day = daily.time.first()
             val parsed = runCatching { java.time.LocalDate.parse(day) }.getOrNull() ?: return@withContext null
             if (parsed != date) return@withContext null
 

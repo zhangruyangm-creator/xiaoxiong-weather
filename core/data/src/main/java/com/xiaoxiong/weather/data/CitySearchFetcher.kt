@@ -35,7 +35,7 @@ class CitySearchFetcher(
                 val pinyinDeferred =
                     async {
                         if (pinyinQuery.length >= 2) {
-                            runCatching { searchOpenMeteo(pinyinQuery) }.getOrDefault(emptyList())
+                            searchOpenMeteoOrEmpty(pinyinQuery)
                         } else {
                             emptyList()
                         }
@@ -43,7 +43,7 @@ class CitySearchFetcher(
                 val englishDeferred =
                     async {
                         if (!englishAlias.isNullOrBlank()) {
-                            runCatching { searchOpenMeteo(englishAlias) }.getOrDefault(emptyList())
+                            searchOpenMeteoOrEmpty(englishAlias)
                         } else {
                             emptyList()
                         }
@@ -59,7 +59,18 @@ class CitySearchFetcher(
             }
         }
 
-    private fun searchOpenMeteo(name: String): List<City> {
+    // 拼音/英文别名分支是辅助查询，失败降级为空列表：但 CancellationException 必须透传，
+    // 避免挂后台时该协程被取消却被吞掉、走完 fallback 返回"无结果"列表而无法传播取消信号
+    private suspend fun searchOpenMeteoOrEmpty(name: String): List<City> =
+        try {
+            searchOpenMeteo(name)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+    private suspend fun searchOpenMeteo(name: String): List<City> {
         val url =
             geocodingBase
                 .toHttpUrl()

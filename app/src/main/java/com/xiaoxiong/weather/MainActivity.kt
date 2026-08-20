@@ -11,8 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -52,17 +55,41 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             val context = LocalContext.current
-            // 系统「移除动画」开启时自动减弱动画（用户改了系统设置也生效）
-            val systemReduceMotion =
-                remember(context) {
+            // 系统「移除动画」开启时自动减弱动画。注册 ContentObserver 监听系统设置变化，
+            // 此前实现用 remember(context) 但 context 在 Activity 生命周期内不变，用户改了
+            // 系统「移除动画」必须重启 App 才生效，与注释承诺的"用户改了系统设置也生效"矛盾
+            var systemReduceMotion by remember {
+                mutableStateOf(
                     runCatching {
                         Settings.Global.getFloat(
                             context.contentResolver,
                             Settings.Global.ANIMATOR_DURATION_SCALE,
                             1f,
                         ) == 0f
-                    }.getOrDefault(false)
-                }
+                    }.getOrDefault(false),
+                )
+            }
+            DisposableEffect(context) {
+                val observer =
+                    object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+                        override fun onChange(selfChange: Boolean) {
+                            systemReduceMotion =
+                                runCatching {
+                                    Settings.Global.getFloat(
+                                        context.contentResolver,
+                                        Settings.Global.ANIMATOR_DURATION_SCALE,
+                                        1f,
+                                    ) == 0f
+                                }.getOrDefault(false)
+                        }
+                    }
+                context.contentResolver.registerContentObserver(
+                    Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
+                    false,
+                    observer,
+                )
+                onDispose { context.contentResolver.unregisterContentObserver(observer) }
+            }
             val reduceMotion = settings.reduceMotion || systemReduceMotion
             CompositionLocalProvider(LocalDensity provides appDensity) {
                 XiaoxiongWeatherTheme(
