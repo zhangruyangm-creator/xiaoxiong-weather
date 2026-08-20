@@ -234,7 +234,12 @@ object PerformanceMonitor {
     }
 
     /**
-     * 固定容量环形缓冲区，无锁写入（单写者前提），读取返回快照。
+     * 固定容量环形缓冲区，读取返回快照。
+     *
+     * 内部对 [add]/[clear]/[snapshot] 做互斥：网络缓冲会被多个 OkHttp dispatcher 线程
+     * 并发写入（forecast async + air-quality async + search + radar），若不做同步，
+     * head/count 的读改写会产生丢失样本、计数虚高。本路径仅 Debug 采集用，
+     * 锁开销可忽略；若未来希望彻底无锁，需把 head/count 改为 Atomic 并保证单写者。
      */
     internal class LongBuffer(
         private val capacity: Int,
@@ -243,25 +248,32 @@ object PerformanceMonitor {
         private var head = 0
         private var count = 0
 
-        val size: Int get() = count
+        val size: Int
+            get() = synchronized(this) { count }
 
         fun add(value: Long) {
-            buf[head] = value
-            head = (head + 1) % capacity
-            if (count < capacity) count++
+            synchronized(this) {
+                buf[head] = value
+                head = (head + 1) % capacity
+                if (count < capacity) count++
+            }
         }
 
         fun clear() {
-            head = 0
-            count = 0
+            synchronized(this) {
+                head = 0
+                count = 0
+            }
         }
 
         /** 返回当前数据的有序快照。 */
         fun snapshot(): LongArray =
-            if (count == 0) {
-                LongArray(0)
-            } else {
-                buf.copyOf(count).also { it.sort() }
+            synchronized(this) {
+                if (count == 0) {
+                    LongArray(0)
+                } else {
+                    buf.copyOf(count).also { it.sort() }
+                }
             }
     }
 }

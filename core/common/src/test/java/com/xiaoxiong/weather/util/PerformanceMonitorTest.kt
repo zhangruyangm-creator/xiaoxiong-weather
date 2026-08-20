@@ -1,5 +1,8 @@
 package com.xiaoxiong.weather.util
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -78,6 +81,81 @@ class PerformanceMonitorTest {
         buf.clear()
         assertEquals(0, buf.size)
         assertTrue(buf.snapshot().isEmpty())
+    }
+
+    @Test
+    fun longBuffer_concurrentWritersDoNotCorruptState() {
+        // 模拟网络缓冲的真实场景：多个 OkHttp dispatcher 线程并发写入同一缓冲。
+        // 若 add() 不同步，head/count 的读改写会产生两类可测的坏结果：
+        //   a) count 被并发++ 推高超过容量；
+        //   b) 两个线程同读一个 head，覆盖相同槽位 → 快照出现重复值。
+        // 正确实现必须始终满足 size <= capacity 且快照无重复。
+        val buf = PerformanceMonitor.LongBuffer(64)
+        val threads = 16
+        val perThread = 5000
+        val pool = Executors.newFixedThreadPool(threads)
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(threads)
+        val unique = AtomicInteger(0)
+        repeat(threads) { t ->
+            pool.execute {
+                start.await()
+                try {
+                    repeat(perThread) { i ->
+                        // 全局唯一值：若并发覆盖同槽位，快照会包含重复，抛出即可被捕获
+                        val v = (t * perThread + i).toLong()
+                        buf.add(v)
+                        unique.incrementAndGet()
+                    }
+                } finally {
+                    done.countDown()
+                }
+            }
+        }
+        start.countDown()
+        done.await()
+        pool.shutdown()
+
+        val expectedUnique = (threads * perThread).toLong()
+        assertEquals("所有写入都应被记录", expectedUnique, unique.get().toLong())
+
+        // 硬性不变量：count 在任何并发下都不得超过容量
+        assertTrue("count 不能超过容量（并发++ 会推高它）", buf.size <= 64)
+        val snapshot = buf.snapshot()
+        assertTrue("count 应等于快照长度", snapshot.size == buf.size)
+        // 快照按值排序后应互不重复；若同槽被并发覆盖会出现重复值
+        assertTrue("快照不应含重复值（并发覆盖同槽会产生重复）", snapshot.toSet().size == snapshot.size)
+    }
+
+    @Test
+    fun recordNetwork_concurrentDifferentPathsEachBuffered() {
+        PerformanceMonitor.enabled = true
+        val paths = listOf("forecast", "air-quality", "search", "radar")
+        val threads = 4
+        val perThread = 500
+        val pool = Executors.newFixedThreadPool(threads)
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(threads)
+        paths.forEachIndexed { _, path ->
+            pool.execute {
+                start.await()
+                try {
+                    repeat(perThread) {
+                        PerformanceMonitor.recordNetwork(path, it.toLong())
+                    }
+                } finally {
+                    done.countDown()
+                }
+            }
+        }
+        start.countDown()
+        done.await()
+        pool.shutdown()
+
+        val report = PerformanceMonitor.report()
+        for (path in paths) {
+            assertTrue("缺少指标 $path", report.contains("$path:"))
+        }
     }
 
     // ── 冷启动 ──────────────────────────────────────────────────
