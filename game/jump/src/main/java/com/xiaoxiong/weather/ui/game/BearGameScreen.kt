@@ -61,7 +61,6 @@ import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sin
-import kotlin.math.sqrt
 import kotlin.random.Random
 
 /** 跑酷场景：跟随当前天气。阴/雨（按强度分档）/雪/雷暴/冻雨/冰雹渲染对应粒子与灰调背景。 */
@@ -171,30 +170,18 @@ class BearGame {
     val bearSize get() = size.height * 0.115f
     val bearX get() = size.width * 0.18f
     private val floorY get() = groundY - bearSize
-    private val gravity get() = 2500f * s
-    private val jumpV get() = -960f * s
-    private val jumpV2 get() = -830f * s
-    private val maxSpeed get() = 950f * s
+    private val jumpV get() = BearGameLogic.jumpV(s)
+    private val jumpV2 get() = BearGameLogic.jumpV2(s)
+    private val maxSpeed get() = BearGameLogic.maxSpeed(s)
 
-    /**
-     * 速度曲线：由纯距离分数（不含金币）驱动，而不是按时间线性加速。
-     * 开局 340，约 5000 分时才达到极速 950；前期较快、越到后期增速越缓。
-     */
-    private fun speedAt(distanceScore: Float): Float {
-        val p = (distanceScore / 5000f).coerceIn(0f, 1f)
-        return (340f + 610f * sqrt(p)) * s
-    }
+    // 速度曲线由纯距离分数驱动（详见 BearGameLogic.speedAt）
+    private fun speedAt(distanceScore: Float): Float =
+        BearGameLogic.speedAt(distanceScore, s)
 
-    /**
-     * 奔跑循环相位速率（rad/s）：开局 ~1.68 循环/s（比旧版 2.16 更从容），
-     * 随速度渐快；速度超过 [runCadenceCapSpeed] 后步频封顶 ~3.2 循环/s，
-     * 剩余增速靠拉长步幅表达，避免高速时 8 帧循环切换逼近刷新率导致抽帧/腿糊。
-     */
-    private val runCadenceCapSpeed get() = 640f * s
+    // 步频随速度渐快并封顶，避免高速抽帧（详见 BearGameLogic.runPhaseRate）
+    private fun runPhaseRate(): Float = BearGameLogic.runPhaseRate(speed, s)
 
-    private fun runPhaseRate(): Float = min(speed, runCadenceCapSpeed) * 0.031f / s
-
-    fun score(): Int = if (s <= 0f) 0 else (distance / (60f * s)).toInt() + coinCount * 10
+    fun score(): Int = BearGameLogic.score(distance, coinCount, s)
 
     fun resize(newSize: IntSize) {
         if (newSize == size || newSize.height <= 0) return
@@ -362,17 +349,10 @@ class BearGame {
      * 雪天比冻雨略矮，手感更宽松。
      */
     private fun iceWallHeight(scene: RunScene): Float =
-        when (scene) {
-            RunScene.SNOW -> 195f * s
-            else -> 210f * s
-        }
+        BearGameLogic.iceWallHeight(scene, s)
 
-    /** 冰墙出现所需的最低分数：雪天 300、冻雨 200，低分段先不出（需二段跳），前松后紧。 */
     private fun iceWallMinScore(scene: RunScene): Int =
-        when (scene) {
-            RunScene.SNOW -> 300
-            else -> 200
-        }
+        BearGameLogic.iceWallMinScore(scene)
 
     /** 出生障碍类型：冰墙在低分段降级为雪人。 */
     fun spawnType(
@@ -452,16 +432,14 @@ class BearGame {
         distance += dx
         if (flipT >= 0f) flipT += dt
 
-        // 小熊物理
-        bearVY += gravity * dt
-        bearY += bearVY * dt
-        if (bearY >= floorY) {
-            val landed = !grounded
-            bearY = floorY
-            bearVY = 0f
-            jumpsLeft = 2
-            if (landed) onLand()
-            grounded = true
+        // 小熊物理（核心推进委托给引擎层，保证帧行为可测）
+        val ph = BearGameLogic.stepBearPhysics(bearY, bearVY, jumpsLeft, grounded, floorY, s, dt)
+        bearY = ph.bearY
+        bearVY = ph.bearVY
+        jumpsLeft = ph.jumpsLeft
+        grounded = ph.grounded
+        if (ph.grounded) {
+            if (ph.landed) onLand()
             // 步频跟速度走：步幅相位驱动四肢摆动与身体起伏
             runPhase += runPhaseRate() * dt
             bob = -abs(sin(runPhase)) * 3f * s
@@ -484,7 +462,6 @@ class BearGame {
                 }
             }
         } else {
-            grounded = false
             bob = 0f
         }
 
