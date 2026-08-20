@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "minimax-image": {
+      "command": "python3",
+      "args": [
+        "/Users/zhangruyang/androidProject/xiaoxiong-weather/tools/minimax_image_mcp.py"
+      ],
+      "env": {
+        "MINIMAX_API_KEY": "REPLACE_WITH_YOUR_KEY",
+        "MINIMAX_IMAGE_ENDPOINT": "https://api.minimaxi.com/v1/image_generation"
+      }
+    }
+  }
+}
