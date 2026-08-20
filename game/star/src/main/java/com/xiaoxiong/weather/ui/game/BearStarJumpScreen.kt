@@ -75,9 +75,9 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
-private enum class PlatType { NORMAL, MOVING, BREAK, SPRING }
+internal enum class PlatType { NORMAL, MOVING, BREAK, SPRING }
 
-private class Platform(
+internal class Platform(
     var x: Float,
     val y: Float,
     val w: Float,
@@ -87,7 +87,7 @@ private class Platform(
     var breakT: Float = 0f,
 )
 
-private class StarItem(
+internal class StarItem(
     val x: Float,
     val y: Float,
     var taken: Boolean = false,
@@ -172,7 +172,7 @@ private class StarJumpGame {
     val texts = mutableListOf<JumpFloatText>()
     var nextPlatY = 0f
 
-    val altitudeKm get() = (-cameraY / (2400f * s)).coerceAtLeast(0f)
+    val altitudeKm get() = StarJumpLogic.altitudeKm(cameraY, s)
 
     fun setDims(
         width: Float,
@@ -226,24 +226,10 @@ private class StarJumpGame {
         val maxTravel = (w - margin * 2f).coerceAtLeast(1f)
         while (nextPlatY > limitY) {
             val progress = (-nextPlatY / (3400f * s)).coerceIn(0f, 1f)
-            // 移动台宽度必须小于可移动区间，否则会贴边来回抖
-            var pw = (150f - 26f * progress) * s
             val roll = Random.nextFloat()
             val early = nextPlatY > -700f * s
-            val type =
-                when {
-                    early -> PlatType.NORMAL
-                    roll < 0.07f -> PlatType.SPRING
-                    roll < 0.07f + 0.10f + 0.08f * progress -> PlatType.BREAK
-                    roll < 0.07f + 0.10f + 0.08f * progress + 0.15f + 0.10f * progress ->
-                        PlatType.MOVING
-                    else -> PlatType.NORMAL
-                }
-            if (type == PlatType.MOVING) {
-                pw = min(pw, maxTravel * 0.55f).coerceAtLeast(48f * s)
-            } else {
-                pw = min(pw, maxTravel)
-            }
+            // 类型与宽度决策委托引擎层（可测）；x 与 vx 仍用独立随机，保持原生成分布
+            val (type, pw) = StarJumpLogic.platformShape(progress, early, roll, w, s)
             val xSpan = (maxTravel - pw).coerceAtLeast(1f)
             val x = margin + Random.nextFloat() * xSpan
             val vx =
@@ -277,7 +263,6 @@ private class StarJumpGame {
         time += dt
         if (phase == GamePhase.READY) return
         val bs = bearSize
-        val g = 2600f * s
 
         if (phase == GamePhase.RUNNING) {
             // 水平：跟随手指目标位置，无触摸时惯性衰减
@@ -295,8 +280,10 @@ private class StarJumpGame {
         }
 
         val prevY = bearY
-        bearVY += g * dt
-        bearY += bearVY * dt
+        // 垂直物理（委托引擎层，帧行为可测）
+        val falling = StarJumpLogic.stepFalling(bearY, bearVY, s, dt)
+        bearY = falling.first
+        bearVY = falling.second
 
         // 移动平台
         val margin = 8f * s
@@ -322,49 +309,44 @@ private class StarJumpGame {
         }
 
         if (phase == GamePhase.RUNNING) {
-            // 踩平台：仅下落时、脚线穿越台面
+            // 踩平台：仅下落时、脚线穿越台面（判定委托引擎层）
             if (bearVY > 0f) {
-                val feetPrev = prevY + bs / 2f
-                val feetNow = bearY + bs / 2f
-                for (p in platforms) {
-                    if (p.broken) continue
-                    // 死亡线（屏幕底缘再下半个身位）以下的平台不可踩：
-                    // 它们已不可见，踩上会像"踩空气弹回"，或弹起后同帧被判死
-                    if (p.y - cameraY > h + bs) continue
-                    if (feetPrev <= p.y && feetNow >= p.y) {
-                        var dx = bearX - (p.x + p.w / 2f)
-                        if (dx > w / 2f) dx -= w + bs
-                        if (dx < -w / 2f) dx += w + bs
-                        if (abs(dx) < p.w / 2f + bs * 0.24f) {
-                            bearY = p.y - bs / 2f
-                            if (p.type == PlatType.BREAK) {
-                                p.broken = true
-                                p.breakT = 0f
-                                bearVY = -1350f * s
-                                onBounce()
-                            } else if (p.type == PlatType.SPRING) {
-                                bearVY = -2350f * s
-                                shakeT = 0.10f
-                                onSpring()
-                            } else {
-                                bearVY = -1350f * s
-                                onBounce()
-                            }
-                            squashT = 0f
-                            repeat(8) {
-                                particles.add(
-                                    Particle(
-                                        bearX + (Random.nextFloat() - 0.5f) * bs,
-                                        p.y,
-                                        (Random.nextFloat() - 0.5f) * 160f * s,
-                                        -Random.nextFloat() * 120f * s,
-                                        0.4f + Random.nextFloat() * 0.3f,
-                                        color = Color.White.copy(alpha = 0.85f),
-                                    ),
-                                )
-                            }
-                            break
-                        }
+                val contact =
+                    StarJumpLogic.resolveContact(
+                        bearX = bearX,
+                        prevFeetY = prevY + bs / 2f,
+                        newFeetY = bearY + bs / 2f,
+                        bearVY = bearVY,
+                        platforms = platforms,
+                        w = w, h = h, s = s,
+                        cameraY = cameraY,
+                    )
+                if (contact.hit && contact.platform != null) {
+                    val p = contact.platform
+                    bearY = contact.landY
+                    if (p.type == PlatType.BREAK) {
+                        p.broken = true
+                        p.breakT = 0f
+                        onBounce()
+                    } else if (p.type == PlatType.SPRING) {
+                        shakeT = 0.10f
+                        onSpring()
+                    } else {
+                        onBounce()
+                    }
+                    bearVY = contact.bounceVY
+                    squashT = 0f
+                    repeat(8) {
+                        particles.add(
+                            Particle(
+                                bearX + (Random.nextFloat() - 0.5f) * bs,
+                                p.y,
+                                (Random.nextFloat() - 0.5f) * 160f * s,
+                                -Random.nextFloat() * 120f * s,
+                                0.4f + Random.nextFloat() * 0.3f,
+                                color = Color.White.copy(alpha = 0.85f),
+                            ),
+                        )
                     }
                 }
             }
@@ -372,11 +354,7 @@ private class StarJumpGame {
             // 吃星星
             for (st in stars) {
                 if (st.taken) continue
-                var dx = bearX - st.x
-                if (dx > w / 2f) dx -= w + bs
-                if (dx < -w / 2f) dx += w + bs
-                val dy = bearY - st.y
-                if (dx * dx + dy * dy < (bs * 0.62f) * (bs * 0.62f)) {
+                if (StarJumpLogic.starPickup(bearX, bearY, st.x, st.y, w, s)) {
                     st.taken = true
                     starsCollected++
                     texts.add(JumpFloatText("+25", st.x, st.y, 0.9f))
@@ -401,7 +379,7 @@ private class StarJumpGame {
             val target = bearY - h * 0.42f
             if (target < cameraY) cameraY = target
             maxHeight = min(maxHeight, bearY)
-            score = ((-maxHeight) / (60f * s)).toInt().coerceAtLeast(0) + starsCollected * 25
+            score = StarJumpLogic.scoreFor(maxHeight, starsCollected, s)
 
             genPlatforms(cameraY - h * 0.5f)
             platforms.removeAll { it.y > cameraY + h + 120f * s }
