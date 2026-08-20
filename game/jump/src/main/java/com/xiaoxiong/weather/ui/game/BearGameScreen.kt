@@ -640,6 +640,7 @@ fun BearGameScreen(
 
         GameHud(
             game = game,
+            frame = frame,
             onExit = onExit,
             onLeaderboard = {
                 lb.entries = lb.store.load()
@@ -774,6 +775,7 @@ fun BearGameScreen(
 @Composable
 private fun GameHud(
     game: BearGame,
+    frame: Long,
     onExit: () -> Unit,
     onLeaderboard: () -> Unit,
 ) {
@@ -794,6 +796,7 @@ private fun GameHud(
         }
         Spacer(modifier = Modifier.weight(1f))
         Column(horizontalAlignment = Alignment.End) {
+            frame // 订阅每帧更新，让实时分数随 distance 推进
             Text(
                 text = "${game.score()}",
                 style = MaterialTheme.typography.headlineSmall,

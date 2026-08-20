@@ -964,6 +964,9 @@ private fun MazePlayField(
                         detectTapGestures { /* 吞掉，避免误触 */ }
                     },
         ) {
+            // frame 订阅每帧更新，触发逐帧重绘（UI 视角跟随小熊移动、天气动画）
+            @Suppress("UNUSED_EXPRESSION")
+            frame
             drawMazeWorld(game, sprites, style)
             drawMazeWeather(game, weather, rainStrength, freezingRain, hail)
         }

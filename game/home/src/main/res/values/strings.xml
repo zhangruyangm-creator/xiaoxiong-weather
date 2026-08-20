@@ -184,7 +184,7 @@
     <string name="bear_home_meal_dinner">晚餐</string>
     <string name="bear_home_meal_lunch">午餐</string>
     <string name="bear_home_meal_title">三餐图鉴</string>
-    <string name="bear_home_now_doing">小熊现在在%1$s</string>
+    <string name="bear_home_now_doing">现在%1$s</string>
     <string name="bear_home_playroom_empty">今天游乐间休息</string>
     <string name="bear_home_room_bedroom">卧室</string>
     <string name="bear_home_room_closet">储物间</string>

@@ -272,10 +272,12 @@ private fun HomeHub(
                     label = stringResource(R.string.bear_home_room_bedroom),
                     onClick = onOpenBedroom,
                 )
-                // 客厅占主要面积；阳台在客厅上方，位置稍低避免贴顶
+                // 客厅占主要面积；阳台在客厅上方。顶部留白让阳台点击区下移，
+                // 使其标签大致落在「小熊的家」标题与客厅标签之间的中线附近。
                 Column(modifier = Modifier.weight(1.3f).fillMaxSize()) {
+                    Spacer(modifier = Modifier.weight(1.05f).fillMaxWidth())
                     HotZone(
-                        modifier = Modifier.weight(0.28f).fillMaxWidth().padding(top = 32.dp),
+                        modifier = Modifier.weight(0.28f).fillMaxWidth(),
                         label = stringResource(R.string.bear_home_room_balcony),
                         onClick = onOpenBalcony,
                     )

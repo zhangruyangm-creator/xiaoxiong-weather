@@ -184,7 +184,7 @@
     <string name="bear_home_meal_dinner">Dinner</string>
     <string name="bear_home_meal_lunch">Lunch</string>
     <string name="bear_home_meal_title">Meal album</string>
-    <string name="bear_home_now_doing">Bear is %1$s</string>
+    <string name="bear_home_now_doing">Now %1$s</string>
     <string name="bear_home_playroom_empty">The playroom is quiet today</string>
     <string name="bear_home_room_bedroom">Bedroom</string>
     <string name="bear_home_room_closet">Closet</string>

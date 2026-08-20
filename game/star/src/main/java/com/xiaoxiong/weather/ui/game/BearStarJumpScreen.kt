@@ -530,6 +530,7 @@ fun BearStarJumpScreen(
                         }
                     },
         ) {
+            frame // 订阅每帧更新，触发逐帧重绘（与跑酷 BearGameScreen 的 Canvas 一致）
             if (game.w <= 0f || game.h <= 0f) return@Canvas
             val shake = if (game.shakeT > 0f) game.shakeT * 14f * game.s else 0f
             withTransform({
@@ -544,6 +545,7 @@ fun BearStarJumpScreen(
 
         JumpHud(
             game = game,
+            frame = frame,
             onExit = onExit,
             onLeaderboard = {
                 lb.entries = lb.store.load()
@@ -682,9 +684,13 @@ fun BearStarJumpScreen(
 @Composable
 private fun JumpHud(
     game: StarJumpGame,
+    frame: Long,
     onExit: () -> Unit,
     onLeaderboard: () -> Unit,
 ) {
+    // frame 仅用于驱动 HUD 每帧刷新分数
+    @Suppress("UNUSED_EXPRESSION")
+    frame
     Row(
         modifier =
             Modifier
