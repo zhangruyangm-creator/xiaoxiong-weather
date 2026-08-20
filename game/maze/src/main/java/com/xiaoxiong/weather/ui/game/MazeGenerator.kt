@@ -356,9 +356,8 @@ private fun generateMazeLevelOnce(
     }
 
     val map = g.map { String(it) }
-    // 预算：最短路 × 系数 + 蜂蜜绕路
-    val pathLen = best.coerceAtLeast(8)
-    val budget = (pathLen * 2.2f + honeyCount * 6 + difficulty * 2).toInt().coerceIn(30, 220)
+    // 预算：最短路 × 系数 + 蜂蜜绕路（公式集中在 MazeGameLogic）
+    val budget = MazeGameLogic.moveBudget(best, honeyCount, difficulty)
 
     val titles = GEN_TITLES[theme] ?: listOf("迷雾迷宫")
     val title = titles[id % titles.size]

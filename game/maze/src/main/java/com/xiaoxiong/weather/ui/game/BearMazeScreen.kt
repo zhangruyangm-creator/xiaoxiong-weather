@@ -288,6 +288,16 @@ private class MazeGame {
                 if (r < rows && c < cols) grid[r][c] = charToCell(ch)
             }
         }
+        // 存档坐标必须落在当前重建的棋盘内；否则说明会话来自不同版本/已损坏，
+        // 直接丢弃（不恢复），避免后续 grid[bearR][bearC] 越界崩溃。
+        val inGrid =
+            session.bearR in 0 until rows && session.bearC in 0 until cols &&
+                session.startR in 0 until rows && session.startC in 0 until cols &&
+                session.exitR in 0 until rows && session.exitC in 0 until cols
+        if (!inGrid) {
+            prefs.edit { remove(MAZE_SESSION_KEY) }
+            return false
+        }
         keys = session.keys
         honeyLeft = session.honeyLeft
         honeyTotal = session.honeyTotal
@@ -341,7 +351,7 @@ private class MazeGame {
         // 仅在开新局时掷会话种子；重开（freshSeed=false）复用当前种子，保证同一张图
         if (freshSeed) endlessSessionSeed = Random.nextLong()
         levelIndex = -1
-        val diff = (8 + endlessWave * 2).coerceAtMost(45)
+        val diff = MazeGameLogic.endlessDifficulty(endlessWave)
         val seed = endlessSessionSeed xor (endlessWave.toLong() * 0x9E3779B9L)
         loadLevel(
             generateMazeLevel(
@@ -530,12 +540,7 @@ private class MazeGame {
         resumeEndless = false
         val budget = level.moveBudget
         // 仅在蜂蜜收齐后踩出口才会到这里，直接按步数定星级
-        clearStars =
-            when {
-                moves <= budget -> 3
-                moves <= (budget * 1.35f).toInt() -> 2
-                else -> 1
-            }
+        clearStars = MazeGameLogic.starsFor(moves, budget)
         if (endless) {
             if (endlessWave > endlessBest) endlessBest = endlessWave
         } else if (levelIndex in stars.indices) {
@@ -734,7 +739,10 @@ fun BearMazeScreen(
                     game.openSelect()
                 },
                 onAbandon = {
+                    // 彻底放弃本次无尽对局：删除落盘会话，并清除续玩标记，
+                    // 避免 onDispose 的兜底 saveSession 把已放弃的对局重新写回复活
                     prefs.edit { remove(MAZE_SESSION_KEY) }
+                    game.resumeEndless = false
                     showAbandonDialog = false
                     game.openSelect()
                 },
