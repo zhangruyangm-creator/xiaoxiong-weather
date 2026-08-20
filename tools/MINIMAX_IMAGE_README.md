@@ -1,5 +1,14 @@
 # 小熊天气 AI 插画生成工具
 
+> ⚠️ **状态：备用工具**
+>
+> 当前生成结果与项目主流的 2D 平面绘本风格（如 `ic_sun_bear_work_farm` 等）
+> 不一致（MiniMax image-01 默认走 3D 渲染风）。在风格调通 + 与现有命名空间
+> 对齐之前，本工具**只作备用**，不正式接入 `core:res-illustrations` 资源引用。
+>
+> 风格调通示例：`SUN_BEAR_STYLE_BLOCK` 已对齐 nano banana 生成的 `work_morning`
+> 3D 风格，但仍需多轮 prompt 迭代 + 一张能进入生产使用的过审图。
+
 通过 MiniMax 图像生成 API，为项目自动生成 `ic_sun_bear_*` 系列插画，
 并自动落到 `core/res-illustrations/src/main/res/drawable-nodpi/`。
 
