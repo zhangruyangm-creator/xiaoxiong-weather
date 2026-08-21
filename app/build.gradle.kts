@@ -12,7 +12,7 @@ plugins {
 // 彩蛋游戏可选编译：把 jump/star/maze/farm/home 依 -Pgames 动态接入（默认 all）。
 // 与旧「源码集裁剪」不同：未选中的游戏模块不参与编译与打包，classpath 上不存在其字节码，
 // 装配侧用 ServiceLoader（:game:api 的 loadGameEntryProviders()）发现已在 classpath 的入口，天然更彻底。
-val gameIds = listOf("jump", "star", "maze", "farm", "home")
+val gameIds = listOf("jump", "star", "catch", "maze", "farm", "home")
 
 val gamesRaw = (project.findProperty("games") as String?)?.trim()?.lowercase()
 val enabledGames: Set<String> =
@@ -136,6 +136,9 @@ dependencies {
     }
     if ("star" in enabledGames) {
         "fullImplementation"(project(":game:star"))
+    }
+    if ("catch" in enabledGames) {
+        "fullImplementation"(project(":game:catch"))
     }
     if ("maze" in enabledGames) {
         "fullImplementation"(project(":game:maze"))

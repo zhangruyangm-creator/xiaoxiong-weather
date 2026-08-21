@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bear_game_best_label">最高</string>
+    <string name="bear_game_exit">回到天气</string>
+    <string name="bear_game_restart">再来一局</string>
+    <string name="bear_game_view_rank">查看排行榜</string>
+    <string name="bear_catch_hint">左右拖动小熊接住雨滴/雪花/硬币/花瓣，躲开乌云、冰雹和闪电\n天气不同，掉下来的东西也不一样</string>
+    <string name="bear_catch_over">哎呀，淋湿了</string>
+    <string name="bear_catch_start">开始接</string>
+    <string name="bear_catch_title">小熊接雨雪</string>
+    <string name="bear_leaderboard_rank_label">排名 %1$d</string>
+    <string name="bear_leaderboard_title">排行榜</string>
+    <string name="cd_close_game">退出游戏</string>
+</resources>
