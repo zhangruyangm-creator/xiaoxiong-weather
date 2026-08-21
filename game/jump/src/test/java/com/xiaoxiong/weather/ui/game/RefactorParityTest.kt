@@ -10,7 +10,6 @@ import kotlin.math.sqrt
  * 证明档位 B 引擎分离未引入数值/边界偏差。
  */
 class RefactorParityTest {
-
     private val s = 1f
 
     /** 递归复刻 git HEAD 中 BearGame.tick 的物理段，返回 (y, vy, jumps, grounded, landed)。 */
@@ -42,8 +41,13 @@ class RefactorParityTest {
                     val jumps = 2
                     val p =
                         BearGameLogic.stepBearPhysics(
-                            bearY = y, bearVY = vy0, jumpsLeft = jumps, grounded = g,
-                            floorY = floorY, s = s, dt = dt,
+                            bearY = y,
+                            bearVY = vy0,
+                            jumpsLeft = jumps,
+                            grounded = g,
+                            floorY = floorY,
+                            s = s,
+                            dt = dt,
                         )
                     val o = originalPhysics(y, vy0, jumps, g, floorY, dt)
                     assertEquals("y@ $y,$vy0,$g:", o[0], p.bearY, 1e-4f)

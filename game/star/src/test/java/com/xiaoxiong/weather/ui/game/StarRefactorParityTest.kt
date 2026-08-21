@@ -9,7 +9,6 @@ import kotlin.math.min
  * 证明档位 B 引擎分离未引入数值/边界偏差。
  */
 class StarRefactorParityTest {
-
     private val s = 1f
 
     @Test
@@ -34,8 +33,11 @@ class StarRefactorParityTest {
                             else -> PlatType.NORMAL
                         }
                     opw =
-                        if (otype == PlatType.MOVING) min(opw, maxTravel * 0.55f).coerceAtLeast(48f * s)
-                        else min(opw, maxTravel)
+                        if (otype == PlatType.MOVING) {
+                            min(opw, maxTravel * 0.55f).coerceAtLeast(48f * s)
+                        } else {
+                            min(opw, maxTravel)
+                        }
                     // 纯函数
                     val (type, pw) = StarJumpLogic.platformShape(progress, early, roll, w, s)
                     assertEquals("type@p=$progress,r=$roll,e=$early:", otype, type)
@@ -133,8 +135,15 @@ class StarRefactorParityTest {
                         val bs = StarJumpLogic.bearSize(s)
                         val got =
                             StarJumpLogic.resolveContact(
-                                bearX, prevY + bs / 2f, bearY + bs / 2f, vy,
-                                platforms, w, h, s, cameraY,
+                                bearX,
+                                prevY + bs / 2f,
+                                bearY + bs / 2f,
+                                vy,
+                                platforms,
+                                w,
+                                h,
+                                s,
+                                cameraY,
                             )
                         val exp = originalResolveContact(bearX, prevY + bs / 2f, bearY + bs / 2f, vy, platforms, w, h, s, cameraY)
                         assertEquals("hit@x=$bearX,y=$bearY,p=$prevY,vy=$vy:", exp.hit, got.hit)

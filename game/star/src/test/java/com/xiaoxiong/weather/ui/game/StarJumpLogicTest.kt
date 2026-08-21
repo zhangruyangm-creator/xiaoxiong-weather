@@ -11,7 +11,6 @@ import org.junit.Test
  * 小熊摘星纯逻辑层 [StarJumpLogic] 的单元测试：不依赖 Compose / Android，纯 JVM 可跑。
  */
 class StarJumpLogicTest {
-
     private val s = 1f
 
     private fun platform(
@@ -38,7 +37,9 @@ class StarJumpLogicTest {
             newFeetY = bearY + StarJumpLogic.bearSize(s) / 2f,
             bearVY = bearVY,
             platforms = platforms,
-            w = w, h = h, s = s,
+            w = w,
+            h = h,
+            s = s,
             cameraY = cameraY,
         )
 
@@ -94,7 +95,10 @@ class StarJumpLogicTest {
         // 平台 y - cameraY > h + bs → 死亡线以下不可踩
         val c =
             contact(
-                bearX = 0f, bearY = 500f, prevY = 300f, bearVY = 500f,
+                bearX = 0f,
+                bearY = 500f,
+                prevY = 300f,
+                bearVY = 500f,
                 platforms = listOf(platform(PlatType.NORMAL, y = 400f)), // 400 - (-600) = 1000 > 800+58
             )
         assertFalse(c.hit)
@@ -103,7 +107,13 @@ class StarJumpLogicTest {
     @Test
     fun resolveContact_brokenPlatform_ignored() {
         val c =
-            contact(bearX = 0f, bearY = -260f, prevY = -330f, bearVY = 500f, platforms = listOf(platform(PlatType.NORMAL, y = -300f, broken = true)))
+            contact(
+                bearX = 0f,
+                bearY = -260f,
+                prevY = -330f,
+                bearVY = 500f,
+                platforms = listOf(platform(PlatType.NORMAL, y = -300f, broken = true)),
+            )
         assertFalse(c.hit)
     }
 

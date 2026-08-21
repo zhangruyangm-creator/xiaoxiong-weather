@@ -8,7 +8,6 @@ import org.junit.Test
  * 纯逻辑层 [MazeGameLogic] 的单元测试：不依赖 Compose / Android，纯 JVM 可跑。
  */
 class MazeGameLogicTest {
-
     // ── 星级结算 ───────────────────────────────────────────────
 
     @Test

@@ -175,8 +175,7 @@ class BearGame {
     private val maxSpeed get() = BearGameLogic.maxSpeed(s)
 
     // 速度曲线由纯距离分数驱动（详见 BearGameLogic.speedAt）
-    private fun speedAt(distanceScore: Float): Float =
-        BearGameLogic.speedAt(distanceScore, s)
+    private fun speedAt(distanceScore: Float): Float = BearGameLogic.speedAt(distanceScore, s)
 
     // 步频随速度渐快并封顶，避免高速抽帧（详见 BearGameLogic.runPhaseRate）
     private fun runPhaseRate(): Float = BearGameLogic.runPhaseRate(speed, s)
@@ -348,11 +347,9 @@ class BearGame {
      * 冰墙高度：单跳（~184·s）够不到、二段跳（~322·s）稳过；
      * 雪天比冻雨略矮，手感更宽松。
      */
-    private fun iceWallHeight(scene: RunScene): Float =
-        BearGameLogic.iceWallHeight(scene, s)
+    private fun iceWallHeight(scene: RunScene): Float = BearGameLogic.iceWallHeight(scene, s)
 
-    private fun iceWallMinScore(scene: RunScene): Int =
-        BearGameLogic.iceWallMinScore(scene)
+    private fun iceWallMinScore(scene: RunScene): Int = BearGameLogic.iceWallMinScore(scene)
 
     /** 出生障碍类型：冰墙在低分段降级为雪人。 */
     fun spawnType(

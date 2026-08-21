@@ -8,7 +8,6 @@ package com.xiaoxiong.weather.ui.game
  * 状态都不要写进本文件。
  */
 object MazeGameLogic {
-
     // ── 难度换算 ────────────────────────────────────────────────
 
     /** 无尽第 [wave] 波的难度；越高越难，封顶 45。 */
@@ -68,10 +67,15 @@ object MazeGameLogic {
         val rows = level.rows
         val cols = level.cols
 
-        fun inBounds(rr: Int, cc: Int) = rr in 0 until rows && cc in 0 until cols
+        fun inBounds(
+            rr: Int,
+            cc: Int,
+        ) = rr in 0 until rows && cc in 0 until cols
 
-        fun walkable(rr: Int, cc: Int): Boolean =
-            inBounds(rr, cc) && grid[rr][cc].tile != MazeTile.WALL
+        fun walkable(
+            rr: Int,
+            cc: Int,
+        ): Boolean = inBounds(rr, cc) && grid[rr][cc].tile != MazeTile.WALL
 
         // 第一步：目标格必须可走
         val nr = r + dr

@@ -318,7 +318,9 @@ private class StarJumpGame {
                         newFeetY = bearY + bs / 2f,
                         bearVY = bearVY,
                         platforms = platforms,
-                        w = w, h = h, s = s,
+                        w = w,
+                        h = h,
+                        s = s,
                         cameraY = cameraY,
                     )
                 if (contact.hit && contact.platform != null) {

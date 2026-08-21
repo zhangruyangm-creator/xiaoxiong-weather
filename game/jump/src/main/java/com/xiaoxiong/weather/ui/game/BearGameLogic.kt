@@ -1,6 +1,5 @@
 package com.xiaoxiong.weather.ui.game
 
-import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -15,12 +14,14 @@ import kotlin.math.sqrt
  * 以保证重构前后帧级行为完全一致。
  */
 object BearGameLogic {
-
     // ── 物理常量（尺寸缩放由调用方传入）────────────────────────
 
     fun gravity(s: Float): Float = 2500f * s
+
     fun jumpV(s: Float): Float = -960f * s
+
     fun jumpV2(s: Float): Float = -830f * s
+
     fun maxSpeed(s: Float): Float = 950f * s
 
     // ── 纯计算 ─────────────────────────────────────────────────

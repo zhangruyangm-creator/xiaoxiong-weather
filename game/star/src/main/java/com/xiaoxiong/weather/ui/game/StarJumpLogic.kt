@@ -13,13 +13,15 @@ import kotlin.math.min
  * 涉及 UI 触发（弹跳音效/得分/星星粒子/震屏）与 Compose 状态的部分不在本文件。
  */
 internal object StarJumpLogic {
-
     // ── 常量（缩放由调用方传入）────────────────────────────────
 
     fun gravity(s: Float): Float = 2600f * s
+
     fun bearSize(s: Float): Float = 58f * s
+
     /** 普通/碎平台反弹初速。 */
     fun bounceV(s: Float): Float = -1350f * s
+
     /** 弹簧平台反弹初速。 */
     fun springV(s: Float): Float = -2350f * s
 

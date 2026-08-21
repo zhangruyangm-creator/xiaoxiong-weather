@@ -291,9 +291,12 @@ private class MazeGame {
         // 存档坐标必须落在当前重建的棋盘内；否则说明会话来自不同版本/已损坏，
         // 直接丢弃（不恢复），避免后续 grid[bearR][bearC] 越界崩溃。
         val inGrid =
-            session.bearR in 0 until rows && session.bearC in 0 until cols &&
-                session.startR in 0 until rows && session.startC in 0 until cols &&
-                session.exitR in 0 until rows && session.exitC in 0 until cols
+            session.bearR in 0 until rows &&
+                session.bearC in 0 until cols &&
+                session.startR in 0 until rows &&
+                session.startC in 0 until cols &&
+                session.exitR in 0 until rows &&
+                session.exitC in 0 until cols
         if (!inGrid) {
             prefs.edit { remove(MAZE_SESSION_KEY) }
             return false

@@ -9,7 +9,6 @@ import org.junit.Test
  * 小熊跳跳纯逻辑层 [BearGameLogic] 的单元测试：不依赖 Compose / Android，纯 JVM 可跑。
  */
 class BearGameLogicTest {
-
     private val s = 1f // 尺寸缩放 1，便于直接断言像素值
 
     // ── 物理推进（stepBearPhysics）─────────────────────────────
@@ -17,10 +16,16 @@ class BearGameLogicTest {
     @Test
     fun stepBearPhysics_gravityAccumulatesVertically() {
         // 从地面之上静止释放：只受重力向下累积，第一帧不会夹取（未触地）
-        val p = BearGameLogic.stepBearPhysics(
-            bearY = -100f, bearVY = 0f, jumpsLeft = 2, grounded = false,
-            floorY = 0f, s = s, dt = 0.1f,
-        )
+        val p =
+            BearGameLogic.stepBearPhysics(
+                bearY = -100f,
+                bearVY = 0f,
+                jumpsLeft = 2,
+                grounded = false,
+                floorY = 0f,
+                s = s,
+                dt = 0.1f,
+            )
         assertTrue("vy 应向下增长", p.bearVY > 0f)
         assertTrue("-100 + g*0.01 仍在地面之上，不夹取", p.bearY < 0f)
         assertFalse(p.grounded)
@@ -29,15 +34,27 @@ class BearGameLogicTest {
     @Test
     fun stepBearPhysics_jumpGivesUpwardThenFalls() {
         // 二段跳初速向上（负），第一帧应向上移动
-        var p = BearGameLogic.stepBearPhysics(
-            bearY = -100f, bearVY = BearGameLogic.jumpV(s), jumpsLeft = 1, grounded = false,
-            floorY = 0f, s = s, dt = 0.016f,
-        )
+        var p =
+            BearGameLogic.stepBearPhysics(
+                bearY = -100f,
+                bearVY = BearGameLogic.jumpV(s),
+                jumpsLeft = 1,
+                grounded = false,
+                floorY = 0f,
+                s = s,
+                dt = 0.016f,
+            )
         assertTrue("起跳第一帧速度应仍向上（负）", p.bearVY < 0f)
-        p = BearGameLogic.stepBearPhysics(
-            bearY = p.bearY, bearVY = p.bearVY, jumpsLeft = p.jumpsLeft, grounded = p.grounded,
-            floorY = 0f, s = s, dt = 0.5f,
-        )
+        p =
+            BearGameLogic.stepBearPhysics(
+                bearY = p.bearY,
+                bearVY = p.bearVY,
+                jumpsLeft = p.jumpsLeft,
+                grounded = p.grounded,
+                floorY = 0f,
+                s = s,
+                dt = 0.5f,
+            )
         // 长时间后应落回地面并夹在地面高度
         assertTrue(p.bearY >= -0.001f)
         assertEquals(0f, p.bearVY, 1e-4f)
@@ -46,10 +63,16 @@ class BearGameLogicTest {
     @Test
     fun stepBearPhysics_landingClampsAndResetsJumps() {
         // 从高处自由落体到地面以下，应夹到 floorY、清空速度、重置二段跳
-        val p = BearGameLogic.stepBearPhysics(
-            bearY = 200f, bearVY = 500f, jumpsLeft = 0, grounded = false,
-            floorY = 0f, s = s, dt = 0.016f,
-        )
+        val p =
+            BearGameLogic.stepBearPhysics(
+                bearY = 200f,
+                bearVY = 500f,
+                jumpsLeft = 0,
+                grounded = false,
+                floorY = 0f,
+                s = s,
+                dt = 0.016f,
+            )
         assertEquals(0f, p.bearY, 1e-4f)
         assertEquals(0f, p.bearVY, 1e-4f)
         assertEquals(2, p.jumpsLeft)
@@ -59,10 +82,16 @@ class BearGameLogicTest {
 
     @Test
     fun stepBearPhysics_notLanding_keepsState() {
-        val p = BearGameLogic.stepBearPhysics(
-            bearY = -300f, bearVY = -100f, jumpsLeft = 1, grounded = false,
-            floorY = 0f, s = s, dt = 0.016f,
-        )
+        val p =
+            BearGameLogic.stepBearPhysics(
+                bearY = -300f,
+                bearVY = -100f,
+                jumpsLeft = 1,
+                grounded = false,
+                floorY = 0f,
+                s = s,
+                dt = 0.016f,
+            )
         assertFalse(p.grounded)
         assertFalse(p.landed)
         assertEquals(1, p.jumpsLeft)
