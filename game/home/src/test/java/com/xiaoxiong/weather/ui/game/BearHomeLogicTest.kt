@@ -70,6 +70,23 @@ class BearHomeLogicTest {
     }
 
     @Test
+    fun weekdayRoutine_includesMorningStrollAfterExercise() {
+        val date = java.time.LocalDate.of(2026, 8, 6) // Thursday
+        val slots = homeRoutineSlots(date)
+        assertEquals(16, slots.size)
+        val exercise = slots.first { it.moment.name == "MORNING_EXERCISE" }
+        val stroll = slots.first { it.moment.name == "MORNING_STROLL" }
+        assertEquals(6 * 60, exercise.startMinute)
+        assertEquals(6 * 60 + 30, exercise.endMinute)
+        assertEquals(6 * 60 + 30, stroll.startMinute)
+        assertEquals(7 * 60 + 15, stroll.endMinute)
+        assertEquals(HomeRoutineStatus.NOW, homeRoutineStatus(stroll, LocalTime.of(7, 0)))
+        assertEquals(HomeRoutineStatus.DONE, homeRoutineStatus(exercise, LocalTime.of(7, 0)))
+        assertEquals(HomeRoutineStatus.NOW, homeRoutineStatus(exercise, LocalTime.of(6, 15)))
+        assertEquals(HomeRoutineStatus.NOW, homeRoutineStatus(stroll, LocalTime.of(6, 30)))
+    }
+
+    @Test
     fun routineDay_usesPreviousDayBefore5am() {
         val date = java.time.LocalDate.of(2026, 8, 6) // Thursday
         assertEquals(date, homeRoutineDay(date, LocalTime.of(6, 0)))

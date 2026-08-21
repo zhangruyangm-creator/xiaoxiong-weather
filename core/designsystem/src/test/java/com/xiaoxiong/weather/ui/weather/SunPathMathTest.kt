@@ -62,13 +62,22 @@ class SunPathMathTest {
     fun bearMoment_byClock_weekday() {
         val weekday = LocalDate.of(2026, 8, 6) // Thursday
         val day = SunPathPhase(true, 0.5f)
+        val sunrise = LocalTime.of(5, 30)
         assertEquals(
             SunPathBearMoment.MORNING_EXERCISE,
-            sunPathBearMoment(day, weekday, LocalTime.of(7, 0)),
+            sunPathBearMoment(day, weekday, LocalTime.of(5, 45), sunrise = sunrise),
+        )
+        assertEquals(
+            SunPathBearMoment.MORNING_STROLL,
+            sunPathBearMoment(day, weekday, LocalTime.of(6, 20), sunrise = sunrise),
+        )
+        assertEquals(
+            SunPathBearMoment.MORNING_STROLL,
+            sunPathBearMoment(day, weekday, LocalTime.of(7, 0), sunrise = sunrise),
         )
         assertEquals(
             SunPathBearMoment.BREAKFAST,
-            sunPathBearMoment(day, weekday, LocalTime.of(7, 15)),
+            sunPathBearMoment(day, weekday, LocalTime.of(7, 15), sunrise = sunrise),
         )
         assertEquals(
             SunPathBearMoment.BREAKFAST,
@@ -125,6 +134,51 @@ class SunPathMathTest {
         assertEquals(
             SunPathBearMoment.WORK_AFTERNOON,
             sunPathBearMoment(day, weekday, LocalTime.of(13, 30)),
+        )
+    }
+
+    @Test
+    fun bearMoment_weekdayMorningExerciseCappedBySunrise() {
+        val weekday = LocalDate.of(2026, 8, 6)
+        val day = SunPathPhase(true, 0.5f)
+        // 日出 06:00 → 晨练封顶 06:30，其后逛逛
+        val sunriseSix = LocalTime.of(6, 0)
+        assertEquals(
+            SunPathBearMoment.MORNING_EXERCISE,
+            sunPathBearMoment(day, weekday, LocalTime.of(6, 15), sunrise = sunriseSix),
+        )
+        assertEquals(
+            SunPathBearMoment.MORNING_STROLL,
+            sunPathBearMoment(day, weekday, LocalTime.of(6, 30), sunrise = sunriseSix),
+        )
+        assertEquals(
+            SunPathBearMoment.MORNING_STROLL,
+            sunPathBearMoment(day, weekday, LocalTime.of(6, 50), sunrise = sunriseSix),
+        )
+        // 日出 07:00 → 白天开始即已过封顶，直接逛逛至早餐
+        val afterCap = LocalTime.of(7, 0)
+        assertEquals(
+            SunPathBearMoment.MORNING_STROLL,
+            sunPathBearMoment(day, weekday, LocalTime.of(7, 5), sunrise = afterCap),
+        )
+        assertEquals(
+            SunPathBearMoment.BREAKFAST,
+            sunPathBearMoment(day, weekday, LocalTime.of(7, 15), sunrise = afterCap),
+        )
+    }
+
+    @Test
+    fun morningStroll_sharesExplorePoolWithWeekend() {
+        val weekday = LocalDate.of(2026, 8, 6)
+        val explore = SunPathBearMoment.WEEKEND_EXPLORE.bearVariantDrawables().toSet()
+        val stroll = SunPathBearMoment.MORNING_STROLL.bearVariantDrawables().toSet()
+        assertEquals(explore, stroll)
+        assertTrue(explore.size > 1)
+        val a = SunPathBearMoment.MORNING_STROLL.bearResFor(weekday)
+        assertEquals(a, SunPathBearMoment.MORNING_STROLL.bearResFor(weekday))
+        assertEquals(
+            R.string.sun_bear_morning_stroll,
+            SunPathBearMoment.MORNING_STROLL.captionResFor(weekday),
         )
     }
 

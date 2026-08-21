@@ -606,12 +606,17 @@ internal fun SunAndExtrasCard(snapshot: WeatherSnapshot) {
             }
         val onDate = onDateTime?.toLocalDate() ?: java.time.LocalDate.now()
         val onTime = onDateTime?.toLocalTime() ?: java.time.LocalTime.now()
+        val sunriseTime =
+            remember(today?.sunrise) {
+                today?.sunrise?.let { parseFlexibleDateTime(it)?.toLocalTime() }
+            }
         SunPathArc(
             phase = phase,
             sunriseLabel = sunriseLabel,
             sunsetLabel = sunsetLabel,
             onDate = onDate,
             onTime = onTime,
+            sunrise = sunriseTime,
         )
         Spacer(modifier = Modifier.height(8.dp))
         val dayNight =

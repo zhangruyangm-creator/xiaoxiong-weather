@@ -67,15 +67,16 @@ fun sunPathBearMoment(
     }
     val minutes = time.hour * 60 + time.minute
     return if (phase.isDay) {
-        dayBearMoment(date, minutes)
+        dayBearMoment(date, minutes, sunrise)
     } else {
         nightBearMoment(date, minutes, phase.progress, sunrise)
     }
 }
 
 /**
- * 白天（工作日）：晨练(日出~07:15；若 07:15 尚未日出则跳过直接吃早餐)
- * → 早餐(07:15–08:15) → 上班通勤(08:15–09:00) → 上午忙
+ * 白天（工作日）：晨练(日出起最多 45 分钟，且不晚于 06:30)
+ * → 晨间逛逛(至 07:15；复用探索插画池) → 早餐(07:15–08:15)
+ * → 上班通勤(08:15–09:00) → 上午忙
  * → 午饭(11:30–12:30) → 下午忙 → 下午茶(15:00–15:45) → 下午忙(至18:00)
  * → 回家通勤(18:00–18:45) → 傍晚锻炼(18:45–19:00) → 晚饭(19:00–20:00)。
  * 周末：上午出门(日出~09:00) → 旅行(09:00–11:30 与 12:30–15:00) → 午饭
@@ -84,18 +85,34 @@ fun sunPathBearMoment(
 private fun dayBearMoment(
     date: LocalDate,
     minutes: Int,
+    sunrise: LocalTime? = null,
 ): SunPathBearMoment {
     val weekend = isWeekend(date)
+    // 无 sunrise 时按晨练结束点封顶，与小屋作息近似一致。
+    val exerciseEnd =
+        if (weekend) {
+            BearRoutineTimes.MORNING_STROLL_END_MINUTE
+        } else {
+            val cap = BearRoutineTimes.MORNING_EXERCISE_END_MINUTE
+            if (sunrise != null) {
+                val sunriseMin = sunrise.hour * 60 + sunrise.minute
+                minOf(sunriseMin + 45, cap)
+            } else {
+                cap
+            }
+        }
     return when {
-        minutes < 7 * 60 + 15 ->
+        minutes < exerciseEnd ->
             if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_EXERCISE
-        minutes < 8 * 60 + 15 ->
+        minutes < BearRoutineTimes.MORNING_STROLL_END_MINUTE ->
+            if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_STROLL
+        minutes < BearRoutineTimes.BREAKFAST_END_MINUTE ->
             if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.BREAKFAST
-        minutes < 9 * 60 ->
+        minutes < BearRoutineTimes.MORNING_OUT_END_MINUTE ->
             if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_OUT
-        minutes < 11 * 60 + 30 ->
+        minutes < BearRoutineTimes.LUNCH_START_MINUTE ->
             if (weekend) SunPathBearMoment.WEEKEND_EXPLORE else SunPathBearMoment.WORK_MORNING
-        minutes < 12 * 60 + 30 ->
+        minutes < BearRoutineTimes.LUNCH_END_MINUTE ->
             SunPathBearMoment.LUNCH
         minutes < 15 * 60 ->
             if (weekend) SunPathBearMoment.WEEKEND_EXPLORE else SunPathBearMoment.WORK_AFTERNOON
@@ -136,7 +153,7 @@ private fun nightBearMoment(
         }
     return when {
         isAlmostDawn -> SunPathBearMoment.ALMOST_DAWN
-        minutes < 5 * 60 -> SunPathBearMoment.SLEEP
+        minutes < BearRoutineTimes.DAY_BOUNDARY_MINUTE -> SunPathBearMoment.SLEEP
         minutes >= 23 * 60 -> SunPathBearMoment.BEDTIME_PREP
         !weekend && minutes < 18 * 60 + 45 -> SunPathBearMoment.HEAD_HOME
         !weekend && minutes < 19 * 60 -> SunPathBearMoment.EVENING_EXERCISE

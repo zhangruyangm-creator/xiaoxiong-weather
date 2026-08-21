@@ -62,6 +62,7 @@ internal fun SunPathArc(
     modifier: Modifier = Modifier,
     onDate: LocalDate = LocalDate.now(),
     onTime: LocalTime = LocalTime.now(),
+    sunrise: LocalTime? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f
@@ -77,8 +78,8 @@ internal fun SunPathArc(
         }
     val skyBottom = Color.Transparent
     val bearMoment =
-        remember(phase, onDate, onTime) {
-            sunPathBearMoment(phase, onDate, onTime)
+        remember(phase, onDate, onTime, sunrise) {
+            sunPathBearMoment(phase, onDate, onTime, sunrise = sunrise)
         }
     val holiday = remember(bearMoment, onDate) { holidayBearOverride(onDate, bearMoment) }
     val bearRes =

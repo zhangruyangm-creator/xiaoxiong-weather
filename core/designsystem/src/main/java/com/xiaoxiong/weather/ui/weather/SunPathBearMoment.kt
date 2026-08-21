@@ -35,6 +35,14 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_exercise_hulahoop,
     ),
 
+    /**
+     * 工作日晨练后、早餐前：插画由 [EXPLORE_DRAWABLES] 与周末旅行共用，此处仅占位。
+     */
+    MORNING_STROLL(
+        R.string.sun_bear_morning_stroll,
+        IllustR.drawable.ic_sun_bear_weekend_explore_tokyotower,
+    ),
+
     /** 工作日通勤前早餐：中式 / 西式 / 阿拉伯式 / 韩式 / 东南亚独立插画池，按日轮换。 */
     BREAKFAST(
         R.string.sun_bear_breakfast,
@@ -181,39 +189,11 @@ enum class SunPathBearMoment(
         // 插画由 [WEEKEND_DAY_DRAWABLES] 与下午共用，此处仅占位。
         IllustR.drawable.ic_sun_bear_weekend_station,
     ),
+
+    /** 周末旅行：插画由 [EXPLORE_DRAWABLES] 与工作日晨间逛逛共用，此处仅占位。 */
     WEEKEND_EXPLORE(
         R.string.sun_bear_weekend_explore,
         IllustR.drawable.ic_sun_bear_weekend_explore_tokyotower,
-        IllustR.drawable.ic_sun_bear_weekend_explore_fuji,
-        IllustR.drawable.ic_sun_bear_weekend_explore_museum,
-        IllustR.drawable.ic_sun_bear_weekend_explore_boat,
-        IllustR.drawable.ic_sun_bear_weekend_explore_hiking,
-        IllustR.drawable.ic_sun_bear_weekend_explore_ginza,
-        IllustR.drawable.ic_sun_bear_weekend_explore_shibuya,
-        IllustR.drawable.ic_sun_bear_weekend_explore_shinjuku,
-        IllustR.drawable.ic_sun_bear_weekend_explore_akihabara,
-        IllustR.drawable.ic_sun_bear_weekend_explore_ikebukuro,
-        IllustR.drawable.ic_sun_bear_weekend_explore_timessquare,
-        IllustR.drawable.ic_sun_bear_weekend_explore_fifthavenue,
-        IllustR.drawable.ic_sun_bear_weekend_explore_champselysees,
-        IllustR.drawable.ic_sun_bear_weekend_explore_gangnam,
-        IllustR.drawable.ic_sun_bear_weekend_explore_causewaybay,
-        IllustR.drawable.ic_sun_bear_weekend_explore_qingdao,
-        IllustR.drawable.ic_sun_bear_weekend_explore_qushuiting,
-        IllustR.drawable.ic_sun_bear_weekend_explore_fuzimiao,
-        IllustR.drawable.ic_sun_bear_weekend_explore_weihai,
-        IllustR.drawable.ic_sun_bear_weekend_explore_sapporo,
-        IllustR.drawable.ic_sun_bear_weekend_explore_nanjingroad,
-        IllustR.drawable.ic_sun_bear_weekend_explore_baoan,
-        IllustR.drawable.ic_sun_bear_weekend_explore_shenzhenbay,
-        IllustR.drawable.ic_sun_bear_weekend_explore_tangye,
-        IllustR.drawable.ic_sun_bear_weekend_explore_luomashi,
-        IllustR.drawable.ic_sun_bear_weekend_explore_qianmen,
-        IllustR.drawable.ic_sun_bear_weekend_explore_gulangyu,
-        IllustR.drawable.ic_sun_bear_weekend_explore_hongyadong,
-        IllustR.drawable.ic_sun_bear_weekend_explore_rio,
-        IllustR.drawable.ic_sun_bear_weekend_explore_yellowstone,
-        IllustR.drawable.ic_sun_bear_weekend_explore_chicago,
     ),
     WEEKEND_AFTERNOON(
         R.string.sun_bear_weekend_afternoon,
@@ -337,6 +317,7 @@ enum class SunPathBearMoment(
     fun bearVariantDrawables(): IntArray =
         when (this) {
             WEEKEND_MORNING, WEEKEND_AFTERNOON -> WEEKEND_DAY_DRAWABLES
+            WEEKEND_EXPLORE, MORNING_STROLL -> EXPLORE_DRAWABLES
             else -> bearVariants
         }
 
@@ -352,6 +333,10 @@ enum class SunPathBearMoment(
             WEEKEND_MORNING, WEEKEND_AFTERNOON ->
                 return WEEKEND_DAY_DRAWABLES[
                     dailyVariantIndex(date, name, WEEKEND_DAY_DRAWABLES.size),
+                ]
+            WEEKEND_EXPLORE, MORNING_STROLL ->
+                return EXPLORE_DRAWABLES[
+                    dailyVariantIndex(date, name, EXPLORE_DRAWABLES.size),
                 ]
             else -> Unit
         }

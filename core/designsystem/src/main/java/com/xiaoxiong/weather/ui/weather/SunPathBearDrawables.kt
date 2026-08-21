@@ -128,6 +128,59 @@ internal val WEEKEND_DAY_DRAWABLES =
         IllustR.drawable.ic_sun_bear_weekend_library,
     )
 
+/**
+ * 探索/旅行插画池；[WEEKEND_EXPLORE] 与工作日 [MORNING_STROLL] 共用，各自按日独立抽取。
+ */
+internal val EXPLORE_DRAWABLES =
+    intArrayOf(
+        IllustR.drawable.ic_sun_bear_weekend_explore_tokyotower,
+        IllustR.drawable.ic_sun_bear_weekend_explore_fuji,
+        IllustR.drawable.ic_sun_bear_weekend_explore_museum,
+        IllustR.drawable.ic_sun_bear_weekend_explore_boat,
+        IllustR.drawable.ic_sun_bear_weekend_explore_hiking,
+        IllustR.drawable.ic_sun_bear_weekend_explore_ginza,
+        IllustR.drawable.ic_sun_bear_weekend_explore_shibuya,
+        IllustR.drawable.ic_sun_bear_weekend_explore_shinjuku,
+        IllustR.drawable.ic_sun_bear_weekend_explore_akihabara,
+        IllustR.drawable.ic_sun_bear_weekend_explore_ikebukuro,
+        IllustR.drawable.ic_sun_bear_weekend_explore_timessquare,
+        IllustR.drawable.ic_sun_bear_weekend_explore_fifthavenue,
+        IllustR.drawable.ic_sun_bear_weekend_explore_champselysees,
+        IllustR.drawable.ic_sun_bear_weekend_explore_gangnam,
+        IllustR.drawable.ic_sun_bear_weekend_explore_causewaybay,
+        IllustR.drawable.ic_sun_bear_weekend_explore_qingdao,
+        IllustR.drawable.ic_sun_bear_weekend_explore_qushuiting,
+        IllustR.drawable.ic_sun_bear_weekend_explore_fuzimiao,
+        IllustR.drawable.ic_sun_bear_weekend_explore_weihai,
+        IllustR.drawable.ic_sun_bear_weekend_explore_sapporo,
+        IllustR.drawable.ic_sun_bear_weekend_explore_nanjingroad,
+        IllustR.drawable.ic_sun_bear_weekend_explore_baoan,
+        IllustR.drawable.ic_sun_bear_weekend_explore_shenzhenbay,
+        IllustR.drawable.ic_sun_bear_weekend_explore_tangye,
+        IllustR.drawable.ic_sun_bear_weekend_explore_luomashi,
+        IllustR.drawable.ic_sun_bear_weekend_explore_qianmen,
+        IllustR.drawable.ic_sun_bear_weekend_explore_gulangyu,
+        IllustR.drawable.ic_sun_bear_weekend_explore_hongyadong,
+        IllustR.drawable.ic_sun_bear_weekend_explore_rio,
+        IllustR.drawable.ic_sun_bear_weekend_explore_yellowstone,
+        IllustR.drawable.ic_sun_bear_weekend_explore_chicago,
+        IllustR.drawable.ic_sun_bear_weekend_explore_jinwan,
+        IllustR.drawable.ic_sun_bear_weekend_explore_jiuzhaigou,
+        IllustR.drawable.ic_sun_bear_weekend_explore_mumbai,
+        IllustR.drawable.ic_sun_bear_weekend_explore_lujiazui,
+        IllustR.drawable.ic_sun_bear_weekend_explore_waitan,
+        IllustR.drawable.ic_sun_bear_weekend_explore_jingan,
+        IllustR.drawable.ic_sun_bear_weekend_explore_xujiahui,
+        IllustR.drawable.ic_sun_bear_weekend_explore_hengshanroad,
+        IllustR.drawable.ic_sun_bear_weekend_explore_huanlegangwan,
+        IllustR.drawable.ic_sun_bear_weekend_explore_huanlehaian,
+        IllustR.drawable.ic_sun_bear_weekend_explore_dongmen,
+        IllustR.drawable.ic_sun_bear_weekend_explore_huaqiangbei,
+        IllustR.drawable.ic_sun_bear_weekend_explore_futian,
+        IllustR.drawable.ic_sun_bear_weekend_explore_seaworld,
+        IllustR.drawable.ic_sun_bear_weekend_explore_datangbuyecheng,
+    )
+
 internal val EXERCISE_MORNING_CAPTIONS =
     intArrayOf(
         R.string.sun_bear_exercise_run_morning,
@@ -210,6 +263,7 @@ internal val WORK_FIELD_JOBS =
         IllustR.drawable.ic_sun_bear_work_grilledfish,
         IllustR.drawable.ic_sun_bear_work_stinkytofu,
         IllustR.drawable.ic_sun_bear_work_grilledsausage,
+        IllustR.drawable.ic_sun_bear_work_lambskewer,
         IllustR.drawable.ic_sun_bear_work_mechanic,
         IllustR.drawable.ic_sun_bear_work_phonerepair,
         IllustR.drawable.ic_sun_bear_work_teacher,

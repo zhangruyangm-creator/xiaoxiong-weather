@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.weather.BearRoutineTimes
 import com.xiaoxiong.weather.ui.weather.SunPathBearMoment
 import com.xiaoxiong.weather.ui.weather.isWeekend
 import java.time.LocalDate
@@ -22,26 +23,43 @@ enum class HomeRoutineStatus {
 fun homeRoutineSlots(date: LocalDate): List<HomeRoutineSlot> =
     if (isWeekend(date)) {
         listOf(
-            HomeRoutineSlot(SunPathBearMoment.ALMOST_DAWN, 5 * 60, 7 * 60 + 15),
-            HomeRoutineSlot(SunPathBearMoment.WEEKEND_MORNING, 7 * 60 + 15, 9 * 60),
-            HomeRoutineSlot(SunPathBearMoment.WEEKEND_EXPLORE, 9 * 60, 11 * 60 + 30),
-            HomeRoutineSlot(SunPathBearMoment.LUNCH, 11 * 60 + 30, 12 * 60 + 30),
-            HomeRoutineSlot(SunPathBearMoment.WEEKEND_AFTERNOON, 12 * 60 + 30, 18 * 60),
+            HomeRoutineSlot(
+                SunPathBearMoment.ALMOST_DAWN,
+                BearRoutineTimes.DAY_BOUNDARY_MINUTE,
+                BearRoutineTimes.MORNING_STROLL_END_MINUTE,
+            ),
+            HomeRoutineSlot(
+                SunPathBearMoment.WEEKEND_MORNING,
+                BearRoutineTimes.MORNING_STROLL_END_MINUTE,
+                BearRoutineTimes.MORNING_OUT_END_MINUTE,
+            ),
+            HomeRoutineSlot(
+                SunPathBearMoment.WEEKEND_EXPLORE,
+                BearRoutineTimes.MORNING_OUT_END_MINUTE,
+                BearRoutineTimes.LUNCH_START_MINUTE,
+            ),
+            HomeRoutineSlot(SunPathBearMoment.LUNCH, BearRoutineTimes.LUNCH_START_MINUTE, BearRoutineTimes.LUNCH_END_MINUTE),
+            HomeRoutineSlot(SunPathBearMoment.WEEKEND_AFTERNOON, BearRoutineTimes.LUNCH_END_MINUTE, 18 * 60),
             HomeRoutineSlot(SunPathBearMoment.WEEKEND_RETURN, 18 * 60, 19 * 60),
             HomeRoutineSlot(SunPathBearMoment.DINNER, 19 * 60, 20 * 60),
             HomeRoutineSlot(SunPathBearMoment.EVENING, 20 * 60, 23 * 60),
             HomeRoutineSlot(SunPathBearMoment.BEDTIME_PREP, 23 * 60, 24 * 60),
-            HomeRoutineSlot(SunPathBearMoment.SLEEP, 0, 5 * 60),
+            HomeRoutineSlot(SunPathBearMoment.SLEEP, 0, BearRoutineTimes.DAY_BOUNDARY_MINUTE),
         )
     } else {
         listOf(
-            HomeRoutineSlot(SunPathBearMoment.ALMOST_DAWN, 5 * 60, 6 * 60),
-            HomeRoutineSlot(SunPathBearMoment.MORNING_EXERCISE, 6 * 60, 7 * 60 + 15),
-            HomeRoutineSlot(SunPathBearMoment.BREAKFAST, 7 * 60 + 15, 8 * 60 + 15),
-            HomeRoutineSlot(SunPathBearMoment.MORNING_OUT, 8 * 60 + 15, 9 * 60),
-            HomeRoutineSlot(SunPathBearMoment.WORK_MORNING, 9 * 60, 11 * 60 + 30),
-            HomeRoutineSlot(SunPathBearMoment.LUNCH, 11 * 60 + 30, 12 * 60 + 30),
-            HomeRoutineSlot(SunPathBearMoment.WORK_AFTERNOON, 12 * 60 + 30, 15 * 60),
+            HomeRoutineSlot(SunPathBearMoment.ALMOST_DAWN, BearRoutineTimes.DAY_BOUNDARY_MINUTE, 6 * 60),
+            HomeRoutineSlot(SunPathBearMoment.MORNING_EXERCISE, 6 * 60, BearRoutineTimes.MORNING_EXERCISE_END_MINUTE),
+            HomeRoutineSlot(
+                SunPathBearMoment.MORNING_STROLL,
+                BearRoutineTimes.MORNING_EXERCISE_END_MINUTE,
+                BearRoutineTimes.MORNING_STROLL_END_MINUTE,
+            ),
+            HomeRoutineSlot(SunPathBearMoment.BREAKFAST, BearRoutineTimes.MORNING_STROLL_END_MINUTE, BearRoutineTimes.BREAKFAST_END_MINUTE),
+            HomeRoutineSlot(SunPathBearMoment.MORNING_OUT, BearRoutineTimes.BREAKFAST_END_MINUTE, BearRoutineTimes.MORNING_OUT_END_MINUTE),
+            HomeRoutineSlot(SunPathBearMoment.WORK_MORNING, BearRoutineTimes.MORNING_OUT_END_MINUTE, BearRoutineTimes.LUNCH_START_MINUTE),
+            HomeRoutineSlot(SunPathBearMoment.LUNCH, BearRoutineTimes.LUNCH_START_MINUTE, BearRoutineTimes.LUNCH_END_MINUTE),
+            HomeRoutineSlot(SunPathBearMoment.WORK_AFTERNOON, BearRoutineTimes.LUNCH_END_MINUTE, 15 * 60),
             HomeRoutineSlot(SunPathBearMoment.AFTERNOON_TEA, 15 * 60, 15 * 60 + 45),
             HomeRoutineSlot(SunPathBearMoment.WORK_AFTERNOON, 15 * 60 + 45, 18 * 60),
             HomeRoutineSlot(SunPathBearMoment.HEAD_HOME, 18 * 60, 18 * 60 + 45),
@@ -49,7 +67,7 @@ fun homeRoutineSlots(date: LocalDate): List<HomeRoutineSlot> =
             HomeRoutineSlot(SunPathBearMoment.DINNER, 19 * 60, 20 * 60),
             HomeRoutineSlot(SunPathBearMoment.EVENING, 20 * 60, 23 * 60),
             HomeRoutineSlot(SunPathBearMoment.BEDTIME_PREP, 23 * 60, 24 * 60),
-            HomeRoutineSlot(SunPathBearMoment.SLEEP, 0, 5 * 60),
+            HomeRoutineSlot(SunPathBearMoment.SLEEP, 0, BearRoutineTimes.DAY_BOUNDARY_MINUTE),
         )
     }
 
@@ -62,7 +80,7 @@ fun homeRoutineDay(
     now: LocalTime,
 ): LocalDate {
     val m = now.hour * 60 + now.minute
-    return if (m < 5 * 60) date.minusDays(1) else date
+    return if (m < BearRoutineTimes.DAY_BOUNDARY_MINUTE) date.minusDays(1) else date
 }
 
 /**
@@ -71,7 +89,7 @@ fun homeRoutineDay(
  */
 private fun toHomeTimeline(minuteOfDay: Int): Int {
     val m = minuteOfDay.coerceIn(0, 24 * 60)
-    return if (m < 5 * 60) m + 24 * 60 else m
+    return if (m < BearRoutineTimes.DAY_BOUNDARY_MINUTE) m + 24 * 60 else m
 }
 
 fun homeRoutineStatus(
@@ -84,7 +102,9 @@ fun homeRoutineStatus(
     val axisEnd =
         when {
             // 睡觉跨日：把 [0, 5:00) 映射到轴末端；入睡准备等 24:00 前的时段随后判为已过
-            slot.startMinute < 5 * 60 && slot.endMinute <= 5 * 60 -> 24 * 60 + 5 * 60
+            slot.startMinute < BearRoutineTimes.DAY_BOUNDARY_MINUTE && slot.endMinute <= BearRoutineTimes.DAY_BOUNDARY_MINUTE ->
+                24 * 60 +
+                    BearRoutineTimes.DAY_BOUNDARY_MINUTE
             else -> toHomeTimeline(slot.endMinute)
         }
     return when {
