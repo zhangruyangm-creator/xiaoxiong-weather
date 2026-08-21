@@ -89,6 +89,8 @@ class WeatherRepository(
             Json {
                 ignoreUnknownKeys = true
                 isLenient = true
+                // 网络侧 DTO：个别字段类型漂移/缺失时归零值，提升解析健壮性
+                coerceInputValues = true
             }
 
         private fun defaultClient(): OkHttpClient = createDefaultClient()

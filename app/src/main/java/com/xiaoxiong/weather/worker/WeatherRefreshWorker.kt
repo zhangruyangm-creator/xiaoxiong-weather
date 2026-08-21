@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -118,11 +119,14 @@ class WeatherRefreshWorker(
         } catch (e: kotlinx.coroutines.CancellationException) {
             // 系统取消时必须透传，让 Worker 正常结束而不是被当作"网络失败"重试
             throw e
-        } catch (_: AppError) {
-            // 周期任务返回 failure 会终止整个周期链（后台刷新/通知永久停摆），
-            // 因此即便是 4xx 永久性错误也只能 retry——对周期任务而言
-            // retry 等价于放弃本轮、等待下一个周期再试，代价可接受。
-            Result.retry()
+        } catch (e: AppError) {
+            // 4xx 属永久性错误（城市/参数不变时重试无意义）：放弃本轮，等下一个周期；
+            // 其余（网络不可用、格式错）走退避重试，交给 BackoffPolicy 控制节奏
+            if (e is AppError.Http && e.code in 400..499) {
+                Result.success()
+            } else {
+                Result.retry()
+            }
         } catch (_: Exception) {
             Result.retry()
         }
@@ -216,6 +220,8 @@ class WeatherRefreshWorker(
             val request =
                 PeriodicWorkRequestBuilder<WeatherRefreshWorker>(hours, TimeUnit.HOURS)
                     .setConstraints(constraints)
+                    // 周期任务失败后线性退避 30 分钟，避免短时反复重试造成网络空转
+                    .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.MINUTES)
                     .build()
             wm.enqueueUniquePeriodicWork(UNIQUE_WORK, policy, request)
         }

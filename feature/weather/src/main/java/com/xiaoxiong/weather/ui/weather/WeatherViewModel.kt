@@ -522,8 +522,7 @@ class WeatherViewModel(
                     historyRangeCache[cacheKey] = result
                 }
                 // 查询期间换城则丢弃结果（不覆盖新城市）
-                val current = _uiState.value
-                if (current.selectedCity != null && roughlySameCity(current.selectedCity, city)) {
+                if (stillOnCity(city)) {
                     _uiState.update {
                         it.copy(
                             historyRange = result,
@@ -580,8 +579,7 @@ class WeatherViewModel(
                         fetched
                     }
                 // 拉取期间换城则不覆盖新城市的显示
-                val current = _uiState.value
-                if (current.selectedCity != null && roughlySameCity(current.selectedCity, city)) {
+                if (stillOnCity(city)) {
                     _uiState.update { it.copy(phenologyShiftDays = shift) }
                 }
             }
@@ -623,8 +621,7 @@ class WeatherViewModel(
                     cacheHistory(cacheKey, result)
                 }
                 // 查询期间换城则丢弃结果（不覆盖新城市）
-                val current = _uiState.value
-                if (current.selectedCity != null && roughlySameCity(current.selectedCity, city)) {
+                if (stillOnCity(city)) {
                     _uiState.update {
                         it.copy(
                             historyWeather = result,
@@ -731,6 +728,12 @@ class WeatherViewModel(
         if (a == null) return false
         return kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
             kotlin.math.abs(a.longitude - b.longitude) < 0.01
+    }
+
+    /** 异步查询携带的 [city] 是否仍是当前选中城市；非本城市的结果应在写回前丢弃。 */
+    private fun stillOnCity(city: City): Boolean {
+        val current = _uiState.value
+        return current.selectedCity != null && roughlySameCity(current.selectedCity, city)
     }
 
     private fun nowText(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))

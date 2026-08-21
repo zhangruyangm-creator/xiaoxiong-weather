@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.data
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
+import kotlin.random.Random
 
 /**
  * 对幂等 GET 做有限次重试：网络异常或 5xx / 429。
@@ -29,7 +30,11 @@ class RetryInterceptor(
             }
             attempt++
             try {
-                Thread.sleep(baseDelayMs * (1L shl (attempt - 1)))
+                // 指数退避(400ms→800ms→…)叠加 0~50% 随机抖动，避免多端同时重试形成惊群
+                val delay =
+                    baseDelayMs * (1L shl (attempt - 1)) +
+                        Random.nextLong(0, baseDelayMs * (1L shl (attempt - 1)) / 2 + 1)
+                Thread.sleep(delay)
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
                 throw lastError ?: IOException("retry interrupted")

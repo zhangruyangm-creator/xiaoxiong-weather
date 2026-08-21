@@ -20,6 +20,9 @@ class WeatherCacheStore(
         Json {
             ignoreUnknownKeys = true
             encodeDefaults = true
+            // 缓存读旧格式 / 缺字段：允许 null 编码缺失字段，类型漂移归零值
+            explicitNulls = false
+            coerceInputValues = true
         }
 
     override suspend fun save(snapshot: WeatherSnapshot) {

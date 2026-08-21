@@ -2,6 +2,8 @@ package com.xiaoxiong.weather.util
 
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
@@ -97,6 +99,21 @@ fun parseFlexibleDateTime(value: String): LocalDateTime? {
     for (formatter in candidates) {
         try {
             return LocalDateTime.parse(value, formatter)
+        } catch (_: DateTimeParseException) {
+            // try next
+        }
+    }
+    // 带时区偏移的 ISO（如 2026-08-21T19:30+02:00 / …Z）：转成系统时区后的本地时刻，
+    // 避免 indexOfCurrentHour 在 hourKey 匹配不到时解析失败退化为取第 0 小时。
+    val offsetFormats =
+        listOf(
+            DateTimeFormatter.ISO_OFFSET_DATE_TIME,
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX"),
+        )
+    for (formatter in offsetFormats) {
+        try {
+            val odt = OffsetDateTime.parse(value, formatter)
+            return odt.atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
         } catch (_: DateTimeParseException) {
             // try next
         }

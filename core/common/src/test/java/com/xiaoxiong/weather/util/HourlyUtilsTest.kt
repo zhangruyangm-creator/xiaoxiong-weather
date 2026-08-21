@@ -98,6 +98,22 @@ class HourlyUtilsTest {
     }
 
     @Test
+    fun parseFlexibleDateTime_supportsTimezoneSuffix() {
+        val javaTime =
+            java.time.OffsetDateTime
+                .parse("2026-08-02T14:35+08:00")
+                .atZoneSameInstant(java.time.ZoneId.systemDefault())
+                .toLocalDateTime()
+        assertEquals(javaTime, parseFlexibleDateTime("2026-08-02T14:35+08:00"))
+        val utc =
+            java.time.OffsetDateTime
+                .parse("2026-08-02T14:35Z")
+                .atZoneSameInstant(java.time.ZoneId.systemDefault())
+                .toLocalDateTime()
+        assertEquals(utc, parseFlexibleDateTime("2026-08-02T14:35Z"))
+    }
+
+    @Test
     fun formatHourDetailLabel_todayTomorrowOrDate() {
         val ref = "2026-08-05T07:30"
         val date = { m: Int, d: Int -> "${m}月${d}日" }
