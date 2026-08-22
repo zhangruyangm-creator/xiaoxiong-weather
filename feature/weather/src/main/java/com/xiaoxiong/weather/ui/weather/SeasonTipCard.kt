@@ -18,24 +18,27 @@ import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.SeasonTipGenerator
+import java.time.LocalDate
 
 @Composable
 internal fun SeasonTipsSection(
     city: City,
-    referenceIsoTime: String?,
     elevationMeters: Double? = null,
     phenologyShiftDays: Int? = null,
 ) {
+    // 物候是「当下」该看的时令：不依赖天气快照的 current.time（缓存快照日期
+    // 可能滞后，落到物候空窗期会让整卡消失），始终按真实今天推算。
+    val todayIso = remember { LocalDate.now().toString() }
     val tips =
         remember(
             city.latitude,
             city.longitude,
             city.admin1,
-            referenceIsoTime,
+            todayIso,
             elevationMeters,
             phenologyShiftDays,
         ) {
-            SeasonTipGenerator.tipsForCity(city, referenceIsoTime, elevationMeters, phenologyShiftDays)
+            SeasonTipGenerator.tipsForCity(city, todayIso, elevationMeters, phenologyShiftDays)
         }
     if (tips.isEmpty()) return
     Column(

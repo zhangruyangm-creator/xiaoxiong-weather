@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.Application
 import android.os.Build
+import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
@@ -40,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -51,6 +53,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,6 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
+import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_HOME
 import com.xiaoxiong.weather.game.GameEntry
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.debug.DebugWeatherScreen
@@ -84,6 +88,12 @@ import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
+
+/** 连点标题打开游戏枢纽所需的连续点击次数。 */
+private const val SECRET_TITLE_TAPS = 5
+
+/** 连点标题的计时窗口（毫秒）：窗口内点击计数，超时清零。 */
+private const val SECRET_TITLE_WINDOW_MS = 2_000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,6 +136,36 @@ private fun WeatherScreenContent(
     var showShareCard by remember { mutableStateOf(false) }
     // 等 DataStore 真实值读出前不渲染隐私门，避免老用户冷启动闪一下
     var privacyGateResolved by remember { mutableStateOf(false) }
+
+    // ── 标题连点彩蛋：2s 内连点 5 次打开游戏枢纽（小熊的家）──
+    val lastTitleTapAt = remember { mutableLongStateOf(0L) }
+    var titleTapCount by remember { mutableIntStateOf(0) }
+    // nonce 自增保证退出枢纽后再次连点仍能重新触发
+    var secretRequest by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    var secretNonce by remember { mutableIntStateOf(0) }
+    val onTitleSecretTap: () -> Unit = {
+        val now =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                SystemClock.elapsedRealtime()
+            } else {
+                SystemClock.uptimeMillis()
+            }
+        // 窗口外再点 = 重新开一轮
+        if (now - lastTitleTapAt.longValue > SECRET_TITLE_WINDOW_MS) titleTapCount = 0
+        lastTitleTapAt.longValue = now
+        titleTapCount++
+        if (titleTapCount >= SECRET_TITLE_TAPS) {
+            titleTapCount = 0
+            secretNonce++
+            secretRequest = secretNonce to EASTER_EGG_BEAR_HOME
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    context.getString(R.string.secret_home_toast),
+                    duration = SnackbarDuration.Short,
+                )
+            }
+        }
+    }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -345,6 +385,7 @@ private fun WeatherScreenContent(
                         onToggleFavorite = viewModel::toggleFavorite,
                         onShare = { showShareCard = true },
                         onOpenSettings = { overlay = OverlayScreen.Settings },
+                        onTitleSecretTap = onTitleSecretTap,
                     )
                 },
                 bottomBar = {
@@ -483,6 +524,7 @@ private fun WeatherScreenContent(
             pagerState = pagerState,
             scope = scope,
             entries = gameEntries,
+            requestPassword = secretRequest,
         )
     }
 }

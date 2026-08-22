@@ -126,6 +126,9 @@ internal val WEEKEND_DAY_DRAWABLES =
         IllustR.drawable.ic_sun_bear_weekend_wetmarket,
         IllustR.drawable.ic_sun_bear_weekend_petcafe,
         IllustR.drawable.ic_sun_bear_weekend_library,
+        IllustR.drawable.ic_sun_bear_weekend_themepark,
+        IllustR.drawable.ic_sun_bear_weekend_hotairballoon,
+        IllustR.drawable.ic_sun_bear_weekend_arcade,
     )
 
 /**

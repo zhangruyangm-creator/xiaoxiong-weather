@@ -12,6 +12,9 @@ class WeatherRepositoryHelpersTest {
         assertEquals("北京", CitySearchFetcher.normalizePlaceQuery("北京市"))
         assertEquals("历下", CitySearchFetcher.normalizePlaceQuery("历下区"))
         assertEquals("济南", CitySearchFetcher.normalizePlaceQuery(" 济南市 "))
+        // “西安区”会被剥成“西安”，与陕西省会“西安”同名；
+        // 热门城市选择因此必须精确全名优先，否则“西安区”可能顶掉“西安”。
+        assertEquals("西安", CitySearchFetcher.normalizePlaceQuery("西安区"))
     }
 
     @Test

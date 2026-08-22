@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -447,12 +449,35 @@ private fun CatchHud(
         }
         Spacer(modifier = Modifier.weight(1f))
         Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = "${game.score}",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // 双倍得分倒计时
+                if (game.doubleT > 0f) {
+                    Text(
+                        text = "×2 ${game.doubleT.toInt() + 1}s",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFD54F),
+                    )
+                }
+                // 连击
+                if (game.combo >= 2) {
+                    Text(
+                        text = "×${game.combo}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFF176),
+                    )
+                }
+                Text(
+                    text = "${game.score}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -475,6 +500,25 @@ private fun CatchHud(
                                     Color.White.copy(alpha = 0.45f)
                                 },
                             modifier = Modifier.size(14.dp),
+                        )
+                    }
+                    // 护盾层数
+                    if (game.shields > 0) {
+                        repeat(game.shields) {
+                            Icon(
+                                imageVector = Icons.Filled.Shield,
+                                contentDescription = null,
+                                tint = Color(0xFF80DEEA),
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    }
+                    // 风暴爆发波次提示
+                    if (game.inBurstWave) {
+                        Text(
+                            text = "⚡",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color(0xFFFFEB3B),
                         )
                     }
                 }
@@ -603,7 +647,7 @@ private fun DrawScope.drawCatchWeatherBackdrop(
     h: Float,
 ) {
     when (scene) {
-        CatchScene.RAIN_LIGHT ->
+        CatchScene.RAIN_LIGHT -> {
             drawRainLayered(
                 fgCount = 10,
                 bgCount = 5,
@@ -614,7 +658,9 @@ private fun DrawScope.drawCatchWeatherBackdrop(
                 lenMul = 0.8f,
                 alpha = 0.30f,
             )
-        CatchScene.RAIN ->
+            drawCatchWindLines(time, s, w, h, count = 3)
+        }
+        CatchScene.RAIN -> {
             drawRainLayered(
                 fgCount = 24,
                 bgCount = 12,
@@ -624,7 +670,9 @@ private fun DrawScope.drawCatchWeatherBackdrop(
                 scale = s,
                 alpha = 0.40f,
             )
-        CatchScene.RAIN_HEAVY ->
+            drawCatchWindLines(time, s, w, h, count = 4)
+        }
+        CatchScene.RAIN_HEAVY -> {
             drawRainLayered(
                 fgCount = 38,
                 bgCount = 18,
@@ -635,6 +683,8 @@ private fun DrawScope.drawCatchWeatherBackdrop(
                 lenMul = 1.1f,
                 alpha = 0.55f,
             )
+            drawCatchWindLines(time, s, w, h, count = 6)
+        }
         CatchScene.STORM -> {
             drawRainLayered(
                 fgCount = 28,
@@ -647,6 +697,7 @@ private fun DrawScope.drawCatchWeatherBackdrop(
                 alpha = 0.55f,
             )
             drawStormLightning(time, s, w, h)
+            drawCatchWindLines(time, s, w, h, count = 6, speedMul = 1.4f)
         }
         CatchScene.FREEZING_RAIN -> drawFreezingRain(time, s, w, h)
         CatchScene.HAIL -> {
@@ -670,6 +721,33 @@ private fun DrawScope.drawCatchWeatherBackdrop(
                 drawCircle(Color.White.copy(alpha = 0.8f), (2f + i % 3) * s, Offset(x, y))
             }
         CatchScene.SUNNY, CatchScene.CLOUDY -> Unit
+    }
+}
+
+/** 横风视觉线：几缕向右飘的细线，暗示掉落物会被风带着横移（预判落点）。 */
+private fun DrawScope.drawCatchWindLines(
+    time: Float,
+    s: Float,
+    w: Float,
+    h: Float,
+    count: Int,
+    speedMul: Float = 1f,
+) {
+    val baseY = h * 0.18f
+    for (i in 0 until count) {
+        val drift = time * (90f * speedMul + (i % 3) * 26f * speedMul)
+        val span = (w + 260f * s) % (w + 240f * s)
+        val x = ((i * 173f * s + drift) % span) - 120f * s
+        val y = baseY + ((i * 83f * s) % (h * 0.55f))
+        val len = (90f + (i % 3) * 34f) * s
+        val alpha = 0.10f + (i % 3) * 0.03f
+        drawLine(
+            color = Color.White.copy(alpha = alpha),
+            start = Offset(x, y),
+            end = Offset(x + len, y - len * 0.08f),
+            strokeWidth = (1.4f + (i % 2)) * s,
+            cap = StrokeCap.Round,
+        )
     }
 }
 
@@ -717,6 +795,53 @@ private fun DrawScope.drawCatchItem(
         ItemKind.PETAL -> {
             drawCircle(Color(0xFFF8BBD0), r * 0.7f, Offset(x, y))
             drawCircle(Color(0xFFF06292), r * 0.35f, Offset(x + wobble * 0.3f, y - r * 0.2f))
+        }
+        ItemKind.GIFT -> {
+            val bump = 1f + 0.12f * sin(time * 5f + it.phase)
+            drawSoftGlow(x, y, r * 1.5f, Color(0xFFFFE082))
+            drawRoundRect(
+                Color(0xFFFF8F00),
+                topLeft = Offset(x - r * bump, y - r * bump),
+                size = Size(r * 2f * bump, r * 2f * bump),
+                cornerRadius = CornerRadius(r * 0.22f),
+            )
+            drawLine(
+                Color(0xFFFFF3E0),
+                Offset(x - r * bump, y),
+                Offset(x + r * bump, y),
+                strokeWidth = r * 0.35f,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                Color(0xFFFFF3E0),
+                Offset(x, y - r * bump),
+                Offset(x, y + r * bump),
+                strokeWidth = r * 0.35f,
+                cap = StrokeCap.Round,
+            )
+        }
+        ItemKind.BUBBLE -> {
+            val pulse = 1f + 0.08f * sin(time * 3f + it.phase)
+            drawCircle(
+                Color(0xFF80DEEA).copy(alpha = 0.16f),
+                r * pulse * 1.35f,
+                Offset(x, y),
+            )
+            drawCircle(
+                Color(0xFF80DEEA).copy(alpha = 0.45f),
+                r * pulse,
+                Offset(x, y),
+            )
+            drawCircle(
+                Color.White.copy(alpha = 0.85f),
+                r * 0.32f,
+                Offset(x - r * 0.32f, y - r * 0.32f),
+            )
+            drawCircle(
+                Color.White.copy(alpha = 0.55f),
+                r * 0.16f,
+                Offset(x + r * 0.3f, y + r * 0.2f),
+            )
         }
         ItemKind.CLOUD -> {
             drawCircle(Color(0xFF78828E), r, Offset(x, y))
@@ -780,6 +905,34 @@ private fun DrawScope.drawCatchBear(
             topLeft = Offset(game.catchX - bs * 0.55f, groundY - 4f),
             size = Size(bs * 1.1f, bs * 0.22f),
         )
+    }
+
+    // 护盾泡泡：围绕小熊的淡蓝气泡，层数越多越明显
+    if (game.shields > 0 && !dead) {
+        val ratio = game.shields.toFloat() / BearCatchLogic.MAX_SHIELD
+        drawCircle(
+            color = Color(0xFF80DEEA).copy(alpha = 0.20f + 0.10f * ratio),
+            radius = bs * (0.82f + 0.06f * sin(game.time * 3f)),
+            center = Offset(game.catchX, cy),
+            style = Stroke(width = 2.5f * game.s * ratio),
+        )
+        drawCircle(
+            color = Color(0xFF80DEEA).copy(alpha = 0.12f),
+            radius = bs * (0.86f + 0.05f * sin(game.time * 3f + 1.2f)),
+            center = Offset(game.catchX, cy),
+        )
+        for (i in 0 until game.shields) {
+            val a = game.time * 1.4f + i * (Math.PI.toFloat() * 2f / BearCatchLogic.MAX_SHIELD)
+            drawCircle(
+                color = Color(0xFFFFE082),
+                radius = 3.2f * game.s,
+                center =
+                    Offset(
+                        game.catchX + cos(a) * bs * 0.72f,
+                        cy + sin(a) * bs * 0.72f,
+                    ),
+            )
+        }
     }
 
     drawGameBear(

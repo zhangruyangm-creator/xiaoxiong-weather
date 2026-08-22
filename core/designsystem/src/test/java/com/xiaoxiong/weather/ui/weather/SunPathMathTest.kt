@@ -199,9 +199,17 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_tea_juice to R.string.sun_bear_tea_juice,
                 IllustR.drawable.ic_sun_bear_tea_cocoa to R.string.sun_bear_tea_cocoa,
                 IllustR.drawable.ic_sun_bear_tea_dessert to R.string.sun_bear_tea_dessert,
+                IllustR.drawable.ic_sun_bear_tea_lemontea to R.string.sun_bear_tea_lemontea,
+                IllustR.drawable.ic_sun_bear_tea_icecream to R.string.sun_bear_tea_icecream,
+                IllustR.drawable.ic_sun_bear_tea_eggtart to R.string.sun_bear_tea_eggtart,
+                IllustR.drawable.ic_sun_bear_tea_fruit to R.string.sun_bear_tea_fruit,
+                IllustR.drawable.ic_sun_bear_tea_instantnoodles to R.string.sun_bear_tea_instantnoodles,
+                IllustR.drawable.ic_sun_bear_tea_conveniencesnack to R.string.sun_bear_tea_conveniencesnack,
+                IllustR.drawable.ic_sun_bear_tea_yogurt to R.string.sun_bear_tea_yogurt,
+                IllustR.drawable.ic_sun_bear_tea_croissant to R.string.sun_bear_tea_croissant,
             )
         val seen = mutableSetOf<Int>()
-        for (i in 0L..50L) {
+        for (i in 0L..80L) {
             val d = weekday.plusDays(i)
             val res = SunPathBearMoment.AFTERNOON_TEA.bearResFor(d)
             val caption = SunPathBearMoment.AFTERNOON_TEA.captionResFor(d)
@@ -209,7 +217,7 @@ class SunPathMathTest {
             assertEquals(pair.second, caption)
             seen += res
         }
-        assertEquals(6, seen.size)
+        assertEquals(14, seen.size)
     }
 
     @Test
@@ -348,6 +356,20 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_evening_boardgame to R.string.sun_bear_evening_boardgame,
                 IllustR.drawable.ic_sun_bear_evening_lego to R.string.sun_bear_evening_lego,
                 IllustR.drawable.ic_sun_bear_evening_study to R.string.sun_bear_evening_study,
+                IllustR.drawable.ic_sun_bear_evening_balconysnack to R.string.sun_bear_evening_balconysnack,
+                IllustR.drawable.ic_sun_bear_evening_dramacry to R.string.sun_bear_evening_dramacry,
+                IllustR.drawable.ic_sun_bear_evening_balconymoon to R.string.sun_bear_evening_balconymoon,
+                IllustR.drawable.ic_sun_bear_evening_balconyhang to R.string.sun_bear_evening_balconyhang,
+                IllustR.drawable.ic_sun_bear_evening_balconyphoto to R.string.sun_bear_evening_balconyphoto,
+                IllustR.drawable.ic_sun_bear_evening_balconybreeze to R.string.sun_bear_evening_balconybreeze,
+                IllustR.drawable.ic_sun_bear_evening_balconybbq to R.string.sun_bear_evening_balconybbq,
+                IllustR.drawable.ic_sun_bear_evening_livingroom to R.string.sun_bear_evening_livingroom,
+                IllustR.drawable.ic_sun_bear_evening_projector to R.string.sun_bear_evening_projector,
+                IllustR.drawable.ic_sun_bear_evening_bookshelf to R.string.sun_bear_evening_bookshelf,
+                IllustR.drawable.ic_sun_bear_evening_puzzle to R.string.sun_bear_evening_puzzle,
+                IllustR.drawable.ic_sun_bear_evening_karaoke to R.string.sun_bear_evening_karaoke,
+                IllustR.drawable.ic_sun_bear_evening_toycars to R.string.sun_bear_evening_toycars,
+                IllustR.drawable.ic_sun_bear_evening_plushplay to R.string.sun_bear_evening_plushplay,
             )
         val seen = mutableSetOf<Int>()
         for (i in 0L..80L) {
@@ -358,7 +380,7 @@ class SunPathMathTest {
             assertEquals(pair.second, caption)
             seen += res
         }
-        assertEquals(20, seen.size)
+        assertEquals(34, seen.size)
         assertEquals(
             SunPathBearMoment.EVENING.bearResFor(day),
             SunPathBearMoment.EVENING.bearResFor(day),

@@ -33,4 +33,6 @@
     <string name="notify_body">%1$s %2$s · Humidity %3$s%% · Visibility %4$s</string>
     <string name="widget_cache_prefix">Cached · %1$s</string>
     <string name="widget_updated">Updated %1$s</string>
+
+    <string name="secret_home_toast">🐻 Bear\'s Home opened</string>
 </resources>

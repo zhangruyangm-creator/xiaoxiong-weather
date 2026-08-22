@@ -64,9 +64,18 @@ class BearHomeLogicTest {
     fun routineStatus_weekendRoutineCovered() {
         val date = java.time.LocalDate.of(2026, 8, 9) // Sunday
         val slots = homeRoutineSlots(date)
-        assertEquals(10, slots.size)
+        assertEquals(11, slots.size)
         val explore = slots.first { it.moment.name == "WEEKEND_EXPLORE" }
         assertEquals(HomeRoutineStatus.NOW, homeRoutineStatus(explore, LocalTime.of(10, 0)))
+        // 周末旅行拆成两段：上午 09:00–11:30 与下午 12:30–15:00，午后 15:00 起为周末下午
+        val afternoonExplore = slots.first { it.moment.name == "WEEKEND_EXPLORE" && it.startMinute == 12 * 60 + 30 }
+        assertEquals(HomeRoutineStatus.NOW, homeRoutineStatus(afternoonExplore, LocalTime.of(13, 30)))
+        assertEquals(HomeRoutineStatus.DONE, homeRoutineStatus(afternoonExplore, LocalTime.of(15, 30)))
+        val afternoon = slots.first { it.moment.name == "WEEKEND_AFTERNOON" }
+        assertEquals(15 * 60, afternoon.startMinute)
+        assertEquals(18 * 60, afternoon.endMinute)
+        assertEquals(HomeRoutineStatus.NOW, homeRoutineStatus(afternoon, LocalTime.of(16, 0)))
+        assertEquals(HomeRoutineStatus.DONE, homeRoutineStatus(afternoon, LocalTime.of(18, 30)))
     }
 
     @Test

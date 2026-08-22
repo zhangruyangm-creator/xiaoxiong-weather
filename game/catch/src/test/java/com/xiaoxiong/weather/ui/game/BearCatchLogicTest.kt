@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.ui.game
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchScene
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.ItemKind
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Random
@@ -20,16 +21,19 @@ class BearCatchLogicTest {
         }
         // 晴天以金币/花瓣为主力得分物
         val sunnyGood = counts[ItemKind.COIN.ordinal] + counts[ItemKind.PETAL.ordinal]
-        assertTrue("晴天金币+花瓣应超 500，实际 $sunnyGood", sunnyGood > 500)
+        assertTrue("晴天金币+花瓣应超 420，实际 $sunnyGood", sunnyGood > 420)
         val rain = counts[ItemKind.RAINDROP.ordinal]
-        assertTrue("晴天雨滴应偏少，实际 $rain", rain < 400)
+        assertTrue("晴天雨滴应偏少，实际 $rain", rain < 450)
+        // 稀有道具也会偶发出现
+        assertTrue(counts[ItemKind.GIFT.ordinal] > 0)
+        assertTrue(counts[ItemKind.BUBBLE.ordinal] > 0)
     }
 
     @Test
     fun `snow scene is dominated by snowflakes`() {
         val rnd = Random(7)
         val good = (1..500).count { BearCatchLogic.itemKindFor(CatchScene.SNOW, rnd.nextFloat()) == ItemKind.SNOWFLAKE }
-        assertTrue("雪天雪花应超 400，实际 $good", good > 400)
+        assertTrue("雪天雪花应超 380，实际 $good", good > 380)
     }
 
     @Test
@@ -54,6 +58,8 @@ class BearCatchLogicTest {
         assertEquals(10, BearCatchLogic.scoreOf(ItemKind.RAINDROP))
         assertEquals(10, BearCatchLogic.scoreOf(ItemKind.SNOWFLAKE))
         assertEquals(8, BearCatchLogic.scoreOf(ItemKind.PETAL))
+        assertEquals(20, BearCatchLogic.scoreOf(ItemKind.GIFT))
+        assertEquals(0, BearCatchLogic.scoreOf(ItemKind.BUBBLE))
         assertEquals(0, BearCatchLogic.scoreOf(ItemKind.CLOUD))
         assertEquals(0, BearCatchLogic.scoreOf(ItemKind.HAIL))
         assertEquals(0, BearCatchLogic.scoreOf(ItemKind.LIGHTNING))
@@ -64,17 +70,199 @@ class BearCatchLogicTest {
         assertEquals(0, BearCatchLogic.damageOf(ItemKind.COIN))
     }
 
+    // ── 新道具：护盾 / 礼物盒 / 双倍 ─────────────────────────────
+
+    @Test
+    fun `gift box starts double score and bubble adds shield`() {
+        val game = BearCatchGame()
+        game
+            .resize(
+                androidx.compose.ui.unit
+                    .IntSize(400, 800),
+            )
+        game.start()
+
+        // 接住生日礼盒 → 双倍计时开始
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.GIFT,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 18f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        val caught = mutableListOf<ItemKind>()
+        game.tick(dt = 0.001f, onCaught = { caught.add(it) }, onHit = {}, onDeath = {})
+        assertEquals(listOf(ItemKind.GIFT), caught)
+        assertEquals(20, game.score)
+        assertTrue(game.doubleT > 0f)
+
+        // 双倍期间接雨滴 → 得分翻倍
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.RAINDROP,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 13f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals(20 + 20, game.score)
+
+        // 接泡泡 → 获得护盾，护盾抵挡一次惩罚不掉心
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.BUBBLE,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 17f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals(1, game.shields)
+        val heartsBefore = game.hearts
+
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.CLOUD,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 30f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals("护盾应抵挡本次伤害", heartsBefore, game.hearts)
+        assertEquals(0, game.shields)
+    }
+
+    @Test
+    fun `double time expires and score returns to normal`() {
+        val game = BearCatchGame()
+        game
+            .resize(
+                androidx.compose.ui.unit
+                    .IntSize(400, 800),
+            )
+        game.start()
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.GIFT,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 18f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals(20, game.score)
+        // 双倍到期后再接雨滴：+10
+        game.tick(dt = BearCatchLogic.DOUBLE_TIME_SEC + 0.1f, onCaught = {}, onHit = {}, onDeath = {})
+        assertTrue(game.doubleT <= 0f)
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.RAINDROP,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 13f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals(30, game.score)
+    }
+
+    @Test
+    fun `missed good item breaks combo`() {
+        val game = BearCatchGame()
+        game
+            .resize(
+                androidx.compose.ui.unit
+                    .IntSize(400, 800),
+            )
+        game.start()
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.RAINDROP,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 13f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals(1, game.combo)
+        // 漏接一个得分物（跑到屏幕下方外）→ 连击清零
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.RAINDROP,
+                    x = 10f,
+                    y = 850f,
+                    r = 13f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals(0, game.combo)
+    }
+
+    // ── 天气机制：风暴波次 / 横风 ────────────────────────────────
+
+    @Test
+    fun `burst wave activates periodically in storm`() {
+        assertTrue(BearCatchLogic.inBurstWave(0f))
+        assertTrue(BearCatchLogic.inBurstWave(2f))
+        assertFalse(BearCatchLogic.inBurstWave(10f))
+        assertTrue("22s 后重新进入波次", BearCatchLogic.inBurstWave(22f))
+    }
+
+    @Test
+    fun `wind drift grows with rain and score but zero on sunny`() {
+        assertEquals(0f, BearCatchLogic.windDrift(CatchScene.SUNNY, 0, 1f))
+        assertTrue(
+            "暴雨横风应大于小雨",
+            BearCatchLogic.windDrift(CatchScene.RAIN_HEAVY, 0, 1f) >
+                BearCatchLogic.windDrift(CatchScene.RAIN_LIGHT, 0, 1f),
+        )
+        assertTrue(
+            "雪天轻微横风",
+            BearCatchLogic.windDrift(CatchScene.SNOW, 0, 1f) in 1f..60f,
+        )
+        assertTrue(
+            "高分横风更明显",
+            BearCatchLogic.windDrift(CatchScene.RAIN, 500, 1f) >
+                BearCatchLogic.windDrift(CatchScene.RAIN, 0, 1f),
+        )
+    }
+
     // ── 难度曲线 ─────────────────────────────────────────────────
 
     @Test
     fun `spawn gap shrinks monotonically with score`() {
         var prev = Float.MAX_VALUE
-        for (score in listOf(0, 50, 100, 150, 200, 300)) {
+        for (score in listOf(0, 50, 100, 150, 200, 300, 500)) {
             val gap = BearCatchLogic.spawnGapSeconds(score)
             assertTrue("score=$score gap=$gap 应小于等于上次 $prev", gap <= prev)
             prev = gap
         }
-        assertTrue("gaps capped", BearCatchLogic.spawnGapSeconds(300) >= 0.36f)
+        assertTrue("gaps capped", BearCatchLogic.spawnGapSeconds(500) >= 0.25f)
+        // 雷暴基础间隔比普通雨天更密
+        assertTrue(
+            "雷暴应更密",
+            BearCatchLogic.spawnGapSeconds(0, CatchScene.STORM) <
+                BearCatchLogic.spawnGapSeconds(0, CatchScene.RAIN),
+        )
     }
 
     @Test

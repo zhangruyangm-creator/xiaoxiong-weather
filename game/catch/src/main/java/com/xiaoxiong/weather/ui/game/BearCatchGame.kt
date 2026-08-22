@@ -22,6 +22,18 @@ class BearCatchGame {
     var score by mutableIntStateOf(0)
     var hearts by mutableIntStateOf(MAX_HEARTS)
 
+    /** 护盾层数（0..[BearCatchLogic.MAX_SHIELD]），抵挡一次伤害后-1。 */
+    var shields by mutableIntStateOf(0)
+
+    /** 连击：连续接住得分物不中断；断连（漏接得分物）归零。 */
+    var combo by mutableIntStateOf(0)
+
+    /** 双倍得分剩余时间（秒）；<=0 时无加成。 */
+    var doubleT = 0f
+
+    /** 最近一次是否处于风暴爆发波次（供 HUD 闪烁）。 */
+    var inBurstWave by mutableStateOf(false)
+
     /** 当前天气场景；由 Screen 在天气变化时刷新。 */
     var scene by mutableStateOf(BearCatchLogic.CatchScene.SUNNY)
 
@@ -67,6 +79,10 @@ class BearCatchGame {
     fun reset() {
         score = 0
         hearts = MAX_HEARTS
+        shields = 0
+        combo = 0
+        doubleT = 0f
+        inBurstWave = false
         spawnAccum = 0f
         time = 0f
         squashT = -1f
@@ -93,6 +109,8 @@ class BearCatchGame {
     ) {
         if (size == IntSize.Zero) return
         time += dt
+
+        if (doubleT > 0f) doubleT = max(0f, doubleT - dt)
 
         // 粒子任何阶段都继续飞
         val iter = particles.iterator()
@@ -134,23 +152,71 @@ class BearCatchGame {
                 catchY = catchY,
                 catchR = catchR,
                 spawnAccum = spawnAccum,
+                time = time,
             )
         spawnAccum = ev.spawnAccum
+        inBurstWave = ev.inBurstWave
+
+        if (ev.missedGood > 0) combo = 0
 
         for (kind in ev.caught) {
-            score += BearCatchLogic.scoreOf(kind)
-            squashT = 0f
-            burst(
-                cx = catchX,
-                cy = catchY - catchR * 0.5f,
-                count = 6,
-                color = burstColorOf(kind),
-            )
+            when (kind) {
+                BearCatchLogic.ItemKind.GIFT -> {
+                    score += BearCatchLogic.scoreOf(kind)
+                    doubleT = BearCatchLogic.DOUBLE_TIME_SEC
+                    combo++
+                    squashT = 0f
+                    burst(
+                        cx = catchX,
+                        cy = catchY - catchR * 0.5f,
+                        count = 12,
+                        color = Color(0xFFFF8F00),
+                    )
+                }
+                BearCatchLogic.ItemKind.BUBBLE -> {
+                    if (shields < BearCatchLogic.MAX_SHIELD) shields++
+                    squashT = 0f
+                    burst(
+                        cx = catchX,
+                        cy = catchY - catchR * 0.5f,
+                        count = 10,
+                        color = Color(0xFF80DEEA),
+                    )
+                }
+                else -> {
+                    val base = BearCatchLogic.scoreOf(kind)
+                    val mult = if (doubleT > 0f) 2 else 1
+                    score += base * mult
+                    combo++
+                    squashT = 0f
+                    burst(
+                        cx = catchX,
+                        cy = catchY - catchR * 0.5f,
+                        count = 6,
+                        color = burstColorOf(kind),
+                    )
+                }
+            }
             onCaught(kind)
         }
         for (kind in ev.hit) {
             if (invincibleT > 0f) continue
+            if (shields > 0) {
+                // 护盾抵挡伤害：不掉心，只碎一层
+                shields--
+                shakeT = 0.12f
+                invincibleT = 0.3f
+                burst(
+                    cx = catchX,
+                    cy = catchY - catchR * 0.6f,
+                    count = 12,
+                    color = Color(0xFF80DEEA),
+                )
+                onHit(kind)
+                continue
+            }
             hearts -= BearCatchLogic.damageOf(kind)
+            combo = 0
             shakeT = 0.22f
             invincibleT = 0.75f
             burst(
@@ -179,6 +245,8 @@ class BearCatchGame {
             BearCatchLogic.ItemKind.CLOUD -> Color(0xFF8A94A0)
             BearCatchLogic.ItemKind.HAIL -> Color(0xFFC4CFDA)
             BearCatchLogic.ItemKind.LIGHTNING -> Color(0xFFFFEB3B)
+            BearCatchLogic.ItemKind.GIFT -> Color(0xFFFF8F00)
+            BearCatchLogic.ItemKind.BUBBLE -> Color(0xFF80DEEA)
         }
 
     /** 接住/命中时的爆点粒子（对齐 jump 的 burst 手法）。 */

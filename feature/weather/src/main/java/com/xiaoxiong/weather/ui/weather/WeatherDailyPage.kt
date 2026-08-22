@@ -135,7 +135,6 @@ fun DailyPage(
                     item {
                         SeasonTipsSection(
                             city = weather.city,
-                            referenceIsoTime = weather.current.time,
                             elevationMeters = weather.elevationMeters,
                             phenologyShiftDays = phenologyShiftDays,
                         )

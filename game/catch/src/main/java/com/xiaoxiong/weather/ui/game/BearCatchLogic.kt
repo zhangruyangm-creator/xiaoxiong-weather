@@ -22,8 +22,14 @@ object BearCatchLogic {
         /** 硬币：得分 +25，晴天/多云稀疏高分。 */
         COIN,
 
-        /** 花瓣：得分 +5，晴天点缀（细小、高频，挑战性）。 */
+        /** 花瓣：得分 +8，晴天点缀（细小、高频，挑战性）。 */
         PETAL,
+
+        /** 礼物盒：得分 +20，接住后进入 8 秒双倍得分。 */
+        GIFT,
+
+        /** 护盾泡泡：接住积一层护盾（最多 3 层），抵挡一次伤害。 */
+        BUBBLE,
 
         /** 乌云：碰到扣 1 心，需躲开。 */
         CLOUD,
@@ -66,6 +72,8 @@ object BearCatchLogic {
         val missedGood: Int,
         val spawnAccum: Float,
         val spawnedCount: Int = 0,
+        /** 本帧是否处于风暴爆发波次（供渲染层做视觉提示）。 */
+        val inBurstWave: Boolean = false,
     )
 
     /** 天气 → 掉落物权重的确定性映射（下表与 [itemKindFor] 对齐）。 */
@@ -76,53 +84,67 @@ object BearCatchLogic {
         when (scene) {
             CatchScene.SUNNY ->
                 when {
-                    r < 0.16f -> ItemKind.COIN
-                    r < 0.61f -> ItemKind.PETAL
-                    r < 0.78f -> ItemKind.RAINDROP
-                    r < 0.92f -> ItemKind.CLOUD
-                    else -> ItemKind.COIN
+                    r < 0.13f -> ItemKind.COIN
+                    r < 0.55f -> ItemKind.PETAL
+                    r < 0.70f -> ItemKind.RAINDROP
+                    r < 0.82f -> ItemKind.CLOUD
+                    r < 0.90f -> ItemKind.GIFT
+                    else -> ItemKind.BUBBLE
                 }
             CatchScene.CLOUDY ->
                 when {
-                    r < 0.10f -> ItemKind.COIN
-                    r < 0.78f -> ItemKind.RAINDROP
-                    else -> ItemKind.CLOUD
+                    r < 0.08f -> ItemKind.COIN
+                    r < 0.74f -> ItemKind.RAINDROP
+                    r < 0.84f -> ItemKind.CLOUD
+                    r < 0.94f -> ItemKind.GIFT
+                    else -> ItemKind.BUBBLE
                 }
             CatchScene.RAIN_LIGHT, CatchScene.RAIN ->
                 when {
-                    r < 0.12f -> ItemKind.COIN
-                    r < 0.84f -> ItemKind.RAINDROP
-                    else -> ItemKind.CLOUD
+                    r < 0.10f -> ItemKind.COIN
+                    r < 0.80f -> ItemKind.RAINDROP
+                    r < 0.87f -> ItemKind.CLOUD
+                    r < 0.94f -> ItemKind.GIFT
+                    else -> ItemKind.BUBBLE
                 }
             CatchScene.RAIN_HEAVY ->
                 when {
-                    r < 0.05f -> ItemKind.COIN
-                    r < 0.80f -> ItemKind.RAINDROP
-                    else -> ItemKind.CLOUD
+                    r < 0.04f -> ItemKind.COIN
+                    r < 0.76f -> ItemKind.RAINDROP
+                    r < 0.84f -> ItemKind.CLOUD
+                    r < 0.92f -> ItemKind.GIFT
+                    else -> ItemKind.BUBBLE
                 }
             CatchScene.SNOW ->
                 when {
-                    r < 0.08f -> ItemKind.COIN
-                    r < 0.90f -> ItemKind.SNOWFLAKE
-                    else -> ItemKind.CLOUD
+                    r < 0.07f -> ItemKind.COIN
+                    r < 0.86f -> ItemKind.SNOWFLAKE
+                    r < 0.93f -> ItemKind.CLOUD
+                    else -> ItemKind.GIFT
                 }
             CatchScene.STORM ->
                 when {
-                    r < 0.72f -> ItemKind.RAINDROP
-                    r < 0.90f -> ItemKind.CLOUD
-                    else -> ItemKind.LIGHTNING
+                    r < 0.68f -> ItemKind.RAINDROP
+                    r < 0.84f -> ItemKind.CLOUD
+                    r < 0.91f -> ItemKind.LIGHTNING
+                    r < 0.97f -> ItemKind.GIFT
+                    else -> ItemKind.BUBBLE
                 }
             CatchScene.FREEZING_RAIN ->
                 when {
-                    r < 0.68f -> ItemKind.RAINDROP
-                    r < 0.86f -> ItemKind.CLOUD
-                    else -> ItemKind.HAIL
+                    r < 0.64f -> ItemKind.RAINDROP
+                    r < 0.80f -> ItemKind.CLOUD
+                    r < 0.88f -> ItemKind.HAIL
+                    r < 0.95f -> ItemKind.GIFT
+                    else -> ItemKind.BUBBLE
                 }
             CatchScene.HAIL ->
                 when {
-                    r < 0.55f -> ItemKind.RAINDROP
-                    r < 0.80f -> ItemKind.HAIL
-                    else -> ItemKind.CLOUD
+                    r < 0.52f -> ItemKind.RAINDROP
+                    r < 0.75f -> ItemKind.HAIL
+                    r < 0.84f -> ItemKind.CLOUD
+                    r < 0.93f -> ItemKind.GIFT
+                    else -> ItemKind.BUBBLE
                 }
         }
 
@@ -131,7 +153,9 @@ object BearCatchLogic {
         kind == ItemKind.RAINDROP ||
             kind == ItemKind.SNOWFLAKE ||
             kind == ItemKind.COIN ||
-            kind == ItemKind.PETAL
+            kind == ItemKind.PETAL ||
+            kind == ItemKind.GIFT ||
+            kind == ItemKind.BUBBLE
 
     /** 得分物分值。 */
     fun scoreOf(kind: ItemKind): Int =
@@ -140,6 +164,8 @@ object BearCatchLogic {
             ItemKind.RAINDROP -> 10
             ItemKind.SNOWFLAKE -> 10
             ItemKind.PETAL -> 8
+            ItemKind.GIFT -> 20
+            ItemKind.BUBBLE -> 0
             ItemKind.CLOUD, ItemKind.HAIL, ItemKind.LIGHTNING -> 0
         }
 
@@ -151,20 +177,41 @@ object BearCatchLogic {
             else -> 0
         }
 
-    /** 生成间隔（秒），随分数缩短、先快后缓，最低 0.38s。 */
-    fun spawnGapSeconds(score: Int): Float {
-        val t = (score / 300f).coerceIn(0f, 1f)
-        return 0.85f - 0.47f * t
+    /** 护盾层数上限。 */
+    const val MAX_SHIELD = 3
+
+    /** 双倍得分持续时间（秒）。 */
+    const val DOUBLE_TIME_SEC = 8.0f
+
+    /** 生成间隔（秒），随分数缩短、先快后缓，最低 0.26s；雷暴/冰雹基础更密。 */
+    fun spawnGapSeconds(
+        score: Int,
+        scene: CatchScene = CatchScene.RAIN,
+    ): Float {
+        val t = (score / 500f).coerceIn(0f, 1f)
+        val base =
+            when (scene) {
+                CatchScene.SNOW -> 0.78f
+                CatchScene.SUNNY, CatchScene.CLOUDY -> 0.68f
+                CatchScene.RAIN_LIGHT, CatchScene.FREEZING_RAIN -> 0.60f
+                CatchScene.RAIN -> 0.56f
+                CatchScene.RAIN_HEAVY -> 0.48f
+                CatchScene.HAIL -> 0.44f
+                CatchScene.STORM -> 0.42f
+            }
+        return base - 0.30f * t
     }
 
     /**
      * 下落速度（px/s，已乘 [s]）：分数越高越快；雪天最慢最宽松，冰雹/雷暴最快。
      * 受击后短暂无敌期间下落略放缓，给玩家喘息。
+     * [burstWaveActive] 为真时额外提速，制造风暴爆发波次压迫感。
      */
     fun fallSpeed(
         scene: CatchScene,
         score: Int,
         s: Float,
+        burstWaveActive: Boolean = false,
     ): Float {
         val base =
             when (scene) {
@@ -175,8 +222,45 @@ object BearCatchLogic {
                 CatchScene.RAIN_HEAVY, CatchScene.STORM -> 570f
                 CatchScene.HAIL -> 580f
             }
-        val t = (score / 300f).coerceIn(0f, 1f)
-        return base * (1f + 0.5f * t) * s
+        val t = (score / 500f).coerceIn(0f, 1f)
+        var speed = base * (1f + 0.9f * t) * s
+        if (burstWaveActive) speed *= 1.25f
+        return speed
+    }
+
+    /** 风暴爆发波次时长（秒）。 */
+    const val BURST_WAVE_SEC = 4.0f
+
+    /** 风暴爆发波次间隔（秒）：在 [BURST_WAVE_SEC] 与 [BURST_PERIOD_SEC] 之间循环。 */
+    const val BURST_PERIOD_SEC = 22.0f
+
+    /** 该时刻是否处于风暴爆发波次：每 22s 循环，前 4s 为波次。 */
+    fun inBurstWave(time: Float): Boolean {
+        val cycle = time % BURST_PERIOD_SEC
+        return cycle < BURST_WAVE_SEC
+    }
+
+    /**
+     * 横风横向偏移系数（像素/秒）：雨天/雷暴越强越明显，雪天轻微，晴天无。
+     * 正为中心偏右、负为偏左。掉落物整体被风带着斜飘，玩家需预判落点。
+     */
+    fun windDrift(
+        scene: CatchScene,
+        score: Int,
+        s: Float,
+    ): Float {
+        val base =
+            when (scene) {
+                CatchScene.SUNNY, CatchScene.CLOUDY -> 0f
+                CatchScene.SNOW -> 24f
+                CatchScene.RAIN_LIGHT, CatchScene.FREEZING_RAIN -> 60f
+                CatchScene.RAIN -> 90f
+                CatchScene.RAIN_HEAVY -> 130f
+                CatchScene.STORM -> 150f
+                CatchScene.HAIL -> 120f
+            }
+        val t = (score / 500f).coerceIn(0f, 1f)
+        return base * (1f + 0.6f * t) * s
     }
 
     /** 掉落物半径（px，已乘 [s]）。 */
@@ -189,6 +273,8 @@ object BearCatchLogic {
             ItemKind.LIGHTNING -> 28f * s
             ItemKind.HAIL -> 16f * s
             ItemKind.COIN -> 15f * s
+            ItemKind.GIFT -> 18f * s
+            ItemKind.BUBBLE -> 17f * s
             else -> 13f * s
         }
 
@@ -213,9 +299,13 @@ object BearCatchLogic {
         catchR: Float,
         spawnAccum: Float,
         random: java.util.Random,
+        time: Float = 0f,
     ): FrameEvents {
         var accum = spawnAccum + dt
-        val gap = spawnGapSeconds(score)
+        val burstWave = scene == CatchScene.STORM || scene == CatchScene.HAIL
+        val burstActive = burstWave && inBurstWave(time)
+        val gap = spawnGapSeconds(score, scene)
+        val wind = windDrift(scene, score, s)
         var spawned = 0
         // 长帧最多补足 8 次生成，避免一帧塞满全场；每帧最多 1 个已够，这里仅防御性兜底
         while (accum >= gap && items.size < MAX_ITEMS && spawned < 8) {
@@ -229,7 +319,7 @@ object BearCatchLogic {
                     y = -r,
                     r = r,
                     phase = random.nextFloat() * 6.28f,
-                ).also { it.vy = fallSpeed(scene, score, s) },
+                ).also { it.vy = fallSpeed(scene, score, s, burstActive) },
             )
             accum -= gap
             spawned++
@@ -243,6 +333,8 @@ object BearCatchLogic {
         while (iter.hasNext()) {
             val it = iter.next()
             it.y += it.vy * dt
+            // 横风：掉落物带横向漂移（雨/雷暴明显、雪轻微、晴天无）
+            it.x += wind * dt
 
             val dx = it.x - catchX
             val dy = it.y - catchY
@@ -269,6 +361,7 @@ object BearCatchLogic {
             missedGood = missedGood,
             spawnAccum = accum,
             spawnedCount = spawned,
+            inBurstWave = burstActive,
         )
     }
 
@@ -285,6 +378,7 @@ object BearCatchLogic {
         catchY: Float,
         catchR: Float,
         spawnAccum: Float,
+        time: Float = 0f,
     ): FrameEvents =
         stepCatchWorld(
             items = items,
@@ -299,6 +393,7 @@ object BearCatchLogic {
             catchR = catchR,
             spawnAccum = spawnAccum,
             random = java.util.Random(),
+            time = time,
         )
 
     const val MAX_ITEMS = 40

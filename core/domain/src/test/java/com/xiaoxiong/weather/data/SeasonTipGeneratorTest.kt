@@ -74,6 +74,43 @@ class SeasonTipGeneratorTest {
     }
 
     @Test
+    fun jinan_midAugust_showsSummerBloom() {
+        // 济南真实坐标：盛夏应在夏花窗内并显示“时令物候”卡
+        val tips = SeasonTipGenerator.tipsFor(36.6512, 117.1201, LocalDate.of(2026, 8, 21))
+        assertTrue(tips.any { it.kind == SeasonTipGenerator.Kind.SUMMER_BLOOM })
+    }
+
+    @Test
+    fun jinan_midLatitudeHasGapsButTodayIsInWindow() {
+        // 中纬城市存在物候空窗期（如 8/26-8/31，夏花刚结束、秋花未始）；
+        // 物候卡必须按“今天”推算，否则缓存快照的旧日期会把整卡顶成空。
+        assertTrue(
+            SeasonTipGenerator
+                .tipsFor(36.6512, 117.1201, LocalDate.of(2026, 8, 21))
+                .any { it.kind == SeasonTipGenerator.Kind.SUMMER_BLOOM },
+        )
+    }
+
+    @Test
+    fun jinan_endOfAugustCanHitEmptyWindow() {
+        // 根因复现：8/26（夏花 8/25 收尾、桂花 9/10 才开始）存在空窗，
+        // 缓存快照日期若落在这里，时令物候整卡会消失。
+        assertTrue(
+            SeasonTipGenerator
+                .tipsFor(36.6512, 117.1201, LocalDate.of(2026, 8, 26))
+                .isEmpty(),
+        )
+    }
+
+    @Test
+    fun cherrapunji_midAugust_showsSummerBloomAndUpcomingAutumn() {
+        // 乞拉朋齐真实坐标（印度）：25°N 纬度带，8 月底除夏花外还临近桂花季
+        val tips = SeasonTipGenerator.tipsFor(25.2847, 91.7217, LocalDate.of(2026, 8, 21))
+        assertTrue(tips.any { it.kind == SeasonTipGenerator.Kind.SUMMER_BLOOM })
+        assertTrue(tips.any { it.kind == SeasonTipGenerator.Kind.AUTUMN_BLOOM })
+    }
+
+    @Test
     fun hainan_noFoliage_butSeasonalBloom() {
         assertNull(SeasonTipGenerator.foliageWindow(18.0))
         assertEquals(

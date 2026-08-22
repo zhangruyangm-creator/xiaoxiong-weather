@@ -144,13 +144,25 @@ object ChinaCityCatalog {
     ): List<City> {
         val indexed = indexed(context)
         if (indexed.isEmpty()) return emptyList()
-        val byName = indexed.associateBy { it.nameLower }
         val result = ArrayList<City>(limit)
         for (name in POPULAR_NAMES) {
-            val hit = byName[name] ?: continue
-            if (result.none { WeatherRepository.nearSamePlace(it, hit.city) }) {
-                result += hit.city
-            }
+            val nameNorm = WeatherRepository.normalizePlaceQuery(name).lowercase()
+            // 精确全名优先（避免被规范化剥后缀的同名条目覆盖，如「西安区」顶掉「西安」）
+            val exact =
+                indexed.firstOrNull {
+                    it.entry.name == name &&
+                        result.none { r -> WeatherRepository.nearSamePlace(r, it.city) }
+                }
+            val hit =
+                if (exact != null) {
+                    exact
+                } else {
+                    indexed.firstOrNull { item ->
+                        item.nameLower == nameNorm &&
+                            result.none { r -> WeatherRepository.nearSamePlace(r, item.city) }
+                    }
+                } ?: continue
+            result += hit.city
             if (result.size >= limit) break
         }
         return result

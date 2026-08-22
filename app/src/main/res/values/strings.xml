@@ -33,4 +33,6 @@
     <string name="notify_body">%1$s %2$s · 湿度 %3$s%% · 能见度 %4$s</string>
     <string name="widget_cache_prefix">缓存 · %1$s</string>
     <string name="widget_updated">%1$s 更新</string>
+
+    <string name="secret_home_toast">🐻 小熊的家已打开</string>
 </resources>
