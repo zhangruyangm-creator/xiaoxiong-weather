@@ -370,9 +370,35 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_evening_karaoke to R.string.sun_bear_evening_karaoke,
                 IllustR.drawable.ic_sun_bear_evening_toycars to R.string.sun_bear_evening_toycars,
                 IllustR.drawable.ic_sun_bear_evening_plushplay to R.string.sun_bear_evening_plushplay,
+                IllustR.drawable.ic_sun_bear_evening_balconyroom to R.string.sun_bear_evening_balconyroom,
+                IllustR.drawable.ic_sun_bear_evening_balconystreet to R.string.sun_bear_evening_balconystreet,
+                IllustR.drawable.ic_sun_bear_evening_attic to R.string.sun_bear_evening_attic,
+                IllustR.drawable.ic_sun_bear_evening_balconyapartment to R.string.sun_bear_evening_balconyapartment,
+                IllustR.drawable.ic_sun_bear_evening_loft to R.string.sun_bear_evening_loft,
+                IllustR.drawable.ic_sun_bear_evening_rainwindow to R.string.sun_bear_evening_rainwindow,
+                IllustR.drawable.ic_sun_bear_evening_windowseat to R.string.sun_bear_evening_windowseat,
+                IllustR.drawable.ic_sun_bear_evening_rainhome to R.string.sun_bear_evening_rainhome,
+                IllustR.drawable.ic_sun_bear_evening_raintv to R.string.sun_bear_evening_raintv,
+                IllustR.drawable.ic_sun_bear_evening_rainsofa to R.string.sun_bear_evening_rainsofa,
+                IllustR.drawable.ic_sun_bear_evening_rainlaptop to R.string.sun_bear_evening_rainlaptop,
+                IllustR.drawable.ic_sun_bear_evening_raincouch to R.string.sun_bear_evening_raincouch,
+                IllustR.drawable.ic_sun_bear_evening_hutong to R.string.sun_bear_evening_hutong,
+                IllustR.drawable.ic_sun_bear_evening_balconysunset to R.string.sun_bear_evening_balconysunset,
+                IllustR.drawable.ic_sun_bear_evening_riverside to R.string.sun_bear_evening_riverside,
+                IllustR.drawable.ic_sun_bear_evening_kitchen to R.string.sun_bear_evening_kitchen,
+                IllustR.drawable.ic_sun_bear_evening_kitchendinner to R.string.sun_bear_evening_kitchendinner,
+                IllustR.drawable.ic_sun_bear_evening_balconynight to R.string.sun_bear_evening_balconynight,
+                IllustR.drawable.ic_sun_bear_evening_bundview to R.string.sun_bear_evening_bundview,
+                IllustR.drawable.ic_sun_bear_evening_openwindow to R.string.sun_bear_evening_openwindow,
+                IllustR.drawable.ic_sun_bear_evening_rainsnack to R.string.sun_bear_evening_rainsnack,
+                IllustR.drawable.ic_sun_bear_evening_stallwindow to R.string.sun_bear_evening_stallwindow,
+                IllustR.drawable.ic_sun_bear_evening_rainwork to R.string.sun_bear_evening_rainwork,
+                IllustR.drawable.ic_sun_bear_evening_snowwindow to R.string.sun_bear_evening_snowwindow,
+                IllustR.drawable.ic_sun_bear_evening_watertown to R.string.sun_bear_evening_watertown,
+                IllustR.drawable.ic_sun_bear_evening_raincoffee to R.string.sun_bear_evening_raincoffee,
             )
         val seen = mutableSetOf<Int>()
-        for (i in 0L..80L) {
+        for (i in 0L..120L) {
             val d = day.plusDays(i)
             val res = SunPathBearMoment.EVENING.bearResFor(d)
             val caption = SunPathBearMoment.EVENING.captionResFor(d)
@@ -380,7 +406,7 @@ class SunPathMathTest {
             assertEquals(pair.second, caption)
             seen += res
         }
-        assertEquals(34, seen.size)
+        assertEquals(60, seen.size)
         assertEquals(
             SunPathBearMoment.EVENING.bearResFor(day),
             SunPathBearMoment.EVENING.bearResFor(day),

@@ -502,16 +502,24 @@ private fun CatchHud(
                             modifier = Modifier.size(14.dp),
                         )
                     }
-                    // 护盾层数
-                    if (game.shields > 0) {
-                        repeat(game.shields) {
-                            Icon(
-                                imageVector = Icons.Filled.Shield,
-                                contentDescription = null,
-                                tint = Color(0xFF80DEEA),
-                                modifier = Modifier.size(14.dp),
-                            )
-                        }
+                    // 一次性护盾：持有时亮色 + 半透明边框，冷却中显示倒计时并灰显
+                    Icon(
+                        imageVector = Icons.Filled.Shield,
+                        contentDescription = null,
+                        tint =
+                            when {
+                                game.hasShield -> Color(0xFF80DEEA)
+                                game.shieldCooldownT > 0f -> Color.White.copy(alpha = 0.30f)
+                                else -> Color.White.copy(alpha = 0.20f)
+                            },
+                        modifier = Modifier.size(14.dp),
+                    )
+                    if (!game.hasShield && game.shieldCooldownT > 0f) {
+                        Text(
+                            text = "${game.shieldCooldownT.toInt() + 1}s",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.55f),
+                        )
                     }
                     // 风暴爆发波次提示
                     if (game.inBurstWave) {
@@ -907,21 +915,20 @@ private fun DrawScope.drawCatchBear(
         )
     }
 
-    // 护盾泡泡：围绕小熊的淡蓝气泡，层数越多越明显
-    if (game.shields > 0 && !dead) {
-        val ratio = game.shields.toFloat() / BearCatchLogic.MAX_SHIELD
+    // 一次性护盾泡泡：持有时显示淡蓝光圈；冷却中完全隐藏（避免误导）
+    if (game.hasShield && !dead) {
         drawCircle(
-            color = Color(0xFF80DEEA).copy(alpha = 0.20f + 0.10f * ratio),
+            color = Color(0xFF80DEEA).copy(alpha = 0.28f),
             radius = bs * (0.82f + 0.06f * sin(game.time * 3f)),
             center = Offset(game.catchX, cy),
-            style = Stroke(width = 2.5f * game.s * ratio),
+            style = Stroke(width = 2.5f * game.s),
         )
         drawCircle(
-            color = Color(0xFF80DEEA).copy(alpha = 0.12f),
+            color = Color(0xFF80DEEA).copy(alpha = 0.14f),
             radius = bs * (0.86f + 0.05f * sin(game.time * 3f + 1.2f)),
             center = Offset(game.catchX, cy),
         )
-        for (i in 0 until game.shields) {
+        for (i in 0 until BearCatchLogic.MAX_SHIELD) {
             val a = game.time * 1.4f + i * (Math.PI.toFloat() * 2f / BearCatchLogic.MAX_SHIELD)
             drawCircle(
                 color = Color(0xFFFFE082),

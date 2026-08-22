@@ -22,8 +22,11 @@ class BearCatchGame {
     var score by mutableIntStateOf(0)
     var hearts by mutableIntStateOf(MAX_HEARTS)
 
-    /** 护盾层数（0..[BearCatchLogic.MAX_SHIELD]），抵挡一次伤害后-1。 */
-    var shields by mutableIntStateOf(0)
+    /** 是否拥有一次性护盾：接到 BUBBLE 后获得，被一次伤害消耗，进入冷却。 */
+    var hasShield by mutableStateOf(false)
+
+    /** 护盾冷却剩余时间（秒）；冷却结束后再次可获取护盾。 */
+    var shieldCooldownT = 0f
 
     /** 连击：连续接住得分物不中断；断连（漏接得分物）归零。 */
     var combo by mutableIntStateOf(0)
@@ -79,7 +82,8 @@ class BearCatchGame {
     fun reset() {
         score = 0
         hearts = MAX_HEARTS
-        shields = 0
+        hasShield = false
+        shieldCooldownT = 0f
         combo = 0
         doubleT = 0f
         inBurstWave = false
@@ -111,6 +115,7 @@ class BearCatchGame {
         time += dt
 
         if (doubleT > 0f) doubleT = max(0f, doubleT - dt)
+        if (shieldCooldownT > 0f) shieldCooldownT = max(0f, shieldCooldownT - dt)
 
         // 粒子任何阶段都继续飞
         val iter = particles.iterator()
@@ -174,7 +179,10 @@ class BearCatchGame {
                     )
                 }
                 BearCatchLogic.ItemKind.BUBBLE -> {
-                    if (shields < BearCatchLogic.MAX_SHIELD) shields++
+                    // 冷却期间拾取不再叠加；只有在没护盾且没冷却时才给一次性护盾
+                    if (!hasShield && shieldCooldownT <= 0f) {
+                        hasShield = true
+                    }
                     squashT = 0f
                     burst(
                         cx = catchX,
@@ -199,38 +207,66 @@ class BearCatchGame {
             }
             onCaught(kind)
         }
-        for (kind in ev.hit) {
-            if (invincibleT > 0f) continue
-            if (shields > 0) {
-                // 护盾抵挡伤害：不掉心，只碎一层
-                shields--
-                shakeT = 0.12f
-                invincibleT = 0.3f
-                burst(
-                    cx = catchX,
-                    cy = catchY - catchR * 0.6f,
-                    count = 12,
-                    color = Color(0xFF80DEEA),
-                )
-                onHit(kind)
-                continue
-            }
-            hearts -= BearCatchLogic.damageOf(kind)
-            combo = 0
-            shakeT = 0.22f
-            invincibleT = 0.75f
-            burst(
-                cx = catchX,
-                cy = catchY - catchR * 0.6f,
-                count = 10,
-                color = Color(0xFF9E9E9E),
+        // 命中处理：同帧最多只生效一次伤害/护盾消耗，
+        // 避免「4 块乌云同帧砸中 → 只扣 1 层护盾/扣 1 心」的吞伤问题。
+        // 优先级：闪电 > 冰雹 > 乌云（越致命越靠前；闪电无视护盾直接扣血）。
+        val priority =
+            mapOf(
+                BearCatchLogic.ItemKind.LIGHTNING to 0,
+                BearCatchLogic.ItemKind.HAIL to 1,
+                BearCatchLogic.ItemKind.CLOUD to 2,
             )
-            onHit(kind)
-            if (hearts <= 0) {
-                hearts = 0
-                phase = GamePhase.OVER
-                onDeath(score)
-                break
+        val effectiveHit =
+            ev.hit
+                .filter { it in priority }
+                .minByOrNull { priority.getValue(it) }
+        if (effectiveHit != null) {
+            if (invincibleT <= 0f) {
+                // 闪电无视护盾：扣 2 心并打满无敌；其余物品优先用护盾挡一次
+                if (effectiveHit == BearCatchLogic.ItemKind.LIGHTNING) {
+                    hearts -= BearCatchLogic.damageOf(effectiveHit)
+                    combo = 0
+                    shakeT = 0.30f
+                    invincibleT = 0.75f
+                    burst(
+                        cx = catchX,
+                        cy = catchY - catchR * 0.6f,
+                        count = 14,
+                        color = Color(0xFFFFD600),
+                    )
+                    onHit(effectiveHit)
+                } else if (hasShield) {
+                    hasShield = false
+                    shieldCooldownT = BearCatchLogic.SHIELD_COOLDOWN_SEC
+                    shakeT = 0.12f
+                    invincibleT = 0.3f
+                    burst(
+                        cx = catchX,
+                        cy = catchY - catchR * 0.6f,
+                        count = 12,
+                        color = Color(0xFF80DEEA),
+                    )
+                    onHit(effectiveHit)
+                } else {
+                    hearts -= BearCatchLogic.damageOf(effectiveHit)
+                    combo = 0
+                    shakeT = 0.22f
+                    invincibleT = 0.75f
+                    burst(
+                        cx = catchX,
+                        cy = catchY - catchR * 0.6f,
+                        count = 10,
+                        color = Color(0xFF9E9E9E),
+                    )
+                    onHit(effectiveHit)
+                }
+                if (hearts <= 0) {
+                    hearts = 0
+                    phase = GamePhase.OVER
+                    onDeath(score)
+                }
+            } else {
+                // 已在无敌帧：本帧所有命中全部忽略；物品已在 stepCatchWorld 中移除
             }
         }
     }

@@ -86,64 +86,64 @@ object BearCatchLogic {
                 when {
                     r < 0.13f -> ItemKind.COIN
                     r < 0.55f -> ItemKind.PETAL
-                    r < 0.70f -> ItemKind.RAINDROP
-                    r < 0.82f -> ItemKind.CLOUD
-                    r < 0.90f -> ItemKind.GIFT
+                    r < 0.74f -> ItemKind.RAINDROP
+                    r < 0.88f -> ItemKind.CLOUD
+                    r < 0.98f -> ItemKind.GIFT
                     else -> ItemKind.BUBBLE
                 }
             CatchScene.CLOUDY ->
                 when {
                     r < 0.08f -> ItemKind.COIN
                     r < 0.74f -> ItemKind.RAINDROP
-                    r < 0.84f -> ItemKind.CLOUD
-                    r < 0.94f -> ItemKind.GIFT
+                    r < 0.88f -> ItemKind.CLOUD
+                    r < 0.98f -> ItemKind.GIFT
                     else -> ItemKind.BUBBLE
                 }
             CatchScene.RAIN_LIGHT, CatchScene.RAIN ->
                 when {
                     r < 0.10f -> ItemKind.COIN
                     r < 0.80f -> ItemKind.RAINDROP
-                    r < 0.87f -> ItemKind.CLOUD
-                    r < 0.94f -> ItemKind.GIFT
+                    r < 0.90f -> ItemKind.CLOUD
+                    r < 0.98f -> ItemKind.GIFT
                     else -> ItemKind.BUBBLE
                 }
             CatchScene.RAIN_HEAVY ->
                 when {
                     r < 0.04f -> ItemKind.COIN
                     r < 0.76f -> ItemKind.RAINDROP
-                    r < 0.84f -> ItemKind.CLOUD
-                    r < 0.92f -> ItemKind.GIFT
+                    r < 0.88f -> ItemKind.CLOUD
+                    r < 0.98f -> ItemKind.GIFT
                     else -> ItemKind.BUBBLE
                 }
             CatchScene.SNOW ->
                 when {
                     r < 0.07f -> ItemKind.COIN
                     r < 0.86f -> ItemKind.SNOWFLAKE
-                    r < 0.93f -> ItemKind.CLOUD
+                    r < 0.96f -> ItemKind.CLOUD
                     else -> ItemKind.GIFT
                 }
             CatchScene.STORM ->
                 when {
-                    r < 0.68f -> ItemKind.RAINDROP
-                    r < 0.84f -> ItemKind.CLOUD
-                    r < 0.91f -> ItemKind.LIGHTNING
-                    r < 0.97f -> ItemKind.GIFT
+                    r < 0.66f -> ItemKind.RAINDROP
+                    r < 0.85f -> ItemKind.CLOUD
+                    r < 0.93f -> ItemKind.LIGHTNING
+                    r < 0.98f -> ItemKind.GIFT
                     else -> ItemKind.BUBBLE
                 }
             CatchScene.FREEZING_RAIN ->
                 when {
-                    r < 0.64f -> ItemKind.RAINDROP
-                    r < 0.80f -> ItemKind.CLOUD
-                    r < 0.88f -> ItemKind.HAIL
-                    r < 0.95f -> ItemKind.GIFT
+                    r < 0.62f -> ItemKind.RAINDROP
+                    r < 0.81f -> ItemKind.CLOUD
+                    r < 0.90f -> ItemKind.HAIL
+                    r < 0.98f -> ItemKind.GIFT
                     else -> ItemKind.BUBBLE
                 }
             CatchScene.HAIL ->
                 when {
-                    r < 0.52f -> ItemKind.RAINDROP
-                    r < 0.75f -> ItemKind.HAIL
-                    r < 0.84f -> ItemKind.CLOUD
-                    r < 0.93f -> ItemKind.GIFT
+                    r < 0.50f -> ItemKind.RAINDROP
+                    r < 0.76f -> ItemKind.HAIL
+                    r < 0.88f -> ItemKind.CLOUD
+                    r < 0.98f -> ItemKind.GIFT
                     else -> ItemKind.BUBBLE
                 }
         }
@@ -177,8 +177,11 @@ object BearCatchLogic {
             else -> 0
         }
 
-    /** 护盾层数上限。 */
-    const val MAX_SHIELD = 3
+    /** 护盾单次抵挡时间（秒）；被消耗后重新积累前需要等待这么长。 */
+    const val SHIELD_COOLDOWN_SEC = 18.0f
+
+    /** 护盾仅作为一次性「抵挡」使用：出现后进入 CD，不能累积。 */
+    const val MAX_SHIELD = 1
 
     /** 双倍得分持续时间（秒）。 */
     const val DOUBLE_TIME_SEC = 8.0f

@@ -113,7 +113,7 @@ class BearCatchLogicTest {
         game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
         assertEquals(20 + 20, game.score)
 
-        // 接泡泡 → 获得护盾，护盾抵挡一次惩罚不掉心
+        // 接泡泡 → 获得一次性护盾，护盾抵挡一次惩罚不掉心，并进入冷却
         game.items.add(
             BearCatchLogic
                 .Item(
@@ -125,7 +125,8 @@ class BearCatchLogicTest {
                 ).also { it.vy = 0f },
         )
         game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
-        assertEquals(1, game.shields)
+        assertTrue(game.hasShield)
+        assertEquals(0f, game.shieldCooldownT, 1e-4f)
         val heartsBefore = game.hearts
 
         game.items.add(
@@ -140,7 +141,36 @@ class BearCatchLogicTest {
         )
         game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
         assertEquals("护盾应抵挡本次伤害", heartsBefore, game.hearts)
-        assertEquals(0, game.shields)
+        assertFalse("护盾消耗后应清空", game.hasShield)
+        assertTrue("护盾消耗后应进入冷却", game.shieldCooldownT > 0f)
+    }
+
+    @Test
+    fun `bubble does not stack during shield cooldown`() {
+        // 一次性护盾：冷却中接泡泡不能叠加，避免反复堆盾把游戏变简单
+        val game = BearCatchGame()
+        game
+            .resize(
+                androidx.compose.ui.unit
+                    .IntSize(400, 800),
+            )
+        game.start()
+        // 手动标记已进入冷却且无护盾
+        game.hasShield = false
+        game.shieldCooldownT = 5f
+
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.BUBBLE,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 17f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertFalse("冷却中接泡泡不应再给护盾", game.hasShield)
     }
 
     @Test
@@ -600,5 +630,67 @@ class BearCatchLogicTest {
         assertEquals(GamePhase.OVER, game.phase)
         assertEquals(0, game.hearts)
         assertTrue(deathScore >= 0)
+    }
+
+    @Test
+    fun `multiple clouds same frame only deal one hit`() {
+        // 一次 4 块乌云同时砸中：旧逻辑下第二块起会被无敌帧吞掉，
+        // 看起来像「砸了 4 下只掉 1 颗心」，体验上像扣血被吞。
+        // 修复后：同帧多个惩罚物只生效一次（最致命的那一个），且物品本身已从场景移除。
+        val game = BearCatchGame()
+        game
+            .resize(
+                androidx.compose.ui.unit
+                    .IntSize(400, 800),
+            )
+        game.start()
+        val hitCount = intArrayOf(0)
+        repeat(4) {
+            game.items.add(
+                BearCatchLogic
+                    .Item(
+                        kind = ItemKind.CLOUD,
+                        x = game.catchX,
+                        y = game.catchY,
+                        r = 30f,
+                        phase = 0f,
+                    ).also { it.vy = 0f },
+            )
+        }
+        game.tick(
+            dt = 0.001f,
+            onCaught = {},
+            onHit = { hitCount[0]++ },
+            onDeath = {},
+        )
+        assertEquals("同帧多块乌云只应触发一次伤害回调", 1, hitCount[0])
+        assertEquals("一次掉 1 心", BearCatchGame.MAX_HEARTS - 1, game.hearts)
+        assertEquals("4 块乌云全部从场景移除", 0, game.items.size)
+    }
+
+    @Test
+    fun `lightning ignores shield and knocks two hearts directly`() {
+        // 闪电是高致命品：有护盾也应直接扣血，避免「有盾就不怕闪电」的认知偏差。
+        val game = BearCatchGame()
+        game
+            .resize(
+                androidx.compose.ui.unit
+                    .IntSize(400, 800),
+            )
+        game.start()
+        game.hasShield = true
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.LIGHTNING,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 28f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals("闪电无视护盾直扣 2 心", 1, game.hearts)
+        assertTrue("护盾不被消耗（闪电直接扣血）", game.hasShield)
     }
 }
