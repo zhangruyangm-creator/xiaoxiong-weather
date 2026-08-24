@@ -1,0 +1,247 @@
+package com.xiaoxiong.weather.ui.weather
+
+import com.xiaoxiong.weather.data.City
+import com.xiaoxiong.weather.data.HistoryRangeSummary
+import com.xiaoxiong.weather.data.HistoryWeather
+import com.xiaoxiong.weather.data.PhenologyCache
+import com.xiaoxiong.weather.data.WeatherFetcher
+import java.time.LocalDate
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+
+/**
+ * 历史天气（单日/区间）与物候偏移查询控制器。
+ *
+ * 三块查询各自带独立请求 job、内存缓存去重，以及「查询期间换城则丢弃结果」的写回保护：
+ *  - 单日历史按「城市|日期」缓存，同城同日只查一次；
+ *  - 区间历史按「城市|起|止」缓存，同城同区间只查一次；
+ *  - 物候偏移按日缓存，一天最多向网络拉一次。
+ *
+ * 与原 ViewModel 内嵌实现行为完全等价，抽出来只为缩减 WeatherViewModel 的职责面。
+ */
+class HistoryAndPhenologyController(
+    private val scope: CoroutineScope,
+    private val repository: WeatherFetcher,
+    private val phenologyCache: PhenologyCache,
+    private val updateState: ((WeatherUiState) -> WeatherUiState) -> Unit,
+    private val currentCity: () -> City?,
+) {
+    private var phenologyJob: Job? = null
+    private var historyJob: Job? = null
+    private var historyRangeJob: Job? = null
+
+    private val maxHistoryCacheEntries = 30
+    private val historyCache = mutableMapOf<String, HistoryWeather>()
+
+    private val maxHistoryRangeCacheEntries = 30
+    private val historyRangeCache = mutableMapOf<String, HistoryRangeSummary>()
+
+    /**
+     * 进入「七日」页时按需补齐物候偏移：
+     * 同城同年当日已拉过则直接用缓存，否则才联网（一天最多一次）；
+     * 跨天/跨年/换城自然失效，会在下次进入页面时重拉。
+     * 独立于主天气加载，失败时静默保留空（时令卡退化为纯经验推算）。
+     */
+    fun ensurePhenologyShift() {
+        val city = currentCity() ?: return
+        if (phenologyJob?.isActive == true) return
+        phenologyJob =
+            scope.launch {
+                val today = LocalDate.now()
+                val cached = phenologyCache.get(city, today.year)
+                val shift =
+                    if (cached != null) {
+                        cached.shiftDays
+                    } else {
+                        val fetched =
+                            try {
+                                repository.fetchPhenologyShiftDays(city, today)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                null
+                            }
+                        // 无论成功还是无数据都缓存当日结果，保证一天最多拉一次
+                        phenologyCache.save(city, today.year, fetched)
+                        fetched
+                    }
+                // 拉取期间换城则不覆盖新城市的显示
+                if (stillOnCity(city)) {
+                    updateState { it.copy(phenologyShiftDays = shift) }
+                }
+            }
+    }
+
+    /**
+     * 单日历史查询：按「城市|日期」做内存缓存去重，同城同日只查一次；
+     * 换城后缓存键不同，自然不串城。该日无数据置 historyFailed，
+     * 网络/服务端错误置 historyNetworkFailed。
+     */
+    fun fetchHistoryDay(date: LocalDate) {
+        val city = currentCity() ?: return
+        val cacheKey = "%.4f,%.4f|%s".format(city.latitude, city.longitude, date)
+        historyCache[cacheKey]?.let { cached ->
+            updateState {
+                it.copy(
+                    historyWeather = cached,
+                    isHistoryLoading = false,
+                    historyFailed = false,
+                    historyNetworkFailed = false,
+                )
+            }
+            return
+        }
+        historyJob?.cancel()
+        historyJob =
+            scope.launch {
+                updateState {
+                    it.copy(
+                        isHistoryLoading = true,
+                        historyWeather = null,
+                        historyFailed = false,
+                        historyNetworkFailed = false,
+                    )
+                }
+                var networkFailed = false
+                val result =
+                    try {
+                        repository.fetchHistoryDay(city, date)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        networkFailed = true
+                        null
+                    }
+                if (result != null) {
+                    cacheHistory(cacheKey, result)
+                }
+                // 查询期间换城则丢弃结果（不覆盖新城市）
+                if (stillOnCity(city)) {
+                    updateState {
+                        it.copy(
+                            historyWeather = result,
+                            isHistoryLoading = false,
+                            historyFailed = result == null && !networkFailed,
+                            historyNetworkFailed = networkFailed,
+                        )
+                    }
+                } else {
+                    updateState { it.copy(isHistoryLoading = false) }
+                }
+            }
+    }
+
+    fun clearHistoryDay() {
+        historyJob?.cancel()
+        updateState {
+            it.copy(
+                historyWeather = null,
+                isHistoryLoading = false,
+                historyFailed = false,
+                historyNetworkFailed = false,
+            )
+        }
+    }
+
+    /**
+     * 日期范围历史查询：按「城市|起|止」内存缓存去重，同城同区间只查一次；
+     * 区间内无数据置 historyRangeFailed，网络/服务端错误置 historyRangeNetworkFailed。
+     */
+    fun fetchHistoryRange(
+        start: LocalDate,
+        end: LocalDate,
+    ) {
+        if (end.isBefore(start)) return
+        val city = currentCity() ?: return
+        val cacheKey =
+            "%.4f,%.4f|%s|%s".format(city.latitude, city.longitude, start, end)
+        historyRangeCache[cacheKey]?.let { cached ->
+            updateState {
+                it.copy(
+                    historyRange = cached,
+                    isHistoryRangeLoading = false,
+                    historyRangeFailed = false,
+                    historyRangeNetworkFailed = false,
+                )
+            }
+            return
+        }
+        historyRangeJob?.cancel()
+        historyRangeJob =
+            scope.launch {
+                updateState {
+                    it.copy(
+                        isHistoryRangeLoading = true,
+                        historyRange = null,
+                        historyRangeFailed = false,
+                        historyRangeNetworkFailed = false,
+                    )
+                }
+                var networkFailed = false
+                val result =
+                    try {
+                        repository.fetchHistoryRange(city, start, end)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        networkFailed = true
+                        null
+                    }
+                if (result != null) {
+                    if (historyRangeCache.size >= maxHistoryRangeCacheEntries) {
+                        historyRangeCache.keys.firstOrNull()?.let { historyRangeCache.remove(it) }
+                    }
+                    historyRangeCache[cacheKey] = result
+                }
+                // 查询期间换城则丢弃结果（不覆盖新城市）
+                if (stillOnCity(city)) {
+                    updateState {
+                        it.copy(
+                            historyRange = result,
+                            isHistoryRangeLoading = false,
+                            historyRangeFailed = result == null && !networkFailed,
+                            historyRangeNetworkFailed = networkFailed,
+                        )
+                    }
+                } else {
+                    updateState { it.copy(isHistoryRangeLoading = false) }
+                }
+            }
+    }
+
+    fun clearHistoryRange() {
+        historyRangeJob?.cancel()
+        updateState {
+            it.copy(
+                historyRange = null,
+                isHistoryRangeLoading = false,
+                historyRangeFailed = false,
+                historyRangeNetworkFailed = false,
+            )
+        }
+    }
+
+    private fun cacheHistory(
+        key: String,
+        value: HistoryWeather,
+    ) {
+        if (historyCache.size >= maxHistoryCacheEntries) {
+            historyCache.keys.firstOrNull()?.let { historyCache.remove(it) }
+        }
+        historyCache[key] = value
+    }
+
+    private fun stillOnCity(city: City): Boolean = roughlySameCity(currentCity(), city)
+}
+
+/** 异步查询携带的 [city] 是否仍是当前选中城市；非本城市的结果应在写回前丢弃。 */
+internal fun roughlySameCity(
+    a: City?,
+    b: City?,
+): Boolean {
+    if (a == null || b == null) return false
+    return kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
+        kotlin.math.abs(a.longitude - b.longitude) < 0.01
+}

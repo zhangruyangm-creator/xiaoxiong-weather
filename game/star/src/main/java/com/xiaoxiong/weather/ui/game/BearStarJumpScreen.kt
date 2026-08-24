@@ -37,7 +37,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -63,11 +62,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
@@ -442,62 +437,43 @@ fun BearStarJumpScreen(
     }
     val bearSprites = rememberBearSprites()
     var frame by remember { mutableLongStateOf(0L) }
-    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        var last = Long.MIN_VALUE
-        while (isActive) {
-            // 切后台（ON_STOP）后不再推进对局：锁屏/通知栏等场景下帧回调仍会派发，
-            // 若不暂停，熊会继续下落，玩家回来时可能已经 Game Over 且持续耗电
-            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                last = Long.MIN_VALUE
-                delay(300)
-                continue
-            }
-            withFrameNanos { now ->
-                val dt =
-                    if (last == Long.MIN_VALUE) {
-                        1f / 60f
-                    } else {
-                        min((now - last) / 1e9f, 0.033f)
+    GameFrameLoop(
+        paused = { lb.show },
+        onTick = { dt, now ->
+            game.tick(
+                dt,
+                onBounce = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                },
+                onStar = {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                },
+                onSpring = {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                },
+                onDeath = { score ->
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    if (score > game.best) {
+                        game.best = score
+                        prefs.edit { putInt("best_jump", score) }
                     }
-                last = now
-                // 查看排行榜时暂停：跳过 tick，画面定格
-                if (lb.show) return@withFrameNanos
-                game.tick(
-                    dt,
-                    onBounce = {
-                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    },
-                    onStar = {
-                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    },
-                    onSpring = {
-                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    },
-                    onDeath = { score ->
-                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                        if (score > game.best) {
-                            game.best = score
-                            prefs.edit { putInt("best_jump", score) }
-                        }
-                        if (score > 0) {
-                            lb.lastRank =
-                                lb.store.submit(
-                                    LeaderboardEntry(
-                                        score = score,
-                                        timestamp = System.currentTimeMillis(),
-                                        city = reportCityName,
-                                        weather = leaderboardWeatherOf(context, reportSceneCode),
-                                    ),
-                                ) ?: 0
-                        }
-                    },
-                )
-                frame = now
-            }
-        }
-    }
+                    if (score > 0) {
+                        lb.lastRank =
+                            lb.store.submit(
+                                LeaderboardEntry(
+                                    score = score,
+                                    timestamp = System.currentTimeMillis(),
+                                    city = reportCityName,
+                                    weather = leaderboardWeatherOf(context, reportSceneCode),
+                                ),
+                            ) ?: 0
+                    }
+                },
+            )
+            frame = now
+        },
+    )
 
     BackHandler { onExit() }
 

@@ -36,10 +36,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -64,15 +64,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchScene
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.ItemKind
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlin.math.cos
-import kotlin.math.min
 import kotlin.math.sin
 
 private fun catchSceneFromWeather(
@@ -144,93 +139,76 @@ fun BearCatchScreen(
     }
     val bearSprites = rememberBearSprites()
     var frame by remember { mutableLongStateOf(0L) }
-    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        var last = Long.MIN_VALUE
-        var slowTick = 0
-        while (isActive) {
-            // 切后台（ON_STOP）后不再推进对局：锁屏/通知栏等场景下帧回调仍会派发，
-            // 若不暂停，掉落物会继续下落，玩家回来时可能已经 Game Over 且持续耗电
-            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                last = Long.MIN_VALUE
-                delay(300)
-                continue
-            }
-            withFrameNanos { now ->
-                val dt =
-                    if (last == Long.MIN_VALUE) {
-                        1f / 60f
+    // 帧循环：切后台不推进、dt 钳制由共享层处理。
+    // tick / 飘字推进只在对局运行（每帧）或节流帧（约 12fps）时执行。
+    var slowTick by remember { mutableStateOf(0) }
+    GameFrameLoop(
+        paused = { lb.show },
+        onTick = { dt, now ->
+            val running = game.phase == GamePhase.RUNNING
+            if (running || slowTick % 5 == 0) {
+                // 飘字整体推进（原地更新，避免每帧重建列表）
+                val ite = texts.iterator()
+                while (ite.hasNext()) {
+                    val t = ite.next()
+                    t.life -= dt
+                    if (t.life <= 0f) {
+                        ite.remove()
                     } else {
-                        min((now - last) / 1e9f, 0.033f)
+                        t.y = t.y - 46f * game.s * dt
                     }
-                last = now
-                // 查看排行榜时暂停：跳过 tick，画面定格
-                if (lb.show) return@withFrameNanos
-                val running = game.phase == GamePhase.RUNNING
-                if (running || slowTick % 5 == 0) {
-                    // 飘字整体推进（原地更新，避免每帧重建列表）
-                    val ite = texts.iterator()
-                    while (ite.hasNext()) {
-                        val t = ite.next()
-                        t.life -= dt
-                        if (t.life <= 0f) {
-                            ite.remove()
-                        } else {
-                            t.y = t.y - 46f * game.s * dt
-                        }
-                    }
-                    game.tick(
-                        dt,
-                        onCaught = { kind ->
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            texts.add(
-                                CatchFloatText(
-                                    text = "+${BearCatchLogic.scoreOf(kind)}",
-                                    x = game.catchX,
-                                    y = game.catchY - game.catchR * 1.4f,
-                                    life = 0.8f,
-                                    color = Color(0xFFFFD54F),
-                                ),
-                            )
-                        },
-                        onHit = { kind ->
-                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            texts.add(
-                                CatchFloatText(
-                                    text = "-${BearCatchLogic.damageOf(kind)}",
-                                    x = game.catchX,
-                                    y = game.catchY - game.catchR * 1.4f,
-                                    life = 0.8f,
-                                    color = Color(0xFFFF6E6E),
-                                ),
-                            )
-                        },
-                        onDeath = { score ->
-                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            if (score > game.best) {
-                                game.best = score
-                                prefs.edit { putInt("best_catch", score) }
-                            }
-                            if (score > 0) {
-                                lb.lastRank =
-                                    lb.store.submit(
-                                        LeaderboardEntry(
-                                            score = score,
-                                            timestamp = System.currentTimeMillis(),
-                                            city = reportCityName,
-                                            weather = leaderboardWeatherOf(context, reportSceneCode),
-                                        ),
-                                    ) ?: 0
-                            }
-                        },
-                    )
-                    frame = now
                 }
-                if (!running) slowTick++
+                game.tick(
+                    dt,
+                    onCaught = { kind ->
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        texts.add(
+                            CatchFloatText(
+                                text = "+${BearCatchLogic.scoreOf(kind)}",
+                                x = game.catchX,
+                                y = game.catchY - game.catchR * 1.4f,
+                                life = 0.8f,
+                                color = Color(0xFFFFD54F),
+                            ),
+                        )
+                    },
+                    onHit = { kind ->
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        texts.add(
+                            CatchFloatText(
+                                text = "-${BearCatchLogic.damageOf(kind)}",
+                                x = game.catchX,
+                                y = game.catchY - game.catchR * 1.4f,
+                                life = 0.8f,
+                                color = Color(0xFFFF6E6E),
+                            ),
+                        )
+                    },
+                    onDeath = { score ->
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        if (score > game.best) {
+                            game.best = score
+                            prefs.edit { putInt("best_catch", score) }
+                        }
+                        if (score > 0) {
+                            lb.lastRank =
+                                lb.store.submit(
+                                    LeaderboardEntry(
+                                        score = score,
+                                        timestamp = System.currentTimeMillis(),
+                                        city = reportCityName,
+                                        weather = leaderboardWeatherOf(context, reportSceneCode),
+                                    ),
+                                ) ?: 0
+                        }
+                    },
+                )
+                frame = now
             }
-        }
-    }
+            if (!running) slowTick++
+        },
+    )
 
     BackHandler { onExit() }
 

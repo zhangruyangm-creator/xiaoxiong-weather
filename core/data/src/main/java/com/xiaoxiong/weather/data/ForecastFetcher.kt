@@ -23,6 +23,11 @@ class ForecastFetcher(
     private val json: Json,
     private val forecastBase: String,
     private val airQualityBase: String,
+    /**
+     * 主站的备用可达入口。主 forecast host 网络不可达时按序重试，
+     * 缓解区域性 BGP 路由问题（见 OpenMeteoHttp 文档）。
+     */
+    private val forecastBaseFallbacks: List<String> = DEFAULT_FORECAST_FALLBACKS,
 ) {
     suspend fun fetchWeather(city: City): WeatherSnapshot =
         withContext(Dispatchers.IO) {
@@ -133,7 +138,25 @@ class ForecastFetcher(
                 .addQueryParameter("timezone", "auto")
                 .build()
 
-        val response = decodeForecast(OpenMeteoHttp.execute(url.toString(), client))
+        val body =
+            if (forecastBaseFallbacks.isEmpty()) {
+                OpenMeteoHttp.execute(url.toString(), client)
+            } else {
+                // 主 URL 与 fallback 入口（同参数）依序尝试，首个成功即用
+                val fallbackUrls =
+                    forecastBaseFallbacks.mapNotNull { base ->
+                        runCatching {
+                            base.toHttpUrl()
+                                .newBuilder()
+                                .encodedPath(url.encodedPath)
+                                .query(url.encodedQuery)
+                                .build()
+                                .toString()
+                        }.getOrNull()
+                    }
+                OpenMeteoHttp.executeWithFallback(listOf(url.toString()) + fallbackUrls, client)
+            }
+        val response = decodeForecast(body)
         val currentDto =
             response.current
                 ?: error(resources.getString(R.string.error_forecast_empty))
@@ -326,4 +349,13 @@ class ForecastFetcher(
         } catch (e: SerializationException) {
             throw AppError.DataFormat(e)
         }
+
+    companion object {
+        /**
+         * 主预报站的备用入口。当前 Open-Meteo 免费 API 无官方镜像，保持为空；
+         * 将来接入可验证的第二入口（如自建代理 / 其它兼容源）后在此配置，
+         * ForecastFetcher 会自动在主站网络不可达时按序重试。
+         */
+        val DEFAULT_FORECAST_FALLBACKS: List<String> = emptyList()
+    }
 }

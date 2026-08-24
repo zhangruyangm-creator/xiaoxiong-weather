@@ -23,8 +23,9 @@ enum class HomeRoutineStatus {
 fun homeRoutineSlots(date: LocalDate): List<HomeRoutineSlot> =
     if (isWeekend(date)) {
         // 与天气页太阳弧时段对齐（周末不拆通勤/锻炼）：
-        // 早起时段(5:00–7:15) → 周末早晨(7:15–9:00) → 旅行第一段(9:00–11:30)
-        // → 午饭(11:30–12:30) → 旅行第二段(12:30–15:00) → 周末下午(15:00–18:00) → 归途
+        // 早起时段(5:00–7:15) → 周末早晨(7:15–9:00) → 早午餐(9:00–9:45)
+        // → 旅行第一段(9:45–11:30) → 午饭(11:30–12:30) → 旅行第二段(12:30–15:00)
+        // → 周末下午(15:00–18:00) → 归途(18:00–19:00)
         listOf(
             HomeRoutineSlot(
                 SunPathBearMoment.ALMOST_DAWN,
@@ -37,8 +38,13 @@ fun homeRoutineSlots(date: LocalDate): List<HomeRoutineSlot> =
                 BearRoutineTimes.MORNING_OUT_END_MINUTE,
             ),
             HomeRoutineSlot(
-                SunPathBearMoment.WEEKEND_EXPLORE,
+                SunPathBearMoment.BREAKFAST,
                 BearRoutineTimes.MORNING_OUT_END_MINUTE,
+                BearRoutineTimes.WEEKEND_BREAKFAST_END_MINUTE,
+            ),
+            HomeRoutineSlot(
+                SunPathBearMoment.WEEKEND_EXPLORE,
+                BearRoutineTimes.WEEKEND_BREAKFAST_END_MINUTE,
                 BearRoutineTimes.LUNCH_START_MINUTE,
             ),
             HomeRoutineSlot(SunPathBearMoment.LUNCH, BearRoutineTimes.LUNCH_START_MINUTE, BearRoutineTimes.LUNCH_END_MINUTE),

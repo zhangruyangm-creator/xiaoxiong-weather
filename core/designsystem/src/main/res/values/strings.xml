@@ -30,6 +30,7 @@
     <string name="sun_bear_commute_ebike_out">小熊骑电瓶车上班</string>
     <string name="sun_bear_commute_cycle_out">小熊骑自行车上班</string>
     <string name="sun_bear_commute_ferry_out">小熊坐轮渡上班</string>
+    <string name="sun_bear_commute_maglev_out">小熊坐磁悬浮上班</string>
     <string name="sun_bear_work_morning">小熊专心上班中</string>
     <string name="sun_bear_lunch">小熊在吃午饭</string>
     <string name="sun_bear_work_afternoon">小熊下午继续忙</string>
@@ -57,6 +58,7 @@
     <string name="sun_bear_commute_ebike_home">小熊骑电瓶车回家</string>
     <string name="sun_bear_commute_cycle_home">小熊骑自行车回家</string>
     <string name="sun_bear_commute_ferry_home">小熊坐轮渡回家</string>
+    <string name="sun_bear_commute_maglev_home">小熊坐磁悬浮回家</string>
     <string name="sun_bear_evening_exercise">小熊傍晚锻炼</string>
     <string name="sun_bear_exercise_run_evening">小熊傍晚跑步</string>
     <string name="sun_bear_exercise_basketball_evening">小熊傍晚打篮球</string>
@@ -144,6 +146,14 @@
     <string name="sun_bear_evening_snowwindow">小熊晚上捧杯看雪夜街景</string>
     <string name="sun_bear_evening_watertown">小熊晚上窗边赏江南水乡雨夜</string>
     <string name="sun_bear_evening_raincoffee">小熊晚上雨夜厨房煮咖啡</string>
+    <string name="sun_bear_evening_convenience">小熊晚上逛晚灯便利店</string>
+    <string name="sun_bear_evening_oden">小熊晚上便利店买关东煮</string>
+    <string name="sun_bear_evening_rainbed">小熊晚上雨夜窝床听雨</string>
+    <string name="sun_bear_evening_yatai">小熊晚上月下逛夜烤小屋</string>
+    <string name="sun_bear_evening_rainystreet">小熊晚上雨夜撑伞逛便利店</string>
+    <string name="sun_bear_evening_bikeride">小熊晚上骑车路过街边小吃摊</string>
+    <string name="sun_bear_evening_seafood">小熊晚上去生鲜店买海鲜</string>
+    <string name="sun_bear_evening_hillsidewalk">小熊晚上山城小巷散步</string>
     <string name="sun_bear_bedtime">小熊准备入睡</string>
     <string name="sun_bear_bedtime_pajamas">小熊在换睡衣</string>
     <string name="sun_bear_bedtime_bath">小熊在泡澡</string>

@@ -95,6 +95,7 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_morning_ebike,
         IllustR.drawable.ic_sun_bear_morning_cycle,
         IllustR.drawable.ic_sun_bear_morning_ferry,
+        IllustR.drawable.ic_sun_bear_morning_maglev,
     ),
 
     /** 插画由 [workDayBearRes] 按工种选取，此处仅占位。 */
@@ -167,6 +168,7 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_home_ebike,
         IllustR.drawable.ic_sun_bear_home_cycle,
         IllustR.drawable.ic_sun_bear_home_ferry,
+        IllustR.drawable.ic_sun_bear_home_maglev,
     ),
 
     /** 工作日傍晚锻炼：与晨练共用运动池，但按日独立抽取。 */
@@ -231,6 +233,7 @@ enum class SunPathBearMoment(
         // 中式
         IllustR.drawable.ic_sun_bear_dinner_teishoku,
         IllustR.drawable.ic_sun_bear_dinner_hotpot,
+        IllustR.drawable.ic_sun_bear_dinner_crayfish,
         IllustR.drawable.ic_sun_bear_dinner_sushi,
         IllustR.drawable.ic_sun_bear_dinner_yakitori,
         IllustR.drawable.ic_sun_bear_dinner_shabu,
@@ -322,6 +325,14 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_evening_snowwindow,
         IllustR.drawable.ic_sun_bear_evening_watertown,
         IllustR.drawable.ic_sun_bear_evening_raincoffee,
+        IllustR.drawable.ic_sun_bear_evening_convenience,
+        IllustR.drawable.ic_sun_bear_evening_oden,
+        IllustR.drawable.ic_sun_bear_evening_rainbed,
+        IllustR.drawable.ic_sun_bear_evening_yatai,
+        IllustR.drawable.ic_sun_bear_evening_rainystreet,
+        IllustR.drawable.ic_sun_bear_evening_bikeride,
+        IllustR.drawable.ic_sun_bear_evening_seafood,
+        IllustR.drawable.ic_sun_bear_evening_hillsidewalk,
     ),
 
     /** 入睡准备（23:00–24:00）：换睡衣 / 泡澡 / 夜灯等，按日轮换。 */
@@ -488,6 +499,14 @@ enum class SunPathBearMoment(
                         R.string.sun_bear_evening_snowwindow,
                         R.string.sun_bear_evening_watertown,
                         R.string.sun_bear_evening_raincoffee,
+                        R.string.sun_bear_evening_convenience,
+                        R.string.sun_bear_evening_oden,
+                        R.string.sun_bear_evening_rainbed,
+                        R.string.sun_bear_evening_yatai,
+                        R.string.sun_bear_evening_rainystreet,
+                        R.string.sun_bear_evening_bikeride,
+                        R.string.sun_bear_evening_seafood,
+                        R.string.sun_bear_evening_hillsidewalk,
                     )
                 return captions[dailyVariantIndex(date, name, captions.size)]
             }

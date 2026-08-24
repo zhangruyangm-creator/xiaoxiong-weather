@@ -38,10 +38,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -57,12 +57,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlin.math.min
 
 @Composable
 fun BearFarmScreen(
@@ -72,7 +69,6 @@ fun BearFarmScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val appContext = remember(context) { context.applicationContext }
     val farm = remember(appContext) { BearFarm(appContext).also { it.load() } }
     val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
@@ -93,51 +89,29 @@ fun BearFarmScreen(
         if (farm.toast?.id == t.id) farm.clearToast()
     }
 
-    LaunchedEffect(weather) {
-        var last = Long.MIN_VALUE
-        var slowTick = 0
-        var animDt = 0f
+    // 帧循环：dt 钳制到 50ms。farm.tick 每帧调用（模拟持续推进），
+    // farm.time 按 weather 重置的节流变量累积 animDt，慢速时每 5 帧才写一次。
+    var slowTick by remember(weather) { mutableStateOf(0) }
+    var animDt by remember(weather) { mutableFloatStateOf(0f) }
+    GameFrameLoop(key = weather, maxDtSeconds = 0.05f) { dt, _ ->
         // 雨/雪/雷暴有粒子动画需要 60fps；晴/多云/雾降频到约 12fps 即可
         val needsHighFps =
             weather == FarmWeather.RAINY ||
                 weather == FarmWeather.STORMY ||
                 weather == FarmWeather.SNOWY
-        while (isActive) {
-            // 切后台（ON_STOP）后不再推进 farm 模拟：挂机期间作物持续生长/枯萎，
-            // 且 withFrameNanos 在后台仍会派发，dt 累计错位；与 BearGameScreen 等保持一致
-            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                last = Long.MIN_VALUE
-                delay(300)
-                continue
-            }
-            withFrameNanos { now ->
-                val dt =
-                    if (last == Long.MIN_VALUE) {
-                        1f / 60f
-                    } else {
-                        min((now - last) / 1e9f, 0.05f)
-                    }
-                last = now
-                farm.tick(System.currentTimeMillis(), weather)
-                // 动画时钟与重绘节流同步推进：farm.time 只在 Canvas 绘制中被读取，
-                // 这样晴/多云/雾时 Canvas 才真正按约 12fps 重绘，省电优化才生效
-                animDt += dt
-                if (needsHighFps || slowTick % 5 == 0) {
-                    farm.time += animDt
-                    animDt = 0f
-                }
-                slowTick++
-            }
+        farm.tick(System.currentTimeMillis(), weather)
+        // 动画时钟与重绘节流同步推进：farm.time 只在 Canvas 绘制中被读取，
+        // 这样晴/多云/雾时 Canvas 才真正按约 12fps 重绘，省电优化才生效
+        animDt += dt
+        if (needsHighFps || slowTick % 5 == 0) {
+            farm.time += animDt
+            animDt = 0f
         }
+        slowTick++
     }
 
     // 自动保存与渲染帧解耦：独立 5 秒定时，不再依赖帧循环
-    LaunchedEffect(Unit) {
-        while (isActive) {
-            delay(5_000)
-            farm.save()
-        }
-    }
+    GameRepeatingInterval(intervalMs = 5_000L) { farm.save() }
 
     BackHandler {
         farm.save()

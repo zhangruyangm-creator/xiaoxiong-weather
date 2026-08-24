@@ -36,7 +36,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -52,12 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sin
@@ -553,62 +548,46 @@ fun BearGameScreen(
     }
     val bearSprites = rememberBearSprites()
     var frame by remember { mutableLongStateOf(0L) }
-    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        var last = Long.MIN_VALUE
-        var slowTick = 0
-        while (isActive) {
-            // 切后台（ON_STOP）后不再推进对局：锁屏/通知栏等场景下帧回调仍会派发，
-            // 若不暂停，熊会继续跑并碰障翻车，玩家回来时可能已 Game Over 且持续耗电
-            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                last = Long.MIN_VALUE
-                delay(300)
-                continue
+    // 帧循环：切后台不推进、dt 钳制（防掉帧瞬移穿模）由共享层处理。
+    // game.tick 只在对局运行（每帧）或节流帧（约 12fps）时调用；
+    // frame 只在真正 tick 时更新，驱动 Canvas 重绘。
+    var slowTick by remember { mutableStateOf(0) }
+    GameFrameLoop(
+        paused = { lb.show },
+        onTick = { dt, now ->
+            val running = game.phase == GamePhase.RUNNING
+            // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
+            if (running || slowTick % 5 == 0) {
+                game.tick(
+                    dt,
+                    onCoin = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    },
+                    onDeath = { score ->
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        if (score > game.best) {
+                            game.best = score
+                            prefs.edit { putInt("best", score) }
+                        }
+                        if (score > 0) {
+                            lb.lastRank =
+                                lb.store.submit(
+                                    LeaderboardEntry(
+                                        score = score,
+                                        timestamp = System.currentTimeMillis(),
+                                        city = reportCityName,
+                                        weather = leaderboardWeatherOf(context, reportSceneCode),
+                                    ),
+                                ) ?: 0
+                        }
+                    },
+                )
+                frame = now
             }
-            withFrameNanos { now ->
-                val dt =
-                    if (last == Long.MIN_VALUE) {
-                        1f / 60f
-                    } else {
-                        min((now - last) / 1e9f, 0.033f)
-                    }
-                last = now
-                // 查看排行榜时暂停：跳过 tick，画面定格
-                if (lb.show) return@withFrameNanos
-                val running = game.phase == GamePhase.RUNNING
-                // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
-                if (running || slowTick % 5 == 0) {
-                    game.tick(
-                        dt,
-                        onCoin = {
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        },
-                        onDeath = { score ->
-                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            if (score > game.best) {
-                                game.best = score
-                                prefs.edit { putInt("best", score) }
-                            }
-                            if (score > 0) {
-                                lb.lastRank =
-                                    lb.store.submit(
-                                        LeaderboardEntry(
-                                            score = score,
-                                            timestamp = System.currentTimeMillis(),
-                                            city = reportCityName,
-                                            weather = leaderboardWeatherOf(context, reportSceneCode),
-                                        ),
-                                    ) ?: 0
-                            }
-                        },
-                    )
-                    frame = now
-                }
-                if (!running) slowTick++
-            }
-        }
-    }
+            if (!running) slowTick++
+        },
+    )
 
     Box(
         modifier =

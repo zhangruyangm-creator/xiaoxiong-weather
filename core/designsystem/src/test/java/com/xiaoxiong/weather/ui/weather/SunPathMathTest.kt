@@ -225,10 +225,21 @@ class SunPathMathTest {
         val saturday = LocalDate.of(2026, 8, 8)
         val day = SunPathPhase(true, 0.5f)
         assertTrue(isWeekend(saturday))
+        // 凌晨 5–7 点仍属「临近天亮」，避免 5 点就显示「周末出门玩啦」
+        assertEquals(
+            SunPathBearMoment.ALMOST_DAWN,
+            sunPathBearMoment(day, saturday, LocalTime.of(5, 30)),
+        )
         assertEquals(
             SunPathBearMoment.WEEKEND_MORNING,
             sunPathBearMoment(day, saturday, LocalTime.of(8, 0)),
         )
+        // 9:00–9:45 周末也吃早午餐，与卧室作息对齐
+        assertEquals(
+            SunPathBearMoment.BREAKFAST,
+            sunPathBearMoment(day, saturday, LocalTime.of(9, 15)),
+        )
+        // 9:45 起进入第一段旅行
         assertEquals(
             SunPathBearMoment.WEEKEND_EXPLORE,
             sunPathBearMoment(day, saturday, LocalTime.of(10, 0)),
@@ -396,6 +407,14 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_evening_snowwindow to R.string.sun_bear_evening_snowwindow,
                 IllustR.drawable.ic_sun_bear_evening_watertown to R.string.sun_bear_evening_watertown,
                 IllustR.drawable.ic_sun_bear_evening_raincoffee to R.string.sun_bear_evening_raincoffee,
+                IllustR.drawable.ic_sun_bear_evening_convenience to R.string.sun_bear_evening_convenience,
+                IllustR.drawable.ic_sun_bear_evening_oden to R.string.sun_bear_evening_oden,
+                IllustR.drawable.ic_sun_bear_evening_rainbed to R.string.sun_bear_evening_rainbed,
+                IllustR.drawable.ic_sun_bear_evening_yatai to R.string.sun_bear_evening_yatai,
+                IllustR.drawable.ic_sun_bear_evening_rainystreet to R.string.sun_bear_evening_rainystreet,
+                IllustR.drawable.ic_sun_bear_evening_bikeride to R.string.sun_bear_evening_bikeride,
+                IllustR.drawable.ic_sun_bear_evening_seafood to R.string.sun_bear_evening_seafood,
+                IllustR.drawable.ic_sun_bear_evening_hillsidewalk to R.string.sun_bear_evening_hillsidewalk,
             )
         val seen = mutableSetOf<Int>()
         for (i in 0L..120L) {
@@ -406,7 +425,7 @@ class SunPathMathTest {
             assertEquals(pair.second, caption)
             seen += res
         }
-        assertEquals(60, seen.size)
+        assertEquals(68, seen.size)
         assertEquals(
             SunPathBearMoment.EVENING.bearResFor(day),
             SunPathBearMoment.EVENING.bearResFor(day),
@@ -584,16 +603,17 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_dinner_hainanese,
                 IllustR.drawable.ic_sun_bear_dinner_lau,
                 IllustR.drawable.ic_sun_bear_dinner_banhxeo,
+                IllustR.drawable.ic_sun_bear_dinner_crayfish,
             )
         val dinnerA = SunPathBearMoment.DINNER.bearResFor(day)
         assertEquals(dinnerA, SunPathBearMoment.DINNER.bearResFor(day))
         assertTrue(dinnerA in dinnerPool)
-        assertTrue(dailyVariantIndex(day, "DINNER", 26) in 0..25)
+        assertTrue(dailyVariantIndex(day, "DINNER", 27) in 0..26)
         val dinnerSeen =
             (0L..120L)
                 .map { SunPathBearMoment.DINNER.bearResFor(day.plusDays(it)) }
                 .toSet()
-        assertEquals(26, dinnerSeen.size)
+        assertEquals(27, dinnerSeen.size)
         assertNotEquals(lunchA, dinnerA)
     }
 
@@ -610,6 +630,7 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_morning_ebike,
                 IllustR.drawable.ic_sun_bear_morning_cycle,
                 IllustR.drawable.ic_sun_bear_morning_ferry,
+                IllustR.drawable.ic_sun_bear_morning_maglev,
             )
         val homePool =
             listOf(
@@ -621,6 +642,7 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_home_ebike,
                 IllustR.drawable.ic_sun_bear_home_cycle,
                 IllustR.drawable.ic_sun_bear_home_ferry,
+                IllustR.drawable.ic_sun_bear_home_maglev,
             )
         val outCaptions =
             listOf(
@@ -632,6 +654,7 @@ class SunPathMathTest {
                 R.string.sun_bear_commute_ebike_out,
                 R.string.sun_bear_commute_cycle_out,
                 R.string.sun_bear_commute_ferry_out,
+                R.string.sun_bear_commute_maglev_out,
             )
         val out = SunPathBearMoment.MORNING_OUT.bearResFor(day)
         val home = SunPathBearMoment.HEAD_HOME.bearResFor(day)
@@ -645,11 +668,11 @@ class SunPathMathTest {
             SunPathBearMoment.MORNING_OUT.captionResFor(day),
         )
         val modes =
-            (0L..70L)
+            (0L..80L)
                 .map {
                     outPool.indexOf(SunPathBearMoment.MORNING_OUT.bearResFor(day.plusDays(it)))
                 }.toSet()
-        assertEquals(8, modes.size)
+        assertEquals(9, modes.size)
     }
 
     @Test

@@ -20,9 +20,18 @@ fun isWeekend(date: LocalDate): Boolean = date.dayOfWeek == DayOfWeek.SATURDAY |
 /**
  * 同一天、同一场景索引固定，避免重组时乱跳。
  *
- * 哈希乘子刻意避开常见池大小（31 等），否则会与 size 形成噪声互消、
- * 导致某些池（如 weekend 旅行插画）日期严重重复。1000003 为质数乘子，
- * 对各尺寸均匀分布且无周期退火。
+ * 实现说明：原版用 `(epochDay * 1_000_003 + salt.hashCode()) % size`，对
+ * size=60/31/8 等池都接近完美均匀；但当 size 与乘子互质性弱时，连续日期
+ * 模 size 的步长可能很小，用户感觉"周末早晨总是同一张"。
+ *
+ * 改进两点：
+ * 1. 乘子改为 1_000_033（质数，与常见池大小都互质且离 1_000_003 足够远），
+ *    让相邻日期的步长更分散。
+ * 2. salt.hashCode() × 31 作为加扰，让不同 salt 序列与日期步长独立，
+ *    避免不同 moment 在同一天"撞上"同一索引偏移。
+ *
+ * 仍是确定性映射：同一天 + 同一 salt + 同一 size 始终落在同一索引，
+ * 避免 App 重组/Widget 刷新时插画跳变。
  */
 fun dailyVariantIndex(
     date: LocalDate,
@@ -30,7 +39,7 @@ fun dailyVariantIndex(
     size: Int,
 ): Int {
     if (size <= 1) return 0
-    val h = date.toEpochDay() * 1_000_003L + salt.hashCode()
+    val h = date.toEpochDay() * 1_000_033L + salt.hashCode() * 31L
     return ((h % size) + size).toInt() % size
 }
 
@@ -102,14 +111,21 @@ private fun dayBearMoment(
             }
         }
     return when {
+        // 凌晨段：日界（5:00）到日出前（默认取 MORNING_STROLL_END_MINUTE 作为兜底），
+        // 周末也走 ALMOST_DAWN，与卧室作息时间表语义对齐，避免 5–7 点就显示「出门玩」
         minutes < exerciseEnd ->
-            if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_EXERCISE
+            if (isWeekend(date)) SunPathBearMoment.ALMOST_DAWN else SunPathBearMoment.MORNING_EXERCISE
         minutes < BearRoutineTimes.MORNING_STROLL_END_MINUTE ->
-            if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_STROLL
+            if (isWeekend(date)) SunPathBearMoment.ALMOST_DAWN else SunPathBearMoment.MORNING_STROLL
+        // 7:15–8:15 工作日是早餐；周末继续「周末早晨/准备出门」
         minutes < BearRoutineTimes.BREAKFAST_END_MINUTE ->
-            if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.BREAKFAST
+            if (isWeekend(date)) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.BREAKFAST
         minutes < BearRoutineTimes.MORNING_OUT_END_MINUTE ->
-            if (weekend) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_OUT
+            if (isWeekend(date)) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_OUT
+        // 周末 9:00–9:45 加一段简短的早午餐，与卧室作息时间表对齐
+        weekend && minutes < BearRoutineTimes.WEEKEND_BREAKFAST_END_MINUTE ->
+            SunPathBearMoment.BREAKFAST
+        // 周末上午旅行：9:45–11:30；工作日是上午工作
         minutes < BearRoutineTimes.LUNCH_START_MINUTE ->
             if (weekend) SunPathBearMoment.WEEKEND_EXPLORE else SunPathBearMoment.WORK_MORNING
         minutes < BearRoutineTimes.LUNCH_END_MINUTE ->

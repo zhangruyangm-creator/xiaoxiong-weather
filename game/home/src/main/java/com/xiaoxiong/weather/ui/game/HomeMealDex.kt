@@ -414,6 +414,12 @@ enum class HomeMealSlot(
                 HomeCuisine.CHINESE,
             ),
             HomeMealDish(
+                IllustR.drawable.ic_sun_bear_dinner_crayfish,
+                R.string.bear_home_dex_di_crayfish,
+                R.string.bear_home_dex_di_crayfish_detail,
+                HomeCuisine.CHINESE,
+            ),
+            HomeMealDish(
                 IllustR.drawable.ic_sun_bear_dinner_sushi,
                 R.string.bear_home_dex_di_sushi,
                 R.string.bear_home_dex_di_sushi_detail,

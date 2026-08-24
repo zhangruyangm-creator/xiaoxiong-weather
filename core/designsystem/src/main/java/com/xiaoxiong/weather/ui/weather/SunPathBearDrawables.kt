@@ -8,7 +8,7 @@ import com.xiaoxiong.weather.resillustrations.R as IllustR
 // 各片刻的插画池与按日抽取逻辑。
 // 池声明为 internal，供 SunPathBearMoment 枚举跨文件引用；其余为模块内私有实现细节。
 
-/** 走路 / 地铁 / 公交 / 打车 / 开车 / 电瓶车 / 自行车 / 轮渡；上下班共用同一天索引。 */
+/** 走路 / 地铁 / 公交 / 打车 / 开车 / 电瓶车 / 自行车 / 轮渡 / 磁悬浮；上下班共用同一天索引。 */
 internal val COMMUTE_OUT_DRAWABLES =
     intArrayOf(
         IllustR.drawable.ic_sun_bear_morning_out,
@@ -19,6 +19,7 @@ internal val COMMUTE_OUT_DRAWABLES =
         IllustR.drawable.ic_sun_bear_morning_ebike,
         IllustR.drawable.ic_sun_bear_morning_cycle,
         IllustR.drawable.ic_sun_bear_morning_ferry,
+        IllustR.drawable.ic_sun_bear_morning_maglev,
     )
 internal val COMMUTE_HOME_DRAWABLES =
     intArrayOf(
@@ -30,6 +31,7 @@ internal val COMMUTE_HOME_DRAWABLES =
         IllustR.drawable.ic_sun_bear_home_ebike,
         IllustR.drawable.ic_sun_bear_home_cycle,
         IllustR.drawable.ic_sun_bear_home_ferry,
+        IllustR.drawable.ic_sun_bear_home_maglev,
     )
 internal val COMMUTE_OUT_CAPTIONS =
     intArrayOf(
@@ -41,6 +43,7 @@ internal val COMMUTE_OUT_CAPTIONS =
         R.string.sun_bear_commute_ebike_out,
         R.string.sun_bear_commute_cycle_out,
         R.string.sun_bear_commute_ferry_out,
+        R.string.sun_bear_commute_maglev_out,
     )
 internal val COMMUTE_HOME_CAPTIONS =
     intArrayOf(
@@ -52,6 +55,7 @@ internal val COMMUTE_HOME_CAPTIONS =
         R.string.sun_bear_commute_ebike_home,
         R.string.sun_bear_commute_cycle_home,
         R.string.sun_bear_commute_ferry_home,
+        R.string.sun_bear_commute_maglev_home,
     )
 
 internal fun commuteIndex(date: LocalDate): Int = dailyVariantIndex(date, "COMMUTE", COMMUTE_OUT_DRAWABLES.size)
@@ -129,6 +133,7 @@ internal val WEEKEND_DAY_DRAWABLES =
         IllustR.drawable.ic_sun_bear_weekend_themepark,
         IllustR.drawable.ic_sun_bear_weekend_hotairballoon,
         IllustR.drawable.ic_sun_bear_weekend_arcade,
+        IllustR.drawable.ic_sun_bear_weekend_festivestreet,
     )
 
 /**

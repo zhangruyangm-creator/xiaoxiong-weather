@@ -20,6 +20,12 @@ object BearRoutineTimes {
     /** 出门/通勤结束（=上午忙开始）。 */
     const val MORNING_OUT_END_MINUTE: Int = 9 * 60
 
+    /**
+     * 周末早午餐结束（=上午旅行开始）：周末睡到自然醒，9:00 出门吃饭，
+     * 9:45 起开始第一段旅行。
+     */
+    const val WEEKEND_BREAKFAST_END_MINUTE: Int = 9 * 60 + 45
+
     /** 上午忙结束（=午饭开始）。 */
     const val LUNCH_START_MINUTE: Int = 11 * 60 + 30
 

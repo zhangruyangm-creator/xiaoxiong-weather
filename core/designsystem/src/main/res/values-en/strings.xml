@@ -30,6 +30,7 @@
     <string name="sun_bear_commute_ebike_out">Bear is riding an e-bike to work</string>
     <string name="sun_bear_commute_cycle_out">Bear is cycling to work</string>
     <string name="sun_bear_commute_ferry_out">Bear is taking the ferry to work</string>
+    <string name="sun_bear_commute_maglev_out">Bear is taking the maglev to work</string>
     <string name="sun_bear_work_morning">Bear is hard at work</string>
     <string name="sun_bear_lunch">Bear is having lunch</string>
     <string name="sun_bear_work_afternoon">Bear keeps busy this afternoon</string>
@@ -57,6 +58,7 @@
     <string name="sun_bear_commute_ebike_home">Bear is riding an e-bike home</string>
     <string name="sun_bear_commute_cycle_home">Bear is cycling home</string>
     <string name="sun_bear_commute_ferry_home">Bear is taking the ferry home</string>
+    <string name="sun_bear_commute_maglev_home">Bear is taking the maglev home</string>
     <string name="sun_bear_evening_exercise">Bear is evening training</string>
     <string name="sun_bear_exercise_run_evening">Bear is out for an evening run</string>
     <string name="sun_bear_exercise_basketball_evening">Bear is playing basketball this evening</string>
@@ -144,6 +146,14 @@
     <string name="sun_bear_evening_snowwindow">Bear is watching the snowy street with a warm mug</string>
     <string name="sun_bear_evening_watertown">Bear is enjoying a rainy Jiangnan water town view from the window</string>
     <string name="sun_bear_evening_raincoffee">Bear is making coffee in the kitchen on a rainy night</string>
+    <string name="sun_bear_evening_convenience">Bear is visiting Wan Deng convenience store at night</string>
+    <string name="sun_bear_evening_oden">Bear is buying oden at the convenience store at night</string>
+    <string name="sun_bear_evening_rainbed">Bear is cozy in bed listening to rain on a rainy night</string>
+    <string name="sun_bear_evening_yatai">Bear is enjoying skewers at a night food stall under the moon</string>
+    <string name="sun_bear_evening_rainystreet">Bear is walking to the convenience store with an umbrella on a rainy night</string>
+    <string name="sun_bear_evening_bikeride">Bear is cycling past street food stalls at dusk</string>
+    <string name="sun_bear_evening_seafood">Bear is buying seafood at the fish shop at night</string>
+    <string name="sun_bear_evening_hillsidewalk">Bear is strolling along a hillside village street at twilight</string>
     <string name="sun_bear_bedtime">Bear is getting ready for bed</string>
     <string name="sun_bear_bedtime_pajamas">Bear is putting on pajamas</string>
     <string name="sun_bear_bedtime_bath">Bear is taking a bath</string>

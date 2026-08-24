@@ -19,9 +19,22 @@ class WeatherRepository(
     forecastBase: String = DEFAULT_FORECAST_BASE,
     airQualityBase: String = DEFAULT_AIR_QUALITY_BASE,
     archiveBase: String = DEFAULT_ARCHIVE_BASE,
+    /**
+     * 预报主站的备用入口列表（见 ForecastFetcher）。
+     * 默认为空 = 不启用故障转移；留待接入可验证的第二入口时配置。
+     */
+    forecastBaseFallbacks: List<String> = ForecastFetcher.DEFAULT_FORECAST_FALLBACKS,
 ) : WeatherFetcher {
     private val citySearch = CitySearchFetcher(resources, searchClient, json, geocodingBase)
-    private val forecast = ForecastFetcher(resources, client, json, forecastBase, airQualityBase)
+    private val forecast =
+        ForecastFetcher(
+            resources,
+            client,
+            json,
+            forecastBase,
+            airQualityBase,
+            forecastBaseFallbacks,
+        )
     private val history = HistoryFetcher(client, json, archiveBase)
 
     override suspend fun fetchWeather(city: City): WeatherSnapshot = forecast.fetchWeather(city)
