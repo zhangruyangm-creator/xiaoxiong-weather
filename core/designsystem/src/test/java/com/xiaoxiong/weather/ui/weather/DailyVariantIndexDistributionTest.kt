@@ -20,12 +20,12 @@ class DailyVariantIndexDistributionTest {
     private val base = LocalDate.of(2026, 8, 6)
 
     @Test
-    fun evening_poolCoversAllSlotsWithin128Days() {
+    fun evening_poolCoversAllSlotsWithin129Days() {
         val seen = mutableSetOf<Int>()
-        for (i in 0L..127L) {
-            seen += dailyVariantIndex(base.plusDays(i), "EVENING", 68)
+        for (i in 0L..128L) {
+            seen += dailyVariantIndex(base.plusDays(i), "EVENING", 69)
         }
-        assertEquals(68, seen.size)
+        assertEquals(69, seen.size)
     }
 
     @Test

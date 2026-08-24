@@ -2,6 +2,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">小熊天气</string>
     <string name="widget_description">当前气温、今明概况与未来几小时走势</string>
+    <string name="widget_wide_label">小熊天气（大）</string>
+    <string name="widget_wide_description">更大的小组件：今明概况与更长的逐小时走势</string>
+    <string name="widget_wide4x2_label">小熊天气（超宽）</string>
+    <string name="widget_wide4x2_description">超宽横向小组件：更长逐小时走势与更多指标</string>
     <string name="widget_loading">正在加载天气…</string>
     <string name="widget_empty">打开 App 选择城市后即可显示</string>
     <string name="widget_tomorrow">明天</string>
@@ -9,6 +13,30 @@
     <string name="widget_preview_emoji">☀️</string>
     <string name="widget_preview_temp">26°C</string>
     <string name="widget_preview_summary">晴朗 · 18°C / 28°C</string>
+    <string name="widget_preview_hour1_time">18时</string>
+    <string name="widget_preview_hour1_emoji">☁️</string>
+    <string name="widget_preview_hour1_temp">24°</string>
+    <string name="widget_preview_hour2_time">19时</string>
+    <string name="widget_preview_hour2_emoji">🌙</string>
+    <string name="widget_preview_hour2_temp">23°</string>
+    <string name="widget_preview_hour3_time">20时</string>
+    <string name="widget_preview_hour3_emoji">⛅</string>
+    <string name="widget_preview_hour3_temp">22°</string>
+    <string name="widget_preview_hour4_time">21时</string>
+    <string name="widget_preview_hour4_emoji">🌙</string>
+    <string name="widget_preview_hour4_temp">21°</string>
+    <string name="widget_preview_hour5_time">22时</string>
+    <string name="widget_preview_hour5_emoji">☁️</string>
+    <string name="widget_preview_hour5_temp">21°</string>
+    <string name="widget_preview_hour6_time">23时</string>
+    <string name="widget_preview_hour6_emoji">🌙</string>
+    <string name="widget_preview_hour6_temp">20°</string>
+    <string name="widget_preview_hour7_time">明0时</string>
+    <string name="widget_preview_hour7_emoji">☀️</string>
+    <string name="widget_preview_hour7_temp">20°</string>
+    <string name="widget_preview_hour8_time">明1时</string>
+    <string name="widget_preview_hour8_emoji">🌙</string>
+    <string name="widget_preview_hour8_temp">19°</string>
 
     <!-- 主界面 -->
 

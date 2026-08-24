@@ -132,7 +132,9 @@ class ForecastFetcher(
                         "wind_speed_10m_max",
                     ).joinToString(","),
                 ).addQueryParameter("past_hours", "24")
-                .addQueryParameter("forecast_hours", "18")
+                // 未来 28 小时：强降雨/降雪预警需看未来 24h 整点（upcoming.drop(1).take(24)），
+                // 18 小时会让「未来 24h」窗口实际只有 18 小时，超窗强的降雨漏报
+                .addQueryParameter("forecast_hours", "28")
                 .addQueryParameter("forecast_days", "7")
                 .addQueryParameter("wind_speed_unit", "kmh")
                 .addQueryParameter("timezone", "auto")

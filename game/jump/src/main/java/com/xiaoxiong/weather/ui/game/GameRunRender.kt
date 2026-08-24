@@ -216,7 +216,7 @@ private fun DrawScope.drawSnow(
     for (i in 0 until count) {
         val x = ((i * 83 + game.time * 24f + sin(game.time * 1.4f + i) * 12f) % (size.width + 30))
         val y = ((i * 61 + game.time * 50f) % (size.height + 30))
-        drawCircle(Color.White.copy(alpha = 0.85f), (2f + i % 3) * s, Offset(x, y))
+        drawCircle(Color.White.copy(alpha = 0.7f), (1.6f + i % 3 * 0.7f) * s, Offset(x, y))
     }
 }
 

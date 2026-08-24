@@ -46,6 +46,30 @@
                 android:resource="@xml/weather_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".widget.WeatherAppWideWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_wide_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weather_widget_wide_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.WeatherAppWide4x2WidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_wide4x2_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weather_widget_4x2_info" />
+        </receiver>
+
         <!-- 桌面图标按天气切换：同一时间只启用一个 alias -->
         <activity-alias
             android:name=".launcher.Sunny"

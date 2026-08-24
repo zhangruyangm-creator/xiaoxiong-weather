@@ -85,9 +85,11 @@ import com.xiaoxiong.weather.ui.settings.PrivacyScreen
 import com.xiaoxiong.weather.ui.settings.SettingsScreen
 import com.xiaoxiong.weather.ui.settings.TodayCardsSettingsScreen
 import com.xiaoxiong.weather.util.WeatherCodes
+import com.xiaoxiong.weather.worker.WeatherRefreshWorker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
+import androidx.work.ExistingPeriodicWorkPolicy
 
 /** 连点标题打开游戏枢纽所需的连续点击次数。 */
 private const val SECRET_TITLE_TAPS = 5
@@ -227,6 +229,15 @@ private fun WeatherScreenContent(
                 onDebugUnlocked = {
                     viewModel.enableDebugMode()
                     overlay = OverlayScreen.Debug
+                },
+                // 后台刷新间隔改动需重新调度周期任务：KEEP 不会更新已存在的任务，
+                // 必须用 REPLACE 让新间隔立即生效（否则设置项形同虚设）
+                onBackgroundRefreshIntervalChanged = { interval ->
+                    WeatherRefreshWorker.enqueue(
+                        context,
+                        intervalHours = interval.hours,
+                        policy = ExistingPeriodicWorkPolicy.REPLACE,
+                    )
                 },
             )
             return

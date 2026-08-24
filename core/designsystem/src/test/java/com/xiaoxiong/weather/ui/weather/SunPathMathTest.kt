@@ -415,6 +415,7 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_evening_bikeride to R.string.sun_bear_evening_bikeride,
                 IllustR.drawable.ic_sun_bear_evening_seafood to R.string.sun_bear_evening_seafood,
                 IllustR.drawable.ic_sun_bear_evening_hillsidewalk to R.string.sun_bear_evening_hillsidewalk,
+                IllustR.drawable.ic_sun_bear_evening_raindesk to R.string.sun_bear_evening_raindesk,
             )
         val seen = mutableSetOf<Int>()
         for (i in 0L..120L) {
@@ -425,7 +426,7 @@ class SunPathMathTest {
             assertEquals(pair.second, caption)
             seen += res
         }
-        assertEquals(68, seen.size)
+        assertEquals(69, seen.size)
         assertEquals(
             SunPathBearMoment.EVENING.bearResFor(day),
             SunPathBearMoment.EVENING.bearResFor(day),

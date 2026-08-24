@@ -39,12 +39,75 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.xiaoxiong.weather.R
 
-class WeatherAppWidget : GlanceAppWidget() {
+/**
+ * 2x2 默认小组件。支持响应式拉伸：拖大后自动切换为 中/宽/大 布局，
+ * 具体尺寸档位由 [WeatherAppWidget.SIZES] 枚举（与 [WeatherAppWideWidget] 共享）。
+ */
+class WeatherAppWidget : WeatherAppWidgetBase() {
     override val sizeMode: SizeMode =
         SizeMode.Responsive(
-            setOf(SIZE_SMALL, SIZE_MEDIUM, SIZE_WIDE, SIZE_EXTRA_WIDE, SIZE_TALL, SIZE_LARGE),
+            setOf(
+                WeatherWidgetSizes.SMALL,
+                WeatherWidgetSizes.MEDIUM,
+                WeatherWidgetSizes.WIDE,
+                WeatherWidgetSizes.EXTRA_WIDE,
+                WeatherWidgetSizes.TALL,
+                WeatherWidgetSizes.LARGE,
+            ),
         )
 
+    companion object {
+        val SIZES = WeatherWidgetSizes
+    }
+}
+
+/**
+ * 3x2 默认小组件，复用同一套 Glance 渲染内容；添加器里额外出现一个更大选项。
+ */
+class WeatherAppWideWidget : WeatherAppWidgetBase() {
+    override val sizeMode: SizeMode =
+        SizeMode.Responsive(
+            setOf(
+                WeatherWidgetSizes.MEDIUM,
+                WeatherWidgetSizes.WIDE,
+                WeatherWidgetSizes.EXTRA_WIDE,
+                WeatherWidgetSizes.TALL,
+                WeatherWidgetSizes.LARGE,
+            ),
+        )
+}
+
+/**
+ * 4x2 默认小组件，复用同一套 Glance 渲染内容；添加器里的最宽横档选项。
+ */
+class WeatherAppWide4x2Widget : WeatherAppWidgetBase() {
+    override val sizeMode: SizeMode =
+        SizeMode.Responsive(
+            setOf(
+                WeatherWidgetSizes.WIDE,
+                WeatherWidgetSizes.EXTRA_WIDE,
+                WeatherWidgetSizes.LARGE,
+            ),
+        )
+}
+
+/** 各尺寸档位集中定义，各 widget 类共用，避免 Layout 只能看到默认档。 */
+object WeatherWidgetSizes {
+    /** 2x2 最小可用 */
+    val SMALL = DpSize(110.dp, 110.dp)
+    /** 3x2 */
+    val MEDIUM = DpSize(180.dp, 110.dp)
+    /** 4x2 */
+    val WIDE = DpSize(300.dp, 110.dp)
+    /** 5x2 */
+    val EXTRA_WIDE = DpSize(400.dp, 110.dp)
+    /** 2x3 */
+    val TALL = DpSize(180.dp, 220.dp)
+    /** 4x4 */
+    val LARGE = DpSize(300.dp, 220.dp)
+}
+
+abstract class WeatherAppWidgetBase : GlanceAppWidget() {
     override suspend fun provideGlance(
         context: Context,
         id: GlanceId,
@@ -56,19 +119,20 @@ class WeatherAppWidget : GlanceAppWidget() {
             }
         }
     }
-
-    companion object {
-        val SIZE_SMALL = DpSize(110.dp, 110.dp)
-        val SIZE_MEDIUM = DpSize(180.dp, 110.dp)
-        val SIZE_WIDE = DpSize(300.dp, 110.dp)
-        val SIZE_EXTRA_WIDE = DpSize(400.dp, 110.dp)
-        val SIZE_TALL = DpSize(180.dp, 220.dp)
-        val SIZE_LARGE = DpSize(300.dp, 220.dp)
-    }
 }
 
 class WeatherAppWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = WeatherAppWidget()
+}
+
+/** 大尺寸 widget 的 receiver。 */
+class WeatherAppWideWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = WeatherAppWideWidget()
+}
+
+/** 4x2 超宽 widget 的 receiver。 */
+class WeatherAppWide4x2WidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = WeatherAppWide4x2Widget()
 }
 
 @Composable

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4x2 尺寸档：添加器里的超宽横档；支持拉伸到 5x4 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:description="@string/widget_wide4x2_description"
+    android:initialLayout="@layout/weather_widget_loading"
+    android:minWidth="280dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="250dp"
+    android:minResizeHeight="110dp"
+    android:maxResizeWidth="410dp"
+    android:maxResizeHeight="324dp"
+    android:previewLayout="@layout/weather_widget_preview_4x2"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"
+    tools:ignore="UnusedAttribute" />

@@ -333,6 +333,7 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_evening_bikeride,
         IllustR.drawable.ic_sun_bear_evening_seafood,
         IllustR.drawable.ic_sun_bear_evening_hillsidewalk,
+        IllustR.drawable.ic_sun_bear_evening_raindesk,
     ),
 
     /** 入睡准备（23:00–24:00）：换睡衣 / 泡澡 / 夜灯等，按日轮换。 */
@@ -507,6 +508,7 @@ enum class SunPathBearMoment(
                         R.string.sun_bear_evening_bikeride,
                         R.string.sun_bear_evening_seafood,
                         R.string.sun_bear_evening_hillsidewalk,
+                        R.string.sun_bear_evening_raindesk,
                     )
                 return captions[dailyVariantIndex(date, name, captions.size)]
             }
