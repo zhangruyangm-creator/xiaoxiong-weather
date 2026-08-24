@@ -44,9 +44,10 @@ class GameFrameLoopTest {
                 1_048_000_000L,
                 1_064_000_000L,
             )
-        val dts = samples.map { now ->
-            computeFrameDt(lastNanos = last, nowNanos = now).also { last = now }
-        }
+        val dts =
+            samples.map { now ->
+                computeFrameDt(lastNanos = last, nowNanos = now).also { last = now }
+            }
         dts.forEach { assertEquals(0.016f, it, 2e-3f) }
     }
 }

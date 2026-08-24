@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="album_count">%1$d illustrations</string>
+    <string name="album_title">Bear Album</string>
     <string name="alerts_collapse">Collapse</string>
     <string name="alerts_expand">%1$d alerts · Expand</string>
     <string name="app_name">Bear Weather</string>

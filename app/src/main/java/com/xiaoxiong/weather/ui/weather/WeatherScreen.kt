@@ -71,9 +71,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.work.ExistingPeriodicWorkPolicy
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
+import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_ALBUM
 import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_HOME
 import com.xiaoxiong.weather.game.GameEntry
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
@@ -89,7 +91,6 @@ import com.xiaoxiong.weather.worker.WeatherRefreshWorker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
-import androidx.work.ExistingPeriodicWorkPolicy
 
 /** 连点标题打开游戏枢纽所需的连续点击次数。 */
 private const val SECRET_TITLE_TAPS = 5
@@ -216,6 +217,14 @@ private fun WeatherScreenContent(
         }
     }
 
+    // 相册口令：非游戏彩蛋，由天气页拦截打开全屏相册
+    LaunchedEffect(state.query) {
+        if (state.query.trim() == EASTER_EGG_BEAR_ALBUM) {
+            viewModel.clearQueryKeepLocation()
+            overlay = OverlayScreen.Album
+        }
+    }
+
     when (overlay) {
         OverlayScreen.Settings -> {
             SettingsScreen(
@@ -301,6 +310,10 @@ private fun WeatherScreenContent(
                 onFetchRange = viewModel::fetchHistoryRange,
                 onBack = { overlay = OverlayScreen.None },
             )
+            return
+        }
+        OverlayScreen.Album -> {
+            BearAlbumScreen(onBack = { overlay = OverlayScreen.None })
             return
         }
         OverlayScreen.None -> Unit

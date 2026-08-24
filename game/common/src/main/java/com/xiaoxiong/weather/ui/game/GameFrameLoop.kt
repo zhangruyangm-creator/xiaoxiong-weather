@@ -13,6 +13,7 @@ import kotlin.math.min
 enum class FrameThrottle {
     /** 每帧都回调（60fps），用于对局/粒子等需要满速的场景。 */
     FULL,
+
     /** 每 5 帧回调一次（约 12fps），用于标题 / 结算等非对局界面，省电并减少重组。 */
     THROTTLED,
 }

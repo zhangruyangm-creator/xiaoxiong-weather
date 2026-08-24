@@ -148,7 +148,8 @@ class ForecastFetcher(
                 val fallbackUrls =
                     forecastBaseFallbacks.mapNotNull { base ->
                         runCatching {
-                            base.toHttpUrl()
+                            base
+                                .toHttpUrl()
                                 .newBuilder()
                                 .encodedPath(url.encodedPath)
                                 .query(url.encodedQuery)

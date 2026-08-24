@@ -79,6 +79,40 @@ keyPassword=******
 
 `app/release.keystore` 是实际密钥库文件（已在 `.gitignore` 中排除）。
 
+## 发版流程
+
+新版本发布 = **推送代码提交 + 打同名版本 tag** 两步，缺一不可：
+
+```bash
+# 1. 假设 CHANGELOG.md 已新增版本条目、app/build.gradle.kts 已升 versionName
+git commit -am "release: 1.7.9（版本号 63、CHANGELOG 更新）"
+git push origin main
+
+# 2. 打标签并推送——这一步触发 GitHub Actions 自动发版：
+#    没有 v1.7.9 这个 tag，xiaoxiong-weather-releases 仓库就不会更新！
+git tag v1.7.9
+git push origin v1.7.9
+```
+
+> 注意：**tag 名称必须与 CHANGELOG 条目、versionName 三者一致**（如 `v1.7.9`）。只 push 代码不打 tag，发布仓库会一直停留在旧版本。
+
+push tag 后，CI 自动完成：
+
+| 步骤 | 说明 |
+|---|---|
+| 还原签名密钥 | 从仓库 Secrets `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` 注入，不落盘 |
+| 构建签名 APK | `./gradlew assembleFullRelease` |
+| 提取更新说明 | 从 `CHANGELOG.md` 自动摘出对应版本条目作为 Release notes |
+| 发布 GitHub Release | APK 发布到 [`xiaoxiong-weather-releases`](https://github.com/zhangruyangm-creator/xiaoxiong-weather-releases) 仓库的 Releases 页 |
+| 更新下载站 | `tools/update_releases_readme.py` 刷新的 README 版本表 |
+
+前置条件（CI 缺失会直接报错退出）：
+
+- 仓库 Secrets 已配置 `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`
+- 已配置 `GH_TOKEN`（需要 `xiaoxiong-weather-releases` 仓库的写权限）
+
+可选：push 前先在本地跑 `./gradlew assembleFullRelease` 验证构建与签名配置无误，减少 CI 失败重跑。发版进度可在仓库 Actions 页查看。
+
 ## Firebase Crashlytics（可选）
 
 把 `google-services.json` 放进 `app/` 目录后，`app/build.gradle.kts` 会自动应用 `google-services` 与 `crashlytics` 插件。不放则不启用，无任何 Firebase 依赖。
@@ -107,7 +141,7 @@ xiaoxiong-weather/
 │   ├── data/                 # Store、Repository、城市目录、区域进 assets
 │   ├── test-fixtures/        # 测试夹具（WeatherFixtures），仅测试依赖
 │   ├── designsystem/         # Compose 主题 + SunPathMath + WeatherScene + 预警/图标
-│   └── res-illustrations/    # 纯资源模块：270 张 ic_sun_bear_* 场景插画（单一数据源）
+│   └── res-illustrations/    # 纯资源模块：418 张 ic_sun_bear_* 场景插画（单一数据源）
 ├── feature/
 │   ├── weather/              # WeatherViewModel / 天气页 / 雷达 / 分享 / 调试
 │   └── settings/             # 设置 / 隐私门 / 卡片设置

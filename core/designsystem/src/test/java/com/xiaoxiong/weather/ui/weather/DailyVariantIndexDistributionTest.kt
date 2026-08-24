@@ -16,7 +16,6 @@ import java.time.LocalDate
  * 1_000_033，并对 salt 乘 31 加扰，确保多种 size 下分布都均匀。
  */
 class DailyVariantIndexDistributionTest {
-
     private val base = LocalDate.of(2026, 8, 6)
 
     @Test
@@ -82,10 +81,17 @@ class DailyVariantIndexDistributionTest {
     fun weekend_morning_consecutiveSundaysDoNotCollide() {
         // 真实场景：用户连续几个周末早晨都打开 App。
         // 期望相邻两个周日不会落在同一张图（避免"周末总是同一张"的体验）。
-        val sundays = listOf(
-            "2026-08-23", "2026-08-16", "2026-08-09", "2026-08-02",
-            "2026-07-26", "2026-07-19", "2026-07-12", "2026-07-05",
-        ).map(LocalDate::parse)
+        val sundays =
+            listOf(
+                "2026-08-23",
+                "2026-08-16",
+                "2026-08-09",
+                "2026-08-02",
+                "2026-07-26",
+                "2026-07-19",
+                "2026-07-12",
+                "2026-07-05",
+            ).map(LocalDate::parse)
         val indices = sundays.map { dailyVariantIndex(it, "WEEKEND_MORNING", 32) }
         assertEquals("相邻周日不应落到同一张图", indices.size, indices.toSet().size)
     }

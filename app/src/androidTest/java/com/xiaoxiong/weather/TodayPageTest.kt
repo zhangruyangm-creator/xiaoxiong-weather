@@ -14,11 +14,11 @@ import com.xiaoxiong.weather.data.CurrentWeather
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.weather.TodayPage
-import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.TimeUnit
 
 /**
  * 今日页布局与卡片显隐的 Compose UI 测试。

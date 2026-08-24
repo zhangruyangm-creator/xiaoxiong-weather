@@ -95,14 +95,19 @@ class WeatherAppWide4x2Widget : WeatherAppWidgetBase() {
 object WeatherWidgetSizes {
     /** 2x2 最小可用 */
     val SMALL = DpSize(110.dp, 110.dp)
+
     /** 3x2 */
     val MEDIUM = DpSize(180.dp, 110.dp)
+
     /** 4x2 */
     val WIDE = DpSize(300.dp, 110.dp)
+
     /** 5x2 */
     val EXTRA_WIDE = DpSize(400.dp, 110.dp)
+
     /** 2x3 */
     val TALL = DpSize(180.dp, 220.dp)
+
     /** 4x4 */
     val LARGE = DpSize(300.dp, 220.dp)
 }

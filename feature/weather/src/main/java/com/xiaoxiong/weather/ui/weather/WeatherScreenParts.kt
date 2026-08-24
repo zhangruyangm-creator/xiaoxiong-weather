@@ -35,7 +35,17 @@ data class TabItem(
     val icon: ImageVector,
 )
 
-enum class OverlayScreen { None, Settings, TodayCards, HourlyCards, DailyCards, Privacy, Debug, History }
+enum class OverlayScreen {
+    None,
+    Settings,
+    TodayCards,
+    HourlyCards,
+    DailyCards,
+    Privacy,
+    Debug,
+    History,
+    Album,
+}
 
 @Composable
 fun DebugModeBanner(

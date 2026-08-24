@@ -60,6 +60,12 @@ enum class BearHoliday(
     ),
     ;
 
+    /**
+     * 节日全部插画变体（相册/图鉴用）。
+     */
+    @DrawableRes
+    fun bearVariantDrawables(): IntArray = bearVariants
+
     /** 按自然日选取插画：春节初一/初二可不同，明年春节也可不同。 */
     @DrawableRes
     fun bearResFor(date: LocalDate): Int {

@@ -1,8 +1,6 @@
 package com.xiaoxiong.weather.data.remote
 
 import com.xiaoxiong.weather.data.AppError
-import java.io.IOException
-import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -12,6 +10,8 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * OpenMeteoHttp 故障转移：主 URL 网络失败时按序重试候选；
