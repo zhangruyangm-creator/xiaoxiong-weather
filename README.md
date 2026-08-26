@@ -141,7 +141,7 @@ xiaoxiong-weather/
 │   ├── data/                 # Store、Repository、城市目录、区域进 assets
 │   ├── test-fixtures/        # 测试夹具（WeatherFixtures），仅测试依赖
 │   ├── designsystem/         # Compose 主题 + SunPathMath + WeatherScene + 预警/图标
-│   └── res-illustrations/    # 纯资源模块：418 张 ic_sun_bear_* 场景插画（单一数据源）
+│   └── res-illustrations/    # 纯资源模块：424 张 ic_sun_bear_* 场景插画（单一数据源）
 ├── feature/
 │   ├── weather/              # WeatherViewModel / 天气页 / 雷达 / 分享 / 调试
 │   └── settings/             # 设置 / 隐私门 / 卡片设置

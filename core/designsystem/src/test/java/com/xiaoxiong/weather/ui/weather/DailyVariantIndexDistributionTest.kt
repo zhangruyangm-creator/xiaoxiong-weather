@@ -48,6 +48,16 @@ class DailyVariantIndexDistributionTest {
     }
 
     @Test
+    fun almostDawn_poolCoversAllSlotsWithin9Days() {
+        // ALMOST_DAWN 池 = 9 张；连续 9 天应覆盖全部
+        val seen = mutableSetOf<Int>()
+        for (i in 0L..8L) {
+            seen += dailyVariantIndex(base.plusDays(i), "ALMOST_DAWN", 9)
+        }
+        assertEquals(9, seen.size)
+    }
+
+    @Test
     fun stableForSameDay() {
         val day = base
         repeat(10) {

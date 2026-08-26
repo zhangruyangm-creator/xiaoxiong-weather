@@ -500,6 +500,27 @@ class SunPathMathTest {
     }
 
     @Test
+    fun almostDawn_variantsRotateByDay() {
+        val day = LocalDate.of(2026, 8, 6)
+        val pool =
+            SunPathBearMoment.ALMOST_DAWN.bearVariantDrawables().toSet()
+        assertEquals(9, pool.size)
+        val seen =
+            (0L..80L)
+                .map { SunPathBearMoment.ALMOST_DAWN.bearResFor(day.plusDays(it)) }
+                .toSet()
+        assertEquals(9, seen.size)
+        assertEquals(
+            SunPathBearMoment.ALMOST_DAWN.bearResFor(day),
+            SunPathBearMoment.ALMOST_DAWN.bearResFor(day),
+        )
+        assertEquals(
+            R.string.sun_bear_almost_dawn,
+            SunPathBearMoment.ALMOST_DAWN.captionResFor(day),
+        )
+    }
+
+    @Test
     fun workDay_officeSplitsMorningAfternoon_fieldJobStaysSame() {
         val weekday = LocalDate.of(2026, 8, 6)
         // 找到一个办公室日与一个现场工种日

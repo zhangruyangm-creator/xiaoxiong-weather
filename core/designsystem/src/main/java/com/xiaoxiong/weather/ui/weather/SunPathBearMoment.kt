@@ -378,6 +378,12 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_almost_dawn,
         IllustR.drawable.ic_sun_bear_almost_dawn_2,
         IllustR.drawable.ic_sun_bear_almost_dawn_3,
+        IllustR.drawable.ic_sun_bear_almost_dawn_4,
+        IllustR.drawable.ic_sun_bear_almost_dawn_5,
+        IllustR.drawable.ic_sun_bear_almost_dawn_6,
+        IllustR.drawable.ic_sun_bear_almost_dawn_7,
+        IllustR.drawable.ic_sun_bear_almost_dawn_8,
+        IllustR.drawable.ic_sun_bear_almost_dawn_9,
     ),
     ;
 

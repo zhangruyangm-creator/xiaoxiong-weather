@@ -9,7 +9,7 @@
 
 ## 1. 背景与动机
 
-当前 `:app` 单模块承载全部代码（约 39k 行 Kotlin、508 张插画、316 个测试），已在单模块内通过源码集、控制器拆分、手动 DI 做到了较好的组织。但仍存在：
+当前 `:app` 单模块承载全部代码（约 39k 行 Kotlin、514 张插画、316 个测试），已在单模块内通过源码集、控制器拆分、手动 DI 做到了较好的组织。但仍存在：
 
 - **无编译期边界**：`ui.weather` 可以直接触碰 `data` 内部，无依赖方向约束
 - **widget / worker 反向依赖 app**（引用 `MainActivity`），是循环依赖隐患
@@ -54,7 +54,7 @@ xiaoxiong-weather/
 ├── :core:domain             # 纯逻辑生成器（Android Library，自带 res）
 ├── :core:data               # Store、缓存、Repository 门面、fetch 聚合器、城市目录、卡片偏好协议
 ├── :core:designsystem       # Compose 主题 + SunPathMath + WeatherScene + 生活片刻枚举 + 预警/图标（插画资源在 res-illustrations）
-├── :core:res-illustrations  # 纯资源模块：418 张 ic_sun_bear_* 场景插画（三餐/作息/节日…），单一数据源，无代码
+├── :core:res-illustrations  # 纯资源模块：424 张 ic_sun_bear_* 场景插画（三餐/作息/节日…），单一数据源，无代码
 ├── :core:common             # WeatherCodes、AppError、格式化工具（Android Library，自带 res，无 Compose 依赖）
 ├── :core:test-fixtures      # 测试共享 fixture（WeatherFixtures）
 ├── :feature:weather         # WeatherViewModel/各页面/雷达/分享（WeatherScreen 由 :app 装配）
