@@ -8,7 +8,7 @@ import com.xiaoxiong.weather.resillustrations.R as IllustR
 // 各片刻的插画池与按日抽取逻辑。
 // 池声明为 internal，供 SunPathBearMoment 枚举跨文件引用；其余为模块内私有实现细节。
 
-/** 走路 / 地铁 / 公交 / 打车 / 开车 / 电瓶车 / 自行车 / 轮渡 / 磁悬浮；上下班共用同一天索引。 */
+/** 走路 / 地铁 / 公交 / 打车 / 开车 / 电瓶车 / 自行车 / 轮渡 / 磁悬浮 / 高铁 / 轻轨 / 网约车 / 索道 + 雨天走路 / 赶时间小跑 / 拎早餐 / 地铁看手机 / 雨天开车；上下班共用同一天索引。 */
 internal val COMMUTE_OUT_DRAWABLES =
     intArrayOf(
         IllustR.drawable.ic_sun_bear_morning_out,
@@ -20,6 +20,15 @@ internal val COMMUTE_OUT_DRAWABLES =
         IllustR.drawable.ic_sun_bear_morning_cycle,
         IllustR.drawable.ic_sun_bear_morning_ferry,
         IllustR.drawable.ic_sun_bear_morning_maglev,
+        IllustR.drawable.ic_sun_bear_morning_hsr,
+        IllustR.drawable.ic_sun_bear_morning_tram,
+        IllustR.drawable.ic_sun_bear_morning_rideshare,
+        IllustR.drawable.ic_sun_bear_morning_cablecar,
+        IllustR.drawable.ic_sun_bear_morning_walkrain,
+        IllustR.drawable.ic_sun_bear_morning_walkrun,
+        IllustR.drawable.ic_sun_bear_morning_walkbreakfast,
+        IllustR.drawable.ic_sun_bear_morning_metrophone,
+        IllustR.drawable.ic_sun_bear_morning_driverain,
     )
 internal val COMMUTE_HOME_DRAWABLES =
     intArrayOf(
@@ -32,6 +41,15 @@ internal val COMMUTE_HOME_DRAWABLES =
         IllustR.drawable.ic_sun_bear_home_cycle,
         IllustR.drawable.ic_sun_bear_home_ferry,
         IllustR.drawable.ic_sun_bear_home_maglev,
+        IllustR.drawable.ic_sun_bear_home_hsr,
+        IllustR.drawable.ic_sun_bear_home_tram,
+        IllustR.drawable.ic_sun_bear_home_rideshare,
+        IllustR.drawable.ic_sun_bear_home_cablecar,
+        IllustR.drawable.ic_sun_bear_home_walkrain,
+        IllustR.drawable.ic_sun_bear_home_walkrun,
+        IllustR.drawable.ic_sun_bear_home_walkbreakfast,
+        IllustR.drawable.ic_sun_bear_home_metrophone,
+        IllustR.drawable.ic_sun_bear_home_driverain,
     )
 internal val COMMUTE_OUT_CAPTIONS =
     intArrayOf(
@@ -44,6 +62,15 @@ internal val COMMUTE_OUT_CAPTIONS =
         R.string.sun_bear_commute_cycle_out,
         R.string.sun_bear_commute_ferry_out,
         R.string.sun_bear_commute_maglev_out,
+        R.string.sun_bear_commute_hsr_out,
+        R.string.sun_bear_commute_tram_out,
+        R.string.sun_bear_commute_rideshare_out,
+        R.string.sun_bear_commute_cablecar_out,
+        R.string.sun_bear_commute_walkrain_out,
+        R.string.sun_bear_commute_walkrun_out,
+        R.string.sun_bear_commute_walkbreakfast_out,
+        R.string.sun_bear_commute_metrophone_out,
+        R.string.sun_bear_commute_driverain_out,
     )
 internal val COMMUTE_HOME_CAPTIONS =
     intArrayOf(
@@ -56,6 +83,15 @@ internal val COMMUTE_HOME_CAPTIONS =
         R.string.sun_bear_commute_cycle_home,
         R.string.sun_bear_commute_ferry_home,
         R.string.sun_bear_commute_maglev_home,
+        R.string.sun_bear_commute_hsr_home,
+        R.string.sun_bear_commute_tram_home,
+        R.string.sun_bear_commute_rideshare_home,
+        R.string.sun_bear_commute_cablecar_home,
+        R.string.sun_bear_commute_walkrain_home,
+        R.string.sun_bear_commute_walkrun_home,
+        R.string.sun_bear_commute_walkbreakfast_home,
+        R.string.sun_bear_commute_metrophone_home,
+        R.string.sun_bear_commute_driverain_home,
     )
 
 internal fun commuteIndex(date: LocalDate): Int = dailyVariantIndex(date, "COMMUTE", COMMUTE_OUT_DRAWABLES.size)

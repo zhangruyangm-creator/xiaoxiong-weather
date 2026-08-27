@@ -4,10 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.SpringSpec
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,8 +12,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,10 +43,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,7 +63,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
-import kotlinx.coroutines.launch
 
 private const val COLUMNS = 4
 
@@ -292,8 +288,8 @@ private fun BearAlbumViewer(
 /**
  * 可缩放图片：双击放大/还原 + 捏合缩放 + 放大后单指平移。
  *
- * - 双击：在 1x 与 [MAX_ZOOM] 之间切换（弹簧动画），放大以点击处为中心
- * - 捏合：围绕双指中心缩放，越界自动夹紧，不露出黑边
+ * - 双击：在 1x 与 [MAX_ZOOM] 之间切换，放大以点击处为中心
+ * - 捏合：围绕两指中心缩放，越界自动夹紧，不露出黑边
  * - 平移：仅缩放态可拖，单指拖动；边界由缩放比例决定
  * - 缩放状态变化通过 [onZoomChange] 上报，调用方据此关闭翻页手势
  */
@@ -305,42 +301,44 @@ private fun ZoomableImage(
     onZoomChange: (Boolean) -> Unit = {},
     onSingleTap: () -> Unit = {},
 ) {
-    val scope = rememberCoroutineScope()
-    val scale = remember { Animatable(1f) }
-    val offset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
     var container by remember { mutableStateOf(IntSize.Zero) }
-
-    val zoomSpec = SpringSpec<Float>(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
-    val offsetSpring = SpringSpec<Offset>(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
 
     // 平移边界：由容器尺寸与当前缩放决定
     fun maxPan(): Offset {
         val w = container.width.toFloat()
         val h = container.height.toFloat()
         return Offset(
-            x = (scale.value - 1f) * w / 2f,
-            y = (scale.value - 1f) * h / 2f,
+            x = (scale - 1f) * w / 2f,
+            y = (scale - 1f) * h / 2f,
         )
     }
 
     /**
-     * 围绕手势中心缩放：让该点在缩放前后保持同一屏幕位置。
-     * [centroid] 是容器内坐标，[oldScale] → [newScale]，offset 按比例补偿。
+     * 围绕屏幕点 [anchor] 缩放：让该点在缩放前后映射到同一屏幕位置。
+     *
+     * graphicsLayer 的 pivot 是图像自身中心（约等于容器中心 [center]），
+     * 因此要保持 [anchor] 不动：newOffset = oldOffset * k + (anchor - center) * (1 - k)。
      */
-    suspend fun zoomAround(
-        centroid: Offset,
-        oldScale: Float,
+    fun zoomAround(
+        anchor: Offset,
         newScale: Float,
     ) {
-        if (newScale == oldScale) return
-        val k = newScale / oldScale
+        if (newScale == scale) return
+        val k = newScale / scale
+        val center =
+            Offset(
+                x = container.width.toFloat() / 2f,
+                y = container.height.toFloat() / 2f,
+            )
         val newOffset =
             Offset(
-                x = centroid.x - (centroid.x - offset.value.x) * k,
-                y = centroid.y - (centroid.y - offset.value.y) * k,
+                x = offset.x * k + (anchor.x - center.x) * (1f - k),
+                y = offset.y * k + (anchor.y - center.y) * (1f - k),
             )
-        scale.snapTo(newScale)
-        offset.snapTo(newOffset.clamped(maxPan()))
+        scale = newScale
+        offset = newOffset.clamped(maxPan())
     }
 
     Image(
@@ -351,39 +349,66 @@ private fun ZoomableImage(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    scaleX = scale.value
-                    scaleY = scale.value
-                    translationX = offset.value.x
-                    translationY = offset.value.y
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
+                    translationY = offset.y
                 }.onSizeChanged { container = it }
                 .pointerInput(painter) {
                     detectTapGestures(
                         onDoubleTap = { tap ->
-                            if (scale.value > 1.01f) {
-                                scope.launch {
-                                    scale.animateTo(1f, zoomSpec)
-                                    offset.animateTo(Offset.Zero, offsetSpring)
-                                    onZoomChange(false)
-                                }
+                            if (scale > 1.01f) {
+                                scale = 1f
+                                offset = Offset.Zero
+                                onZoomChange(false)
                             } else {
-                                scope.launch {
-                                    zoomAround(tap, scale.value, MAX_ZOOM)
-                                    onZoomChange(true)
-                                }
+                                zoomAround(tap, MAX_ZOOM)
+                                onZoomChange(true)
                             }
                         },
                         onTap = { onSingleTap() },
                     )
                 }.pointerInput(painter) {
-                    detectTransformGestures { centroid, pan, zoom, _ ->
-                        scope.launch {
-                            val newScale = (scale.value * zoom).coerceIn(1f, MAX_ZOOM)
-                            if (newScale != scale.value) {
-                                zoomAround(centroid, scale.value, newScale)
-                            }
-                            if (scale.value > 1.01f) {
-                                offset.snapTo((offset.value + pan).clamped(maxPan()))
-                                onZoomChange(true)
+                    // 手写手势循环：未放大的单指不消费 → 交给 pager 翻页；
+                    // 出现两指后消费全部移动做「两指中心缩放 + 平移」；
+                    // 放大状态下单指消费做平移。
+                    awaitEachGesture {
+                        // 进入手势时已放大：单指可直接当平移用
+                        var consumed = scale > 1.01f
+                        var lastCentroid: Offset? = null
+                        var lastDist = 0f
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val pressed = event.changes.filter { it.pressed }
+                            when {
+                                pressed.size >= 2 -> {
+                                    consumed = true
+                                    val centroid = event.calculateCentroid()
+                                    val d =
+                                        (pressed[0].position - pressed[1].position)
+                                            .getDistance()
+                                    if (lastCentroid != null) {
+                                        zoomAround(centroid, (scale * (d / lastDist)).coerceIn(1f, MAX_ZOOM))
+                                        offset = (offset + (centroid - lastCentroid!!)).clamped(maxPan())
+                                    }
+                                    lastCentroid = centroid
+                                    lastDist = d
+                                    onZoomChange(scale > 1.01f)
+                                    pressed.forEach { it.consume() }
+                                }
+
+                                pressed.size == 1 && consumed -> {
+                                    val change = event.changes.first()
+                                    val delta = change.position - change.previousPosition
+                                    offset = (offset + delta).clamped(maxPan())
+                                    change.consume()
+                                }
+
+                                else -> {
+                                    lastCentroid = null
+                                    lastDist = 0f
+                                    if (pressed.isEmpty()) break
+                                }
                             }
                         }
                     }

@@ -96,6 +96,15 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_morning_cycle,
         IllustR.drawable.ic_sun_bear_morning_ferry,
         IllustR.drawable.ic_sun_bear_morning_maglev,
+        IllustR.drawable.ic_sun_bear_morning_hsr,
+        IllustR.drawable.ic_sun_bear_morning_tram,
+        IllustR.drawable.ic_sun_bear_morning_rideshare,
+        IllustR.drawable.ic_sun_bear_morning_cablecar,
+        IllustR.drawable.ic_sun_bear_morning_walkrain,
+        IllustR.drawable.ic_sun_bear_morning_walkrun,
+        IllustR.drawable.ic_sun_bear_morning_walkbreakfast,
+        IllustR.drawable.ic_sun_bear_morning_metrophone,
+        IllustR.drawable.ic_sun_bear_morning_driverain,
     ),
 
     /** 插画由 [workDayBearRes] 按工种选取，此处仅占位。 */
@@ -169,6 +178,15 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_home_cycle,
         IllustR.drawable.ic_sun_bear_home_ferry,
         IllustR.drawable.ic_sun_bear_home_maglev,
+        IllustR.drawable.ic_sun_bear_home_hsr,
+        IllustR.drawable.ic_sun_bear_home_tram,
+        IllustR.drawable.ic_sun_bear_home_rideshare,
+        IllustR.drawable.ic_sun_bear_home_cablecar,
+        IllustR.drawable.ic_sun_bear_home_walkrain,
+        IllustR.drawable.ic_sun_bear_home_walkrun,
+        IllustR.drawable.ic_sun_bear_home_walkbreakfast,
+        IllustR.drawable.ic_sun_bear_home_metrophone,
+        IllustR.drawable.ic_sun_bear_home_driverain,
     ),
 
     /** 工作日傍晚锻炼：与晨练共用运动池，但按日独立抽取。 */

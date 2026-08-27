@@ -38,13 +38,13 @@ class DailyVariantIndexDistributionTest {
     }
 
     @Test
-    fun commute_poolCoversAllSlotsWithin9Days() {
-        // COMMUTE_OUT_DRAWABLES = 9 张；连续 9 天应覆盖全部
+    fun commute_poolCoversAllSlotsWithin18Days() {
+        // COMMUTE_OUT_DRAWABLES = 18 张；连续 18 天应覆盖全部
         val seen = mutableSetOf<Int>()
-        for (i in 0L..8L) {
-            seen += dailyVariantIndex(base.plusDays(i), "COMMUTE", 9)
+        for (i in 0L..17L) {
+            seen += dailyVariantIndex(base.plusDays(i), "COMMUTE", 18)
         }
-        assertEquals(9, seen.size)
+        assertEquals(18, seen.size)
     }
 
     @Test

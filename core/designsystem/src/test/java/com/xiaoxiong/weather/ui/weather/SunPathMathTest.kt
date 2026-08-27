@@ -642,42 +642,11 @@ class SunPathMathTest {
     @Test
     fun commute_sameModeMorningAndEvening_rotatesByDay() {
         val day = LocalDate.of(2026, 8, 6)
-        val outPool =
-            listOf(
-                IllustR.drawable.ic_sun_bear_morning_out,
-                IllustR.drawable.ic_sun_bear_morning_metro,
-                IllustR.drawable.ic_sun_bear_morning_bus,
-                IllustR.drawable.ic_sun_bear_morning_taxi,
-                IllustR.drawable.ic_sun_bear_morning_drive,
-                IllustR.drawable.ic_sun_bear_morning_ebike,
-                IllustR.drawable.ic_sun_bear_morning_cycle,
-                IllustR.drawable.ic_sun_bear_morning_ferry,
-                IllustR.drawable.ic_sun_bear_morning_maglev,
-            )
-        val homePool =
-            listOf(
-                IllustR.drawable.ic_sun_bear_head_home,
-                IllustR.drawable.ic_sun_bear_home_metro,
-                IllustR.drawable.ic_sun_bear_home_bus,
-                IllustR.drawable.ic_sun_bear_home_taxi,
-                IllustR.drawable.ic_sun_bear_home_drive,
-                IllustR.drawable.ic_sun_bear_home_ebike,
-                IllustR.drawable.ic_sun_bear_home_cycle,
-                IllustR.drawable.ic_sun_bear_home_ferry,
-                IllustR.drawable.ic_sun_bear_home_maglev,
-            )
-        val outCaptions =
-            listOf(
-                R.string.sun_bear_commute_walk_out,
-                R.string.sun_bear_commute_metro_out,
-                R.string.sun_bear_commute_bus_out,
-                R.string.sun_bear_commute_taxi_out,
-                R.string.sun_bear_commute_drive_out,
-                R.string.sun_bear_commute_ebike_out,
-                R.string.sun_bear_commute_cycle_out,
-                R.string.sun_bear_commute_ferry_out,
-                R.string.sun_bear_commute_maglev_out,
-            )
+        val outPool = COMMUTE_OUT_DRAWABLES.toList()
+        val homePool = COMMUTE_HOME_DRAWABLES.toList()
+        val outCaptions = COMMUTE_OUT_CAPTIONS.toList()
+        assertEquals(outPool.size, homePool.size)
+        assertEquals(outPool.size, outCaptions.size)
         val out = SunPathBearMoment.MORNING_OUT.bearResFor(day)
         val home = SunPathBearMoment.HEAD_HOME.bearResFor(day)
         assertEquals(out, SunPathBearMoment.MORNING_OUT.bearResFor(day))
@@ -690,11 +659,11 @@ class SunPathMathTest {
             SunPathBearMoment.MORNING_OUT.captionResFor(day),
         )
         val modes =
-            (0L..80L)
+            (0L..120L)
                 .map {
                     outPool.indexOf(SunPathBearMoment.MORNING_OUT.bearResFor(day.plusDays(it)))
                 }.toSet()
-        assertEquals(9, modes.size)
+        assertEquals(COMMUTE_OUT_DRAWABLES.size, modes.size)
     }
 
     @Test
