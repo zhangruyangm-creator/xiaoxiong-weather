@@ -223,6 +223,7 @@ internal val EXPLORE_DRAWABLES =
         IllustR.drawable.ic_sun_bear_weekend_explore_futian,
         IllustR.drawable.ic_sun_bear_weekend_explore_seaworld,
         IllustR.drawable.ic_sun_bear_weekend_explore_datangbuyecheng,
+        IllustR.drawable.ic_sun_bear_weekend_explore_shamian,
     )
 
 internal val EXERCISE_MORNING_CAPTIONS =
