@@ -54,7 +54,7 @@ xiaoxiong-weather/
 ├── :core:domain             # 纯逻辑生成器（Android Library，自带 res）
 ├── :core:data               # Store、缓存、Repository 门面、fetch 聚合器、城市目录、卡片偏好协议
 ├── :core:designsystem       # Compose 主题 + SunPathMath + WeatherScene + 生活片刻枚举 + 预警/图标（插画资源在 res-illustrations）
-├── :core:res-illustrations  # 纯资源模块：443 张 ic_sun_bear_* 场景插画（三餐/作息/节日…），单一数据源，无代码
+├── :core:res-illustrations  # 纯资源模块：447 张 ic_sun_bear_* 场景插画（三餐/作息/节日…），单一数据源，无代码
 ├── :core:common             # WeatherCodes、AppError、格式化工具（Android Library，自带 res，无 Compose 依赖）
 ├── :core:test-fixtures      # 测试共享 fixture（WeatherFixtures）
 ├── :feature:weather         # WeatherViewModel/各页面/雷达/分享（WeatherScreen 由 :app 装配）
