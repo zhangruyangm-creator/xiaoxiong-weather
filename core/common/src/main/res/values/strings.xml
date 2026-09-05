@@ -45,6 +45,15 @@
     <string name="wind_w">西</string>
     <string name="wind_nw">西北</string>
 
+    <string name="moon_new">新月</string>
+    <string name="moon_waxing_crescent">蛾眉月</string>
+    <string name="moon_first_quarter">上弦月</string>
+    <string name="moon_waxing_gibbous">盈凸月</string>
+    <string name="moon_full">满月</string>
+    <string name="moon_waning_gibbous">亏凸月</string>
+    <string name="moon_last_quarter">下弦月</string>
+    <string name="moon_waning_crescent">残月</string>
+
     <string name="error_network_request">网络请求失败 (%1$d)</string>
     <string name="error_network_unavailable">网络不可用，请稍后重试</string>
     <string name="error_data_format">天气数据异常，请稍后再试</string>

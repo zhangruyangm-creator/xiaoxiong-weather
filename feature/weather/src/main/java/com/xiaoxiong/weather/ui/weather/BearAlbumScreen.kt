@@ -387,7 +387,7 @@ private fun ZoomableImage(
                                     val d =
                                         (pressed[0].position - pressed[1].position)
                                             .getDistance()
-                                    if (lastCentroid != null) {
+                                    if (lastCentroid != null && lastDist > 0.01f) {
                                         zoomAround(centroid, (scale * (d / lastDist)).coerceIn(1f, MAX_ZOOM))
                                         offset = (offset + (centroid - lastCentroid!!)).clamped(maxPan())
                                     }
@@ -398,6 +398,9 @@ private fun ZoomableImage(
                                 }
 
                                 pressed.size == 1 && consumed -> {
+                                    // 离开双指后清状态，避免再捏合时用陈旧 lastDist 跳变
+                                    lastCentroid = null
+                                    lastDist = 0f
                                     val change = event.changes.first()
                                     val delta = change.position - change.previousPosition
                                     offset = (offset + delta).clamped(maxPan())

@@ -735,19 +735,18 @@ private fun skyColors(alt: Float): Pair<Color, Color> {
     return skyStops.last().top to skyStops.last().bottom
 }
 
-/** 五角星路径。 */
-private fun starPath(r: Float): Path {
-    val path = Path()
-    for (i in 0 until 10) {
-        val rr = if (i % 2 == 0) r else r * 0.45f
-        val a = -Math.PI.toFloat() / 2f + i * Math.PI.toFloat() / 5f
-        val x = kotlin.math.cos(a) * rr
-        val y = sin(a) * rr
-        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+/** 单位五角星（半径 1），绘制时 scale 复用，避免每帧 new Path。 */
+private val unitStarPath: Path =
+    Path().apply {
+        for (i in 0 until 10) {
+            val rr = if (i % 2 == 0) 1f else 0.45f
+            val a = -Math.PI.toFloat() / 2f + i * Math.PI.toFloat() / 5f
+            val x = kotlin.math.cos(a) * rr
+            val y = sin(a) * rr
+            if (i == 0) moveTo(x, y) else lineTo(x, y)
+        }
+        close()
     }
-    path.close()
-    return path
-}
 
 private fun DrawScope.drawJumpWorld(
     game: StarJumpGame,
@@ -989,13 +988,14 @@ private fun DrawScope.drawJumpWorld(
         drawCircle(Color(0xFFFFD54F), r * 1.7f, Offset(st.x, sy), alpha = 0.20f)
         withTransform({
             translate(st.x, sy)
-            rotate(sin(game.time + st.seed) * 10f)
+            rotate(sin(game.time + st.seed) * 10f, pivot = Offset.Zero)
+            scale(r, r, pivot = Offset.Zero)
         }) {
-            drawPath(starPath(r), Color(0xFFFFD54F))
+            drawPath(unitStarPath, Color(0xFFFFD54F))
             drawPath(
-                starPath(r),
+                unitStarPath,
                 Color(0xFFFFF8E1),
-                style = Stroke(width = 1.6f * s),
+                style = Stroke(width = (1.6f * s) / r.coerceAtLeast(0.1f)),
             )
         }
     }
@@ -1020,75 +1020,79 @@ private fun DrawScope.drawJumpWeatherParticles(
     when (scene) {
         JumpScene.RAIN_LIGHT -> {
             drawRainLayered(
-                fgCount = 12,
-                bgCount = 6,
+                fgCount = 20,
+                bgCount = 12,
                 time = game.time,
                 width = w,
                 height = h,
                 scale = s,
-                lenMul = 0.8f,
-                alpha = 0.35f,
-                yOff = -cam * 0.15f,
+                lenMul = 1.05f,
+                alpha = 0.52f,
+                yOff = -cam * 0.12f,
+                splash = false,
             )
         }
         JumpScene.RAIN -> {
             drawRainLayered(
-                fgCount = 30,
-                bgCount = 14,
+                fgCount = 38,
+                bgCount = 20,
                 time = game.time,
                 width = w,
                 height = h,
                 scale = s,
-                alpha = 0.45f,
-                yOff = -cam * 0.15f,
+                lenMul = 1.2f,
+                alpha = 0.62f,
+                yOff = -cam * 0.12f,
+                splash = false,
             )
         }
         JumpScene.RAIN_HEAVY -> {
             drawRainLayered(
-                fgCount = 48,
-                bgCount = 24,
+                fgCount = 56,
+                bgCount = 28,
+                time = game.time,
+                width = w,
+                height = h,
+                scale = s,
+                lenMul = 1.4f,
+                alpha = 0.74f,
+                yOff = -cam * 0.12f,
+                splash = false,
+            )
+        }
+        JumpScene.STORM -> {
+            drawRainLayered(
+                fgCount = 42,
+                bgCount = 22,
+                time = game.time,
+                width = w,
+                height = h,
+                scale = s,
+                lenMul = 1.35f,
+                alpha = 0.7f,
+                yOff = -cam * 0.12f,
+                splash = false,
+            )
+            drawStormLightning(game.time, s, w, h)
+        }
+        JumpScene.FREEZING_RAIN -> {
+            drawFreezingRain(game.time, s, w, h, yOff = -cam * 0.12f, splash = false)
+        }
+        JumpScene.HAIL -> {
+            drawRainLayered(
+                fgCount = 18,
+                bgCount = 10,
                 time = game.time,
                 width = w,
                 height = h,
                 scale = s,
                 lenMul = 1.15f,
-                alpha = 0.6f,
-                yOff = -cam * 0.15f,
-            )
-        }
-        JumpScene.STORM -> {
-            // 雷暴：以闪电为主，雨量收敛到中雨量级
-            drawRainLayered(
-                fgCount = 34,
-                bgCount = 16,
-                time = game.time,
-                width = w,
-                height = h,
-                scale = s,
-                lenMul = 1.25f,
-                alpha = 0.6f,
-                yOff = -cam * 0.15f,
-            )
-            drawStormLightning(game.time, s, w, h)
-        }
-        JumpScene.FREEZING_RAIN -> {
-            drawFreezingRain(game.time, s, w, h, yOff = -cam * 0.15f)
-        }
-        JumpScene.HAIL -> {
-            // 冰雹：雨更少，突出冰雹粒子
-            drawRainLayered(
-                fgCount = 16,
-                bgCount = 8,
-                time = game.time,
-                width = w,
-                height = h,
-                scale = s,
-                lenMul = 1.1f,
-                alpha = 0.5f,
-                yOff = -cam * 0.15f,
+                alpha = 0.55f,
+                yOff = -cam * 0.12f,
                 fgColor = Color(0xFFD8E6F8),
+                splash = false,
             )
-            drawHailPellets(game.time, s, w, h, yOff = -cam * 0.15f, count = 40)
+            drawHailPellets(game.time, s, w, h, yOff = -cam * 0.12f, count = 40)
             drawStormLightning(game.time, s, w, h)
         }
         JumpScene.SNOW -> {

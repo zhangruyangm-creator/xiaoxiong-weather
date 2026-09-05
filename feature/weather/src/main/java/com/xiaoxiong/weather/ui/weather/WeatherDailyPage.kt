@@ -48,6 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
@@ -58,10 +60,13 @@ import com.xiaoxiong.weather.data.DailyWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
+import com.xiaoxiong.weather.util.MoonPhaseCalculator
 import com.xiaoxiong.weather.util.formatDateLabel
 import com.xiaoxiong.weather.util.formatHourLabel
 import com.xiaoxiong.weather.util.formatTemperature
 import com.xiaoxiong.weather.util.weatherCodeDescription
+import java.time.LocalDate
+import kotlin.math.roundToInt
 
 @Composable
 fun DailyPage(
@@ -347,6 +352,12 @@ private fun DailyDayCard(
                     contentColor = style.contentColor,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                DailyMoonChip(
+                    date = day.date,
+                    contentColor = style.contentColor,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
@@ -391,6 +402,53 @@ private fun DailyTempRangeBar(
                     .fillMaxHeight()
                     .clip(CircleShape)
                     .background(fillBrush),
+        )
+    }
+}
+
+@Composable
+private fun DailyMoonChip(
+    date: String,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val moon =
+        remember(date) {
+            runCatching { LocalDate.parse(date) }.getOrNull()?.let { MoonPhaseCalculator.of(it) }
+        }
+    if (moon == null) return
+
+    val phaseName = stringResource(moon.labelRes)
+    val label =
+        stringResource(
+            R.string.daily_detail_moon,
+            phaseName,
+            (moon.illumination * 100.0).roundToInt().coerceIn(0, 100),
+        )
+    val cd = stringResource(R.string.cd_moon_phase)
+    Row(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.16f))
+                .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                .padding(horizontal = 10.dp, vertical = 7.dp)
+                .semantics { contentDescription = "$cd，$label" },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        MoonPhaseGlyph(
+            cycleFraction = moon.cycleFraction.toFloat(),
+            litColor = Color(0xFFFFF1C2).copy(alpha = 0.95f),
+            darkColor = Color(0xFF1E2433).copy(alpha = 0.72f),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            color = contentColor.copy(alpha = 0.95f),
+            maxLines = 1,
         )
     }
 }

@@ -18,13 +18,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -55,26 +56,29 @@ internal fun RadarScanLoadingOverlay(
     @StringRes detailRes: Int = R.string.radar_scan_detail,
 ) {
     val transition = rememberInfiniteTransition(label = "radar-scan")
-    val sweep by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 2400, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "sweep",
-    )
-    val pulse by transition.animateFloat(
-        initialValue = 0.55f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 1200, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "pulse",
-    )
+    // 在 Canvas draw 里读 State，避免扫掠动画带动整层重组
+    val sweep =
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = 2400, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "sweep",
+        )
+    val pulse =
+        transition.animateFloat(
+            initialValue = 0.55f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = 1200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+            label = "pulse",
+        )
     val echoes =
         remember {
             List(7) {
@@ -104,6 +108,8 @@ internal fun RadarScanLoadingOverlay(
                     .fillMaxSize()
                     .padding(if (compact) 28.dp else 20.dp),
         ) {
+            val sweepV = sweep.value
+            val pulseV = pulse.value
             val cx = size.width / 2f
             val cy = size.height / 2f
             val maxR = minOf(size.width, size.height) / 2f * 0.92f
@@ -114,7 +120,7 @@ internal fun RadarScanLoadingOverlay(
                     Brush.radialGradient(
                         colors =
                             listOf(
-                                glowColor.copy(alpha = 0.14f * pulse),
+                                glowColor.copy(alpha = 0.14f * pulseV),
                                 Color.Transparent,
                             ),
                         center = Offset(cx, cy),
@@ -147,24 +153,33 @@ internal fun RadarScanLoadingOverlay(
                 strokeWidth = 1.dp.toPx(),
             )
 
-            // 扫掠扇形（用多条半透明线近似）
-            rotate(degrees = sweep, pivot = Offset(cx, cy)) {
-                val wedge = 48
-                for (i in 0 until wedge) {
-                    val t = i / (wedge - 1f)
-                    val alpha = (1f - t) * 0.42f * pulse
-                    val angle = Math.toRadians((-t * 55.0))
-                    val ex = cx + maxR * cos(angle).toFloat()
-                    val ey = cy + maxR * sin(angle).toFloat()
-                    drawLine(
-                        color = beamColor.copy(alpha = alpha),
-                        start = Offset(cx, cy),
-                        end = Offset(ex, ey),
-                        strokeWidth = 3.dp.toPx(),
-                        cap = StrokeCap.Round,
-                    )
-                }
-                // 主扫射线
+            // 扫掠扇形：单 Path 楔形 + 主扫射线
+            rotate(degrees = sweepV, pivot = Offset(cx, cy)) {
+                val wedge =
+                    Path().apply {
+                        moveTo(cx, cy)
+                        lineTo(cx + maxR, cy)
+                        arcTo(
+                            Rect(cx - maxR, cy - maxR, cx + maxR, cy + maxR),
+                            0f,
+                            -55f,
+                            forceMoveTo = false,
+                        )
+                        close()
+                    }
+                drawPath(
+                    wedge,
+                    brush =
+                        Brush.linearGradient(
+                            colors =
+                                listOf(
+                                    beamColor.copy(alpha = 0.48f * pulseV),
+                                    beamColor.copy(alpha = 0.06f * pulseV),
+                                ),
+                            start = Offset(cx + maxR, cy),
+                            end = Offset(cx + maxR * 0.35f, cy - maxR * 0.55f),
+                        ),
+                )
                 drawLine(
                     color = Color.White.copy(alpha = 0.85f),
                     start = Offset(cx, cy),
@@ -176,7 +191,7 @@ internal fun RadarScanLoadingOverlay(
 
             // 回波点：扫到附近时更亮
             echoes.forEach { echo ->
-                val delta = ((sweep - echo.angleDeg + 540f) % 360f)
+                val delta = ((sweepV - echo.angleDeg + 540f) % 360f)
                 val lit =
                     when {
                         delta < 40f -> 1f - delta / 40f
@@ -196,7 +211,7 @@ internal fun RadarScanLoadingOverlay(
             // 中心定位
             drawCircle(
                 color = AccentCoral.copy(alpha = 0.3f),
-                radius = 10.dp.toPx() * pulse,
+                radius = 10.dp.toPx() * pulseV,
                 center = Offset(cx, cy),
             )
             drawCircle(

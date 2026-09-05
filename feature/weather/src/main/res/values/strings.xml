@@ -8,7 +8,9 @@
     <string name="app_name">小熊天气</string>
     <string name="aq_dust">沙尘 μg/m³</string>
     <string name="aq_europe">欧洲 AQI · %1$s</string>
-    <string name="aq_sub">AQI / 颗粒物 / 沙尘 / 紫外线</string>
+    <string name="aq_no2">NO₂ μg/m³</string>
+    <string name="aq_o3">O₃ μg/m³</string>
+    <string name="aq_sub">AQI / 颗粒物 / 气体 / 紫外线</string>
     <string name="aq_title">空气质量</string>
     <string name="aq_us">美国AQI</string>
     <string name="aq_uv">紫外线 · %1$s</string>
@@ -50,6 +52,8 @@
     <string name="daily_detail_sunrise">日出 %1$s</string>
     <string name="daily_detail_sunset">日落 %1$s</string>
     <string name="daily_detail_wind">最大风速 %1$s</string>
+    <string name="daily_detail_moon">%1$s · 约 %2$d%%</string>
+    <string name="cd_moon_phase">月相</string>
     <string name="daily_empty">暂无七日预报数据</string>
     <string name="daily_expand">展开</string>
     <string name="daily_section_sub">点按展开风力与日出日落；温度条按整周对齐</string>
@@ -169,7 +173,8 @@
     <string name="radar_attribution">雷达 RainViewer · 底图 © CARTO / OSM</string>
     <string name="radar_empty">暂无该区域雷达数据</string>
     <string name="radar_fullscreen">全屏</string>
-    <string name="radar_hint_center">中心红点为当前城市 · 约每 10 分钟一帧</string>
+    <string name="radar_hint_center">中心红点为当前城市 · 实况 + 未来约 1～2 小时短临</string>
+    <string name="radar_nowcast_badge">短临</string>
     <string name="radar_legend_extreme">很强</string>
     <string name="radar_legend_mid">中</string>
     <string name="radar_legend_note">色块越暖通常表示回波越强（示意，非官方色标）</string>
@@ -184,7 +189,7 @@
     <string name="radar_msg_quiet">短时降水概率较低，雷达以实况监视为主。</string>
     <string name="radar_prob_2h">2h 降水概率</string>
     <string name="radar_scan_city">正在扫描 %1$s</string>
-    <string name="radar_scan_detail">拉取底图与近 2 小时雷达</string>
+    <string name="radar_scan_detail">拉取底图与实况/短临雷达</string>
     <string name="radar_scan_sync">同步回波…</string>
     <string name="radar_sub">短时态势 · 雷达回波 · 卫星云图</string>
     <string name="radar_sum_2h">2h 累计雨量</string>

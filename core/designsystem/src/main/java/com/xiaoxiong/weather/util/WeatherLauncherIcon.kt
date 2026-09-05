@@ -245,9 +245,14 @@ object WeatherLauncherIcon {
 
         val pm = app.packageManager
         return try {
-            // 不变式：任一时刻只有一个 alias enabled，因此正常时只 disable 旧的、enable 新的，
-            // 把每次切换的 IPC 调用从 21 次降到 2 次。
+            // 先 enable 目标再 disable 旧 alias，避免中间态「全部禁用」导致桌面图标短暂消失。
+            // 短暂双启用可接受；异常恢复路径仍走全量校正。
             val previousKnown = Style.entries.any { it.aliasSimpleName == previous }
+            pm.setComponentEnabledSetting(
+                style.componentName(app),
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP,
+            )
             if (previousKnown) {
                 val previousStyle = Style.fromAlias(previous)
                 if (previousStyle != style) {
@@ -270,11 +275,6 @@ object WeatherLauncherIcon {
                     }
                 }
             }
-            pm.setComponentEnabledSetting(
-                style.componentName(app),
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP,
-            )
             prefs.edit {
                 putString(KEY_ALIAS, style.aliasSimpleName)
                 remove(KEY_PENDING)
@@ -283,6 +283,14 @@ object WeatherLauncherIcon {
             true
         } catch (e: Exception) {
             Log.w(TAG, "failed to switch launcher icon to ${style.aliasSimpleName}", e)
+            // 尽量恢复：至少保证默认晴天 alias 可用
+            runCatching {
+                pm.setComponentEnabledSetting(
+                    Style.SUNNY.componentName(app),
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+            }
             false
         }
     }

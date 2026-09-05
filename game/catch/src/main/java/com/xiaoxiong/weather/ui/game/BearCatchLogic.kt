@@ -169,6 +169,16 @@ object BearCatchLogic {
             ItemKind.CLOUD, ItemKind.HAIL, ItemKind.LIGHTNING -> 0
         }
 
+    /**
+     * 连击倍率：HUD 在 combo≥2 显示 ×N；计分与展示对齐，封顶 ×5。
+     * [combo] 为本次接住后的连击数（先自增再算分）。
+     */
+    fun comboScoreMultiplier(combo: Int): Int =
+        when {
+            combo < 2 -> 1
+            else -> minOf(combo, 5)
+        }
+
     /** 惩罚物扣血。 */
     fun damageOf(kind: ItemKind): Int =
         when (kind) {

@@ -330,15 +330,38 @@ class SunPathMathTest {
             SunPathBearMoment.SLEEP,
             sunPathBearMoment(night, weekday, LocalTime.of(2, 0)),
         )
-        // 快天亮：日出前 30 分钟，需传入 sunrise
+        // 快天亮：日界后、日出前为黎明（需传入 sunrise）
         assertEquals(
             SunPathBearMoment.ALMOST_DAWN,
             sunPathBearMoment(night, weekday, LocalTime.of(5, 30), sunrise = LocalTime.of(6, 0)),
         )
-        // 没传 sunrise 时走 progress 兜底，progress=0.5 不触发（5:00 前仍是睡觉）
+        // 晚日出：5:30 距日出仍超过 30 分钟，也不得误判成回家通勤
+        assertEquals(
+            SunPathBearMoment.ALMOST_DAWN,
+            sunPathBearMoment(night, weekday, LocalTime.of(5, 30), sunrise = LocalTime.of(7, 0)),
+        )
+        assertEquals(
+            SunPathBearMoment.ALMOST_DAWN,
+            sunPathBearMoment(night, weekday, LocalTime.of(6, 45), sunrise = LocalTime.of(7, 0)),
+        )
+        // 周末凌晨同样是黎明，不是晚饭
+        assertEquals(
+            SunPathBearMoment.ALMOST_DAWN,
+            sunPathBearMoment(night, saturday, LocalTime.of(5, 30), sunrise = LocalTime.of(7, 0)),
+        )
+        // 没传 sunrise：progress=0.5 时日界后仍走黎明兜底；5:00 前仍是睡觉
         assertEquals(
             SunPathBearMoment.SLEEP,
             sunPathBearMoment(night, weekday, LocalTime.of(4, 0)),
+        )
+        assertEquals(
+            SunPathBearMoment.ALMOST_DAWN,
+            sunPathBearMoment(night, weekday, LocalTime.of(5, 30)),
+        )
+        // 黄昏通勤仍保留（同为夜晚、但已过日界且远早于次日日出）
+        assertEquals(
+            SunPathBearMoment.HEAD_HOME,
+            sunPathBearMoment(night, weekday, LocalTime.of(17, 30), sunrise = LocalTime.of(7, 0)),
         )
     }
 

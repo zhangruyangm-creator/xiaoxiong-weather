@@ -147,7 +147,8 @@ private fun dayBearMoment(
 
 /**
  * 夜晚：工作日若日落早，用黄昏补上回家通勤(~18:45前)与傍晚锻炼(~19:00前)，
- * 再晚饭(19:00–20:00) → 歇一会儿(~23:00前) → 入睡准备(23:00–24:00) → 睡觉 → 临近天亮（日出前 30 分钟）。
+ * 再晚饭(19:00–20:00) → 歇一会儿(~23:00前) → 入睡准备(23:00–24:00) → 睡觉
+ * → 日界后至日出前为临近天亮（避免「分钟小于 18:45」把凌晨误判成回家通勤/晚饭）。
  * 夏天日落晚时，通勤/锻炼已在白天完成，入夜会较快落到晚饭。
  */
 private fun nightBearMoment(
@@ -157,23 +158,32 @@ private fun nightBearMoment(
     sunrise: LocalTime? = null,
 ): SunPathBearMoment {
     val weekend = isWeekend(date)
-    // 快天亮：日出前 30 分钟 ~ 日出。有 sunrise 时精确计算，否则按 progress 兜底。
-    val isAlmostDawn =
-        if (sunrise != null) {
-            val sunriseMin = sunrise.hour * 60 + sunrise.minute
-            val dawnStart = sunriseMin - 30
-            minutes in dawnStart until sunriseMin
-        } else {
-            // progress ≈ 1.0 时即日出；30min / 典型夜长 12h ≈ 0.042
-            nightProgress > 0.96f
-        }
     return when {
-        isAlmostDawn -> SunPathBearMoment.ALMOST_DAWN
         minutes < BearRoutineTimes.DAY_BOUNDARY_MINUTE -> SunPathBearMoment.SLEEP
+        // 日界(5:00)～日出：黎明。须放在黄昏通勤分支之前。
+        isPreSunriseDawn(minutes, sunrise, nightProgress) -> SunPathBearMoment.ALMOST_DAWN
         minutes >= 23 * 60 -> SunPathBearMoment.BEDTIME_PREP
         !weekend && minutes < 18 * 60 + 45 -> SunPathBearMoment.HEAD_HOME
         !weekend && minutes < 19 * 60 -> SunPathBearMoment.EVENING_EXERCISE
         minutes < 20 * 60 -> SunPathBearMoment.DINNER
         else -> SunPathBearMoment.EVENING
     }
+}
+
+/**
+ * 日出前的凌晨段是否算「临近天亮」。
+ * 有 sunrise：[日界, 日出)；无 sunrise：progress 末段，或日界～晨段结束兜底。
+ */
+private fun isPreSunriseDawn(
+    minutes: Int,
+    sunrise: LocalTime?,
+    nightProgress: Float,
+): Boolean {
+    if (sunrise != null) {
+        val sunriseMin = sunrise.hour * 60 + sunrise.minute
+        return minutes >= BearRoutineTimes.DAY_BOUNDARY_MINUTE && minutes < sunriseMin
+    }
+    if (nightProgress > 0.96f) return true
+    return minutes >= BearRoutineTimes.DAY_BOUNDARY_MINUTE &&
+        minutes < BearRoutineTimes.MORNING_STROLL_END_MINUTE
 }

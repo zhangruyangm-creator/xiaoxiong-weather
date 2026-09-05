@@ -14,11 +14,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -99,38 +99,49 @@ private fun AnimatedAtmosphereCanvas(
     particles: List<Particle>,
 ) {
     val transition = rememberInfiniteTransition(label = "weather-atmosphere")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 2200, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "phase",
-    )
-    val flash by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 3200, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "flash",
-    )
+    // 不用 `by`：在 draw 里读 State，只重绘 Canvas，避免整卡每帧重组
+    val phase =
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = 2200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "phase",
+        )
+    val flash =
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = 3200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "flash",
+        )
     // 慢速漂移：云层/雾带/太阳光芒用，周期拉长避免晃眼
-    val drift by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 12000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "drift",
+    val drift =
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = 12000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "drift",
+        )
+    AtmosphereCanvas(
+        scene,
+        isDay,
+        particles,
+        phase = { phase.value },
+        flash = { flash.value },
+        drift = { drift.value },
     )
-    AtmosphereCanvas(scene, isDay, particles, phase = { phase }, flash = { flash }, drift = { drift })
 }
 
 private const val TWO_PI_F = 6.2831853f
@@ -199,9 +210,7 @@ private fun AtmosphereCanvas(
                     drawRect(
                         color = Color.White.copy(alpha = 0.18f + 0.04f * i),
                         topLeft = Offset(-size.width * 0.05f + sway, y),
-                        size =
-                            androidx.compose.ui.geometry
-                                .Size(size.width * 1.1f, 18.dp.toPx()),
+                        size = Size(size.width * 1.1f, 18.dp.toPx()),
                     )
                 }
             }
@@ -220,17 +229,21 @@ private fun AtmosphereCanvas(
                         WeatherScene.RAIN -> 16.dp.toPx()
                         else -> 22.dp.toPx()
                     }
-                val alpha =
-                    when (scene) {
-                        WeatherScene.DRIZZLE -> 0.35f
-                        WeatherScene.RAIN -> 0.5f
-                        else -> 0.65f
-                    }
+                val rainColor =
+                    Color.White.copy(
+                        alpha =
+                            when (scene) {
+                                WeatherScene.DRIZZLE -> 0.35f
+                                WeatherScene.RAIN -> 0.5f
+                                else -> 0.65f
+                            },
+                    )
+                val phaseV = phase()
                 particles.forEach { p ->
-                    val y = ((p.y + phase() * p.speed) % 1.2f) * size.height
-                    val x = ((p.x + phase() * p.drift) % 1f) * size.width
+                    val y = ((p.y + phaseV * p.speed) % 1.2f) * size.height
+                    val x = ((p.x + phaseV * p.drift) % 1f) * size.width
                     drawLine(
-                        color = Color.White.copy(alpha = alpha),
+                        color = rainColor,
                         start = Offset(x, y),
                         end = Offset(x - 4f, y + length),
                         strokeWidth = p.size * 0.45f,
@@ -249,11 +262,13 @@ private fun AtmosphereCanvas(
             WeatherScene.HAIL -> {
                 drawCloud(size.width * 0.3f, size.height * 0.14f, 1.25f, Color.White.copy(alpha = 0.28f))
                 drawCloud(size.width * 0.7f, size.height * 0.12f, 1.15f, Color.White.copy(alpha = 0.22f))
+                val hailColor = Color(0xFFE3F2FD).copy(alpha = 0.9f)
+                val phaseV = phase()
                 particles.forEach { p ->
-                    val y = ((p.y + phase() * p.speed * 1.15f) % 1.15f) * size.height
-                    val x = ((p.x + phase() * p.drift * 0.4f) % 1f) * size.width
+                    val y = ((p.y + phaseV * p.speed * 1.15f) % 1.15f) * size.height
+                    val x = ((p.x + phaseV * p.drift * 0.4f) % 1f) * size.width
                     drawCircle(
-                        color = Color(0xFFE3F2FD).copy(alpha = 0.9f),
+                        color = hailColor,
                         radius = p.size * 0.85f,
                         center = Offset(x, y),
                     )
@@ -262,29 +277,35 @@ private fun AtmosphereCanvas(
 
             WeatherScene.FREEZING_RAIN -> {
                 drawCloud(size.width * 0.3f, size.height * 0.14f, 1.2f, Color.White.copy(alpha = 0.3f))
+                val iceLine = Color(0xFFB3E5FC).copy(alpha = 0.7f)
+                val iceTip = Color.White.copy(alpha = 0.55f)
+                val iceLen = 14.dp.toPx()
+                val phaseV = phase()
                 particles.forEach { p ->
-                    val y = ((p.y + phase() * p.speed) % 1.2f) * size.height
-                    val x = ((p.x + phase() * p.drift) % 1f) * size.width
+                    val y = ((p.y + phaseV * p.speed) % 1.2f) * size.height
+                    val x = ((p.x + phaseV * p.drift) % 1f) * size.width
                     drawLine(
-                        color = Color(0xFFB3E5FC).copy(alpha = 0.7f),
+                        color = iceLine,
                         start = Offset(x, y),
-                        end = Offset(x - 3f, y + 14.dp.toPx()),
+                        end = Offset(x - 3f, y + iceLen),
                         strokeWidth = p.size * 0.4f,
                     )
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.55f),
+                        color = iceTip,
                         radius = 1.6f,
-                        center = Offset(x - 3f, y + 14.dp.toPx()),
+                        center = Offset(x - 3f, y + iceLen),
                     )
                 }
             }
 
             WeatherScene.SNOW -> {
+                val snowColor = Color.White.copy(alpha = 0.85f)
+                val phaseV = phase()
                 particles.forEach { p ->
-                    val y = ((p.y + phase() * p.speed * 0.45f) % 1.1f) * size.height
-                    val x = (p.x * size.width) + sin((phase() + p.y) * 6f) * 10f
+                    val y = ((p.y + phaseV * p.speed * 0.45f) % 1.1f) * size.height
+                    val x = (p.x * size.width) + sin((phaseV + p.y) * 6f) * 10f
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = snowColor,
                         radius = p.size,
                         center = Offset(x, y),
                     )
@@ -292,11 +313,13 @@ private fun AtmosphereCanvas(
             }
 
             WeatherScene.HEAVY_SNOW -> {
+                val snowColor = Color.White.copy(alpha = 0.92f)
+                val phaseV = phase()
                 particles.forEach { p ->
-                    val y = ((p.y + phase() * p.speed * 0.85f) % 1.15f) * size.height
-                    val x = (p.x * size.width) + sin((phase() + p.y) * 8f) * 16f
+                    val y = ((p.y + phaseV * p.speed * 0.85f) % 1.15f) * size.height
+                    val x = (p.x * size.width) + sin((phaseV + p.y) * 8f) * 16f
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.92f),
+                        color = snowColor,
                         radius = p.size * 1.15f,
                         center = Offset(x, y),
                     )

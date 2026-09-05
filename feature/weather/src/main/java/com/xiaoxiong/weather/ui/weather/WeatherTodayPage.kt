@@ -541,6 +541,19 @@ internal fun AirQualityCard(
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MiniStat(
+                stringResource(R.string.aq_no2),
+                airQuality.nitrogenDioxide?.let { "%.0f".format(it) } ?: "--",
+                Modifier.weight(1f),
+            )
+            MiniStat(
+                stringResource(R.string.aq_o3),
+                airQuality.ozone?.let { "%.0f".format(it) } ?: "--",
+                Modifier.weight(1f),
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MiniStat(
                 stringResource(R.string.aq_us),
                 airQuality.usAqi?.toString() ?: "--",
                 Modifier.weight(1f),

@@ -8,7 +8,9 @@
     <string name="app_name">Bear Weather</string>
     <string name="aq_dust">Dust μg/m³</string>
     <string name="aq_europe">European AQI · %1$s</string>
-    <string name="aq_sub">AQI / particulates / dust / UV</string>
+    <string name="aq_no2">NO₂ μg/m³</string>
+    <string name="aq_o3">O₃ μg/m³</string>
+    <string name="aq_sub">AQI / particulates / gases / UV</string>
     <string name="aq_title">Air quality</string>
     <string name="aq_us">US AQI</string>
     <string name="aq_uv">UV · %1$s</string>
@@ -50,6 +52,8 @@
     <string name="daily_detail_sunrise">Sunrise %1$s</string>
     <string name="daily_detail_sunset">Sunset %1$s</string>
     <string name="daily_detail_wind">Max wind %1$s</string>
+    <string name="daily_detail_moon">%1$s · ~%2$d%%</string>
+    <string name="cd_moon_phase">Moon phase</string>
     <string name="daily_empty">No 7-day forecast</string>
     <string name="daily_expand">Expand</string>
     <string name="daily_section_sub">Tap a day for wind and sun times; bars align to the week</string>
@@ -169,7 +173,8 @@
     <string name="radar_attribution">Radar RainViewer · basemap © CARTO / OSM</string>
     <string name="radar_empty">No radar data for this area</string>
     <string name="radar_fullscreen">Fullscreen</string>
-    <string name="radar_hint_center">Red dot is the city · ~10 min per frame</string>
+    <string name="radar_hint_center">Red dot is the city · observed + ~1–2h nowcast</string>
+    <string name="radar_nowcast_badge">Nowcast</string>
     <string name="radar_legend_extreme">Extreme</string>
     <string name="radar_legend_mid">Mod</string>
     <string name="radar_legend_note">Warmer colors usually mean stronger echoes (illustrative, not official).</string>
@@ -184,7 +189,7 @@
     <string name="radar_msg_quiet">Low short-term precip chance; radar is mainly for monitoring.</string>
     <string name="radar_prob_2h">2h precip chance</string>
     <string name="radar_scan_city">Scanning %1$s</string>
-    <string name="radar_scan_detail">Fetching basemap and last 2h radar</string>
+    <string name="radar_scan_detail">Fetching basemap and radar (past + nowcast)</string>
     <string name="radar_scan_sync">Syncing echoes…</string>
     <string name="radar_sub">Short-term outlook · radar · satellite clouds</string>
     <string name="radar_sum_2h">2h rain total</string>

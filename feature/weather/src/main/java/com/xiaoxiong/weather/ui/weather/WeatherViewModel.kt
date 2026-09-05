@@ -416,9 +416,13 @@ class WeatherViewModel(
             if (!state.usingCurrentLocation) return@update state
             val current = state.selectedCity ?: return@update state
             if (!roughlySameCity(current, city)) return@update state
+            val weather =
+                state.weather?.takeIf { roughlySameCity(it.city, city) }?.copy(city = city)
+                    ?: state.weather
             state.copy(
                 selectedCity = city,
                 query = city.displayName,
+                weather = weather,
             )
         }
         viewModelScope.launch {
@@ -538,9 +542,32 @@ class WeatherViewModel(
             }
             // 先出界面再刷小组件，避免 widget 更新拖住 loading
             _uiState.update {
+                // 定位精化可能先于天气返回：同坐标时保留已精化地名，避免「当前位置」盖回去
+                val cityToShow =
+                    if (it.usingCurrentLocation &&
+                        it.selectedCity != null &&
+                        roughlySameCity(it.selectedCity, selectedCity)
+                    ) {
+                        it.selectedCity
+                    } else {
+                        selectedCity
+                    }
+                val weatherToShow =
+                    if (cityToShow != null &&
+                        roughlySameCity(shown.city, cityToShow) &&
+                        (
+                            shown.city.name != cityToShow.name ||
+                                shown.city.admin1 != cityToShow.admin1 ||
+                                shown.city.admin2 != cityToShow.admin2
+                        )
+                    ) {
+                        shown.copy(city = cityToShow)
+                    } else {
+                        shown
+                    }
                 it.copy(
-                    weather = shown,
-                    selectedCity = selectedCity,
+                    weather = weatherToShow,
+                    selectedCity = cityToShow,
                     isLoadingWeather = isLoadingWeather,
                     isOffline = isOffline,
                     lastUpdatedText = lastUpdatedText,

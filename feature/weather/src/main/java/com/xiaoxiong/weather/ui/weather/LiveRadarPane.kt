@@ -56,6 +56,7 @@ import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.RadarFrame
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.isWifiConnected
+import com.xiaoxiong.weather.data.radarObservedNowIndex
 import com.xiaoxiong.weather.ui.theme.AccentCoral
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -117,22 +118,23 @@ internal fun LiveRadarPane(
                     }
                 val framesJob =
                     async {
-                        repository.fetchPastRadarFrames(city.latitude, city.longitude, zoom)
+                        repository.fetchRadarFrames(city.latitude, city.longitude, zoom)
                     }
                 basemap = basemapJob.await()
                 val list = framesJob.await()
                 frames = list
-                frameIndex = (list.lastIndex).coerceAtLeast(0)
+                val nowIndex = radarObservedNowIndex(list)
+                frameIndex = nowIndex
                 if (list.isEmpty()) {
                     loading = false
                     errorRes = R.string.radar_empty
                     return@coroutineScope
                 }
-                // 只等最新一帧，马上结束转圈
-                val latest = list.last()
-                currentBitmap = repository.loadImage(latest.imageUrl)
+                // 首屏停在最新实况（非短临末帧），马上结束转圈
+                val latestObserved = list[nowIndex]
+                currentBitmap = repository.loadImage(latestObserved.imageUrl)
                 loading = false
-                // Wi-Fi：默认自动播放；蜂窝：停在最新帧，等用户点播放
+                // Wi-Fi：默认自动播放；蜂窝：停在最新实况，等用户点播放
                 playing = wifi
             }
         } catch (e: CancellationException) {
@@ -281,18 +283,38 @@ internal fun LiveRadarPane(
                     fontWeight = FontWeight.SemiBold,
                 )
                 frames.getOrNull(frameIndex)?.let { frame ->
-                    Text(
-                        text = formatRadarTime(frame.timeEpochSec, timezoneId),
+                    Row(
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(10.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black.copy(alpha = 0.5f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                                .padding(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (frame.isNowcast) {
+                            Text(
+                                text = stringResource(R.string.radar_nowcast_badge),
+                                modifier =
+                                    Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFE65100).copy(alpha = 0.85f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        Text(
+                            text = formatRadarTime(frame.timeEpochSec, timezoneId),
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                 }
                 val overlayError = errorRes
                 if (overlayError != null && frames.isEmpty()) {

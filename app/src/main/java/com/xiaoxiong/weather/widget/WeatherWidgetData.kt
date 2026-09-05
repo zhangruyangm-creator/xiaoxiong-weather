@@ -26,6 +26,19 @@ object WeatherWidgetData {
      */
     suspend fun load(context: Context): WeatherWidgetUi? {
         val container = context.appContainer()
+        // 隐私未同意：不联网、不定位，尽量展示已有缓存；无缓存则空白占位
+        if (!container.settingsStore.getOnce().privacyAccepted) {
+            val selection = container.selectedCityStore.getOnce() ?: return null
+            val unit = container.settingsStore.getOnce().temperatureUnit
+            val cached = container.weatherCacheStore.get(selection.city) ?: return null
+            return toUi(
+                context = context,
+                snapshot = cached.snapshot,
+                savedAtEpochMs = cached.savedAtEpochMs,
+                offline = true,
+                unit = unit,
+            )
+        }
         val selection = container.selectedCityStore.getOnce() ?: return null
         val unit = container.settingsStore.getOnce().temperatureUnit
         val cacheStore = container.weatherCacheStore
@@ -157,7 +170,7 @@ object WeatherWidgetData {
             tomorrowDescription = WeatherCodes.description(context, tomorrow?.weatherCode),
             hours = hours,
             tipText = tip,
-            bgRes = widgetBgRes(current.weatherCode, current.isDay),
+            bgRes = widgetBgRes(displayCode, current.isDay),
             feelsLikeText = current.apparentTemperatureC?.let { formatTemperature(it, unit) } ?: "",
             humidityText = current.humidityPercent?.let { "$it%" } ?: "--",
             windText = current.windSpeedKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--",

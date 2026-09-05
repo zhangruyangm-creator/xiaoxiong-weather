@@ -167,9 +167,9 @@ class BearCatchGame {
         for (kind in ev.caught) {
             when (kind) {
                 BearCatchLogic.ItemKind.GIFT -> {
-                    score += BearCatchLogic.scoreOf(kind)
-                    doubleT = BearCatchLogic.DOUBLE_TIME_SEC
                     combo++
+                    score += BearCatchLogic.scoreOf(kind) * BearCatchLogic.comboScoreMultiplier(combo)
+                    doubleT = BearCatchLogic.DOUBLE_TIME_SEC
                     squashT = 0f
                     burst(
                         cx = catchX,
@@ -192,10 +192,12 @@ class BearCatchGame {
                     )
                 }
                 else -> {
-                    val base = BearCatchLogic.scoreOf(kind)
-                    val mult = if (doubleT > 0f) 2 else 1
-                    score += base * mult
                     combo++
+                    val base = BearCatchLogic.scoreOf(kind)
+                    val mult =
+                        (if (doubleT > 0f) 2 else 1) *
+                            BearCatchLogic.comboScoreMultiplier(combo)
+                    score += base * mult
                     squashT = 0f
                     burst(
                         cx = catchX,

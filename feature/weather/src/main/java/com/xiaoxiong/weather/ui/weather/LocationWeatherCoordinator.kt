@@ -53,6 +53,8 @@ class LocationWeatherCoordinator(
                         refined = locationHelper.refineCityPlaceName(quick)
                         if (locateId != requestId.get()) return@launch
                     }
+                    // 无论地名是否精化成功，都记住坐标，供 Worker / 小组件复用 GPS
+                    locationHelper.rememberLastLocation(refined)
                     if (placeRefined(quick, refined)) {
                         onPlaceUpdated(refined)
                     }

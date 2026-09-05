@@ -612,7 +612,8 @@ class LocationHelper(
 
     // ---------- 最近一次定位（后台路径复用） ----------
 
-    private fun rememberLastLocation(city: City) {
+    /** 供 UI 定位成功后写入，供 Worker / 小组件 [resolveCurrentCityReuseLast] 复用。 */
+    fun rememberLastLocation(city: City) {
         val value =
             listOf(
                 city.latitude.toString(),

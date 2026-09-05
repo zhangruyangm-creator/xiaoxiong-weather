@@ -170,6 +170,12 @@ class WeatherViewModelLocationTest {
                 vm.uiState.value.selectedCity
                     ?.name,
             )
+            assertEquals(
+                renamed.name,
+                vm.uiState.value.weather
+                    ?.city
+                    ?.name,
+            )
             assertTrue(vm.uiState.value.usingCurrentLocation)
             // 同坐标地名刷新不重拉天气
             assertEquals(1, harness.fetcher.weatherCallCount)

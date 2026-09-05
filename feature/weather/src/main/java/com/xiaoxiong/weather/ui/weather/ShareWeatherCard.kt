@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.weather
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -330,6 +331,7 @@ private fun shareWeatherCardImage(
         Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = ClipData.newUri(context.contentResolver, "weather", uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     context.startActivity(

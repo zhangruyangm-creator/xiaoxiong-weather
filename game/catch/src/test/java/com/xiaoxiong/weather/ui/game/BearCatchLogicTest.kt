@@ -68,6 +68,12 @@ class BearCatchLogicTest {
         assertEquals(1, BearCatchLogic.damageOf(ItemKind.HAIL))
         assertEquals(2, BearCatchLogic.damageOf(ItemKind.LIGHTNING))
         assertEquals(0, BearCatchLogic.damageOf(ItemKind.COIN))
+
+        assertEquals(1, BearCatchLogic.comboScoreMultiplier(0))
+        assertEquals(1, BearCatchLogic.comboScoreMultiplier(1))
+        assertEquals(2, BearCatchLogic.comboScoreMultiplier(2))
+        assertEquals(5, BearCatchLogic.comboScoreMultiplier(5))
+        assertEquals(5, BearCatchLogic.comboScoreMultiplier(9))
     }
 
     // ── 新道具：护盾 / 礼物盒 / 双倍 ─────────────────────────────
@@ -99,7 +105,7 @@ class BearCatchLogicTest {
         assertEquals(20, game.score)
         assertTrue(game.doubleT > 0f)
 
-        // 双倍期间接雨滴 → 得分翻倍
+        // 双倍期间接雨滴 → 双倍 × 连击(2) = 4 倍基础分
         game.items.add(
             BearCatchLogic
                 .Item(
@@ -111,7 +117,8 @@ class BearCatchLogicTest {
                 ).also { it.vy = 0f },
         )
         game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
-        assertEquals(20 + 20, game.score)
+        assertEquals(20 + 40, game.score)
+        assertEquals(2, game.combo)
 
         // 接泡泡 → 获得一次性护盾，护盾抵挡一次惩罚不掉心，并进入冷却
         game.items.add(
@@ -194,9 +201,11 @@ class BearCatchLogicTest {
         )
         game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
         assertEquals(20, game.score)
-        // 双倍到期后再接雨滴：+10
+        // 双倍到期后再接雨滴：连击若仍在则 ×combo，此处清空避免与双倍断言纠缠
         game.tick(dt = BearCatchLogic.DOUBLE_TIME_SEC + 0.1f, onCaught = {}, onHit = {}, onDeath = {})
         assertTrue(game.doubleT <= 0f)
+        game.combo = 0
+        game.items.clear()
         game.items.add(
             BearCatchLogic
                 .Item(

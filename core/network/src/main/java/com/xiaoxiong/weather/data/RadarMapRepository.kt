@@ -33,6 +33,8 @@ data class RadarFrame(
     val timeEpochSec: Long,
     val path: String,
     val imageUrl: String,
+    /** RainViewer 短临外推帧（未来约 0.5～2h）；false 为已观测实况。 */
+    val isNowcast: Boolean = false,
 )
 
 data class SatelliteCloudMap(
@@ -63,7 +65,11 @@ class RadarMapRepository(
     private var satelliteKey: String? = null
     private var satelliteMap: SatelliteCloudMap? = null
 
-    suspend fun fetchPastRadarFrames(
+    /**
+     * 雷达时间轴：实况 past + 短临 nowcast（按时间升序）。
+     * 短临为 RainViewer 外推，通常覆盖未来约 1～2 小时。
+     */
+    suspend fun fetchRadarFrames(
         latitude: Double,
         longitude: Double,
         zoom: Int = DEFAULT_ZOOM,
@@ -72,14 +78,33 @@ class RadarMapRepository(
             val body = execute(MAPS_JSON_URL)
             val response = json.decodeFromString(RainViewerMapsResponse.serializer(), body)
             val host = response.host.trimEnd('/')
-            response.radar?.past.orEmpty().map { frame ->
-                RadarFrame(
-                    timeEpochSec = frame.time,
-                    path = frame.path,
-                    imageUrl = buildRadarImageUrl(host, frame, latitude, longitude, zoom),
-                )
-            }
+            val past =
+                response.radar?.past.orEmpty().map { frame ->
+                    RadarFrame(
+                        timeEpochSec = frame.time,
+                        path = frame.path,
+                        imageUrl = buildRadarImageUrl(host, frame, latitude, longitude, zoom),
+                        isNowcast = false,
+                    )
+                }
+            val nowcast =
+                response.radar?.nowcast.orEmpty().map { frame ->
+                    RadarFrame(
+                        timeEpochSec = frame.time,
+                        path = frame.path,
+                        imageUrl = buildRadarImageUrl(host, frame, latitude, longitude, zoom),
+                        isNowcast = true,
+                    )
+                }
+            mergeRadarTimeline(past, nowcast)
         }
+
+    /** @deprecated 使用 [fetchRadarFrames]（含短临）；保留别名以免外部旧调用断裂。 */
+    suspend fun fetchPastRadarFrames(
+        latitude: Double,
+        longitude: Double,
+        zoom: Int = DEFAULT_ZOOM,
+    ): List<RadarFrame> = fetchRadarFrames(latitude, longitude, zoom)
 
     /**
      * 与 RainViewer 同中心、同缩放的 Web Mercator 底图（Carto Voyager），
@@ -397,8 +422,8 @@ class RadarMapRepository(
          */
         const val CLOUD_ZOOM = 8
 
-        /** 约两段近 2 小时雷达序列，足够循环播放 */
-        private const val MAX_MEMORY_FRAMES = 28
+        /** past + nowcast 约 20～30 帧，略留余量 */
+        private const val MAX_MEMORY_FRAMES = 40
         private const val MAX_BASEMAP_CACHE = 4
         private const val PREFETCH_PARALLELISM = 6
         private const val GIBS_LAYER =
@@ -449,4 +474,23 @@ class RadarMapRepository(
                 isLenient = true
             }
     }
+}
+
+/** 合并实况与短临，按时间升序；同刻优先保留实况。 */
+fun mergeRadarTimeline(
+    past: List<RadarFrame>,
+    nowcast: List<RadarFrame>,
+): List<RadarFrame> {
+    if (nowcast.isEmpty()) return past
+    if (past.isEmpty()) return nowcast.sortedBy { it.timeEpochSec }
+    val pastTimes = past.mapTo(HashSet()) { it.timeEpochSec }
+    val extra = nowcast.filter { it.timeEpochSec !in pastTimes }
+    return (past + extra).sortedBy { it.timeEpochSec }
+}
+
+/** 首屏停在最新实况帧；若无实况则落在最后一帧。 */
+fun radarObservedNowIndex(frames: List<RadarFrame>): Int {
+    if (frames.isEmpty()) return 0
+    val lastPast = frames.indexOfLast { !it.isNowcast }
+    return if (lastPast >= 0) lastPast else frames.lastIndex
 }

@@ -14,14 +14,15 @@ fun DrawScope.drawStormLightning(
     height: Float,
 ) {
     if (sin(time * 6f) > 0.90f) {
+        val bolt = Color(0xFFFFF59D).copy(alpha = 0.8f)
         drawLine(
-            color = Color(0xFFFFF59D).copy(alpha = 0.8f),
+            color = bolt,
             start = Offset(width * 0.70f, 0f),
             end = Offset(width * 0.58f, height * 0.18f),
             strokeWidth = 2.2f * s,
         )
         drawLine(
-            color = Color(0xFFFFF59D).copy(alpha = 0.8f),
+            color = bolt,
             start = Offset(width * 0.62f, height * 0.06f),
             end = Offset(width * 0.50f, height * 0.20f),
             strokeWidth = 1.4f * s,
@@ -36,6 +37,7 @@ fun DrawScope.drawFreezingRain(
     width: Float,
     height: Float,
     yOff: Float = 0f,
+    splash: Boolean = true,
 ) {
     drawRainLayered(
         fgCount = 34,
@@ -44,20 +46,21 @@ fun DrawScope.drawFreezingRain(
         width = width,
         height = height,
         scale = s,
-        lenMul = 0.9f,
-        alpha = 0.65f,
+        lenMul = 0.95f,
+        alpha = 0.7f,
         yOff = yOff,
         fgColor = Color(0xFFC4D9F4),
         bgColor = Color(0xFFE3EEFA),
+        splash = splash,
     )
-    // 冰晶：小而淡的白点，下落比雨滴略慢；氛围点缀，不抢戏
+    val crystal = Color.White.copy(alpha = 0.75f)
     for (i in 0 until 18) {
         val phase = ((i * 857) % 47) / 47f
         val x = ((i * 137 + time * 90f * (0.9f + phase * 0.4f)) % (width + 60)) - 30
         val y = ((i * 59 + time * 620f * s) % (height + 60)) - 30 + yOff
         val twinkle = 0.65f + 0.25f * (1f + sin(time * 2.6f + i * 1.7f)) * 0.5f
         drawCircle(
-            Color.White.copy(alpha = 0.75f * twinkle),
+            crystal.copy(alpha = 0.75f * twinkle),
             (1.2f + phase * 1.1f) * s,
             Offset(x, y),
         )
@@ -73,13 +76,15 @@ fun DrawScope.drawHailPellets(
     yOff: Float = 0f,
     count: Int = 52,
 ) {
+    val light = Color.White.copy(alpha = 0.68f)
+    val gray = Color(0xFFE4EAF1).copy(alpha = 0.7f)
     for (i in 0 until count) {
         val speed = 1500f * s + (i % 5) * 140f * s
         val x = ((i * 113 + time * (speed * 0.5f)) % (width + 60)) - 30
         val y = ((i * 47 + time * speed) % (height + 90) + (height + 90)) % (height + 90) - 45 + yOff
         val size = (1.8f + (i % 4) * 0.6f) * s
         drawCircle(
-            color = if (i % 3 == 0) Color(0xFFE4EAF1).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.68f),
+            color = if (i % 3 == 0) gray else light,
             radius = size,
             center = Offset(x, y),
         )
@@ -87,13 +92,9 @@ fun DrawScope.drawHailPellets(
 }
 
 /**
- * 双层雨 + 底部溅射：背景层细淡慢，前景层粗亮快。
+ * 双层雨丝：远层细淡、近层「柔边 + 亮芯 + 滴头」，斜向有风感。
  *
- * 雨滴质感：每滴由「细尾线 + 亮头圆点」组成（头圆尾尖），带随风倾斜；
- * 用伪随机相位打破规则网格分布，同一滴既有横向摆动又有下落速度差；
- * 落到画面底部 ~10% 区域时逐滴产生「溅起小竖线 + 左右散射点」的水花。
- *
- * 供跑酷/摘星/迷宫/接雨雪共用；纯函数，行为只由 time/scale 驱动。
+ * [splash]：落地水花。竖屏滚动玩法（摘星跳）建议关掉，避免底部假地面水花。
  */
 fun DrawScope.drawRainLayered(
     fgCount: Int,
@@ -105,82 +106,74 @@ fun DrawScope.drawRainLayered(
     lenMul: Float = 1f,
     alpha: Float = 0.55f,
     yOff: Float = 0f,
-    fgColor: Color = Color(0xFFB4D2F0),
-    bgColor: Color = Color(0xFFD9E9F8),
+    fgColor: Color = Color(0xFFB8D6F5),
+    bgColor: Color = Color(0xFFD5E8FA),
+    splash: Boolean = true,
 ) {
-    val splashThreshold = height * 0.86f + yOff
+    val a = alpha.coerceIn(0f, 1f)
+    val bgCol = bgColor.copy(alpha = a * 0.40f)
+    val fgSoft = fgColor.copy(alpha = a * 0.58f)
+    val fgCore = Color.White.copy(alpha = a * 0.48f)
+    val tipCol = Color.White.copy(alpha = a * 0.62f)
+    val splashCol = fgColor.copy(alpha = a * 0.36f)
+    val splashThreshold = height * 0.88f + yOff
+    val wind = 6.2f * scale
 
-    // 背景层：远雨，细、淡、慢，随机相位让分布更散
+    // 远雨：更长、更斜、轻摆，营造纵深
     for (i in 0 until bgCount) {
-        val speedBase = 620f * scale
-        val phase = ((i * 733) % 83) / 83f // 0..1 伪随机相位
-        val lenFactor = 0.7f + ((i * 397) % 5) / 5f
-        val speed = speedBase * (0.85f + phase * 0.5f)
-        val x = ((i * 131 + time * (speed * 0.5f)) % (width + 60)) - 30
-        val y = ((i * 71 + time * speed) % (height + 80) + (height + 80)) % (height + 80) - 40 + yOff
-        val wobble = sin(time * 2.2f + i * 0.7f) * 2.2f * scale
-        // 远雨：细丝（两端圆帽），向下略倾；远雨该比近雨更淡
-        val tailX = x + wobble
-        val tailY = y
-        val headX = tailX - 2f * scale
-        val headY = tailY + (13f * scale * lenMul * lenFactor)
+        val phase = ((i * 733) % 83) / 83f
+        val lenFactor = 0.75f + ((i * 397) % 5) / 5f * 0.55f
+        val speed = 700f * scale * (0.85f + phase * 0.45f)
+        val x = ((i * 131 + time * (speed * 0.42f)) % (width + 70)) - 35
+        val y = ((i * 71 + time * speed) % (height + 100) + (height + 100)) % (height + 100) - 50 + yOff
+        val sway = sin(time * 1.4f + i * 0.55f) * 1.4f * scale
+        val dropLen = 20f * scale * lenMul * lenFactor
+        val tilt = wind * (0.7f + phase * 0.35f)
         drawLine(
-            color = bgColor.copy(alpha = alpha * 0.32f),
-            start = Offset(tailX, tailY),
-            end = Offset(headX, headY),
-            strokeWidth = 0.9f * scale,
+            color = bgCol,
+            start = Offset(x + sway, y),
+            end = Offset(x + sway - tilt, y + dropLen),
+            strokeWidth = 1.05f * scale,
             cap = StrokeCap.Round,
         )
     }
 
-    // 前景层：近雨，粗、亮、更快，摆动更明显
+    // 近雨：柔边宽线 + 亮芯 + 滴头，读起来才像「雨」而不是噪点
     for (i in 0 until fgCount) {
-        val phase = ((i * 1049) % 97) / 97f // 0..1 伪随机相位
-        val speedBase = 1050f * scale
-        val speed = speedBase * (0.9f + phase * 0.6f)
-        val lenFactor = 0.8f + ((i * 593) % 7) / 7f
-        val tiltX = 3.2f * scale + phase * 2.4f * scale // 随相位微调倾角，形成风感
-        val x = ((i * 97 + time * (speed * 0.55f)) % (width + 60)) - 30
-        val y = ((i * 53 + time * speed) % (height + 80) + (height + 80)) % (height + 80) - 40 + yOff
-        val wobble = sin(time * 3.1f * (0.9f + phase * 0.4f) + i * 1.1f) * 2.6f * scale
-        // 雨丝：一根细长线，两端圆帽收住即可。不做水滴头/高光——
-        // 雨是背景氛围，主角是游戏本体，太显眼会喧宾夺主。
-        val dropLen = 16f * scale * lenMul * lenFactor
-        val lineWidth = 1.25f * scale
-        val tailX = x + wobble
-        val tailY = y
-        val headX = tailX - tiltX
-        val headY = tailY + dropLen
+        val phase = ((i * 1049) % 97) / 97f
+        val speed = 1180f * scale * (0.88f + phase * 0.55f)
+        val lenFactor = 0.85f + ((i * 593) % 7) / 7f * 0.5f
+        val x = ((i * 97 + time * (speed * 0.48f)) % (width + 70)) - 35
+        val y = ((i * 53 + time * speed) % (height + 100) + (height + 100)) % (height + 100) - 50 + yOff
+        val sway = sin(time * 1.8f + i * 0.9f) * 1.8f * scale
+        val dropLen = 26f * scale * lenMul * lenFactor
+        val tilt = wind * (0.95f + phase * 0.4f)
+        val tailX = x + sway
+        val headX = tailX - tilt
+        val headY = y + dropLen
+
         drawLine(
-            color = fgColor.copy(alpha = alpha * 0.8f),
-            start = Offset(tailX, tailY),
+            color = fgSoft,
+            start = Offset(tailX, y),
             end = Offset(headX, headY),
-            strokeWidth = lineWidth,
+            strokeWidth = 2.35f * scale,
             cap = StrokeCap.Round,
         )
+        drawLine(
+            color = fgCore,
+            start = Offset(tailX - tilt * 0.08f, y + dropLen * 0.08f),
+            end = Offset(headX, headY),
+            strokeWidth = 1.05f * scale,
+            cap = StrokeCap.Round,
+        )
+        drawCircle(tipCol, 1.25f * scale, Offset(headX, headY))
 
-        // 溅射水花：雨滴到达落地带时，在落点画「溅起小竖线 + 左右散射点」
-        if (y > splashThreshold && i % 2 == 0) {
-            val splashX = headX
-            val splashY = splashThreshold + 2f * scale
-            val splashH = (2.8f + phase * 2.2f) * scale
-            drawLine(
-                color = fgColor.copy(alpha = alpha * 0.38f),
-                start = Offset(splashX, splashY),
-                end = Offset(splashX, splashY - splashH),
-                strokeWidth = 1.0f * scale,
-                cap = StrokeCap.Round,
-            )
-            drawCircle(
-                color = fgColor.copy(alpha = alpha * 0.3f),
-                radius = 0.9f * scale,
-                center = Offset(splashX - (1.8f + phase * 2.4f) * scale, splashY),
-            )
-            drawCircle(
-                color = fgColor.copy(alpha = alpha * 0.3f),
-                radius = 0.8f * scale,
-                center = Offset(splashX + (1.4f + phase * 2f) * scale, splashY),
-            )
+        if (splash && y > splashThreshold && i % 3 == 0) {
+            val splashY = splashThreshold + 1.5f * scale
+            val spread = (2.2f + phase * 2.8f) * scale
+            drawCircle(splashCol, 1.1f * scale, Offset(headX, splashY))
+            drawCircle(splashCol, 0.85f * scale, Offset(headX - spread, splashY - 1.2f * scale))
+            drawCircle(splashCol, 0.8f * scale, Offset(headX + spread * 0.85f, splashY - 0.8f * scale))
         }
     }
 }

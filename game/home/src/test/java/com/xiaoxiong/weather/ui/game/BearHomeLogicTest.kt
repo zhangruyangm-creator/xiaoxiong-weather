@@ -112,4 +112,43 @@ class BearHomeLogicTest {
         // 5:00 整点起为新一天
         assertEquals(date, homeRoutineDay(date, LocalTime.of(5, 0)))
     }
+
+    @Test
+    fun homeNarration_coversEveryMoment() {
+        for (moment in com.xiaoxiong.weather.ui.weather.SunPathBearMoment.entries) {
+            val res = homeMomentNarrationRes(moment)
+            assertTrue("${moment.name} narration missing", res != 0)
+        }
+    }
+
+    @Test
+    fun balconySceneArt_coversAllWeatherDayAndNight() {
+        val day = java.time.LocalDate.of(2026, 9, 5)
+        for (weather in FarmWeather.entries) {
+            val dayArt = balconySceneArt(weather, isNight = false, date = day)
+            val nightArt = balconySceneArt(weather, isNight = true, date = day)
+            assertTrue("$weather day art missing", dayArt != 0)
+            assertTrue("$weather night art missing", nightArt != 0)
+            assertTrue("$weather tip missing", balconyWeatherTip(weather, false) != 0)
+            assertTrue("$weather label missing", balconyWeatherLabel(weather, false) != 0)
+        }
+        // 晴天昼夜应不同主图；雨天昼夜可同图
+        assertTrue(
+            balconySceneArt(FarmWeather.SUNNY, false, day) !=
+                balconySceneArt(FarmWeather.SUNNY, true, day),
+        )
+    }
+
+    @Test
+    fun streetSpots_haveArtAndCopy() {
+        for (spot in StreetSpot.entries) {
+            assertTrue("${spot.name} art", spot.artRes != 0)
+            assertTrue("${spot.name} name", spot.nameRes != 0)
+            assertTrue("${spot.name} tip day", spot.tipRes != 0)
+            assertTrue("${spot.name} tip night", spot.tipNightRes != 0)
+            assertTrue("${spot.name} status day", streetSpotStatusRes(spot, false) != 0)
+            assertTrue("${spot.name} status night", streetSpotStatusRes(spot, true) != 0)
+        }
+        assertEquals(3, StreetSpot.entries.size)
+    }
 }

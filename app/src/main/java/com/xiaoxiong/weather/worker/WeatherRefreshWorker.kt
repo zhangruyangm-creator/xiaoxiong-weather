@@ -53,8 +53,15 @@ class WeatherRefreshWorker(
             if (cached != null &&
                 now - cached.savedAtEpochMs < WeatherRefreshPolicy.BACKGROUND_FRESH_MS
             ) {
-                // 前台刚刷过：跳过联网，仍刷新小组件展示缓存
+                // 前台刚刷过：跳过联网，仍刷新小组件与桌面图标（flush 排队中的 alias）
                 WeatherWidgetUpdater.updateAll(applicationContext)
+                val current = cached.snapshot.current
+                WeatherLauncherIcon.applyForWeatherCode(
+                    applicationContext,
+                    current.weatherCode,
+                    WeatherCodes.intensityPrecipMmPerHour(current),
+                    current.isDay,
+                )
                 return Result.success()
             }
 

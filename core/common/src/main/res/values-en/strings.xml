@@ -45,6 +45,15 @@
     <string name="wind_w">W</string>
     <string name="wind_nw">NW</string>
 
+    <string name="moon_new">New moon</string>
+    <string name="moon_waxing_crescent">Waxing crescent</string>
+    <string name="moon_first_quarter">First quarter</string>
+    <string name="moon_waxing_gibbous">Waxing gibbous</string>
+    <string name="moon_full">Full moon</string>
+    <string name="moon_waning_gibbous">Waning gibbous</string>
+    <string name="moon_last_quarter">Last quarter</string>
+    <string name="moon_waning_crescent">Waning crescent</string>
+
     <string name="error_network_request">Network request failed (%1$d)</string>
     <string name="error_network_unavailable">Network unavailable. Please try again later.</string>
     <string name="error_data_format">Weather data looks abnormal. Please try again later.</string>
