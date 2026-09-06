@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
@@ -75,6 +77,8 @@ private const val PREF_WIN = "hockey_win_score"
 private const val PREF_BEST = "best_hockey"
 private const val PREF_PADDLE = "hockey_paddle_scale"
 private const val PREF_PADDLE_BOTH = "hockey_paddle_scale_both"
+private const val PREF_PUCK = "hockey_puck_scale"
+private const val PREF_GOAL = "hockey_goal_scale"
 
 /** 发球倒数总时长（3 拍，每拍 0.5s）；超出部分显示「预备」。与 HockeyGame 的发球计时对应。 */
 private const val SERVE_COUNTDOWN_SECONDS = 1.5f
@@ -121,6 +125,14 @@ fun BearHockeyScreen(
                         .getFloat(PREF_PADDLE, HockeyLogic.PADDLE_SCALE_DEFAULT)
                         .coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX)
                 it.paddleScaleBoth = prefs.getBoolean(PREF_PADDLE_BOTH, true)
+                it.puckScale =
+                    prefs
+                        .getFloat(PREF_PUCK, HockeyLogic.PUCK_SCALE_DEFAULT)
+                        .coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX)
+                it.goalScale =
+                    prefs
+                        .getFloat(PREF_GOAL, HockeyLogic.GOAL_SCALE_DEFAULT)
+                        .coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
                 it.bestWins = prefs.getInt(PREF_BEST, 0)
             }
         }
@@ -409,13 +421,17 @@ fun BearHockeyScreen(
             winScore = game.winScore,
             paddleScale = game.paddleScale,
             paddleScaleBoth = game.paddleScaleBoth,
+            puckScale = game.puckScale,
+            goalScale = game.goalScale,
             onDismiss = { showSettings = false },
-            onSave = { d, level, w, scale, scaleBoth ->
+            onSave = { d, level, w, paddle, paddleBoth, puck, goal ->
                 game.difficulty = d
                 game.customLevel = level
                 game.winScore = w
-                game.paddleScale = scale
-                game.paddleScaleBoth = scaleBoth
+                game.paddleScale = paddle
+                game.paddleScaleBoth = paddleBoth
+                game.puckScale = puck
+                game.goalScale = goal
                 game.relayout()
                 prefs.edit {
                     putString(
@@ -432,8 +448,10 @@ fun BearHockeyScreen(
                     )
                     putInt(PREF_DIFF_LEVEL, level)
                     putInt(PREF_WIN, w)
-                    putFloat(PREF_PADDLE, scale)
-                    putBoolean(PREF_PADDLE_BOTH, scaleBoth)
+                    putFloat(PREF_PADDLE, paddle)
+                    putBoolean(PREF_PADDLE_BOTH, paddleBoth)
+                    putFloat(PREF_PUCK, puck)
+                    putFloat(PREF_GOAL, goal)
                 }
                 showSettings = false
             },
@@ -511,17 +529,26 @@ private fun HockeySettingsDialog(
     winScore: Int,
     paddleScale: Float,
     paddleScaleBoth: Boolean,
+    puckScale: Float,
+    goalScale: Float,
     onDismiss: () -> Unit,
-    onSave: (Difficulty, Int, Int, Float, Boolean) -> Unit,
+    onSave: (Difficulty, Int, Int, Float, Boolean, Float, Float) -> Unit,
 ) {
     var d by remember(difficulty) { mutableStateOf(difficulty) }
     var levelText by remember(customLevel) { mutableStateOf(customLevel.toString()) }
     var winText by remember(winScore) { mutableStateOf(winScore.toString()) }
     var scale by remember(paddleScale) { mutableStateOf(paddleScale) }
     var scaleBoth by remember(paddleScaleBoth) { mutableStateOf(paddleScaleBoth) }
+    var puck by remember(puckScale) { mutableStateOf(puckScale) }
+    var goal by remember(goalScale) { mutableStateOf(goalScale) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = RoundedCornerShape(22.dp), color = Color(0xFFFFF8EF)) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(
+                modifier =
+                    Modifier
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
                 Text(
                     stringResource(R.string.bear_hockey_settings),
                     style = MaterialTheme.typography.titleLarge,
@@ -639,6 +666,38 @@ private fun HockeySettingsDialog(
                         label = { Text(stringResource(R.string.bear_hockey_paddle_scope_mine)) },
                     )
                 }
+                Spacer(Modifier.height(14.dp))
+                Text(stringResource(R.string.bear_hockey_puck_size), color = Color(0xFF6D4C41))
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        0.75f to stringResource(R.string.bear_hockey_size_small),
+                        HockeyLogic.PUCK_SCALE_DEFAULT to stringResource(R.string.bear_hockey_size_normal),
+                        1.25f to stringResource(R.string.bear_hockey_size_large),
+                    ).forEach { (s, label) ->
+                        FilterChip(
+                            selected = kotlin.math.abs(puck - s) < 0.01f,
+                            onClick = { puck = s },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(stringResource(R.string.bear_hockey_goal_size), color = Color(0xFF6D4C41))
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        0.7f to stringResource(R.string.bear_hockey_size_small),
+                        HockeyLogic.GOAL_SCALE_DEFAULT to stringResource(R.string.bear_hockey_size_normal),
+                        1.3f to stringResource(R.string.bear_hockey_size_large),
+                    ).forEach { (s, label) ->
+                        FilterChip(
+                            selected = kotlin.math.abs(goal - s) < 0.01f,
+                            onClick = { goal = s },
+                            label = { Text(label) },
+                        )
+                    }
+                }
                 Spacer(Modifier.height(18.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) {
@@ -663,7 +722,15 @@ private fun HockeySettingsDialog(
                                         HockeyLogic.WIN_SCORE_MIN,
                                         HockeyLogic.WIN_SCORE_MAX,
                                     )
-                            onSave(d, level, win, scale, scaleBoth)
+                            onSave(
+                                d,
+                                level,
+                                win,
+                                scale.coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX),
+                                scaleBoth,
+                                puck.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX),
+                                goal.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX),
+                            )
                         },
                     ) {
                         Text(stringResource(R.string.bear_hockey_save))

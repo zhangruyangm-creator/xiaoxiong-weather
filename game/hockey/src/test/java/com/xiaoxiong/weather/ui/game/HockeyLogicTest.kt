@@ -129,12 +129,63 @@ class HockeyLogicTest {
     @Test
     fun customLevel_interpolatesBetweenBeginnerAndMaster() {
         val min = HockeyLogic.params(Difficulty.CUSTOM, 1)
-        val mid = HockeyLogic.params(Difficulty.CUSTOM, 5)
-        val max = HockeyLogic.params(Difficulty.CUSTOM, 10)
+        val mid = HockeyLogic.params(Difficulty.CUSTOM, 8)
+        val max = HockeyLogic.params(Difficulty.CUSTOM, HockeyLogic.CUSTOM_LEVEL_MAX)
         assertEquals(HockeyLogic.params(Difficulty.BEGINNER).aiMaxSpeedMul, min.aiMaxSpeedMul, 1e-4f)
         assertEquals(HockeyLogic.params(Difficulty.MASTER).aiMaxSpeedMul, max.aiMaxSpeedMul, 1e-4f)
         assertTrue(mid.aiMaxSpeedMul > min.aiMaxSpeedMul)
         assertTrue(mid.aiMaxSpeedMul < max.aiMaxSpeedMul)
+    }
+
+    @Test
+    fun goalLineIntercept_tracksAngledShot() {
+        val t = table()
+        val puck =
+            Body(
+                x = t.midX - 60f,
+                y = t.midY,
+                vx = 120f,
+                vy = -300f,
+                r = t.puckR,
+            )
+        val hit = HockeyLogic.goalLineInterceptX(t, puck, t.top + t.paddleR)
+        // 斜向上射门：落点应偏右，而不是贴着当前球 X
+        assertTrue(hit > puck.x)
+        assertTrue(hit in (t.left + puck.r)..(t.right - puck.r))
+    }
+
+    @Test
+    fun foldIntoRange_mirrorsWalls() {
+        assertEquals(10f, HockeyLogic.foldIntoRange(10f, 0f, 100f), 1e-4f)
+        assertEquals(90f, HockeyLogic.foldIntoRange(110f, 0f, 100f), 1e-4f)
+        assertEquals(20f, HockeyLogic.foldIntoRange(-20f, 0f, 100f), 1e-4f)
+    }
+
+    @Test
+    fun aiTarget_blocksShotLineWhenApproaching() {
+        val t = table()
+        val params = HockeyLogic.params(Difficulty.MASTER)
+        val puck =
+            Body(
+                x = t.midX - 80f,
+                y = t.midY - 40f,
+                vx = 200f,
+                vy = -400f,
+                r = t.puckR,
+            )
+        val (tx, _, refreshed) =
+            HockeyLogic.updateAiTarget(
+                table = t,
+                puck = puck,
+                params = params,
+                reactionAge = 1f,
+                cachedTargetX = t.midX,
+                cachedTargetY = t.top + 40f,
+            )
+        assertTrue(refreshed)
+        val intercept = HockeyLogic.goalLineInterceptX(t, puck, t.top + t.paddleR)
+        // 高难度应明显偏向射门落点，而不是死守当前球 X
+        assertTrue(kotlin.math.abs(tx - intercept) < kotlin.math.abs(tx - puck.x) + 1f)
     }
 
     @Test

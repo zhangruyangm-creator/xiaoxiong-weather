@@ -33,7 +33,7 @@ object HockeyLogic {
     )
 
     const val CUSTOM_LEVEL_MIN = 1
-    const val CUSTOM_LEVEL_MAX = 10
+    const val CUSTOM_LEVEL_MAX = 15
     const val WIN_SCORE_MIN = 1
     const val WIN_SCORE_MAX = 99
 
@@ -41,6 +41,16 @@ object HockeyLogic {
     const val PADDLE_SCALE_DEFAULT = 1f
     const val PADDLE_SCALE_MIN = 0.8f
     const val PADDLE_SCALE_MAX = 1.6f
+
+    /** 球（蜜罐）尺寸倍率。 */
+    const val PUCK_SCALE_DEFAULT = 1f
+    const val PUCK_SCALE_MIN = 0.6f
+    const val PUCK_SCALE_MAX = 1.5f
+
+    /** 球门宽度倍率。 */
+    const val GOAL_SCALE_DEFAULT = 1f
+    const val GOAL_SCALE_MIN = 0.55f
+    const val GOAL_SCALE_MAX = 1.45f
 
     /** 墙角解脱球速（相对短边/秒）：足够脱离挡板，又不至于像开球那么冲。 */
     private const val ESCAPE_SPEED_MUL = 1.15f
@@ -109,21 +119,22 @@ object HockeyLogic {
 
     private val PRESET_HARD =
         DifficultyParams(
-            aiMaxSpeedMul = 1.05f,
-            aiAccelMul = 6.5f,
-            reactionDelay = 0.04f,
-            predict = 0.55f,
-            defenseBias = 0.32f,
-            chase = 0.88f,
+            aiMaxSpeedMul = 1.45f,
+            aiAccelMul = 11f,
+            reactionDelay = 0.01f,
+            predict = 0.85f,
+            defenseBias = 0.22f,
+            chase = 1.0f,
         )
 
     private val PRESET_MASTER =
         DifficultyParams(
-            aiMaxSpeedMul = 1.20f,
-            aiAccelMul = 8.5f,
-            reactionDelay = 0.02f,
-            predict = 0.70f,
-            defenseBias = 0.25f,
+            // 仅抬高档：更快贴线 + 零延迟；低档仍走旧跟球逻辑（见 updateAiTarget）
+            aiMaxSpeedMul = 2.05f,
+            aiAccelMul = 18f,
+            reactionDelay = 0f,
+            predict = 1.0f,
+            defenseBias = 0.10f,
             chase = 1.0f,
         )
 
@@ -381,7 +392,9 @@ object HockeyLogic {
 
     /**
      * AI：带延迟目标 + 预判 + 守门/出击混合。
-     * [ai] 的 vx/vy 为输出速度；位置由调用方按速度积分并 clamp。
+     *
+     * - 低难度（predict 较低）：保持原来的「跟球 + 半场出击」，手感偏憨。
+     * - 高难度（predict ≥ 0.5）：来球时优先堵射门线落点（含侧墙折返）。
      */
     fun updateAiTarget(
         table: Table,
@@ -396,29 +409,83 @@ object HockeyLogic {
         if (!refresh) {
             return Triple(cachedTargetX, cachedTargetY, false)
         }
+
+        val homeY = table.top + table.height * 0.16f
+        val minX = table.left + paddleR
+        val maxX = table.right - paddleR
+        val smartDefense = params.predict >= 0.5f
+        val approachingGoal = puck.vy < -1f
+
+        if (smartDefense && approachingGoal) {
+            val goalY = table.top + paddleR * 0.85f
+            val interceptX = goalLineInterceptX(table, puck, goalY)
+            // 高难度几乎贴死落点
+            val tx =
+                lerp(puck.x, interceptX, 0.72f + params.predict * 0.28f)
+                    .coerceIn(minX, maxX)
+            val ty =
+                lerp(homeY, puck.y.coerceAtMost(table.midY - paddleR), params.chase * 0.28f)
+                    .coerceIn(table.top + paddleR, table.midY - paddleR * 0.35f)
+            return Triple(tx, ty, true)
+        }
+
+        // —— 低/中难度：原跟球逻辑 ——
         val predictT = params.predict * 0.28f
         var tx = puck.x + puck.vx * predictT
         var ty = puck.y + puck.vy * predictT
-        tx = tx.coerceIn(table.left + paddleR, table.right - paddleR)
+        tx = tx.coerceIn(minX, maxX)
 
-        val homeY = table.top + table.height * 0.16f
         val chaseY =
             if (puck.y < table.midY && puck.vy <= 0f) {
-                // 球在己方半场且向上/静止：出击
                 lerp(homeY, table.midY - paddleR * 1.2f, params.chase)
                     .coerceAtMost(ty + paddleR)
             } else {
                 homeY
             }
-        ty = lerp(chaseY, ty.coerceIn(table.top + paddleR, table.midY - paddleR), 1f - params.defenseBias * 0.65f)
+        ty =
+            lerp(
+                chaseY,
+                ty.coerceIn(table.top + paddleR, table.midY - paddleR),
+                1f - params.defenseBias * 0.65f,
+            )
         ty = ty.coerceIn(table.top + paddleR, table.midY - paddleR * 0.4f)
 
-        // 球远离时稍微回中
         if (puck.y > table.midY + table.height * 0.15f) {
             tx = lerp(tx, table.midX, 0.35f + params.defenseBias * 0.25f)
             ty = lerp(ty, homeY, 0.4f)
         }
-        return Triple(tx, ty, true)
+        return Triple(tx.coerceIn(minX, maxX), ty, true)
+    }
+
+    /**
+     * 估算球沿当前速度飞到 [goalY] 时的 X（左右墙镜面折叠，不含挡板）。
+     * 球不朝该方向飞时退回当前 X。
+     */
+    fun goalLineInterceptX(
+        table: Table,
+        puck: Body,
+        goalY: Float,
+    ): Float {
+        if (kotlin.math.abs(puck.vy) < 1e-3f) return puck.x
+        val tHit = (goalY - puck.y) / puck.vy
+        if (tHit < 0f) return puck.x
+        val rawX = puck.x + puck.vx * tHit
+        val min = table.left + puck.r
+        val max = table.right - puck.r
+        return foldIntoRange(rawX, min, max)
+    }
+
+    /** 把坐标按 [min,max] 做镜面折叠（模拟侧墙反弹后的落点）。 */
+    fun foldIntoRange(
+        value: Float,
+        min: Float,
+        max: Float,
+    ): Float {
+        val span = max - min
+        if (span <= 1e-4f) return min
+        var v = (value - min) % (2f * span)
+        if (v < 0f) v += 2f * span
+        return if (v <= span) min + v else max - (v - span)
     }
 
     fun stepAiVelocity(

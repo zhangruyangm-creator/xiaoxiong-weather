@@ -37,6 +37,11 @@
     <string name="bear_hockey_paddle_scope">生效对象</string>
     <string name="bear_hockey_paddle_scope_both">双方挡板</string>
     <string name="bear_hockey_paddle_scope_mine">仅我的挡板</string>
+    <string name="bear_hockey_puck_size">蜜罐大小</string>
+    <string name="bear_hockey_goal_size">球门大小</string>
+    <string name="bear_hockey_size_small">小</string>
+    <string name="bear_hockey_size_normal">标准</string>
+    <string name="bear_hockey_size_large">大</string>
     <string name="bear_hockey_career_wins">累计胜场 %1$d</string>
     <string name="bear_leaderboard_rank_label">排名 %1$d</string>
 </resources>

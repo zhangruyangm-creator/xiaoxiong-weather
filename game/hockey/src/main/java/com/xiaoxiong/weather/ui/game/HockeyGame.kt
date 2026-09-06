@@ -62,6 +62,12 @@ class HockeyGame {
     /** 尺寸倍率生效对象：true 双方挡板都变大；false 仅玩家挡板变大（AI 保持标准）。 */
     var paddleScaleBoth by mutableStateOf(true)
 
+    /** 球（蜜罐）尺寸倍率。 */
+    var puckScale by mutableFloatStateOf(HockeyLogic.PUCK_SCALE_DEFAULT)
+
+    /** 球门宽度倍率。 */
+    var goalScale by mutableFloatStateOf(HockeyLogic.GOAL_SCALE_DEFAULT)
+
     // 最近一次画布尺寸：设置变更后重建球桌用（onSizeChanged 不会主动触发）
     private var lastCanvasW = 0f
     private var lastCanvasH = 0f
@@ -111,8 +117,14 @@ class HockeyGame {
         // 后续 clampPaddle 的 coerceIn 会构成空区间抛异常；忽略本次尺寸，
         // 保留上一张球桌（首次则为 null，tick/绘制各自兜底），窗口恢复后 onSizeChanged 会再触发。
         if (base.width <= 0f || base.height <= 0f) return
-        table = base
-        puck.r = base.puckR
+        val puckR =
+            (base.puckR * puckScale.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX))
+                .coerceAtMost(base.paddleR * 0.95f)
+        val goalW =
+            (base.goalWidth * goalScale.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX))
+                .coerceIn(base.shortSide * 0.18f, base.width * 0.88f)
+        table = base.copy(puckR = puckR, goalWidth = goalW)
+        puck.r = puckR
         // 倍率只加在挡板 Body 上；钳制 / AI 走位显式传各自半径，支持「仅玩家变大」
         player.r = base.paddleR * paddleScale
         ai.r = base.paddleR * (if (paddleScaleBoth) paddleScale else 1f)
