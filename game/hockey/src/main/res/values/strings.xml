@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bear_hockey_title">小熊冰球</string>
+    <string name="cd_close_game">退出游戏</string>
+    <string name="bear_hockey_settings">对局设置</string>
+    <string name="bear_hockey_save">保存</string>
+    <string name="bear_hockey_cancel">取消</string>
+    <string name="bear_hockey_intro">拖动下方小熊挡板，把蜜罐推进对方球门。守住己方半场，先到指定分数获胜。</string>
+    <string name="bear_hockey_start">开始对局</string>
+    <string name="bear_hockey_again">再来一局</string>
+    <string name="bear_hockey_you">你</string>
+    <string name="bear_hockey_rival">对手</string>
+    <string name="bear_hockey_first_to">先到 %1$d</string>
+    <string name="bear_hockey_get_ready">预备</string>
+    <string name="bear_hockey_goal_you">进球！</string>
+    <string name="bear_hockey_goal_rival">失球…</string>
+    <string name="bear_hockey_win">守住了！</string>
+    <string name="bear_hockey_lose">没守住</string>
+    <string name="bear_hockey_final_score">比分 %1$d : %2$d</string>
+    <string name="bear_hockey_diff">难度</string>
+    <string name="bear_hockey_diff_easy">轻松</string>
+    <string name="bear_hockey_diff_normal">普通</string>
+    <string name="bear_hockey_diff_hard">挑战</string>
+    <string name="bear_hockey_diff_custom">自定义</string>
+    <string name="bear_hockey_diff_custom_level">自定义 %1$d</string>
+    <string name="bear_hockey_diff_level_hint">难度等级（%1$d–%2$d，越大越难）</string>
+    <string name="bear_hockey_diff_line">%1$s · 先到 %2$d 分</string>
+    <string name="bear_hockey_win_score">获胜分数</string>
+    <string name="bear_hockey_win_score_hint">先到几分（%1$d–%2$d）</string>
+    <string name="bear_hockey_career_wins">累计胜场 %1$d</string>
+    <string name="bear_leaderboard_rank_label">排名 %1$d</string>
+</resources>

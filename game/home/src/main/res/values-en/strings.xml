@@ -3,8 +3,8 @@
     <string name="bear_farm_title">Bear Farm</string>
     <string name="bear_game_title">Bear Hop</string>
     <string name="bear_home_back">Back to living room</string>
-    <string name="bear_home_closet_hint">Outfits and decor are still packed away. Peek outside from the balcony, or keep the bear company in the living room.</string>
-    <string name="bear_home_closet_stub">Quiet for now</string>
+    <string name="bear_home_closet_hint">Pick your game bear, or peek outside from the balcony.</string>
+    <string name="bear_home_closet_stub">Playable bear</string>
     <string name="bear_home_cuisine_arabic">Arabic / Middle Eastern</string>
     <string name="bear_home_cuisine_chinese">Chinese</string>
     <string name="bear_home_cuisine_korean">Korean</string>

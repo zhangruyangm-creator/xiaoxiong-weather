@@ -7,7 +7,7 @@ import com.xiaoxiong.weather.R
  * 农场插画资源：土壤 / 生长阶段 / 杂草虫灾覆盖物 / 成熟作物。
  *
  * - 种子 / 枯萎：全作物共用
- * - 发芽 / 成长：按作物分类区分；蔬菜再细分为根菜 / 藤蔓果菜 / 叶菜
+ * - 发芽 / 成长：按作物分类 + 2–3 种生长子形态；蔬菜再细分为根菜 / 藤蔓果菜 / 叶菜
  * - 成熟：按作物 id 一对一映射，缺失时按分类兜底
  */
 internal object FarmCropArt {
@@ -43,16 +43,62 @@ internal object FarmCropArt {
     /** 蔬菜生长形态：根菜 / 藤蔓果菜 / 叶菜。 */
     private enum class VegMorph { ROOT, VINE, LEAFY }
 
+    /** 花卉：单茎 / 灌木 / 藤本。 */
+    private enum class FlowerMorph { STEM, SHRUB, VINE }
+
+    /** 水果：乔木 / 藤本 / 灌木（含地被浆果）。 */
+    private enum class FruitMorph { TREE, VINE, BUSH }
+
+    /** 谷物：麦类穗 / 散穗 / 高秆（玉米）。 */
+    private enum class GrainMorph { SPIKE, PANICLE, STALK }
+
+    /** 香草：叶丛 / 木本（茶、咖啡等）。 */
+    private enum class HerbMorph { LEAFY, WOODY }
+
+    /** 菇菌：伞柄 / 束生。 */
+    private enum class MushroomMorph { CAP, CLUSTER }
+
+    /** 其他：高秆 / 地表 / 多肉。 */
+    private enum class OtherMorph { CANE, GROUND, SUCCULENT }
+
     @DrawableRes
     private fun sproutOf(crop: CropDef?): Int {
         val cat = crop?.category
         return when (cat) {
-            "花卉" -> R.drawable.farm_stage_sprout_flower
-            "谷物" -> R.drawable.farm_stage_sprout_grain
-            "水果" -> R.drawable.farm_stage_sprout_fruit
-            "香草" -> R.drawable.farm_stage_sprout_herb
-            "菇菌" -> R.drawable.farm_stage_sprout_mushroom
-            "其他" -> R.drawable.farm_stage_sprout_other
+            "花卉" ->
+                when (flowerMorph(crop?.id)) {
+                    FlowerMorph.STEM -> R.drawable.farm_stage_sprout_flower
+                    FlowerMorph.SHRUB -> R.drawable.farm_stage_sprout_flower_shrub
+                    FlowerMorph.VINE -> R.drawable.farm_stage_sprout_flower_vine
+                }
+            "谷物" ->
+                when (grainMorph(crop?.id)) {
+                    GrainMorph.SPIKE -> R.drawable.farm_stage_sprout_grain
+                    GrainMorph.PANICLE -> R.drawable.farm_stage_sprout_grain_panicle
+                    GrainMorph.STALK -> R.drawable.farm_stage_sprout_grain_stalk
+                }
+            "水果" ->
+                when (fruitMorph(crop?.id)) {
+                    FruitMorph.TREE -> R.drawable.farm_stage_sprout_fruit_tree
+                    FruitMorph.VINE -> R.drawable.farm_stage_sprout_fruit_vine
+                    FruitMorph.BUSH -> R.drawable.farm_stage_sprout_fruit_bush
+                }
+            "香草" ->
+                when (herbMorph(crop?.id)) {
+                    HerbMorph.LEAFY -> R.drawable.farm_stage_sprout_herb
+                    HerbMorph.WOODY -> R.drawable.farm_stage_sprout_herb_woody
+                }
+            "菇菌" ->
+                when (mushroomMorph(crop?.id)) {
+                    MushroomMorph.CAP -> R.drawable.farm_stage_sprout_mushroom
+                    MushroomMorph.CLUSTER -> R.drawable.farm_stage_sprout_mushroom_cluster
+                }
+            "其他" ->
+                when (otherMorph(crop?.id)) {
+                    OtherMorph.CANE -> R.drawable.farm_stage_sprout_other_cane
+                    OtherMorph.GROUND -> R.drawable.farm_stage_sprout_other
+                    OtherMorph.SUCCULENT -> R.drawable.farm_stage_sprout_other_succulent
+                }
             "蔬菜", null ->
                 when (vegMorph(crop?.id)) {
                     VegMorph.ROOT -> R.drawable.farm_stage_sprout_veg_root
@@ -67,12 +113,40 @@ internal object FarmCropArt {
     private fun growOf(crop: CropDef?): Int {
         val cat = crop?.category
         return when (cat) {
-            "花卉" -> R.drawable.farm_stage_grow_flower
-            "谷物" -> R.drawable.farm_stage_grow_grain
-            "水果" -> R.drawable.farm_stage_grow_fruit
-            "香草" -> R.drawable.farm_stage_grow_herb
-            "菇菌" -> R.drawable.farm_stage_grow_mushroom
-            "其他" -> R.drawable.farm_stage_grow_other
+            "花卉" ->
+                when (flowerMorph(crop?.id)) {
+                    FlowerMorph.STEM -> R.drawable.farm_stage_grow_flower
+                    FlowerMorph.SHRUB -> R.drawable.farm_stage_grow_flower_shrub
+                    FlowerMorph.VINE -> R.drawable.farm_stage_grow_flower_vine
+                }
+            "谷物" ->
+                when (grainMorph(crop?.id)) {
+                    GrainMorph.SPIKE -> R.drawable.farm_stage_grow_grain
+                    GrainMorph.PANICLE -> R.drawable.farm_stage_grow_grain_panicle
+                    GrainMorph.STALK -> R.drawable.farm_stage_grow_grain_stalk
+                }
+            "水果" ->
+                when (fruitMorph(crop?.id)) {
+                    FruitMorph.TREE -> R.drawable.farm_stage_grow_fruit_tree
+                    FruitMorph.VINE -> R.drawable.farm_stage_grow_fruit_vine
+                    FruitMorph.BUSH -> R.drawable.farm_stage_grow_fruit_bush
+                }
+            "香草" ->
+                when (herbMorph(crop?.id)) {
+                    HerbMorph.LEAFY -> R.drawable.farm_stage_grow_herb
+                    HerbMorph.WOODY -> R.drawable.farm_stage_grow_herb_woody
+                }
+            "菇菌" ->
+                when (mushroomMorph(crop?.id)) {
+                    MushroomMorph.CAP -> R.drawable.farm_stage_grow_mushroom
+                    MushroomMorph.CLUSTER -> R.drawable.farm_stage_grow_mushroom_cluster
+                }
+            "其他" ->
+                when (otherMorph(crop?.id)) {
+                    OtherMorph.CANE -> R.drawable.farm_stage_grow_other_cane
+                    OtherMorph.GROUND -> R.drawable.farm_stage_grow_other
+                    OtherMorph.SUCCULENT -> R.drawable.farm_stage_grow_other_succulent
+                }
             "蔬菜", null ->
                 when (vegMorph(crop?.id)) {
                     VegMorph.ROOT -> R.drawable.farm_stage_grow_veg_root
@@ -82,6 +156,51 @@ internal object FarmCropArt {
             else -> R.drawable.farm_stage_grow
         }
     }
+
+    private fun flowerMorph(id: String?): FlowerMorph =
+        when (id) {
+            "morning_glory", "wisteria" -> FlowerMorph.VINE
+            "clover", "marigold", "cosmos", "violet", "chrysanthemum", "jasmine",
+            "gardenia", "lavender", "azalea", "carnation", "osmanthus", "hibiscus",
+            "hydrangea", "blossom", "camellia", "rose", "magnolia", "cherry_blossom",
+            "orchid", "peony", "four_leaf", "lilac", "begonia", "impatiens", "zinnia",
+            "petunia", "pansy",
+            -> FlowerMorph.SHRUB
+            else -> FlowerMorph.STEM
+        }
+
+    private fun fruitMorph(id: String?): FruitMorph =
+        when (id) {
+            "grape", "watermelon", "melon", "pumpkin" -> FruitMorph.VINE
+            "strawberry", "blueberry", "raspberry", "pineapple" -> FruitMorph.BUSH
+            else -> FruitMorph.TREE
+        }
+
+    private fun grainMorph(id: String?): GrainMorph =
+        when (id) {
+            "rice", "millet", "sorghum" -> GrainMorph.PANICLE
+            "corn" -> GrainMorph.STALK
+            else -> GrainMorph.SPIKE
+        }
+
+    private fun herbMorph(id: String?): HerbMorph =
+        when (id) {
+            "ginger", "tea", "coffee", "cocoa" -> HerbMorph.WOODY
+            else -> HerbMorph.LEAFY
+        }
+
+    private fun mushroomMorph(id: String?): MushroomMorph =
+        when (id) {
+            "enoki" -> MushroomMorph.CLUSTER
+            else -> MushroomMorph.CAP
+        }
+
+    private fun otherMorph(id: String?): OtherMorph =
+        when (id) {
+            "bamboo", "sugarcane" -> OtherMorph.CANE
+            "aloe", "cactus" -> OtherMorph.SUCCULENT
+            else -> OtherMorph.GROUND
+        }
 
     private fun vegMorph(id: String?): VegMorph =
         when (id) {

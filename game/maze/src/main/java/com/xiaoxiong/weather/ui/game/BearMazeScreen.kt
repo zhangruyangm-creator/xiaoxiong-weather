@@ -595,6 +595,8 @@ fun BearMazeScreen(
 ) {
     val view = LocalView.current
     val prefs = rememberGamePrefs()
+    val characterState = rememberBearCharacterState()
+    var showCharacterPicker by remember { mutableStateOf(false) }
     val mazeWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     val mazeRain = remember(sceneCode) { rainStrengthOf(sceneCode) }
     val mazeFreezingRain = remember(sceneCode) { isFreezingRainCode(sceneCode) }
@@ -611,7 +613,7 @@ fun BearMazeScreen(
     DisposableEffect(Unit) {
         onDispose { game.saveSession(prefs) }
     }
-    val sprites = rememberBearSprites()
+    val sprites = rememberBearSprites(characterState.selected)
     var frame by remember { mutableLongStateOf(0L) }
     var showAbandonDialog by remember { mutableStateOf(false) }
 
@@ -666,6 +668,7 @@ fun BearMazeScreen(
                     onPick = { game.startLevel(it) },
                     onEndless = { game.startEndless(1) },
                     onExit = onExit,
+                    onCharacter = { showCharacterPicker = true },
                 )
             }
             MazePhase.PLAYING, MazePhase.CLEAR -> {
@@ -702,8 +705,16 @@ fun BearMazeScreen(
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         }
                     },
+                    onCharacter = { showCharacterPicker = true },
                 )
             }
+        }
+
+        if (showCharacterPicker) {
+            GameCharacterPickerDialog(
+                state = characterState,
+                onDismiss = { showCharacterPicker = false },
+            )
         }
 
         if (showAbandonDialog) {
@@ -772,6 +783,7 @@ private fun MazeLevelSelect(
     onPick: (Int) -> Unit,
     onEndless: () -> Unit,
     onExit: () -> Unit,
+    onCharacter: () -> Unit,
 ) {
     Column(
         modifier =
@@ -790,6 +802,10 @@ private fun MazeLevelSelect(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
+            )
+            GameCharacterButton(
+                onClick = onCharacter,
+                tint = Color(0xFF2A4A6A),
             )
         }
         Text(
@@ -906,6 +922,7 @@ private fun MazePlayField(
     onRestart: () -> Unit,
     onNext: () -> Unit,
     onMove: (MazeDir) -> Unit,
+    onCharacter: () -> Unit,
 ) {
     val style = mazeThemeStyle(game.level.theme)
     var swipeAcc by remember { mutableStateOf(Offset.Zero) }
@@ -984,6 +1001,7 @@ private fun MazePlayField(
             IconButton(onClick = onRestart) {
                 Icon(Icons.Default.Refresh, stringResource(R.string.bear_maze_restart), tint = Color.White)
             }
+            GameCharacterButton(onClick = onCharacter)
         }
 
         if (game.needHoneyHintT > 0f) {

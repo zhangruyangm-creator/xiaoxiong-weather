@@ -8,5 +8,13 @@
     <string name="bear_leaderboard_rank_label">排名 %1$d</string>
     <string name="bear_leaderboard_score_label">%1$d 分</string>
     <string name="cd_leaderboard">查看排行榜</string>
+    <string name="cd_bear_character">切换游戏主角</string>
+    <string name="bear_character_title">游戏主角</string>
+    <string name="bear_character_hint">动作游戏里可操控的小熊，选好后各游戏通用。</string>
+    <string name="bear_character_peach">小粉熊</string>
+    <string name="bear_character_peach_detail">浅粉 Q 版，跳跳和迷宫里的经典造型。</string>
+    <string name="bear_character_sun">小棕熊</string>
+    <string name="bear_character_sun_detail">蜂蜜棕太阳熊，和天气页探索插画同款。</string>
+    <string name="bear_character_done">好了</string>
     <string name="share_card_cancel">取消</string>
 </resources>

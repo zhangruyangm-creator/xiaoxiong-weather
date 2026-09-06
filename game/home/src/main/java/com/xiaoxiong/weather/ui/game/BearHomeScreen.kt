@@ -914,6 +914,7 @@ private fun HomePlayroom(
 
 @Composable
 private fun HomeCloset() {
+    val characterState = rememberBearCharacterState()
     Column(
         modifier =
             Modifier
@@ -925,21 +926,15 @@ private fun HomeCloset() {
             artRes = R.drawable.ic_bear_home_closet,
             contentDescription = stringResource(R.string.bear_home_room_closet),
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = stringResource(R.string.bear_home_closet_stub),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.bear_home_closet_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF8D6E63),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
+        Spacer(modifier = Modifier.height(12.dp))
+        GameCharacterPickerPanel(state = characterState)
         Spacer(modifier = Modifier.height(24.dp))
     }
 }

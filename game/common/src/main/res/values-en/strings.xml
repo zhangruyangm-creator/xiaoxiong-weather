@@ -8,5 +8,13 @@
     <string name="bear_leaderboard_rank_label">Rank %1$d</string>
     <string name="bear_leaderboard_score_label">%1$d pts</string>
     <string name="cd_leaderboard">View leaderboard</string>
+    <string name="cd_bear_character">Switch playable bear</string>
+    <string name="bear_character_title">Playable bear</string>
+    <string name="bear_character_hint">Pick who you play as in action games — the choice applies everywhere.</string>
+    <string name="bear_character_peach">Peach bear</string>
+    <string name="bear_character_peach_detail">The classic soft pink Q-version from jump and maze.</string>
+    <string name="bear_character_sun">Sun bear</string>
+    <string name="bear_character_sun_detail">Honey-brown sun bear — same as the weather explore art.</string>
+    <string name="bear_character_done">Done</string>
     <string name="share_card_cancel">Cancel</string>
 </resources>

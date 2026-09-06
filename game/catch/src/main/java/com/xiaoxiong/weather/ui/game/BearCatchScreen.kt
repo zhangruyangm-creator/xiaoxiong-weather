@@ -124,6 +124,8 @@ fun BearCatchScreen(
     val view = LocalView.current
     val prefs = rememberGamePrefs()
     val lb = rememberLeaderboardState(prefs, "leaderboard_catch", "best_catch")
+    val characterState = rememberBearCharacterState()
+    var showCharacterPicker by remember { mutableStateOf(false) }
     val game =
         remember {
             BearCatchGame().also { it.best = prefs.getInt("best_catch", 0) }
@@ -137,14 +139,14 @@ fun BearCatchScreen(
     LaunchedEffect(catchWeather, sceneCode) {
         game.scene = catchSceneFromWeather(catchWeather, sceneCode)
     }
-    val bearSprites = rememberBearSprites()
+    val bearSprites = rememberBearSprites(characterState.selected)
     var frame by remember { mutableLongStateOf(0L) }
 
     // 帧循环：切后台不推进、dt 钳制由共享层处理。
     // tick / 飘字推进只在对局运行（每帧）或节流帧（约 12fps）时执行。
     var slowTick by remember { mutableStateOf(0) }
     GameFrameLoop(
-        paused = { lb.show },
+        paused = { lb.show || showCharacterPicker },
         onTick = { dt, now ->
             val running = game.phase == GamePhase.RUNNING
             if (running || slowTick % 5 == 0) {
@@ -270,7 +272,15 @@ fun BearCatchScreen(
                 lb.entries = lb.store.load()
                 lb.show = true
             },
+            onCharacter = { showCharacterPicker = true },
         )
+
+        if (showCharacterPicker) {
+            GameCharacterPickerDialog(
+                state = characterState,
+                onDismiss = { showCharacterPicker = false },
+            )
+        }
 
         if (lb.show) {
             GameLeaderboardDialog(
@@ -406,6 +416,7 @@ private fun CatchHud(
     frame: Long,
     onExit: () -> Unit,
     onLeaderboard: () -> Unit,
+    onCharacter: () -> Unit,
 ) {
     // frame 仅用于驱动 HUD 每帧刷新分数
     @Suppress("UNUSED_EXPRESSION")
@@ -515,6 +526,7 @@ private fun CatchHud(
                 )
             }
         }
+        GameCharacterButton(onClick = onCharacter)
         LeaderboardButton(onClick = onLeaderboard)
     }
 }

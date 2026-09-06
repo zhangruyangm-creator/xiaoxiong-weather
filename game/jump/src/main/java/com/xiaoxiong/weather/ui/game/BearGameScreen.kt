@@ -534,6 +534,8 @@ fun BearGameScreen(
 
     val prefs = rememberGamePrefs()
     val lb = rememberLeaderboardState(prefs, "leaderboard_run", "best")
+    val characterState = rememberBearCharacterState()
+    var showCharacterPicker by remember { mutableStateOf(false) }
     val gameWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     val game =
         remember {
@@ -546,7 +548,7 @@ fun BearGameScreen(
     LaunchedEffect(gameWeather, sceneCode) {
         game.scene = runSceneFromWeather(gameWeather, sceneCode)
     }
-    val bearSprites = rememberBearSprites()
+    val bearSprites = rememberBearSprites(characterState.selected)
     var frame by remember { mutableLongStateOf(0L) }
 
     // 帧循环：切后台不推进、dt 钳制（防掉帧瞬移穿模）由共享层处理。
@@ -554,7 +556,7 @@ fun BearGameScreen(
     // frame 只在真正 tick 时更新，驱动 Canvas 重绘。
     var slowTick by remember { mutableStateOf(0) }
     GameFrameLoop(
-        paused = { lb.show },
+        paused = { lb.show || showCharacterPicker },
         onTick = { dt, now ->
             val running = game.phase == GamePhase.RUNNING
             // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
@@ -622,7 +624,15 @@ fun BearGameScreen(
                 lb.entries = lb.store.load()
                 lb.show = true
             },
+            onCharacter = { showCharacterPicker = true },
         )
+
+        if (showCharacterPicker) {
+            GameCharacterPickerDialog(
+                state = characterState,
+                onDismiss = { showCharacterPicker = false },
+            )
+        }
 
         if (lb.show) {
             GameLeaderboardDialog(
@@ -754,6 +764,7 @@ private fun GameHud(
     frame: Long,
     onExit: () -> Unit,
     onLeaderboard: () -> Unit,
+    onCharacter: () -> Unit,
 ) {
     Row(
         modifier =
@@ -785,6 +796,7 @@ private fun GameHud(
                 color = Color.White.copy(alpha = 0.8f),
             )
         }
+        GameCharacterButton(onClick = onCharacter)
         LeaderboardButton(onClick = onLeaderboard)
     }
 }

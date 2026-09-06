@@ -148,7 +148,7 @@ xiaoxiong-weather/
 ├── game/
 │   ├── api/                  # GameEntry + GameEntryProvider（ServiceLoader） + 口令常量
 │   ├── common/               # 共享精灵表 / 排行榜 / 天气特效
-│   ├── jump/ star/ maze/ farm/ home/   # 各游戏模块（代码 + 插画 + 字符串 + 测试）
+│   ├── jump/ catch/ star/ maze/ farm/ home/ hockey/   # 各游戏模块（代码 + 插画 + 字符串 + 测试）
 ├── baselineprofile/          # macrobenchmark 生成 Baseline Profile
 └── build.gradle.kts          # 根构建脚本
 ```

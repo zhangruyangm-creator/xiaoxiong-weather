@@ -61,7 +61,7 @@ xiaoxiong-weather/
 ├── :feature:settings        # 设置/隐私/卡片设置
 ├── :game:api                # GameEntry 接口 + GameEntryProvider（ServiceLoader 发现）+ 口令常量
 ├── :game:common             # 共享精灵表/排行榜/天气特效（GameBear/GameScaffold/GameLeaderboard/GameWeatherFx…）
-├── :game:jump|star|maze|farm|home   # 各游戏独立模块（各持 res/strings，provider 注册自身）
+├── :game:jump|catch|star|maze|farm|home|hockey   # 各游戏独立模块（各持 res/strings，provider 注册自身）
 ├── :baselineprofile         # 保留不动
 └── (阶段 5 已移除) app/src/gameXxx* 源码集、Empty 门面、-Pgames 源码集机制
 ```

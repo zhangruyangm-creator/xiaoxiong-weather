@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bear_hockey_title">Bear Hockey</string>
+    <string name="cd_close_game">Exit game</string>
+    <string name="bear_hockey_settings">Match settings</string>
+    <string name="bear_hockey_save">Save</string>
+    <string name="bear_hockey_cancel">Cancel</string>
+    <string name="bear_hockey_intro">Drag the bottom bear paddle and shoot the honey puck. Guard your half — first to the set score wins.</string>
+    <string name="bear_hockey_start">Start</string>
+    <string name="bear_hockey_again">Play again</string>
+    <string name="bear_hockey_you">You</string>
+    <string name="bear_hockey_rival">Rival</string>
+    <string name="bear_hockey_first_to">First to %1$d</string>
+    <string name="bear_hockey_get_ready">Ready</string>
+    <string name="bear_hockey_goal_you">Goal!</string>
+    <string name="bear_hockey_goal_rival">Conceded…</string>
+    <string name="bear_hockey_win">Held the line!</string>
+    <string name="bear_hockey_lose">Broken through</string>
+    <string name="bear_hockey_final_score">Score %1$d : %2$d</string>
+    <string name="bear_hockey_diff">Difficulty</string>
+    <string name="bear_hockey_diff_easy">Easy</string>
+    <string name="bear_hockey_diff_normal">Normal</string>
+    <string name="bear_hockey_diff_hard">Hard</string>
+    <string name="bear_hockey_diff_custom">Custom</string>
+    <string name="bear_hockey_diff_custom_level">Custom %1$d</string>
+    <string name="bear_hockey_diff_level_hint">Level (%1$d–%2$d, higher = harder)</string>
+    <string name="bear_hockey_diff_line">%1$s · first to %2$d</string>
+    <string name="bear_hockey_win_score">Win score</string>
+    <string name="bear_hockey_win_score_hint">First to (%1$d–%2$d)</string>
+    <string name="bear_hockey_career_wins">Career wins %1$d</string>
+    <string name="bear_leaderboard_rank_label">Rank %1$d</string>
+</resources>

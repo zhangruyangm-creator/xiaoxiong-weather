@@ -3,8 +3,8 @@
     <string name="bear_farm_title">小熊农场</string>
     <string name="bear_game_title">小熊跳跳</string>
     <string name="bear_home_back">返回客厅</string>
-    <string name="bear_home_closet_hint">衣服和摆件还没收拾完。去阳台看看窗外，或回客厅陪陪小熊吧。</string>
-    <string name="bear_home_closet_stub">暂时空着</string>
+    <string name="bear_home_closet_hint">挑一挑游戏主角，或去阳台看看窗外。</string>
+    <string name="bear_home_closet_stub">游戏主角</string>
     <string name="bear_home_cuisine_arabic">阿拉伯 / 中东</string>
     <string name="bear_home_cuisine_chinese">中式</string>
     <string name="bear_home_cuisine_korean">韩式</string>

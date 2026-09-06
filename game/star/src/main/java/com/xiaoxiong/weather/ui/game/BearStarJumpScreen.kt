@@ -423,6 +423,8 @@ fun BearStarJumpScreen(
     val density = LocalDensity.current.density
     val prefs = rememberGamePrefs()
     val lb = rememberLeaderboardState(prefs, "leaderboard_jump", "best_jump")
+    val characterState = rememberBearCharacterState()
+    var showCharacterPicker by remember { mutableStateOf(false) }
     val game =
         remember {
             StarJumpGame().also { it.best = prefs.getInt("best_jump", 0) }
@@ -435,11 +437,11 @@ fun BearStarJumpScreen(
     LaunchedEffect(jumpWeather, sceneCode) {
         game.scene = jumpSceneFromWeather(jumpWeather, sceneCode)
     }
-    val bearSprites = rememberBearSprites()
+    val bearSprites = rememberBearSprites(characterState.selected)
     var frame by remember { mutableLongStateOf(0L) }
 
     GameFrameLoop(
-        paused = { lb.show },
+        paused = { lb.show || showCharacterPicker },
         onTick = { dt, now ->
             game.tick(
                 dt,
@@ -529,7 +531,15 @@ fun BearStarJumpScreen(
                 lb.entries = lb.store.load()
                 lb.show = true
             },
+            onCharacter = { showCharacterPicker = true },
         )
+
+        if (showCharacterPicker) {
+            GameCharacterPickerDialog(
+                state = characterState,
+                onDismiss = { showCharacterPicker = false },
+            )
+        }
 
         if (lb.show) {
             GameLeaderboardDialog(
@@ -665,6 +675,7 @@ private fun JumpHud(
     frame: Long,
     onExit: () -> Unit,
     onLeaderboard: () -> Unit,
+    onCharacter: () -> Unit,
 ) {
     // frame 仅用于驱动 HUD 每帧刷新分数
     @Suppress("UNUSED_EXPRESSION")
@@ -700,6 +711,7 @@ private fun JumpHud(
                 color = Color.White.copy(alpha = 0.85f),
             )
         }
+        GameCharacterButton(onClick = onCharacter)
         LeaderboardButton(onClick = onLeaderboard)
     }
 }
