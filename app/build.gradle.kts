@@ -12,7 +12,7 @@ plugins {
 // 彩蛋游戏可选编译：把 jump/star/maze/farm/home 依 -Pgames 动态接入（默认 all）。
 // 与旧「源码集裁剪」不同：未选中的游戏模块不参与编译与打包，classpath 上不存在其字节码，
 // 装配侧用 ServiceLoader（:game:api 的 loadGameEntryProviders()）发现已在 classpath 的入口，天然更彻底。
-val gameIds = listOf("jump", "star", "catch", "maze", "farm", "home")
+val gameIds = listOf("jump", "star", "catch", "maze", "farm", "home", "hockey")
 
 val gamesRaw = (project.findProperty("games") as String?)?.trim()?.lowercase()
 val enabledGames: Set<String> =
@@ -52,8 +52,8 @@ android {
         applicationId = "com.xiaoxiong.weather"
         minSdk = 26
         targetSdk = 37
-        versionCode = 68
-        versionName = "1.7.14"
+        versionCode = 69
+        versionName = "1.7.15"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             // 仅保留 ARM 架构：x86/x86_64 只服务于模拟器，2026 年已无实际设备使用
@@ -148,6 +148,9 @@ dependencies {
     }
     if ("home" in enabledGames) {
         "fullImplementation"(project(":game:home"))
+    }
+    if ("hockey" in enabledGames) {
+        "fullImplementation"(project(":game:hockey"))
     }
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
