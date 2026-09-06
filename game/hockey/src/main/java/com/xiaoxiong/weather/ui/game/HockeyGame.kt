@@ -14,6 +14,15 @@ import com.xiaoxiong.weather.ui.game.HockeyLogic.Table
 import kotlin.math.hypot
 import kotlin.random.Random
 
+/** 击球震动 / 火花的最小间隔（秒）：球被顶在墙角持续接触时，避免震动连发。 */
+private const val HIT_FEEDBACK_INTERVAL = 0.12f
+
+/** 墙角死锁判定：持续接触挡板且原地抖动超过该时长（秒），触发解脱。 */
+private const val STUCK_ESCAPE_SECONDS = 0.35f
+
+/** 「原地抖动」的每帧净位移阈值（相对短边）。 */
+private const val STUCK_MOVE_EPS_MUL = 0.004f
+
 /** 撞击火花。 */
 class HockeySpark(
     var x: Float,
@@ -47,6 +56,18 @@ class HockeyGame {
     var ai = Body(0f, 0f, r = 1f)
     var puck = Body(0f, 0f, r = 1f)
 
+    /** 挡板尺寸倍率（设置可调）。 */
+    var paddleScale by mutableFloatStateOf(HockeyLogic.PADDLE_SCALE_DEFAULT)
+
+    /** 尺寸倍率生效对象：true 双方挡板都变大；false 仅玩家挡板变大（AI 保持标准）。 */
+    var paddleScaleBoth by mutableStateOf(true)
+
+    // 最近一次画布尺寸：设置变更后重建球桌用（onSizeChanged 不会主动触发）
+    private var lastCanvasW = 0f
+    private var lastCanvasH = 0f
+    private var lastPadH = 0f
+    private var lastPadV = 0f
+
     var playerPrevX = 0f
     var playerPrevY = 0f
     var touchX: Float? = null
@@ -58,6 +79,12 @@ class HockeyGame {
     var matchWinner: Scorer? = null
     var hitFlash by mutableFloatStateOf(0f)
     var time by mutableFloatStateOf(0f)
+
+    /** 击球震动 / 火花的节流计时。 */
+    private var hitFeedbackCooldown = 0f
+
+    /** 墙角死锁计时：球持续接触挡板且位移极小时累计，触发解脱后清零。 */
+    private var stuckTime = 0f
 
     var aiTargetX = 0f
     var aiTargetY = 0f
@@ -75,26 +102,37 @@ class HockeyGame {
         padH: Float,
         padV: Float,
     ) {
-        val t = HockeyLogic.layoutTable(w, h, padH, padV)
+        lastCanvasW = w
+        lastCanvasH = h
+        lastPadH = padH
+        lastPadV = padV
+        val base = HockeyLogic.layoutTable(w, h, padH, padV)
         // 分屏/浮窗把窗口压得过小（如高度不足 192dp，上下 padding 就占满）时球桌尺寸为负，
         // 后续 clampPaddle 的 coerceIn 会构成空区间抛异常；忽略本次尺寸，
         // 保留上一张球桌（首次则为 null，tick/绘制各自兜底），窗口恢复后 onSizeChanged 会再触发。
-        if (t.width <= 0f || t.height <= 0f) return
-        table = t
-        player.r = t.paddleR
-        ai.r = t.paddleR
-        puck.r = t.puckR
+        if (base.width <= 0f || base.height <= 0f) return
+        table = base
+        puck.r = base.puckR
+        // 倍率只加在挡板 Body 上；钳制 / AI 走位显式传各自半径，支持「仅玩家变大」
+        player.r = base.paddleR * paddleScale
+        ai.r = base.paddleR * (if (paddleScaleBoth) paddleScale else 1f)
         if (phase == Phase.READY || phase == Phase.MATCH_OVER) {
             resetPositions(serve = false)
         } else {
             // 保持相对位置比例粗略可用
-            val (px, py) = HockeyLogic.clampPaddle(t, player.x, player.y, isPlayer = true)
+            val (px, py) = HockeyLogic.clampPaddle(base, player.x, player.y, isPlayer = true, paddleR = player.r)
             player.x = px
             player.y = py
-            val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false)
+            val (ax, ay) = HockeyLogic.clampPaddle(base, ai.x, ai.y, isPlayer = false, paddleR = ai.r)
             ai.x = ax
             ai.y = ay
         }
+    }
+
+    /** 设置里改了挡板尺寸后，按最近的画布尺寸重建球桌。 */
+    fun relayout() {
+        if (lastCanvasW <= 0f || lastCanvasH <= 0f) return
+        resize(lastCanvasW, lastCanvasH, lastPadH, lastPadV)
     }
 
     fun startMatch() {
@@ -106,6 +144,8 @@ class HockeyGame {
         resultSubmitted = false
         sparks.clear()
         trail.clear()
+        stuckTime = 0f
+        hitFeedbackCooldown = 0f
         resetPositions(serve = true)
         // 清掉上一局残留的触摸点（对局结束时手指可能还按着，手势协程已被取消），
         // 否则新一局发球阶段挡板会瞬移到旧坐标
@@ -149,6 +189,7 @@ class HockeyGame {
         time += dt
         if (hitFlash > 0f) hitFlash = (hitFlash - dt * 3.2f).coerceAtLeast(0f)
         if (scoreFlash > 0f) scoreFlash = (scoreFlash - dt * 1.1f).coerceAtLeast(0f)
+        if (hitFeedbackCooldown > 0f) hitFeedbackCooldown -= dt
 
         // 火花
         val it = sparks.iterator()
@@ -227,6 +268,7 @@ class HockeyGame {
                 reactionAge = aiReactionAge,
                 cachedTargetX = aiTargetX,
                 cachedTargetY = aiTargetY,
+                paddleR = ai.r,
             )
         if (refreshed) {
             aiTargetX = tx
@@ -236,7 +278,7 @@ class HockeyGame {
         HockeyLogic.stepAiVelocity(ai, aiTargetX, aiTargetY, t, params, dt)
         ai.x += ai.vx * dt
         ai.y += ai.vy * dt
-        val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false)
+        val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r)
         ai.x = ax
         ai.y = ay
 
@@ -247,25 +289,51 @@ class HockeyGame {
         val steps = 3
         val sub = dt / steps
         var scored: Scorer? = null
+        var paddleContact = false
+        var wallContact = false
+        val frameStartX = puck.x
+        val frameStartY = puck.y
         repeat(steps) {
             if (scored != null) return@repeat
-            var wall = false
             val r = HockeyLogic.integratePuck(puck, t, sub)
             if (r.scored != null) {
                 scored = r.scored
                 return@repeat
             }
-            wall = r.hitWall
+            if (r.hitWall) wallContact = true
             val hitP =
                 HockeyLogic.collidePaddle(puck, player, pvx, pvy, t) ||
                     HockeyLogic.collidePaddle(puck, ai, ai.vx, ai.vy, t)
-            if (hitP) {
-                hitFlash = 1f
+            if (hitP) paddleContact = true
+        }
+
+        // 击球反馈按最小间隔节流：球被顶在墙角持续接触时，震动 / 火花不会连发
+        if (paddleContact) {
+            hitFlash = 1f
+            if (hitFeedbackCooldown <= 0f) {
+                hitFeedbackCooldown = HIT_FEEDBACK_INTERVAL
                 pendingHapticHit = true
                 spawnHitSparks(puck.x, puck.y)
-            } else if (wall) {
-                spawnHitSparks(puck.x, puck.y, count = 4, muted = true)
             }
+        } else if (wallContact && hitFeedbackCooldown <= 0f) {
+            hitFeedbackCooldown = HIT_FEEDBACK_INTERVAL
+            spawnHitSparks(puck.x, puck.y, count = 4, muted = true)
+        }
+
+        // 墙角死锁检测：球被挡板顶在墙角时，墙面反弹与挡板碰撞互相抵消，
+        // 球原地高频抖动（持续接触 + 净位移极小）永远出不来——朝场内一脚解脱
+        val moved = hypot(puck.x - frameStartX, puck.y - frameStartY)
+        if (paddleContact && moved < t.shortSide * STUCK_MOVE_EPS_MUL) {
+            stuckTime += dt
+            if (stuckTime >= STUCK_ESCAPE_SECONDS) {
+                stuckTime = 0f
+                hitFlash = 1f
+                pendingHapticHit = true
+                HockeyLogic.cornerEscapeKick(t, puck)
+                spawnHitSparks(puck.x, puck.y, count = 12)
+            }
+        } else {
+            stuckTime = (stuckTime - dt * 2f).coerceAtLeast(0f)
         }
 
         // 轨迹
@@ -299,11 +367,11 @@ class HockeyGame {
         playerPrevX = player.x
         playerPrevY = player.y
         if (tx != null && ty != null) {
-            var (cx, cy) = HockeyLogic.clampPaddle(t, tx, ty, isPlayer = true)
+            var (cx, cy) = HockeyLogic.clampPaddle(t, tx, ty, isPlayer = true, paddleR = player.r)
             if (phase == Phase.SERVE) {
                 // 发球前球停在中点：挡板与球保持一圈距离，避免视觉压球、开球瞬间多吃一次碰撞冲量
-                val clearY = t.midY + t.paddleR + t.puckR + 4f
-                if (clearY <= t.bottom - t.paddleR) {
+                val clearY = t.midY + player.r + t.puckR + 4f
+                if (clearY <= t.bottom - player.r) {
                     cy = cy.coerceAtLeast(clearY)
                 }
             }
@@ -334,7 +402,7 @@ class HockeyGame {
         HockeyLogic.stepAiVelocity(ai, hx, hy, t, params, dt)
         ai.x += ai.vx * dt
         ai.y += ai.vy * dt
-        val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false)
+        val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r)
         ai.x = ax
         ai.y = ay
     }

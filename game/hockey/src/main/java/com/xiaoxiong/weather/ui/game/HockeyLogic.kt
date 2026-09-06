@@ -10,7 +10,7 @@ import kotlin.random.Random
  * 坐标系：竖屏俯视，玩家在下方、AI 在上方；Y 向下为正。
  */
 object HockeyLogic {
-    enum class Difficulty { EASY, NORMAL, HARD, CUSTOM }
+    enum class Difficulty { BEGINNER, EASY, NORMAL, ADVANCED, HARD, MASTER, CUSTOM }
 
     enum class Phase { READY, SERVE, PLAYING, SCORED, MATCH_OVER }
 
@@ -37,24 +37,45 @@ object HockeyLogic {
     const val WIN_SCORE_MIN = 1
     const val WIN_SCORE_MAX = 99
 
+    /** 挡板尺寸倍率：设置三档（标准 / 大 / 超大），读取时对旧存档做防御性钳制。 */
+    const val PADDLE_SCALE_DEFAULT = 1f
+    const val PADDLE_SCALE_MIN = 0.8f
+    const val PADDLE_SCALE_MAX = 1.6f
+
+    /** 墙角解脱球速（相对短边/秒）：足够脱离挡板，又不至于像开球那么冲。 */
+    private const val ESCAPE_SPEED_MUL = 1.15f
+
     fun params(
         difficulty: Difficulty,
         customLevel: Int = 5,
     ): DifficultyParams =
         when (difficulty) {
+            Difficulty.BEGINNER -> PRESET_BEGINNER
             Difficulty.EASY -> PRESET_EASY
             Difficulty.NORMAL -> PRESET_NORMAL
+            Difficulty.ADVANCED -> PRESET_ADVANCED
             Difficulty.HARD -> PRESET_HARD
+            Difficulty.MASTER -> PRESET_MASTER
             Difficulty.CUSTOM ->
                 lerpParams(
-                    PRESET_EASY,
-                    PRESET_HARD,
+                    PRESET_BEGINNER,
+                    PRESET_MASTER,
                     (
                         (customLevel.coerceIn(CUSTOM_LEVEL_MIN, CUSTOM_LEVEL_MAX) - 1) /
                             (CUSTOM_LEVEL_MAX - CUSTOM_LEVEL_MIN).toFloat()
                     ),
                 )
         }
+
+    private val PRESET_BEGINNER =
+        DifficultyParams(
+            aiMaxSpeedMul = 0.30f,
+            aiAccelMul = 1.6f,
+            reactionDelay = 0.55f,
+            predict = 0.0f,
+            defenseBias = 0.85f,
+            chase = 0.20f,
+        )
 
     private val PRESET_EASY =
         DifficultyParams(
@@ -68,12 +89,22 @@ object HockeyLogic {
 
     private val PRESET_NORMAL =
         DifficultyParams(
-            aiMaxSpeedMul = 0.72f,
-            aiAccelMul = 4.0f,
-            reactionDelay = 0.16f,
-            predict = 0.28f,
-            defenseBias = 0.48f,
-            chase = 0.62f,
+            aiMaxSpeedMul = 0.66f,
+            aiAccelMul = 3.6f,
+            reactionDelay = 0.20f,
+            predict = 0.24f,
+            defenseBias = 0.52f,
+            chase = 0.56f,
+        )
+
+    private val PRESET_ADVANCED =
+        DifficultyParams(
+            aiMaxSpeedMul = 0.84f,
+            aiAccelMul = 5.0f,
+            reactionDelay = 0.10f,
+            predict = 0.40f,
+            defenseBias = 0.42f,
+            chase = 0.72f,
         )
 
     private val PRESET_HARD =
@@ -84,6 +115,16 @@ object HockeyLogic {
             predict = 0.55f,
             defenseBias = 0.32f,
             chase = 0.88f,
+        )
+
+    private val PRESET_MASTER =
+        DifficultyParams(
+            aiMaxSpeedMul = 1.20f,
+            aiAccelMul = 8.5f,
+            reactionDelay = 0.02f,
+            predict = 0.70f,
+            defenseBias = 0.25f,
+            chase = 1.0f,
         )
 
     fun lerpParams(
@@ -159,8 +200,9 @@ object HockeyLogic {
         x: Float,
         y: Float,
         isPlayer: Boolean,
+        paddleR: Float = table.paddleR,
     ): Pair<Float, Float> {
-        val r = table.paddleR
+        val r = paddleR
         val minX = table.left + r
         val maxX = table.right - r
         val cx = x.coerceIn(minX, maxX)
@@ -290,6 +332,33 @@ object HockeyLogic {
         return true
     }
 
+    /**
+     * 墙角解脱：球被挡板顶死在墙角时（墙面反弹与挡板碰撞互相抵消，球原地高频抖动），
+     * 朝场地中心（略带随机）弹出一脚，并把球抬出挡板触及范围——
+     * 否则下一帧的分离逻辑会把球重新顶回角落。
+     */
+    fun cornerEscapeKick(
+        table: Table,
+        puck: Body,
+        random: Random = Random.Default,
+    ) {
+        val dx = table.midX - puck.x
+        val dy = table.midY - puck.y
+        val d = hypot(dx, dy).coerceAtLeast(1f)
+        val jitter = (random.nextFloat() - 0.5f) * 0.5f
+        val jCos = kotlin.math.cos(jitter)
+        val jSin = kotlin.math.sin(jitter)
+        val dirX = dx / d * jCos - dy / d * jSin
+        val dirY = dx / d * jSin + dy / d * jCos
+        puck.vx = dirX * table.shortSide * ESCAPE_SPEED_MUL
+        puck.vy = dirY * table.shortSide * ESCAPE_SPEED_MUL
+        // 抬离挡板触及范围（最坏情况：挡板把球完全顶进角落，球拍间距约 √2·(paddleR−puckR)）
+        puck.x += dirX * table.paddleR * 2.5f
+        puck.y += dirY * table.paddleR * 2.5f
+        puck.x = puck.x.coerceIn(table.left + puck.r, table.right - puck.r)
+        puck.y = puck.y.coerceIn(table.top + puck.r, table.bottom - puck.r)
+    }
+
     fun clampSpeed(
         body: Body,
         minSpeed: Float,
@@ -321,6 +390,7 @@ object HockeyLogic {
         reactionAge: Float,
         cachedTargetX: Float,
         cachedTargetY: Float,
+        paddleR: Float = table.paddleR,
     ): Triple<Float, Float, Boolean> {
         val refresh = reactionAge >= params.reactionDelay
         if (!refresh) {
@@ -329,19 +399,19 @@ object HockeyLogic {
         val predictT = params.predict * 0.28f
         var tx = puck.x + puck.vx * predictT
         var ty = puck.y + puck.vy * predictT
-        tx = tx.coerceIn(table.left + table.paddleR, table.right - table.paddleR)
+        tx = tx.coerceIn(table.left + paddleR, table.right - paddleR)
 
         val homeY = table.top + table.height * 0.16f
         val chaseY =
             if (puck.y < table.midY && puck.vy <= 0f) {
                 // 球在己方半场且向上/静止：出击
-                lerp(homeY, table.midY - table.paddleR * 1.2f, params.chase)
-                    .coerceAtMost(ty + table.paddleR)
+                lerp(homeY, table.midY - paddleR * 1.2f, params.chase)
+                    .coerceAtMost(ty + paddleR)
             } else {
                 homeY
             }
-        ty = lerp(chaseY, ty.coerceIn(table.top + table.paddleR, table.midY - table.paddleR), 1f - params.defenseBias * 0.65f)
-        ty = ty.coerceIn(table.top + table.paddleR, table.midY - table.paddleR * 0.4f)
+        ty = lerp(chaseY, ty.coerceIn(table.top + paddleR, table.midY - paddleR), 1f - params.defenseBias * 0.65f)
+        ty = ty.coerceIn(table.top + paddleR, table.midY - paddleR * 0.4f)
 
         // 球远离时稍微回中
         if (puck.y > table.midY + table.height * 0.15f) {

@@ -37,10 +37,11 @@ fun rememberLeaderboardState(
     prefs: SharedPreferences,
     tableKey: String,
     bestKey: String,
+    retainRecent: Boolean = false,
 ): GameLeaderboardState {
     val store =
-        remember(prefs, tableKey, bestKey) {
-            GameLeaderboardStore(prefs, tableKey, bestKey = bestKey)
+        remember(prefs, tableKey, bestKey, retainRecent) {
+            GameLeaderboardStore(prefs, tableKey, bestKey = bestKey, retainRecent = retainRecent)
         }
     return remember(store) { GameLeaderboardState(store) }
 }

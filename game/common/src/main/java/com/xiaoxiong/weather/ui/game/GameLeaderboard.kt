@@ -56,6 +56,8 @@ data class LeaderboardEntry(
     val timestamp: Long,
     val city: String? = null,
     val weather: String? = null,
+    /** 自定义展示文本（如冰球的比分 "3 : 1"）；为空则按 [score] 显示分数。 */
+    val label: String? = null,
 )
 
 private const val MAX_ENTRIES = 20
@@ -67,13 +69,19 @@ private val leaderboardJson =
     }
 
 /**
- * 游戏排行榜存储：SharedPreferences + JSON，最多保留前 [MAX_ENTRIES] 名。
+ * 游戏排行榜存储：SharedPreferences + JSON。
  * 每个游戏一个 key。
+ *
+ * 保留策略由 [retainRecent] 决定：
+ *  - false：只保留分数最高的前 [MAX_ENTRIES] 条（跳跳 / 摘星 / 接雨雪等计分游戏）；
+ *  - true：保留最近 [MAX_ENTRIES] 条，展示时仍按分数排序（冰球等对局：大胜在前、惨败在后，
+ *    惨败的局不会被挤出榜外）。
  */
 class GameLeaderboardStore(
     private val prefs: SharedPreferences,
     private val key: String,
     private val bestKey: String? = null,
+    private val retainRecent: Boolean = false,
 ) {
     private var cache: List<LeaderboardEntry>? = null
 
@@ -89,10 +97,16 @@ class GameLeaderboardStore(
 
     /** 提交一局成绩；返回当前排名（1 起），未进前 [MAX_ENTRIES] 返回 null。 */
     fun submit(entry: LeaderboardEntry): Int? {
-        val merged = (load() + entry).sortedByDescending { it.score }.take(MAX_ENTRIES)
-        prefs.edit { putString(key, leaderboardJson.encodeToString(merged)) }
-        cache = merged
-        val idx = merged.indexOfFirst { it.timestamp == entry.timestamp && it.score == entry.score }
+        val kept =
+            if (retainRecent) {
+                (load() + entry).sortedByDescending { it.timestamp }.take(MAX_ENTRIES)
+            } else {
+                (load() + entry).sortedByDescending { it.score }.take(MAX_ENTRIES)
+            }
+        val display = kept.sortedByDescending { it.score }
+        prefs.edit { putString(key, leaderboardJson.encodeToString(display)) }
+        cache = display
+        val idx = display.indexOfFirst { it.timestamp == entry.timestamp && it.score == entry.score }
         return if (idx >= 0) idx + 1 else null
     }
 
@@ -269,10 +283,10 @@ private fun LeaderboardRow(
                 modifier = Modifier.width(28.dp),
             )
         }
-        // 分数 + 日期：内容自适应宽度，不被右侧挤压
+        // 分数（或自定义比分文本）+ 日期：内容自适应宽度，不被右侧挤压
         Column(modifier = Modifier.padding(end = 12.dp)) {
             Text(
-                text = stringResource(R.string.bear_leaderboard_score_label, entry.score),
+                text = entry.label ?: stringResource(R.string.bear_leaderboard_score_label, entry.score),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )

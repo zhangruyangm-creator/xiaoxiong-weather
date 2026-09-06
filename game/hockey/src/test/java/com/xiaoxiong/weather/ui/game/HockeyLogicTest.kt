@@ -41,6 +41,16 @@ class HockeyLogicTest {
     }
 
     @Test
+    fun clampPaddle_customRadiusShrinksBounds() {
+        val t = table()
+        val big = t.paddleR * 1.6f
+        val (_, yDefault) = HockeyLogic.clampPaddle(t, t.midX, t.bottom, isPlayer = true)
+        val (_, yBig) = HockeyLogic.clampPaddle(t, t.midX, t.bottom, isPlayer = true, paddleR = big)
+        assertEquals(t.bottom - t.paddleR, yDefault, 0.01f)
+        assertEquals(t.bottom - big, yBig, 0.01f)
+    }
+
+    @Test
     fun wallBounce_leftReflects() {
         val t = table()
         val puck = Body(t.left + 2f, t.midY, vx = -200f, vy = 50f, r = t.puckR)
@@ -99,23 +109,32 @@ class HockeyLogicTest {
     }
 
     @Test
-    fun difficultyParams_hardFasterThanEasy() {
-        val easy = HockeyLogic.params(Difficulty.EASY)
-        val hard = HockeyLogic.params(Difficulty.HARD)
-        assertTrue(hard.aiMaxSpeedMul > easy.aiMaxSpeedMul)
-        assertTrue(hard.reactionDelay < easy.reactionDelay)
-        assertTrue(hard.predict > easy.predict)
+    fun difficultyParams_sixPresetsOrderedByStrength() {
+        val ordered =
+            listOf(
+                Difficulty.BEGINNER,
+                Difficulty.EASY,
+                Difficulty.NORMAL,
+                Difficulty.ADVANCED,
+                Difficulty.HARD,
+                Difficulty.MASTER,
+            ).map { HockeyLogic.params(it) }
+        ordered.zipWithNext().forEach { (weaker, stronger) ->
+            assertTrue(stronger.aiMaxSpeedMul > weaker.aiMaxSpeedMul)
+            assertTrue(stronger.reactionDelay < weaker.reactionDelay)
+            assertTrue(stronger.predict > weaker.predict)
+        }
     }
 
     @Test
-    fun customLevel_interpolatesBetweenEasyAndHard() {
-        val easy = HockeyLogic.params(Difficulty.CUSTOM, 1)
+    fun customLevel_interpolatesBetweenBeginnerAndMaster() {
+        val min = HockeyLogic.params(Difficulty.CUSTOM, 1)
         val mid = HockeyLogic.params(Difficulty.CUSTOM, 5)
-        val hard = HockeyLogic.params(Difficulty.CUSTOM, 10)
-        assertEquals(HockeyLogic.params(Difficulty.EASY).aiMaxSpeedMul, easy.aiMaxSpeedMul, 1e-4f)
-        assertEquals(HockeyLogic.params(Difficulty.HARD).aiMaxSpeedMul, hard.aiMaxSpeedMul, 1e-4f)
-        assertTrue(mid.aiMaxSpeedMul > easy.aiMaxSpeedMul)
-        assertTrue(mid.aiMaxSpeedMul < hard.aiMaxSpeedMul)
+        val max = HockeyLogic.params(Difficulty.CUSTOM, 10)
+        assertEquals(HockeyLogic.params(Difficulty.BEGINNER).aiMaxSpeedMul, min.aiMaxSpeedMul, 1e-4f)
+        assertEquals(HockeyLogic.params(Difficulty.MASTER).aiMaxSpeedMul, max.aiMaxSpeedMul, 1e-4f)
+        assertTrue(mid.aiMaxSpeedMul > min.aiMaxSpeedMul)
+        assertTrue(mid.aiMaxSpeedMul < max.aiMaxSpeedMul)
     }
 
     @Test
@@ -128,5 +147,41 @@ class HockeyLogicTest {
         val fresh = HockeyLogic.updateAiTarget(t, puck, params, reactionAge = 1f, cachedTargetX = 0f, cachedTargetY = 0f)
         assertTrue(fresh.third)
         assertNotNull(fresh.first)
+    }
+
+    @Test
+    fun cornerEscapeKick_pointsAwayFromCorner() {
+        val t = table()
+        val puck = Body(t.left + t.puckR, t.top + t.puckR, vx = -50f, vy = -30f, r = t.puckR)
+        HockeyLogic.cornerEscapeKick(t, puck, Random(7))
+        // 速度朝场内：远离左墙与上墙
+        assertTrue(puck.vx > 0f)
+        assertTrue(puck.vy > 0f)
+        // 位置被抬离角落且不越界
+        assertTrue(puck.x > t.left + t.puckR)
+        assertTrue(puck.y > t.top + t.puckR)
+        assertTrue(puck.x <= t.right - t.puckR)
+        assertTrue(puck.y <= t.bottom - t.puckR)
+    }
+
+    @Test
+    fun cornerEscapeKick_clearsPressingPaddle() {
+        val t = table()
+        // 最坏情况：挡板把球完全顶进角落
+        val puck = Body(t.left + t.puckR, t.top + t.puckR, r = t.puckR)
+        val paddle = Body(t.left + t.paddleR, t.top + t.paddleR, r = t.paddleR)
+        HockeyLogic.cornerEscapeKick(t, puck, Random(3))
+        val d = kotlin.math.hypot(puck.x - paddle.x, puck.y - paddle.y)
+        assertTrue(d >= t.paddleR + t.puckR)
+    }
+
+    @Test
+    fun cornerEscapeKick_bottomCornerPointsUp() {
+        val t = table()
+        val puck = Body(t.right - t.puckR, t.bottom - t.puckR, vx = 30f, vy = 40f, r = t.puckR)
+        HockeyLogic.cornerEscapeKick(t, puck, Random(11))
+        // 右下角：速度应远离右墙与下墙（朝场内，不会踢进自家球门）
+        assertTrue(puck.vx < 0f)
+        assertTrue(puck.vy < 0f)
     }
 }

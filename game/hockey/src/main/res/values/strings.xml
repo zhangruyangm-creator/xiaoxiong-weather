@@ -18,15 +18,25 @@
     <string name="bear_hockey_lose">没守住</string>
     <string name="bear_hockey_final_score">比分 %1$d : %2$d</string>
     <string name="bear_hockey_diff">难度</string>
+    <string name="bear_hockey_diff_beginner">入门</string>
     <string name="bear_hockey_diff_easy">轻松</string>
     <string name="bear_hockey_diff_normal">普通</string>
+    <string name="bear_hockey_diff_advanced">进阶</string>
     <string name="bear_hockey_diff_hard">挑战</string>
+    <string name="bear_hockey_diff_master">大师</string>
     <string name="bear_hockey_diff_custom">自定义</string>
     <string name="bear_hockey_diff_custom_level">自定义 %1$d</string>
     <string name="bear_hockey_diff_level_hint">难度等级（%1$d–%2$d，越大越难）</string>
     <string name="bear_hockey_diff_line">%1$s · 先到 %2$d 分</string>
     <string name="bear_hockey_win_score">获胜分数</string>
     <string name="bear_hockey_win_score_hint">先到几分（%1$d–%2$d）</string>
+    <string name="bear_hockey_paddle_size">挡板大小</string>
+    <string name="bear_hockey_paddle_normal">标准</string>
+    <string name="bear_hockey_paddle_large">大</string>
+    <string name="bear_hockey_paddle_xl">超大</string>
+    <string name="bear_hockey_paddle_scope">生效对象</string>
+    <string name="bear_hockey_paddle_scope_both">双方挡板</string>
+    <string name="bear_hockey_paddle_scope_mine">仅我的挡板</string>
     <string name="bear_hockey_career_wins">累计胜场 %1$d</string>
     <string name="bear_leaderboard_rank_label">排名 %1$d</string>
 </resources>

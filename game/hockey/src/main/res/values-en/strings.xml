@@ -18,15 +18,25 @@
     <string name="bear_hockey_lose">Broken through</string>
     <string name="bear_hockey_final_score">Score %1$d : %2$d</string>
     <string name="bear_hockey_diff">Difficulty</string>
+    <string name="bear_hockey_diff_beginner">Rookie</string>
     <string name="bear_hockey_diff_easy">Easy</string>
     <string name="bear_hockey_diff_normal">Normal</string>
+    <string name="bear_hockey_diff_advanced">Advanced</string>
     <string name="bear_hockey_diff_hard">Hard</string>
+    <string name="bear_hockey_diff_master">Master</string>
     <string name="bear_hockey_diff_custom">Custom</string>
     <string name="bear_hockey_diff_custom_level">Custom %1$d</string>
     <string name="bear_hockey_diff_level_hint">Level (%1$d–%2$d, higher = harder)</string>
     <string name="bear_hockey_diff_line">%1$s · first to %2$d</string>
     <string name="bear_hockey_win_score">Win score</string>
     <string name="bear_hockey_win_score_hint">First to (%1$d–%2$d)</string>
+    <string name="bear_hockey_paddle_size">Paddle size</string>
+    <string name="bear_hockey_paddle_normal">Standard</string>
+    <string name="bear_hockey_paddle_large">Large</string>
+    <string name="bear_hockey_paddle_xl">XL</string>
+    <string name="bear_hockey_paddle_scope">Applies to</string>
+    <string name="bear_hockey_paddle_scope_both">Both paddles</string>
+    <string name="bear_hockey_paddle_scope_mine">Mine only</string>
     <string name="bear_hockey_career_wins">Career wins %1$d</string>
     <string name="bear_leaderboard_rank_label">Rank %1$d</string>
 </resources>

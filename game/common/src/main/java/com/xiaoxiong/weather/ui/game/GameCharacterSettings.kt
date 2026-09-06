@@ -160,7 +160,14 @@ private fun CharacterOptionCard(
     Surface(
         shape = shape,
         color = bgColor,
-        shadowElevation = if (homeStyle && selected) 3.dp else if (homeStyle) 1.dp else 0.dp,
+        shadowElevation =
+            if (homeStyle && selected) {
+                3.dp
+            } else if (homeStyle) {
+                1.dp
+            } else {
+                0.dp
+            },
         modifier =
             modifier
                 .fillMaxWidth()
