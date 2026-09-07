@@ -20,7 +20,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -112,9 +115,17 @@ internal fun HourlyStrip(
         rememberLazyListState(
             initialFirstVisibleItemIndex = currentIndex,
         )
+    // 只在「当前小时发生变化」（整点滚窗/换城）时把列表带回"现在"；
+    // 同小时内每 15 分钟静默刷新会生成新的 hourly 列表，不能每次都 scrollToItem，
+    // 否则用户正在查看的其它时段会被周期性拽回
+    var lastRolledHour by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(hourly, currentTime, currentIndex) {
         if (hourly.isEmpty()) return@LaunchedEffect
-        listState.scrollToItem(currentIndex)
+        val hourKey = hourly.getOrNull(currentIndex)?.time ?: currentTime
+        if (lastRolledHour != hourKey) {
+            lastRolledHour = hourKey
+            listState.scrollToItem(currentIndex)
+        }
     }
 
     val labelNow = stringResource(R.string.label_now)

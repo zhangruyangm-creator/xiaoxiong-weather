@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -555,14 +556,20 @@ fun BearGameScreen(
     // game.tick 只在对局运行（每帧）或节流帧（约 12fps）时调用；
     // frame 只在真正 tick 时更新，驱动 Canvas 重绘。
     var slowTick by remember { mutableStateOf(0) }
+    // 节流帧的 dt 不能直接用单帧值：否则非对局动画会以真实速度的 1/5 慢动作运行。
+    // 这里按真实帧累计 animDt，整笔提交给 tick（对齐 farm 的写法）。
+    var animDt by remember { mutableFloatStateOf(0f) }
     GameFrameLoop(
         paused = { lb.show || showCharacterPicker },
         onTick = { dt, now ->
             val running = game.phase == GamePhase.RUNNING
             // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
+            animDt += dt
             if (running || slowTick % 5 == 0) {
+                val worldDt = animDt
+                animDt = 0f
                 game.tick(
-                    dt,
+                    worldDt,
                     onCoin = {
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                     },

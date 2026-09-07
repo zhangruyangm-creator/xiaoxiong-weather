@@ -1,49 +1,61 @@
 package com.xiaoxiong.weather.data.remote
 
 import com.xiaoxiong.weather.data.AppError
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Open-Meteo 通用 GET：统一错误映射（HTTP → AppError.Http，IO → NetworkUnavailable）。
  *
  * [executeWithFallback] 支持同一请求在多 base URL 间顺序故障转移：
- * 主 URL 因网络/超时/DNS 失败时，自动尝试后续候选 URL（用于预报主站的备用入口）。
+ * 主 URL 因网络/超时/DNS 失败或 5xx 服务端故障时，自动尝试后续候选 URL。
  */
 object OpenMeteoHttp {
     /** App 启动时由 [com.xiaoxiong.weather.di.AppContainer] 注入，用于 User-Agent。 */
+    @Volatile
     var versionName: String? = null
 
-    fun execute(
+    suspend fun execute(
         url: String,
         client: OkHttpClient,
     ): String = executeWithFallback(listOf(url), client)
 
     /**
-     * 主 URL 请求失败时按候选顺序重试。仅对 IOException（含超时/断连）转移，
-     * [AppError.Http] 等业务错误直接上抛不转移。
+     * 主 URL 请求失败时按候选顺序重试。网络异常（IOException）与 5xx（服务端故障）
+     * 都会转移到候选入口；4xx 是请求本身问题，直接上抛不转移。
+     * 取消信号（CancellationException）始终透传，不参与故障转移。
      */
-    fun executeWithFallback(
+    suspend fun executeWithFallback(
         baseUrls: List<String>,
         client: OkHttpClient,
     ): String {
         require(baseUrls.isNotEmpty()) { "baseUrls must not be empty" }
-        var lastError: IOException? = null
+        var lastError: Exception? = null
         for (url in baseUrls) {
             try {
                 return executeOnce(url, client)
-            } catch (e: AppError) {
-                // 业务错误（4xx/5xx）：不在候选间转移，直接上抛
-                throw e
+            } catch (e: AppError.Http) {
+                // 5xx（服务端故障）可转移；4xx 是请求本身问题，不在候选间转移
+                if (e.code !in 500..599) throw e
+                lastError = e
             } catch (e: IOException) {
                 lastError = e
             }
         }
-        throw AppError.NetworkUnavailable(lastError)
+        throw when (lastError) {
+            is AppError.Http -> lastError
+            else -> AppError.NetworkUnavailable(lastError as? IOException)
+        }
     }
 
-    private fun executeOnce(
+    private suspend fun executeOnce(
         url: String,
         client: OkHttpClient,
     ): String {
@@ -55,14 +67,48 @@ object OpenMeteoHttp {
                 .header("User-Agent", userAgent())
                 .get()
                 .build()
-        return client.newCall(request).execute().use { response ->
+        return client.newCall(request).awaitBody()
+    }
+
+    /**
+     * 用 enqueue（异步回调）包装 OkHttp 调用，替代同步 execute()：
+     * 同步 execute 阻塞在协程的 IO 线程上且无法响应协程取消——快速切城/退后台时
+     * 旧请求会变成"僵尸"，继续占用 IO 线程与连接池直到超时。
+     * 这里在取消时 cancel 底层 Call，让请求尽快释放。
+     */
+    private suspend fun Call.awaitBody(): String =
+        suspendCancellableCoroutine { cont ->
+            enqueue(
+                object : Callback {
+                    override fun onFailure(
+                        call: Call,
+                        e: IOException,
+                    ) {
+                        if (cont.isActive) cont.resumeWithException(e)
+                    }
+
+                    override fun onResponse(
+                        call: Call,
+                        response: Response,
+                    ) {
+                        if (cont.isActive) {
+                            cont.resume(response)
+                        } else {
+                            // 协程已取消：立即关闭响应，避免连接泄漏
+                            response.close()
+                        }
+                    }
+                },
+            )
+            cont.invokeOnCancellation { cancel() }
+        }.use { response ->
+            // 协程已取消时继续执行的取消信号会从这里抛给调用方，use 负责关闭 response
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 throw AppError.Http(response.code)
             }
             body
         }
-    }
 
     private fun userAgent(): String {
         val ver = versionName

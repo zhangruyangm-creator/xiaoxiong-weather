@@ -10,10 +10,10 @@ data class GeocodingResponse(
 
 @Serializable
 data class GeocodingResult(
-    val id: Long,
-    val name: String,
-    val latitude: Double,
-    val longitude: Double,
+    val id: Long = 0,
+    val name: String = "",
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
     val country: String? = null,
     @SerialName("country_code") val countryCode: String? = null,
     val admin1: String? = null,
@@ -23,8 +23,8 @@ data class GeocodingResult(
 
 @Serializable
 data class ForecastResponse(
-    val latitude: Double,
-    val longitude: Double,
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
     /** Open-Meteo 地形海拔（米），用于物候时令等本地推算。 */
     val elevation: Double? = null,
     val timezone: String? = null,

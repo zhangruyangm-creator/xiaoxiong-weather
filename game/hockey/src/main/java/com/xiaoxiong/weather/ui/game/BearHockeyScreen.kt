@@ -36,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -143,19 +144,31 @@ fun BearHockeyScreen(
 
     BackHandler(onBack = onExit)
 
+    // READY（主菜单）/ MATCH_OVER（结算）无对局逻辑（tick 内提前 return），
+    // 不必 60fps 空转：节流到约 12fps。dt 按真实帧累计后整笔提交，
+    // 避免慢动作/闪烁计时失真（对齐 jump/catch/farm 的写法）。
+    var slowTick by remember { mutableStateOf(0) }
+    var animDt by remember { mutableFloatStateOf(0f) }
     GameFrameLoop(
         paused = { lb.show || showSettings },
         onTick = { dt, _ ->
-            game.tick(dt)
-            if (game.pendingHapticHit) {
-                game.pendingHapticHit = false
-                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            val active = game.phase != Phase.READY && game.phase != Phase.MATCH_OVER
+            animDt += dt
+            if (active || slowTick % 5 == 0) {
+                val worldDt = animDt
+                animDt = 0f
+                game.tick(worldDt)
+                if (game.pendingHapticHit) {
+                    game.pendingHapticHit = false
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                }
+                if (game.pendingHapticGoal) {
+                    game.pendingHapticGoal = false
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                }
+                frame++
             }
-            if (game.pendingHapticGoal) {
-                game.pendingHapticGoal = false
-                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-            }
-            frame++
+            if (!active) slowTick++
         },
     )
 

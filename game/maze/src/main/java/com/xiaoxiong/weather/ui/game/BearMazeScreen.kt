@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -603,12 +604,14 @@ fun BearMazeScreen(
     val mazeHail = remember(sceneCode) { isHailCode(sceneCode) }
     val game =
         remember {
-            MazeGame().also {
-                it.loadProgress(prefs)
-                // 旋转屏幕等进程重建后恢复局中进度
-                it.restoreSession(prefs)
-            }
+            MazeGame().also { it.loadProgress(prefs) }
         }
+    // 旋转屏幕等进程重建后恢复局中进度。放 LaunchedEffect 而非 remember 初始化块：
+    // restoreSession 会写 phase/bearR 等 snapshot state，组合期写入会触发额外重组；
+    // 且若该次组合被丢弃（如立即导航离开），删除落盘快照的副作用不应生效。
+    LaunchedEffect(Unit) {
+        game.restoreSession(prefs)
+    }
     // 组合销毁（切屏/旋转重建）时把局中对局落盘，供下次恢复
     DisposableEffect(Unit) {
         onDispose { game.saveSession(prefs) }
@@ -621,7 +624,13 @@ fun BearMazeScreen(
     // 点击某关开始游玩时才生成，避免进入选关界面就批量生成造成等待。
     val campaignMetas = remember { List(MAZE_CAMPAIGN_SIZE) { mazeCampaignMeta(it) } }
 
-    GameFrameLoop { dt, now ->
+    // 弹窗（放弃/角色选择）与选关界面都停帧：否则弹窗背后 moveT 仍落地、
+    // SELECT 阶段 time 空转 60fps 耗电（与 jump/catch 的 paused 语义一致）。
+    GameFrameLoop(
+        paused = {
+            showAbandonDialog || showCharacterPicker || game.phase == MazePhase.SELECT
+        },
+    ) { dt, now ->
         val before = game.phase
         val wasMoving = game.moving
         game.tick(dt)
@@ -634,10 +643,7 @@ fun BearMazeScreen(
                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
             }
         }
-        // 选关界面没有动画，只在游玩时推进帧，避免每帧状态更新打断滚动手势
-        if (game.phase != MazePhase.SELECT) {
-            frame = now
-        }
+        frame = now
     }
 
     BackHandler {

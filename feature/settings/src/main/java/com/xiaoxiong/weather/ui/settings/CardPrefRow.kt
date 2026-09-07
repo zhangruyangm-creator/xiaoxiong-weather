@@ -39,6 +39,7 @@ import kotlin.math.roundToInt
  */
 @Composable
 internal fun CardPrefRow(
+    modifier: Modifier = Modifier,
     title: String,
     locked: Boolean,
     lockedHint: String,
@@ -53,7 +54,7 @@ internal fun CardPrefRow(
     val shape = RoundedCornerShape(16.dp)
     Row(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .zIndex(if (dragging) 2f else 0f)
                 .offset { IntOffset(0, if (dragging) dragOffsetY.roundToInt() else 0) }

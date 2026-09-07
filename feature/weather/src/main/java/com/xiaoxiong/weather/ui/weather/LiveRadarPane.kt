@@ -91,6 +91,8 @@ internal fun LiveRadarPane(
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
     val appStarted = lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    // 系统开启「减弱动画」时不做自动播放（手动点播放不受限）
+    val reduceMotion = com.xiaoxiong.weather.ui.LocalReduceMotion.current
     val zoom = RadarMapRepository.DEFAULT_ZOOM
     // Wi-Fi 全量预取并自动播放；蜂窝只下底图+最新帧，点播放才预取
     val wifi = remember(city.id, city.latitude, city.longitude) { context.isWifiConnected() }
@@ -134,8 +136,9 @@ internal fun LiveRadarPane(
                 val latestObserved = list[nowIndex]
                 currentBitmap = repository.loadImage(latestObserved.imageUrl)
                 loading = false
-                // Wi-Fi：默认自动播放；蜂窝：停在最新实况，等用户点播放
-                playing = wifi
+                // Wi-Fi：默认自动播放；蜂窝：停在最新实况，等用户点播放。
+                // 减弱动画模式下也停在最新实况，避免自动循环播放
+                playing = wifi && !reduceMotion
             }
         } catch (e: CancellationException) {
             throw e

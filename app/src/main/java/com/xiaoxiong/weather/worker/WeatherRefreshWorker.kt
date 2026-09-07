@@ -90,7 +90,11 @@ class WeatherRefreshWorker(
                         .specs(snapshot.current, snapshot.hourly, snapshot.daily, snapshot.airQuality)
                         .firstOrNull { it.kind == AlertKind.RAIN_SOON || it.kind == AlertKind.SNOW_SOON }
                 when {
-                    soonSpec != null && dedup.shouldNotifySoon(city.name, soonSignature(city.name, soonSpec)) -> {
+                    soonSpec != null &&
+                        dedup.shouldNotifySoonAndRemember(
+                            city.name,
+                            soonSignature(city.name, soonSpec),
+                        ) -> {
                         val alertTitle = applicationContext.getString(soonSpec.titleRes)
                         val alertText =
                             if (soonSpec.messageArg != null) {
@@ -99,9 +103,12 @@ class WeatherRefreshWorker(
                                 applicationContext.getString(soonSpec.messageRes)
                             }
                         showNotification("${city.name} · $alertTitle", alertText)
-                        dedup.rememberNotifiedSoon(soonSignature(city.name, soonSpec))
                     }
-                    dedup.shouldNotify(city.name, current.weatherCode, current.temperatureC) -> {
+                    dedup.shouldNotifyAndRemember(
+                        city.name,
+                        current.weatherCode,
+                        current.temperatureC,
+                    ) -> {
                         val displayCode = WeatherCodes.displayCode(current.weatherCode, precipRate)
                         val title = "${city.name} ${formatTemperature(current.temperatureC, settings.temperatureUnit)}"
                         val text =
@@ -118,7 +125,6 @@ class WeatherRefreshWorker(
                                     .formatVisibility(current.visibilityMeters),
                             )
                         showNotification(title, text)
-                        dedup.rememberNotified(city.name, current.weatherCode, current.temperatureC)
                     }
                 }
             }

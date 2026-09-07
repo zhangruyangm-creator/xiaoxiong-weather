@@ -31,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -440,21 +441,30 @@ fun BearStarJumpScreen(
     val bearSprites = rememberBearSprites(characterState.selected)
     var frame by remember { mutableLongStateOf(0L) }
 
+    // READY / OVER 菜单不需要 60fps：节流到约 12fps。dt 按真实帧累计后整笔提交，
+    // 避免节流状态下动画以真实速度的 1/5 慢动作运行（对齐 jump/catch/farm 写法）。
+    var slowTick by remember { mutableStateOf(0) }
+    var animDt by remember { mutableFloatStateOf(0f) }
     GameFrameLoop(
         paused = { lb.show || showCharacterPicker },
         onTick = { dt, now ->
-            game.tick(
-                dt,
-                onBounce = {
-                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                },
-                onStar = {
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                },
-                onSpring = {
-                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                },
-                onDeath = { score ->
+            val running = game.phase == GamePhase.RUNNING
+            animDt += dt
+            if (running || slowTick % 5 == 0) {
+                val worldDt = animDt
+                animDt = 0f
+                game.tick(
+                    worldDt,
+                    onBounce = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    },
+                    onStar = {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    },
+                    onSpring = {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    },
+                    onDeath = { score ->
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     if (score > game.best) {
                         game.best = score
@@ -473,7 +483,9 @@ fun BearStarJumpScreen(
                     }
                 },
             )
-            frame = now
+                frame = now
+            }
+            if (!running) slowTick++
         },
     )
 
@@ -494,19 +506,25 @@ fun BearStarJumpScreen(
                     // 仅对局中启用转向，避免与「开始」按钮/点按手势抢事件
                     .pointerInput(game.phase) {
                         if (game.phase != GamePhase.RUNNING) return@pointerInput
-                        // 按住即转向：不走 drag 的 touchSlop，静止按住也能控左右
+                        // 按住即转向：不走 drag 的 touchSlop，静止按住也能控左右。
+                        // try/finally：phase 变化会取消本协程（pointerInput key），
+                        // 拖动中被取消也要复位 touchX，否则残留坐标会让熊朝旧位置漂移
+                        //（对齐 hockey 的写法）。
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             game.touchX = down.position.x
-                            do {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull() ?: break
-                                if (change.pressed) {
-                                    game.touchX = change.position.x
-                                    change.consume()
-                                }
-                            } while (event.changes.any { it.pressed })
-                            game.touchX = null
+                            try {
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull() ?: break
+                                    if (change.pressed) {
+                                        game.touchX = change.position.x
+                                        change.consume()
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            } finally {
+                                game.touchX = null
+                            }
                         }
                     },
         ) {

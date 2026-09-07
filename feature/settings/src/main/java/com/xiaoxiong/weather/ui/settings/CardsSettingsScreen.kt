@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -80,7 +81,11 @@ fun <T : CardId> CardsSettingsScreen(
     var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
-    val rowStridePx = with(density) { 72.dp.toPx() }
+    // 拖拽步进按实际行高推导（含行间距）：固定 72.dp 在大字号/大字体缩放下会漂移
+    var rowHeightPx by remember { mutableFloatStateOf(0f) }
+    val rowSpacingPx = with(density) { 12.dp.toPx() }
+    val rowStridePx =
+        if (rowHeightPx > 0f) rowHeightPx + rowSpacingPx else with(density) { 72.dp.toPx() }
 
     fun persist(next: List<CardPref<T>>) {
         cards = config.layout.mergeWithDefaults(next)
@@ -132,6 +137,10 @@ fun <T : CardId> CardsSettingsScreen(
                 cards.forEachIndexed { index, pref ->
                     val dragging = draggingIndex == index
                     CardPrefRow(
+                        modifier =
+                            Modifier.onSizeChanged {
+                                if (rowHeightPx <= 0f) rowHeightPx = it.height.toFloat()
+                            },
                         title = stringResource(pref.id.titleRes),
                         locked = pref.id.alwaysVisible,
                         lockedHint = stringResource(config.lockedHintRes),

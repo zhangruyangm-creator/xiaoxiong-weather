@@ -601,9 +601,11 @@ private fun BoxScope.BearRefreshIndicator(
 
     // 刷新中才创建无限动画；闲置/下拉阶段不创建，避免常驻逐帧重组耗电。
     // 条件组合时把动画值读回局部变量，供下方 graphicsLayer 使用。
+    // 减弱动画模式下跳过弹跳/上下浮动（纯装饰），只保留跑动帧序作为状态反馈。
+    val reduceMotion = com.xiaoxiong.weather.ui.LocalReduceMotion.current
     var bounceScale = 1f
     var bobY = 0f
-    if (isRefreshing) {
+    if (isRefreshing && !reduceMotion) {
         val bounce by
             rememberInfiniteTransition(label = "refreshBounce")
                 .animateFloat(

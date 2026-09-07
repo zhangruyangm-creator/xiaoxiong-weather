@@ -35,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -145,24 +146,30 @@ fun BearCatchScreen(
     // 帧循环：切后台不推进、dt 钳制由共享层处理。
     // tick / 飘字推进只在对局运行（每帧）或节流帧（约 12fps）时执行。
     var slowTick by remember { mutableStateOf(0) }
+    // 节流帧的 dt 不能直接用单帧值：否则非对局界面（结算飘字/死亡粒子等）会以
+    // 真实速度的 1/5 慢动作运行。这里按真实帧累计 animDt 后整笔提交（对齐 farm 写法）。
+    var animDt by remember { mutableFloatStateOf(0f) }
     GameFrameLoop(
         paused = { lb.show || showCharacterPicker },
         onTick = { dt, now ->
             val running = game.phase == GamePhase.RUNNING
+            animDt += dt
             if (running || slowTick % 5 == 0) {
+                val worldDt = animDt
+                animDt = 0f
                 // 飘字整体推进（原地更新，避免每帧重建列表）
                 val ite = texts.iterator()
                 while (ite.hasNext()) {
                     val t = ite.next()
-                    t.life -= dt
+                    t.life -= worldDt
                     if (t.life <= 0f) {
                         ite.remove()
                     } else {
-                        t.y = t.y - 46f * game.s * dt
+                        t.y = t.y - 46f * game.s * worldDt
                     }
                 }
                 game.tick(
-                    dt,
+                    worldDt,
                     onCaught = { kind ->
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         texts.add(
@@ -229,19 +236,25 @@ fun BearCatchScreen(
                     .pointerInput(game.phase) {
                         // 仅对局中启用手势，避免与「开始」按钮/点按手势抢事件
                         if (game.phase != GamePhase.RUNNING) return@pointerInput
-                        // 按住即转向：不走 drag 的 touchSlop，静止按住也能控左右
+                        // 按住即转向：不走 drag 的 touchSlop，静止按住也能控左右。
+                        // try/finally：phase 变化会取消本协程（pointerInput key），
+                        // 拖动中被取消也要复位 touchX，否则残留坐标会让熊朝旧位置漂移
+                        //（对齐 hockey 的写法）。
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             game.touchX = down.position.x
-                            do {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull() ?: break
-                                if (change.pressed) {
-                                    game.touchX = change.position.x
-                                    change.consume()
-                                }
-                            } while (event.changes.any { it.pressed })
-                            game.touchX = null
+                            try {
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull() ?: break
+                                    if (change.pressed) {
+                                        game.touchX = change.position.x
+                                        change.consume()
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            } finally {
+                                game.touchX = null
+                            }
                         }
                     },
         ) {

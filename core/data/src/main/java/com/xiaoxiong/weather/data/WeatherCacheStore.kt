@@ -48,7 +48,10 @@ class WeatherCacheStore(
             context.weatherCacheDataStore.data
                 .map { it[key] }
                 .first()
-        return decode(raw).firstOrNull { sameCity(it.snapshot.city, city) }
+        // 超过时效的条目视为不存在：断网数天时离线回退不应展示过期一周的数据
+        return decode(raw)
+            .filter { System.currentTimeMillis() - it.savedAtEpochMs <= MAX_AGE_MS }
+            .firstOrNull { sameCity(it.snapshot.city, city) }
     }
 
     private fun decode(raw: String?): List<CacheEntry> {
@@ -74,5 +77,8 @@ class WeatherCacheStore(
 
     companion object {
         private const val MAX_ENTRIES = 12
+
+        /** 缓存条目最大存活时长：超过则 [get] 视为无缓存（离线回退不展示过期数据）。 */
+        private const val MAX_AGE_MS = 24L * 60 * 60 * 1000
     }
 }

@@ -33,6 +33,8 @@ class ColdStartController(
     private val currentSelectedCity: () -> City?,
     private val hasWeather: () -> Boolean,
     private val str: (Int) -> String,
+    /** 无任何历史/收藏/定位时的回退城市；由调用方按本地化资源构造。 */
+    private val fallbackCity: () -> City = ::fallbackBeijing,
 ) {
     private var initialLoadStarted = false
     private var pendingLocateAfterPermission = false
@@ -183,19 +185,20 @@ class ColdStartController(
                 }
                 else -> {
                     if (preferLocate) coldStartDeferredLocation = true
-                    selectCity(fallbackBeijing(), false, false)
+                    selectCity(fallbackCity(), false, false)
                 }
             }
         }
     }
-
-    private fun fallbackBeijing() =
-        City(
-            id = 1816670,
-            name = "北京",
-            latitude = 39.9042,
-            longitude = 116.4074,
-            country = "中国",
-            admin1 = "北京",
-        )
 }
+
+/** 无任何历史/收藏/定位时的兜底城市（北京坐标）；名字通常由调用方按本地化覆盖。 */
+internal fun fallbackBeijing() =
+    City(
+        id = 1816670,
+        name = "北京",
+        latitude = 39.9042,
+        longitude = 116.4074,
+        country = "中国",
+        admin1 = "北京",
+    )

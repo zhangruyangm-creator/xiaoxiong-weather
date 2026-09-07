@@ -84,7 +84,9 @@ class CitySearchFetcher(
 
         val response = decodeGeocoding(OpenMeteoHttp.execute(url.toString(), searchClient))
 
-        return response.results.orEmpty().map { result ->
+        // 单条残缺（缺 name/坐标，DTO 已给默认值兜底）直接丢弃，不拖垮整次搜索
+        return response.results.orEmpty().mapNotNull { result ->
+            if (result.name.isBlank()) return@mapNotNull null
             City(
                 id = result.id,
                 name = result.name,

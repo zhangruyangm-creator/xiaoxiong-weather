@@ -408,4 +408,5 @@
     <string name="debug_scene_cold_wave">Cold wave</string>
     <string name="debug_scene_heat_wave">Heat wave</string>
     <string name="debug_title">Debug mode</string>
+    <string name="cold_start_fallback_city">Beijing</string>
 </resources>

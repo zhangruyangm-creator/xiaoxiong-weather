@@ -170,6 +170,11 @@ class WeatherViewModel(
             currentSelectedCity = { _uiState.value.selectedCity },
             hasWeather = { _uiState.value.weather != null },
             str = { id -> getApplication<Application>().str(id) },
+            // 回退城市的展示名走本地化字符串：英文用户冷启动看到的是 "Beijing" 而非硬编码中文
+            fallbackCity = {
+                val app = getApplication<Application>()
+                fallbackBeijing().copy(name = app.getString(R.string.cold_start_fallback_city))
+            },
         )
 
     init {
@@ -263,6 +268,8 @@ class WeatherViewModel(
                 suggestions = emptyList(),
                 weather = if (keepWeather) it.weather else null,
                 isOffline = if (keepWeather) it.isOffline else false,
+                // 换城后旧城市的更新时间不再显示（顶栏副标题），等新数据到达再写
+                lastUpdatedText = if (keepWeather) it.lastUpdatedText else null,
                 // 静默刷新不打断可见的 loading；手动刷新才显示进度
                 isLoadingWeather = if (quiet) it.isLoadingWeather else true,
                 isLocating = if (quiet) it.isLocating else false,
@@ -310,7 +317,9 @@ class WeatherViewModel(
                 try {
                     val snapshot = repository.fetchWeather(city)
                     if (requestId != weatherRequestId.get()) return@launch
-                    weatherCacheStore.save(snapshot)
+                    // 缓存写失败（磁盘满等）不应把一次成功的网络拉取误判成网络错误：
+                    // 数据已到手，先出界面；下次刷新再重试写缓存
+                    runCatching { weatherCacheStore.save(snapshot) }
                     publishWeather(
                         requestId = requestId,
                         snapshot = snapshot,
@@ -491,10 +500,12 @@ class WeatherViewModel(
     private suspend fun republishBaseWeather() {
         val base = _baseWeather.value ?: return
         val shown = presentWeather(base)
+        // DataStore 读取放到 update lambda 外：避免挂起点卡在 CAS 重试循环内、阻塞主线程状态更新
+        val debugEnabled = debugWeatherStore.getOnce().enabled
         _uiState.update {
             it.copy(
                 weather = shown,
-                debugEnabled = debugWeatherStore.getOnce().enabled,
+                debugEnabled = debugEnabled,
             )
         }
     }
@@ -532,6 +543,8 @@ class WeatherViewModel(
             val shown = presentWeather(snapshot)
             // 续体再校验一次，否则快速切城时旧快照会盖回新城市
             if (requestId != weatherRequestId.get()) return@launch
+            // DataStore 读取放到 update lambda 外：避免挂起点卡在 CAS 重试循环内、阻塞主线程状态更新
+            val debugEnabled = debugWeatherStore.getOnce().enabled
             if (updateIcon) {
                 presentationEffects.scheduleLauncherIcon(
                     getApplication(),
@@ -572,7 +585,7 @@ class WeatherViewModel(
                     isOffline = isOffline,
                     lastUpdatedText = lastUpdatedText,
                     errorMessage = errorMessage,
-                    debugEnabled = debugWeatherStore.getOnce().enabled,
+                    debugEnabled = debugEnabled,
                 )
             }
             if (refreshWidgets) {

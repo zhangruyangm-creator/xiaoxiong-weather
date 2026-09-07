@@ -498,5 +498,6 @@ fun messageForRes(id: Int): String =
         R.string.debug_exited -> "已退出调试模式"
         R.string.debug_applied -> "已应用调试覆盖"
         R.string.debug_override_cleared -> "已清除覆盖，恢复实况字段"
+        R.string.cold_start_fallback_city -> "北京"
         else -> "error"
     }

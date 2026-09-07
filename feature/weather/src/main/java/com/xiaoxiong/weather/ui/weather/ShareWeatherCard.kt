@@ -215,6 +215,9 @@ fun ShareWeatherCardDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val graphicsLayer = rememberGraphicsLayer()
+    // 卡片内容在弹窗打开时已固定（snapshot + quote），录制一次即可出图；
+    // 逐帧 record 会在每次重绘（含弹窗内任何动画）时重复录制+拷贝，纯属浪费
+    val recordedOnce = remember { booleanArrayOf(false) }
     var sharing by remember { mutableStateOf(false) }
     // 每次打开弹窗随机抽一句，预览与导出同一句
     val quotes = stringArrayResource(R.array.share_card_quotes)
@@ -231,11 +234,15 @@ fun ShareWeatherCardDialog(
                 modifier =
                     Modifier
                         .width(300.dp)
-                        // 每帧把卡片内容录进 layer，分享时 toImageBitmap() 直接出图
+                        // 首帧把卡片内容录进 layer，之后直接重放录制结果；
+                        // 分享时 toImageBitmap() 从录制内容出图
                         .drawWithCache {
                             onDrawWithContent {
-                                graphicsLayer.record {
-                                    this@onDrawWithContent.drawContent()
+                                if (!recordedOnce[0]) {
+                                    graphicsLayer.record {
+                                        this@onDrawWithContent.drawContent()
+                                    }
+                                    recordedOnce[0] = true
                                 }
                                 drawLayer(graphicsLayer)
                             }

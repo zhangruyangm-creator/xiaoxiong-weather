@@ -82,7 +82,7 @@ class ForecastFetcher(
             }
         }
 
-    private fun fetchForecast(city: City): WeatherSnapshot {
+    private suspend fun fetchForecast(city: City): WeatherSnapshot {
         val url =
             forecastBase
                 .toHttpUrl()
@@ -162,7 +162,9 @@ class ForecastFetcher(
         val response = decodeForecast(body)
         val currentDto =
             response.current
-                ?: error(resources.getString(R.string.error_forecast_empty))
+                ?: throw AppError.DataFormat(
+                    IllegalStateException(resources.getString(R.string.error_forecast_empty)),
+                )
         val hourlyDto = response.hourly
         val dailyDto = response.daily
 
@@ -230,7 +232,7 @@ class ForecastFetcher(
         )
     }
 
-    private fun fetchAirQuality(city: City): AirQuality {
+    private suspend fun fetchAirQuality(city: City): AirQuality {
         val url =
             airQualityBase
                 .toHttpUrl()

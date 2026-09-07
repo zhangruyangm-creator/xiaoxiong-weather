@@ -55,10 +55,12 @@ internal fun RadarScanLoadingOverlay(
     compact: Boolean = false,
     @StringRes detailRes: Int = R.string.radar_scan_detail,
 ) {
-    val transition = rememberInfiniteTransition(label = "radar-scan")
+    // 减弱动画时不做扫掠/脉冲，画静态波束即可（扫掠 2400ms 无限动画纯装饰）
+    val reduceMotion = com.xiaoxiong.weather.ui.LocalReduceMotion.current
+    val transition = if (reduceMotion) null else rememberInfiniteTransition(label = "radar-scan")
     // 在 Canvas draw 里读 State，避免扫掠动画带动整层重组
     val sweep =
-        transition.animateFloat(
+        transition?.animateFloat(
             initialValue = 0f,
             targetValue = 360f,
             animationSpec =
@@ -69,7 +71,7 @@ internal fun RadarScanLoadingOverlay(
             label = "sweep",
         )
     val pulse =
-        transition.animateFloat(
+        transition?.animateFloat(
             initialValue = 0.55f,
             targetValue = 1f,
             animationSpec =
@@ -108,8 +110,8 @@ internal fun RadarScanLoadingOverlay(
                     .fillMaxSize()
                     .padding(if (compact) 28.dp else 20.dp),
         ) {
-            val sweepV = sweep.value
-            val pulseV = pulse.value
+            val sweepV = sweep?.value ?: 45f
+            val pulseV = pulse?.value ?: 0.8f
             val cx = size.width / 2f
             val cy = size.height / 2f
             val maxR = minOf(size.width, size.height) / 2f * 0.92f

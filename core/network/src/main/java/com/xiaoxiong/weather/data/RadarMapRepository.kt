@@ -23,6 +23,8 @@ import okhttp3.Request
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Locale
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
@@ -76,7 +78,12 @@ class RadarMapRepository(
     ): List<RadarFrame> =
         withContext(Dispatchers.IO) {
             val body = execute(MAPS_JSON_URL)
-            val response = json.decodeFromString(RainViewerMapsResponse.serializer(), body)
+            val response =
+                try {
+                    json.decodeFromString(RainViewerMapsResponse.serializer(), body)
+                } catch (e: kotlinx.serialization.SerializationException) {
+                    throw AppError.DataFormat(e)
+                }
             val host = response.host.trimEnd('/')
             val past =
                 response.radar?.past.orEmpty().map { frame ->
@@ -301,7 +308,7 @@ class RadarMapRepository(
         return startX..endX
     }
 
-    private fun fetchCartoTile(
+    private suspend fun fetchCartoTile(
         zoom: Int,
         x: Int,
         y: Int,
@@ -310,7 +317,7 @@ class RadarMapRepository(
         return decodeUrl(url, opaque = true)
     }
 
-    private fun fetchGibsTile(
+    private suspend fun fetchGibsTile(
         dateUtc: String,
         zoom: Int,
         x: Int,
@@ -323,7 +330,7 @@ class RadarMapRepository(
         return decodeUrl(url, opaque = true)
     }
 
-    private fun decodeUrl(
+    private suspend fun decodeUrl(
         url: String,
         opaque: Boolean = false,
     ): Bitmap? {
@@ -334,16 +341,16 @@ class RadarMapRepository(
                 .header("User-Agent", userAgent())
                 .get()
                 .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            val bytes = response.body?.bytes() ?: return null
+        return client.newCall(request).awaitResponse().use { response ->
+            if (!response.isSuccessful) return@use null
+            val bytes = response.body?.bytes() ?: return@use null
             val options =
                 BitmapFactory.Options().apply {
                     if (opaque) {
                         inPreferredConfig = Bitmap.Config.RGB_565
                     }
                 }
-            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+            return@use BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
         }
     }
 
@@ -371,7 +378,7 @@ class RadarMapRepository(
         return "$host${frame.path}/$IMAGE_SIZE/$zoom/$lat/$lon/2/1_1.png"
     }
 
-    private fun execute(url: String): String {
+    private suspend fun execute(url: String): String {
         val request =
             Request
                 .Builder()
@@ -380,13 +387,13 @@ class RadarMapRepository(
                 .header("User-Agent", userAgent())
                 .get()
                 .build()
-        try {
-            client.newCall(request).execute().use { response ->
+        return try {
+            client.newCall(request).awaitResponse().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     throw AppError.Http(response.code)
                 }
-                return body
+                body
             }
         } catch (e: AppError) {
             throw e
@@ -400,6 +407,37 @@ class RadarMapRepository(
             "XiaoxiongWeather/$versionName (Android; personal use)"
         } else {
             "XiaoxiongWeather (Android; personal use)"
+        }
+
+    /**
+     * enqueue 包装阻塞调用：协程取消时 cancel 底层 Call，
+     * 避免同步 execute() 的僵尸请求占用 IO 线程与连接池直到超时（见 OpenMeteoHttp.awaitBody）。
+     */
+    private suspend fun okhttp3.Call.awaitResponse(): okhttp3.Response =
+        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+            enqueue(
+                object : okhttp3.Callback {
+                    override fun onFailure(
+                        call: okhttp3.Call,
+                        e: java.io.IOException,
+                    ) {
+                        if (cont.isActive) cont.resumeWithException(e)
+                    }
+
+                    override fun onResponse(
+                        call: okhttp3.Call,
+                        response: okhttp3.Response,
+                    ) {
+                        if (cont.isActive) {
+                            cont.resume(response)
+                        } else {
+                            // 协程已取消：立即关闭响应，避免连接泄漏
+                            response.close()
+                        }
+                    }
+                },
+            )
+            cont.invokeOnCancellation { cancel() }
         }
 
     companion object {

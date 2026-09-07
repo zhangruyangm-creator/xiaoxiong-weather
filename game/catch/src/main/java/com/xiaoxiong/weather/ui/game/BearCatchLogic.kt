@@ -378,7 +378,7 @@ object BearCatchLogic {
         )
     }
 
-    /** 用默认随机源包装 [stepCatchWorld]，供渲染层每帧调用。 */
+    /** 用默认随机源包装 [stepCatchWorld]。渲染层应传复用的 [random]，避免每帧 new Random。 */
     fun stepCatchWorldDefault(
         items: MutableList<Item>,
         score: Int,
@@ -391,6 +391,7 @@ object BearCatchLogic {
         catchY: Float,
         catchR: Float,
         spawnAccum: Float,
+        random: java.util.Random = java.util.Random(),
         time: Float = 0f,
     ): FrameEvents =
         stepCatchWorld(
@@ -405,7 +406,7 @@ object BearCatchLogic {
             catchY = catchY,
             catchR = catchR,
             spawnAccum = spawnAccum,
-            random = java.util.Random(),
+            random = random,
             time = time,
         )
 

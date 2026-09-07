@@ -54,6 +54,9 @@ class BearCatchGame {
     val items = mutableListOf<BearCatchLogic.Item>()
     val particles = mutableListOf<Particle>()
 
+    /** 引擎随机源：进程内复用一个实例，避免每帧 new java.util.Random() 的分配开销。 */
+    val rng = java.util.Random()
+
     /** 接住挤压计时；< 0 表示未触发。 */
     var squashT = -1f
 
@@ -157,6 +160,7 @@ class BearCatchGame {
                 catchY = catchY,
                 catchR = catchR,
                 spawnAccum = spawnAccum,
+                random = rng,
                 time = time,
             )
         spawnAccum = ev.spawnAccum

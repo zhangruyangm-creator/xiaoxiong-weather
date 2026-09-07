@@ -536,4 +536,5 @@
     <string name="debug_scene_cold_wave">寒潮</string>
     <string name="debug_scene_heat_wave">连续高温</string>
     <string name="debug_title">调试模式</string>
+    <string name="cold_start_fallback_city">北京</string>
 </resources>
