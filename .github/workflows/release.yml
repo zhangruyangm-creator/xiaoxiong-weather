@@ -85,16 +85,21 @@ jobs:
             echo "::error::GH_TOKEN secret 未配置（需要有 xiaoxiong-weather-releases 写权限的 PAT）"
             exit 1
           fi
-          if [ "$HAS_NOTES" == "true" ]; then
+          APK=app/build/outputs/apk/full/release/app-full-release.apk
+          REPO=zhangruyangm-creator/xiaoxiong-weather-releases
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            # 本地 release.sh 已创建同名 Release：覆盖上传 APK，避免 tag 触发 CI 时因重名失败
+            gh release upload "$TAG" "$APK" --repo "$REPO" --clobber
+          elif [ "$HAS_NOTES" == "true" ]; then
             gh release create "$TAG" \
-              app/build/outputs/apk/full/release/app-full-release.apk \
-              --repo zhangruyangm-creator/xiaoxiong-weather-releases \
+              "$APK" \
+              --repo "$REPO" \
               --title "Xiaoxiong Weather $VERSION" \
               --notes-file /tmp/release-notes.txt
           else
             gh release create "$TAG" \
-              app/build/outputs/apk/full/release/app-full-release.apk \
-              --repo zhangruyangm-creator/xiaoxiong-weather-releases \
+              "$APK" \
+              --repo "$REPO" \
               --title "Xiaoxiong Weather $VERSION" \
               --notes "自动发布：v$VERSION（由 GitHub Actions 构建签名）" \
               --generate-notes
