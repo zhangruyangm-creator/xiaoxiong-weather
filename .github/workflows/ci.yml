@@ -36,6 +36,14 @@ jobs:
       - name: Lint (full debug)
         run: ./gradlew lintFullDebug
 
+      # CI 只验证 release 构建产物，用一次性密钥满足 signingConfig；
+      # 真实发布密钥仅在 release.yml 从 secrets 注入，仓库内不落盘任何真实密钥
+      - name: Generate CI signing key
+        run: |
+          keytool -genkeypair -v -keystore ci.keystore -storepass android -keypass android \
+            -alias ci -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=CI, O=XiaoxiongWeather"
+          printf 'storeFile=ci.keystore\nstorePassword=android\nkeyAlias=ci\nkeyPassword=android\n' > keystore.properties
+
       - name: Build release (full, R8 + shrinkResources)
         run: ./gradlew :app:assembleFullRelease
 
@@ -49,7 +57,9 @@ jobs:
             com.xiaoxiong.weather.ui.game.BearStarJumpEntryProvider \
             com.xiaoxiong.weather.ui.game.BearMazeEntryProvider \
             com.xiaoxiong.weather.ui.game.BearFarmEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearHomeEntryProvider
+            com.xiaoxiong.weather.ui.game.BearHomeEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearCatchEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider
           do
             grep -qx "$provider" /tmp/game_providers.txt \
               || { echo "ServiceLoader registration missing: $provider"; exit 1; }
@@ -70,7 +80,9 @@ jobs:
             com.xiaoxiong.weather.ui.game.BearStarJumpEntryProvider \
             com.xiaoxiong.weather.ui.game.BearMazeEntryProvider \
             com.xiaoxiong.weather.ui.game.BearFarmEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearHomeEntryProvider
+            com.xiaoxiong.weather.ui.game.BearHomeEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearCatchEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider
           do
             # 全限定名转 dex 内部描述符：com.a.B -> Lcom/a/B;
             cls="L$(echo "$provider" | tr '.' '/');"
