@@ -142,7 +142,45 @@ fun BearHockeyScreen(
     val reportScene by rememberUpdatedState(sceneCode)
     val reportCity by rememberUpdatedState(cityName)
 
-    BackHandler(onBack = onExit)
+    // 结算落盘 + 提交排行榜（幂等）。BackHandler/onExit 进入时也调用，
+    // 避免在最后一球的进球横幅（SCORED）期间退出丢掉整局战绩。
+    fun submitResultIfNeeded() {
+        if (game.resultSubmitted) return
+        val matchDecided =
+            game.phase == Phase.MATCH_OVER ||
+                game.matchWinner != null ||
+                (
+                    game.phase == Phase.SCORED &&
+                        HockeyLogic.matchOver(game.playerScore, game.aiScore, game.winScore)
+                )
+        if (!matchDecided) return
+        game.resultSubmitted = true
+        // 横幅期间退出时胜负/连胜尚未结算：按 tick 的 MATCH_OVER 分支补结算；
+        // 同时把 phase 推进到 MATCH_OVER，避免退出前最后一帧 tick 再结算一次叠加连胜
+        if (game.matchWinner == null) {
+            game.matchWinner = HockeyLogic.winner(game.playerScore, game.aiScore)
+            if (game.matchWinner == Scorer.PLAYER) game.bestWins += 1
+        }
+        game.phase = Phase.MATCH_OVER
+        prefs.edit { putInt(PREF_BEST, game.bestWins) }
+        // 每局（含输局）都入榜：按净胜分排序，大胜在前、惨败在后；榜单展示真实比分
+        lb.lastRank =
+            lb.store.submit(
+                LeaderboardEntry(
+                    score = game.playerScore - game.aiScore,
+                    timestamp = System.currentTimeMillis(),
+                    city = reportCity,
+                    weather = leaderboardWeatherOf(context, reportScene),
+                    label = "${game.playerScore} : ${game.aiScore}",
+                ),
+            ) ?: 0
+        lb.entries = lb.store.load()
+    }
+
+    BackHandler {
+        submitResultIfNeeded()
+        onExit()
+    }
 
     // READY（主菜单）/ MATCH_OVER（结算）无对局逻辑（tick 内提前 return），
     // 不必 60fps 空转：节流到约 12fps。dt 按真实帧累计后整笔提交，
@@ -173,22 +211,7 @@ fun BearHockeyScreen(
     )
 
     LaunchedEffect(game.phase, game.matchWinner) {
-        if (game.phase != Phase.MATCH_OVER) return@LaunchedEffect
-        if (game.resultSubmitted) return@LaunchedEffect
-        game.resultSubmitted = true
-        prefs.edit { putInt(PREF_BEST, game.bestWins) }
-        // 每局（含输局）都入榜：按净胜分排序，大胜在前、惨败在后；榜单展示真实比分
-        lb.lastRank =
-            lb.store.submit(
-                LeaderboardEntry(
-                    score = game.playerScore - game.aiScore,
-                    timestamp = System.currentTimeMillis(),
-                    city = reportCity,
-                    weather = leaderboardWeatherOf(context, reportScene),
-                    label = "${game.playerScore} : ${game.aiScore}",
-                ),
-            ) ?: 0
-        lb.entries = lb.store.load()
+        submitResultIfNeeded()
     }
 
     Box(

@@ -16,14 +16,19 @@ data class FarmState(
     var inventory: Map<String, Int> = emptyMap(),
     var completedSeasons: Int = 0,
     var lifetimeHarvests: Int = 0,
+    /** 本季已收获的作物种类；开启新一季后清空（判断能否开启新一季用）。 */
+    var seasonCollected: Set<String> = emptySet(),
 ) {
     val currentSeason: Int get() = completedSeasons + 1
 
     /** 已收获过的作物种类数（图鉴收藏数，跨周目累计）。 */
     val collectedCount: Int get() = harvestCounts.size
 
-    /** 是否已集齐全部作物（开启新一季的条件）。 */
-    val allCollected: Boolean get() = FARM_CROP_ORDER.all { harvestCounts.containsKey(it) }
+    /** 本季已收获的作物种类数（开启新一季的进度）。 */
+    val seasonCollectedCount: Int get() = seasonCollected.size
+
+    /** 是否已集齐本季全部作物（开启新一季的条件）。 */
+    val allCollected: Boolean get() = FARM_CROP_ORDER.all { it in seasonCollected }
 
     fun toSave(): FarmSave =
         FarmSave(
@@ -36,6 +41,7 @@ data class FarmState(
             lifetimeHarvests = lifetimeHarvests,
             schemaVersion = 2,
             inventory = inventory,
+            seasonCollected = seasonCollected,
         )
 
     companion object {
@@ -71,6 +77,7 @@ data class FarmState(
                 inventory = save.inventory,
                 completedSeasons = save.completedSeasons,
                 lifetimeHarvests = save.lifetimeHarvests,
+                seasonCollected = save.seasonCollected,
             )
     }
 }
@@ -280,6 +287,7 @@ object FarmSimulator {
         state.harvestedTotal++
         state.lifetimeHarvests++
         state.harvestCounts = state.harvestCounts + (crop.id to (state.harvestCounts[crop.id] ?: 0) + 1)
+        state.seasonCollected = state.seasonCollected + crop.id
         state.inventory = state.inventory + (crop.id to (state.inventory[crop.id] ?: 0) + 1)
         val unlockCropId = unlockByProgress(state)
         state.plots =
@@ -435,6 +443,7 @@ object FarmSimulator {
         state.plots = List(FARM_PLOT_COUNT) { FarmPlotState(lastTickMs = System.currentTimeMillis()) }
         state.unlocked = setOf("radish", "cabbage", "wheat", "tomato")
         state.harvestedTotal = 0
+        state.seasonCollected = emptySet()
         state.completedSeasons++
         return FarmEffect(
             toastRes = R.string.bear_farm_new_season_started,

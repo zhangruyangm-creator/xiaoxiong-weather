@@ -148,6 +148,21 @@ class WeatherCodesTest {
     }
 
     @Test
+    fun sleetCodes_keepSleetWhenPrecipPresent() {
+        // 68/69 雨夹雪：有雨量时不得被降级成中雨/大雨
+        assertEquals(R.string.wx_sleet, WeatherCodes.descriptionRes(68))
+        assertEquals(R.string.wx_sleet, WeatherCodes.descriptionRes(69))
+        assertEquals(68, WeatherCodes.displayCode(68, 3.0))
+        assertEquals(69, WeatherCodes.displayCode(69, 6.0))
+        assertEquals(R.string.wx_sleet, WeatherCodes.descriptionRes(68, 3.0))
+        assertEquals(R.string.wx_sleet, WeatherCodes.descriptionRes(69, 6.0))
+        assertEquals("🌨️", WeatherCodes.emoji(68))
+        assertEquals("🌨️", WeatherCodes.emoji(69))
+        assertFalse(WeatherCodes.isSnowCode(68))
+        assertFalse(WeatherCodes.isSnowCode(69))
+    }
+
+    @Test
     fun emoji_buckets() {
         assertEquals("☀️", WeatherCodes.emoji(0))
         assertEquals("🌫️", WeatherCodes.emoji(48))

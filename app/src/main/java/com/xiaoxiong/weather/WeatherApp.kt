@@ -3,6 +3,7 @@ package com.xiaoxiong.weather
 import android.app.Application
 import android.os.SystemClock
 import com.xiaoxiong.weather.data.ChinaCityCatalog
+import com.xiaoxiong.weather.data.WeatherRefreshPolicy
 import com.xiaoxiong.weather.di.AppContainer
 import com.xiaoxiong.weather.util.CrashReporting
 import com.xiaoxiong.weather.util.PerformanceMonitor
@@ -69,12 +70,13 @@ class WeatherApp : Application() {
         if (!postConsentInitialized.compareAndSet(false, true)) return
         CrashReporting.init(this)
         appScope.launch {
-            ChinaCityCatalog.init(this@WeatherApp)
+            // 各步骤独立容错：目录/设置初始化失败不能拖累周期任务入队
+            runCatching { ChinaCityCatalog.init(this@WeatherApp) }
+            val settings = runCatching { container.settingsStore.getOnce() }.getOrNull()
             val hours =
-                container.settingsStore
-                    .getOnce()
-                    .backgroundRefreshInterval.hours
-            WeatherRefreshWorker.enqueue(this@WeatherApp, intervalHours = hours)
+                settings?.backgroundRefreshInterval?.hours
+                    ?: WeatherRefreshPolicy.BACKGROUND_HOURS
+            runCatching { WeatherRefreshWorker.enqueue(this@WeatherApp, intervalHours = hours) }
         }
     }
 }

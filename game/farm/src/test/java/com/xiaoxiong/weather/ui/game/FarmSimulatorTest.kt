@@ -134,6 +134,7 @@ class FarmSimulatorTest {
         assertTrue("cucumber" in state.unlocked)
         assertEquals(1, state.inventory["radish"])
         assertEquals(1, state.harvestCounts["radish"])
+        assertTrue("收获应记入本季已收集", "radish" in state.seasonCollected)
         assertEquals(2, state.harvestedTotal)
         assertEquals(1, state.lifetimeHarvests)
         assertEquals(1, effect.rewards.size)
@@ -228,6 +229,7 @@ class FarmSimulatorTest {
                 harvestedTotal = 500,
                 lifetimeHarvests = 600,
                 completedSeasons = 1,
+                seasonCollected = counts.keys,
             )
 
         val effect = FarmSimulator.startNewSeason(state)
@@ -241,6 +243,26 @@ class FarmSimulatorTest {
         assertEquals(inventory, state.inventory)
         assertEquals(counts, state.harvestCounts)
         assertEquals(600, state.lifetimeHarvests)
+        assertTrue("新一季应清空本季收集", state.seasonCollected.isEmpty())
+        assertEquals(0, state.seasonCollectedCount)
+    }
+
+    @Test
+    fun startNewSeason_secondCallIsRejectedUntilRecollected() {
+        val all = FARM_CROPS.map { it.id }.toSet()
+        val state =
+            FarmState(
+                harvestCounts = all.associateWith { 1 },
+                seasonCollected = all,
+            )
+
+        FarmSimulator.startNewSeason(state)
+        assertEquals(1, state.completedSeasons)
+
+        // 图鉴仍齐全，但本季尚未收获 → 不能连续刷赛季加成
+        val second = FarmSimulator.startNewSeason(state)
+        assertNull(second.toastRes)
+        assertEquals(1, state.completedSeasons)
     }
 
     @Test
@@ -252,5 +274,23 @@ class FarmSimulatorTest {
         assertNull(effect.toastRes)
         assertEquals(500, state.coins)
         assertEquals(0, state.completedSeasons)
+    }
+
+    @Test
+    fun harvest_lastMissingCropMakesAllCollected() {
+        val crops = FARM_CROPS.map { it.id }
+        val last = crops.last()
+        val state =
+            FarmState(
+                plots = List(FARM_PLOT_COUNT) { FarmPlotState() },
+                seasonCollected = (crops - last).toSet(),
+            )
+        state.plots = state.plots.mapIndexed { i, p -> if (i == 0) p.copy(cropId = last, stage = 4) else p }
+
+        assertFalse(state.allCollected)
+        assertEquals(crops.size - 1, state.seasonCollectedCount)
+        FarmSimulator.harvest(state, 0)
+        assertTrue("收齐本季全部作物后 allCollected 应为 true", state.allCollected)
+        assertEquals(crops.size, state.seasonCollectedCount)
     }
 }

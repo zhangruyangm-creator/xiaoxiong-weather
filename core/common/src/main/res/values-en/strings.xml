@@ -14,6 +14,7 @@
     <string name="wx_violent_rain">Torrential rain</string>
     <string name="wx_extreme_rain">Violent rain showers</string>
     <string name="wx_freezing_rain">Freezing rain</string>
+    <string name="wx_sleet">Sleet</string>
     <string name="wx_light_snow">Light snow</string>
     <string name="wx_moderate_snow">Moderate snow</string>
     <string name="wx_heavy_snow">Heavy snow</string>

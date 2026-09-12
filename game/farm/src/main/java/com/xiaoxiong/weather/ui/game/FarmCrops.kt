@@ -314,6 +314,10 @@ private val FARM_CROPS_BY_ID: Map<String, CropDef> = FARM_CROPS.associateBy { it
 
 fun cropById(id: String?): CropDef? = id?.let { FARM_CROPS_BY_ID[it] }
 
+internal fun farmCropCategories(): List<String?> = listOf(null) + FARM_CROPS.map { it.category }.distinct()
+
+internal fun farmUnlockPrice(crop: CropDef): Int = crop.seedCost * 5
+
 /** 按已解锁数量计算下一次收获解锁所需累计次数。 */
 fun farmUnlockNeed(unlockedCount: Int): Int {
     if (unlockedCount >= FARM_CROPS.size) return Int.MAX_VALUE
@@ -371,6 +375,8 @@ data class FarmSave(
     var schemaVersion: Int = 1,
     /** 背包：作物 id → 数量；收获进包，卖出后换金币。 */
     var inventory: Map<String, Int> = emptyMap(),
+    /** 本季已收获的作物种类；开启新一季后清空。 */
+    var seasonCollected: Set<String> = emptySet(),
 )
 
 const val FARM_COLS = 5

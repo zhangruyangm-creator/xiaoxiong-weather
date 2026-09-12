@@ -1,7 +1,10 @@
 package com.xiaoxiong.weather.ui.weather
 
 import com.xiaoxiong.weather.data.AppError
+import com.xiaoxiong.weather.data.City
+import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.WeatherSnapshot
+import com.xiaoxiong.weather.domain.CitySearchUseCase
 import com.xiaoxiong.weather.fixtures.WeatherFixtures
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -13,7 +16,12 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.Mockito
+import org.mockito.stubbing.Answer
 import java.time.LocalDate
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.resume
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WeatherViewModelSelectCityTest {
@@ -223,6 +231,196 @@ class WeatherViewModelSelectCityTest {
             assertEquals(1, fetcher.phenologyCallCount)
             assertEquals(1, phenologyCache.saved.size)
             assertEquals(null, phenologyCache.saved.first().shiftDays)
+        }
+
+    @Test
+    fun selectCity_cancelsPendingSearchSuggestions() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val remoteCities =
+                listOf(
+                    WeatherFixtures.city("上海", lat = 31.23, lon = 121.47),
+                    WeatherFixtures.city("上海浦东", lat = 31.22, lon = 121.54),
+                )
+            val pending = CompletableDeferred<Continuation<List<City>>>()
+            val search =
+                Mockito.mock(
+                    CitySearchUseCase::class.java,
+                    Answer { invocation ->
+                        when (invocation.method.name) {
+                            "searchLocal" ->
+                                CitySearchUseCase.LocalHit(emptyList(), strongMatch = false)
+                            "enrichRemote" -> {
+                                @Suppress("UNCHECKED_CAST")
+                                pending.complete(
+                                    invocation.rawArguments.last() as Continuation<List<City>>,
+                                )
+                                COROUTINE_SUSPENDED
+                            }
+                            else -> null
+                        }
+                    },
+                )
+            val vm = createTestViewModel(citySearch = search).vm
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.onQueryChange("上海")
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.isSearching)
+
+            // 选城会清空建议并作废在途搜索
+            vm.selectCity(city)
+            advanceUntilIdle()
+            assertFalse(vm.uiState.value.isSearching)
+            assertTrue(
+                vm.uiState.value.suggestions
+                    .isEmpty(),
+            )
+
+            // 远端结果晚到也不能让旧建议复活
+            pending.await().resume(remoteCities)
+            advanceUntilIdle()
+
+            assertTrue(
+                vm.uiState.value.suggestions
+                    .isEmpty(),
+            )
+        }
+
+    @Test
+    fun selectCity_samePlaceQuietRefresh_keepsHistoryAndPhenology() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val other = WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
+            val date = LocalDate.now().minusDays(2)
+            val fetcher =
+                RecordingFetcher(
+                    phenologyBlock = { _, _ -> -5 },
+                    historyBlock = { _, _ -> testHistoryWeather(date, tempMax = 30.0) },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+            vm.fetchHistoryDay(date)
+            advanceUntilIdle()
+            vm.ensurePhenologyShift()
+            advanceUntilIdle()
+            assertEquals(
+                30.0,
+                vm.uiState.value.historyWeather
+                    ?.tempMaxC,
+            )
+            assertEquals(-5, vm.uiState.value.phenologyShiftDays)
+
+            // 同城静默刷新（回前台/网络恢复）：历史与物候必须保留
+            vm.selectCity(city, quiet = true)
+            advanceUntilIdle()
+            assertEquals(
+                30.0,
+                vm.uiState.value.historyWeather
+                    ?.tempMaxC,
+            )
+            assertEquals(-5, vm.uiState.value.phenologyShiftDays)
+
+            // 换城仍要清空旧城市数据
+            vm.selectCity(other)
+            advanceUntilIdle()
+            assertNull(vm.uiState.value.historyWeather)
+            assertNull(vm.uiState.value.phenologyShiftDays)
+        }
+
+    @Test
+    fun fetchHistoryDay_cacheHit_cancelsInFlightRequest() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val d1 = LocalDate.now().minusDays(3)
+            val d2 = LocalDate.now().minusDays(2)
+            val gate = CompletableDeferred<HistoryWeather?>()
+            val fetcher =
+                RecordingFetcher(
+                    historyBlock = { _, date ->
+                        if (date == d1) {
+                            gate.await()
+                        } else {
+                            testHistoryWeather(date, tempMax = 20.0)
+                        }
+                    },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+
+            // 先查 D2 并缓存
+            vm.fetchHistoryDay(d2)
+            advanceUntilIdle()
+            assertEquals(
+                20.0,
+                vm.uiState.value.historyWeather
+                    ?.tempMaxC,
+            )
+
+            // D1 在途：界面处于 loading 且无数据
+            vm.fetchHistoryDay(d1)
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.isHistoryLoading)
+            assertNull(vm.uiState.value.historyWeather)
+
+            // 再查已缓存的 D2：命中即返回，同时作废在途的 D1
+            vm.fetchHistoryDay(d2)
+            advanceUntilIdle()
+            assertFalse(vm.uiState.value.isHistoryLoading)
+            assertEquals(
+                20.0,
+                vm.uiState.value.historyWeather
+                    ?.tempMaxC,
+            )
+
+            gate.complete(testHistoryWeather(d1, tempMax = 30.0))
+            advanceUntilIdle()
+
+            assertEquals(
+                20.0,
+                vm.uiState.value.historyWeather
+                    ?.tempMaxC,
+            )
+            assertFalse(vm.uiState.value.isHistoryLoading)
+        }
+
+    @Test
+    fun ensurePhenologyShift_switchCityWhileInFlight_fetchesForNewCity() =
+        runTest {
+            val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)
+            val cityB = WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
+            val gateA = CompletableDeferred<Int?>()
+            val fetcher =
+                RecordingFetcher(
+                    phenologyBlock = { city, _ ->
+                        if (city.name == "济南") gateA.await() else -7
+                    },
+                )
+            val vm = createTestViewModel(fetcher, phenologyCache = FakePhenologyCache()).vm
+
+            vm.selectCity(cityA)
+            advanceUntilIdle()
+            vm.ensurePhenologyShift()
+            advanceUntilIdle()
+            assertEquals(1, fetcher.phenologyCallCount)
+
+            // 物候在途时换城：新城市必须能发起自己的物候拉取
+            vm.selectCity(cityB)
+            advanceUntilIdle()
+            vm.ensurePhenologyShift()
+            advanceUntilIdle()
+            assertEquals(2, fetcher.phenologyCallCount)
+            assertEquals(-7, vm.uiState.value.phenologyShiftDays)
+
+            // 旧城市请求晚到也不应覆盖新城市
+            gateA.complete(-5)
+            advanceUntilIdle()
+            assertEquals(-7, vm.uiState.value.phenologyShiftDays)
         }
 
     @Test

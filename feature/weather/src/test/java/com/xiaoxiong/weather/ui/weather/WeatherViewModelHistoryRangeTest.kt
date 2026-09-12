@@ -133,6 +133,66 @@ class WeatherViewModelHistoryRangeTest {
         }
 
     @Test
+    fun fetchHistoryRange_cacheHit_cancelsInFlightRequest() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val r1Start = LocalDate.now().minusDays(14)
+            val r1End = LocalDate.now().minusDays(8)
+            val r2Start = LocalDate.now().minusDays(7)
+            val r2End = LocalDate.now().minusDays(1)
+            val gate = CompletableDeferred<HistoryRangeSummary?>()
+            val fetcher =
+                RecordingFetcher(
+                    historyRangeBlock = { _, s, e ->
+                        if (s == r1Start && e == r1End) {
+                            gate.await()
+                        } else {
+                            summary(s, e)
+                        }
+                    },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+
+            // 先查 R2 并缓存
+            vm.fetchHistoryRange(r2Start, r2End)
+            advanceUntilIdle()
+            assertEquals(
+                r2Start.toString(),
+                vm.uiState.value.historyRange
+                    ?.startDate,
+            )
+
+            // R1 在途
+            vm.fetchHistoryRange(r1Start, r1End)
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.isHistoryRangeLoading)
+            assertNull(vm.uiState.value.historyRange)
+
+            // 再查已缓存的 R2：命中即返回，同时作废在途的 R1
+            vm.fetchHistoryRange(r2Start, r2End)
+            advanceUntilIdle()
+            assertFalse(vm.uiState.value.isHistoryRangeLoading)
+            assertEquals(
+                r2Start.toString(),
+                vm.uiState.value.historyRange
+                    ?.startDate,
+            )
+
+            gate.complete(summary(r1Start, r1End))
+            advanceUntilIdle()
+
+            assertEquals(
+                r2Start.toString(),
+                vm.uiState.value.historyRange
+                    ?.startDate,
+            )
+            assertFalse(vm.uiState.value.isHistoryRangeLoading)
+        }
+
+    @Test
     fun fetchHistoryRange_invalidRange_noop() =
         runTest {
             val city = WeatherFixtures.city("济南")

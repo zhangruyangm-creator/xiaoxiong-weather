@@ -256,6 +256,60 @@ class BearCatchLogicTest {
         assertEquals(0, game.combo)
     }
 
+    @Test
+    fun `missed bubble neither counts as missed good nor breaks combo`() {
+        // 引擎层：泡泡漏接不进入 missedGood
+        val items = mutableListOf<BearCatchLogic.Item>()
+        items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.BUBBLE,
+                    x = 200f,
+                    y = 850f,
+                    r = 17f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        val ev =
+            BearCatchLogic.stepCatchWorld(
+                items = items,
+                score = 0,
+                scene = CatchScene.RAIN,
+                s = 1f,
+                dt = 0.001f,
+                width = 400f,
+                height = 800f,
+                catchX = 200f,
+                catchY = 800f * 0.9f,
+                catchR = 40f,
+                spawnAccum = 0f,
+                random = Random(1),
+            )
+        assertTrue("泡泡漏接应被移除", items.isEmpty())
+        assertEquals("泡泡不计入 missedGood", 0, ev.missedGood)
+
+        // 容器层：漏接泡泡后连击保持不变
+        val game = BearCatchGame()
+        game.resize(
+            androidx.compose.ui.unit
+                .IntSize(400, 800),
+        )
+        game.start()
+        game.combo = 3
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.BUBBLE,
+                    x = 10f,
+                    y = 850f,
+                    r = 17f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals("漏接泡泡不应断连击", 3, game.combo)
+    }
+
     // ── 天气机制：风暴波次 / 横风 ────────────────────────────────
 
     @Test
@@ -528,6 +582,54 @@ class BearCatchLogicTest {
             onDeath = {},
         )
         assertEquals(GamePhase.RUNNING, game.phase)
+    }
+
+    @Test
+    fun `resize while over keeps score and hearts`() {
+        val game = BearCatchGame()
+        game.resize(
+            androidx.compose.ui.unit
+                .IntSize(400, 800),
+        )
+        game.start()
+        // 接一个雨滴造分：+10
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.RAINDROP,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 13f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals(10, game.score)
+
+        // 用闪电（伤害 2）把仅剩 1 心打空，进入结算
+        game.hearts = 1
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.LIGHTNING,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 28f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        assertEquals(GamePhase.OVER, game.phase)
+        assertEquals(0, game.hearts)
+
+        // 结算时窗口变化（旋转/分屏）：只更新尺寸，分数与心数不被清零
+        game.resize(
+            androidx.compose.ui.unit
+                .IntSize(800, 1600),
+        )
+        assertEquals(GamePhase.OVER, game.phase)
+        assertEquals("结算时改窗口不应清零分数", 10, game.score)
+        assertEquals("结算时改窗口不应重置心数", 0, game.hearts)
     }
 
     @Test

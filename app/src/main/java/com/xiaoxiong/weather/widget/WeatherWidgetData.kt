@@ -24,7 +24,17 @@ object WeatherWidgetData {
      * 定位模式先解析当前位置；缓存未过期且位置未明显变化时直接展示，
      * 否则联网刷新。
      */
-    suspend fun load(context: Context): WeatherWidgetUi? {
+    suspend fun load(context: Context): WeatherWidgetUi? =
+        try {
+            loadOrNull(context)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // DataStore 损坏/IO 异常若从 provideGlance 抛出会直接崩溃小组件，降级为空态
+            null
+        }
+
+    private suspend fun loadOrNull(context: Context): WeatherWidgetUi? {
         val container = context.appContainer()
         // 隐私未同意：不联网、不定位，尽量展示已有缓存；无缓存则空白占位
         if (!container.settingsStore.getOnce().privacyAccepted) {
@@ -68,7 +78,7 @@ object WeatherWidgetData {
                     val snapshot = container.weatherRepository.fetchWeather(city)
                     cacheStore.save(snapshot)
                     if (selection.useLocation) {
-                        container.selectedCityStore.save(city, useLocation = true)
+                        container.selectedCityStore.saveIfUnchanged(selection, city, useLocation = true)
                     }
                     snapshot to System.currentTimeMillis()
                 } catch (e: kotlinx.coroutines.CancellationException) {

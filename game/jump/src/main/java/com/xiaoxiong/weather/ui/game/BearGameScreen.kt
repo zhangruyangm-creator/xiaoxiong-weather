@@ -614,6 +614,7 @@ fun BearGameScreen(
                     .pointerInput(Unit) {
                         detectTapGestures {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            if (game.phase == GamePhase.READY) lb.resetLastRank()
                             game.tap()
                         }
                     },
@@ -648,6 +649,7 @@ fun BearGameScreen(
                 onClear = {
                     lb.store.clear()
                     lb.entries = emptyList()
+                    lb.resetLastRank()
                     game.best = 0
                 },
                 onDismiss = { lb.show = false },
@@ -753,7 +755,10 @@ fun BearGameScreen(
                             TextButton(onClick = onExit) {
                                 Text(stringResource(R.string.bear_game_exit))
                             }
-                            Button(onClick = { game.start() }) {
+                            Button(onClick = {
+                                lb.resetLastRank()
+                                game.start()
+                            }) {
                                 Text(stringResource(R.string.bear_game_restart))
                             }
                         }

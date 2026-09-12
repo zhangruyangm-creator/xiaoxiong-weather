@@ -8,7 +8,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
-import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
@@ -25,46 +24,52 @@ object OpenMeteoHttp {
     suspend fun execute(
         url: String,
         client: OkHttpClient,
-    ): String = executeWithFallback(listOf(url), client)
+        userAgent: String? = null,
+    ): String = executeWithFallback(listOf(url), client, userAgent)
 
     /**
      * 主 URL 请求失败时按候选顺序重试。网络异常（IOException）与 5xx（服务端故障）
      * 都会转移到候选入口；4xx 是请求本身问题，直接上抛不转移。
      * 取消信号（CancellationException）始终透传，不参与故障转移。
+     *
+     * [userAgent] 非空时覆盖默认 User-Agent（部分数据源要求带联系方式的标识，如 MET Norway）。
      */
     suspend fun executeWithFallback(
         baseUrls: List<String>,
         client: OkHttpClient,
+        userAgent: String? = null,
     ): String {
         require(baseUrls.isNotEmpty()) { "baseUrls must not be empty" }
         var lastError: Exception? = null
+        var httpError: AppError.Http? = null
         for (url in baseUrls) {
             try {
-                return executeOnce(url, client)
+                return executeOnce(url, client, userAgent)
             } catch (e: AppError.Http) {
                 // 5xx（服务端故障）可转移；4xx 是请求本身问题，不在候选间转移
                 if (e.code !in 500..599) throw e
                 lastError = e
+                httpError = e
             } catch (e: IOException) {
                 lastError = e
             }
         }
-        throw when (lastError) {
-            is AppError.Http -> lastError
-            else -> AppError.NetworkUnavailable(lastError as? IOException)
-        }
+        // 后续候选只断连时仍保留服务端故障分类：Http(5xx) 比 IOException 更具体
+        httpError?.let { throw it }
+        throw AppError.NetworkUnavailable(lastError as? IOException)
     }
 
     private suspend fun executeOnce(
         url: String,
         client: OkHttpClient,
+        userAgent: String? = null,
     ): String {
         val request =
             Request
                 .Builder()
                 .url(url)
                 .header("Accept", "application/json")
-                .header("User-Agent", userAgent())
+                .header("User-Agent", userAgent ?: userAgent())
                 .get()
                 .build()
         return client.newCall(request).awaitBody()
@@ -91,12 +96,8 @@ object OpenMeteoHttp {
                         call: Call,
                         response: Response,
                     ) {
-                        if (cont.isActive) {
-                            cont.resume(response)
-                        } else {
-                            // 协程已取消：立即关闭响应，避免连接泄漏
-                            response.close()
-                        }
+                        // 取消回调先于 resume 执行，避免 isActive 判断与取消之间的竞态泄漏响应
+                        cont.resume(response) { response.close() }
                     }
                 },
             )

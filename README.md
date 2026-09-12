@@ -162,6 +162,7 @@ xiaoxiong-weather/
 | 用途 | 接口 | 说明 |
 |------|------|------|
 | 天气预报 | `api.open-meteo.com/v1/forecast` | 含 current/hourly/daily |
+| 天气预报降级 | `api.met.no/weatherapi/locationforecast/2.0/compact` | Open-Meteo 断网/5xx/坏包时自动回退（免密钥、全球覆盖；不含 AQI/日出日落/紫外线） |
 | 空气质量 | `air-quality-api.open-meteo.com/v1/air-quality` | CAMS 数据 |
 | 城市搜索 | `geocoding-api.open-meteo.com/v1/search` | 配合拼音 + 别名 |
 | 中国县级市 | 系统 `Geocoder` | Open-Meteo 搜不到时正向地理编码兜底 |
@@ -178,6 +179,7 @@ xiaoxiong-weather/
 - **时区对齐**：小时序列按城市本地墙钟时间对齐，不用 `ZoneId.systemDefault()`，避免跨时区偏一小时甚至整天
 - **降水强度分档**：中国气象局小时暴雨 ≥16mm、英式 violent >32mm、毛毛雨 <0.5mm；`displayCode` 在天气码与实测雨量不一致时只升不降（不降级雷暴/冰雹/冻雨）
 - **前台整点对齐刷新**：`:00 / :15 / :30 / :45` 对齐，退后台停轮询，留给 WorkManager
+- **多源降级**：Open-Meteo 预报 5xx / 网络不可达 / 响应格式异常时自动切换 MET Norway Locationforecast（免密钥）；4xx 不降级；降级源缺失字段按「无数据」处理
 - **隐私合规**：`WeatherApp.initializeAfterConsent()` 用 `AtomicBoolean` 保证幂等，未同意前不初始化 Crashlytics / 不入队 WorkManager / 不启用性能监控
 
 ## 最低要求

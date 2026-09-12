@@ -47,6 +47,10 @@ git tag v1.5.0
 git push origin v1.5.0
 ```
 
+发布前会由 `python3 tools/verify_release_version.py <tag>` 校验 **tag / versionName / CHANGELOG 三处一致**，
+并检查 versionCode 相对上一版本严格递增（本地 `release.sh` 与 CI `release.yml` 均已接入，CI checkout 使用
+`fetch-depth: 0` 以读取历史 tag）。任何一项不一致都会在构建前直接失败。
+
 ## 崩溃监控（Crashlytics）
 
 代码已就绪（`CrashReporting.kt` 门面 + `build.gradle.kts` 条件启用），放入 `app/google-services.json`
@@ -80,13 +84,18 @@ git push origin v1.5.0
 
 所有指标仅存储在内存环形缓冲区（固定 64 条），不写磁盘、不上报、不离开设备。
 
-## 数据源降级（待决策）
+## 数据源降级
 
-当前全部依赖 Open-Meteo 免费接口，无多源降级。若希望接入国内数据源（和风天气/心知天气）作为
-fallback，需要：
+主预报源为 Open-Meteo（免密钥）。当 forecast 请求因网络不可达 / 5xx / 响应格式异常失败时，
+`ForecastFetcher` 自动回退到 **MET Norway Locationforecast 2.0**（`api.met.no`，免密钥、全球覆盖）：
 
-- 注册相应服务获取 API Key
-- 在 `WeatherRepository` 增加第二数据源 + 超时降级逻辑
-- 将 Key 通过 `BuildConfig` 字段注入（不写进仓库）
+- 触发条件：`IOException`、5xx、`AppError.DataFormat`；4xx 是请求本身问题，不降级
+- 主站同格式备用入口（`forecastBaseFallbacks`）与 MET Norway 可叠加：先换镜像入口，再换数据源
+- 降级时空气质量不可用（`airQuality=null`），日出日落/紫外线/体感/阵风等字段为空，UI 按无数据处理
+- MET Norway 响应为 UTC，按城市经度近似时区换算（仅降级路径存在偏差，小时序列与 `timezone` 字段自洽）
+- 通过 `WeatherRepository(metNorwayBase = null)` 可关闭；单元测试显式传 null，避免访问外网
+- User-Agent 按 MET Norway 要求携带应用标识与联系方式（见 `MetNorwayFetcher.MET_USER_AGENT`）
 
-此改动会改变"免密钥"的产品定位，且工作量为本次工程化中最大的一项，建议明确需要后再做。
+空气质量、历史天气、地理编码仍为 Open-Meteo 单源。若希望接入国内数据源（和风天气/心知天气）作为
+fallback，需要注册服务获取 API Key、增加第二适配器并将 Key 通过 `BuildConfig` 注入（不写进仓库）；
+这会改变「免密钥」的产品定位，需明确需要后再做。

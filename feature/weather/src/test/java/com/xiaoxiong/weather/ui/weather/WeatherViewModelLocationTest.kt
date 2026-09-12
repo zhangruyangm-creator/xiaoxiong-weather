@@ -81,7 +81,7 @@ class WeatherViewModelLocationTest {
 
             // 定位失败且无任何已保存/收藏城市 → 回落到北京并展示其天气
             val state = vm.uiState.value
-            assertEquals("北京", state.selectedCity?.name)
+            assertEquals("Beijing", state.selectedCity?.name)
             assertEquals(20.0, state.weather?.current?.temperatureC)
             assertFalse(state.usingCurrentLocation)
             assertFalse(state.isLocating)
@@ -205,7 +205,7 @@ class WeatherViewModelLocationTest {
             vm.ensureInitialLoad()
             advanceUntilIdle()
             assertEquals(
-                "北京",
+                "Beijing",
                 vm.uiState.value.selectedCity
                     ?.name,
             )
@@ -218,7 +218,7 @@ class WeatherViewModelLocationTest {
 
             assertEquals("请先授予定位权限", vm.uiState.value.errorMessage)
             assertEquals(
-                "北京",
+                "Beijing",
                 vm.uiState.value.selectedCity
                     ?.name,
             )

@@ -275,10 +275,12 @@ object WeatherLauncherIcon {
                     }
                 }
             }
-            prefs.edit {
-                putString(KEY_ALIAS, style.aliasSimpleName)
-                remove(KEY_PENDING)
-            }
+            // KEY_ALIAS 必须同步落盘，否则进程被杀后重启会与 PackageManager 的实际启用状态不一致
+            prefs
+                .edit()
+                .putString(KEY_ALIAS, style.aliasSimpleName)
+                .remove(KEY_PENDING)
+                .commit()
             Log.d(TAG, "launcher icon -> ${style.aliasSimpleName}")
             true
         } catch (e: Exception) {

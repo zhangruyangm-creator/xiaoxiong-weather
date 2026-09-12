@@ -364,7 +364,8 @@ object BearCatchLogic {
 
             if (it.y - it.r > height) {
                 iter.remove()
-                if (isGood(it.kind)) missedGood++
+                // BUBBLE 只是道具，不计入连击得分物：漏接不应断连击
+                if (isGood(it.kind) && it.kind != ItemKind.BUBBLE) missedGood++
             }
         }
 

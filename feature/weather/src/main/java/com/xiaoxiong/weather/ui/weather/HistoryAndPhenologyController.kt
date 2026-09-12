@@ -29,6 +29,7 @@ class HistoryAndPhenologyController(
     private val currentCity: () -> City?,
 ) {
     private var phenologyJob: Job? = null
+    private var phenologyCity: City? = null
     private var historyJob: Job? = null
     private var historyRangeJob: Job? = null
 
@@ -46,7 +47,12 @@ class HistoryAndPhenologyController(
      */
     fun ensurePhenologyShift() {
         val city = currentCity() ?: return
-        if (phenologyJob?.isActive == true) return
+        if (phenologyJob?.isActive == true) {
+            // 同城在途才复用；换城后旧 job 的结果已无意义，取消并重新发起
+            if (roughlySameCity(phenologyCity, city)) return
+            phenologyJob?.cancel()
+        }
+        phenologyCity = city
         phenologyJob =
             scope.launch {
                 val today = LocalDate.now()
@@ -83,6 +89,8 @@ class HistoryAndPhenologyController(
         val city = currentCity() ?: return
         val cacheKey = "%.4f,%.4f|%s".format(city.latitude, city.longitude, date)
         historyCache[cacheKey]?.let { cached ->
+            // 缓存命中即作废在途请求，避免旧请求晚到覆盖当前选择
+            historyJob?.cancel()
             updateState {
                 it.copy(
                     historyWeather = cached,
@@ -158,6 +166,8 @@ class HistoryAndPhenologyController(
         val cacheKey =
             "%.4f,%.4f|%s|%s".format(city.latitude, city.longitude, start, end)
         historyRangeCache[cacheKey]?.let { cached ->
+            // 缓存命中即作废在途请求，避免旧请求晚到覆盖当前选择
+            historyRangeJob?.cancel()
             updateState {
                 it.copy(
                     historyRange = cached,

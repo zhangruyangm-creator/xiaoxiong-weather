@@ -23,6 +23,7 @@ class FarmSaveTest {
         assertEquals(0, s.lifetimeHarvests)
         assertEquals(1, s.schemaVersion)
         assertTrue(s.inventory.isEmpty())
+        assertTrue("旧存档无本季收集字段应默认空集", s.seasonCollected.isEmpty())
     }
 
     @Test
@@ -38,6 +39,7 @@ class FarmSaveTest {
                 lifetimeHarvests = 300,
                 schemaVersion = 2,
                 inventory = mapOf("radish" to 4, "bamboo" to 1),
+                seasonCollected = setOf("radish", "tomato"),
             )
         val decoded =
             json.decodeFromString(
@@ -49,6 +51,7 @@ class FarmSaveTest {
         assertEquals(300, decoded.lifetimeHarvests)
         assertEquals(2, decoded.schemaVersion)
         assertEquals(mapOf("radish" to 4, "bamboo" to 1), decoded.inventory)
+        assertEquals(setOf("radish", "tomato"), decoded.seasonCollected)
         assertEquals("radish", decoded.plots.single().cropId)
     }
 

@@ -28,6 +28,12 @@ internal class CitySearchController(
 ) {
     private val queryFlow = MutableStateFlow("")
 
+    /**
+     * 搜索世代：选城等场景调用 [cancelPending] 后，在途请求的回写全部作废，
+     * 避免旧建议在选城后复活。
+     */
+    private var generation = 0
+
     fun start() {
         scope.launch {
             queryFlow
@@ -35,6 +41,11 @@ internal class CitySearchController(
                 .distinctUntilChanged()
                 .collectLatest { query -> handleQuery(query) }
         }
+    }
+
+    fun cancelPending() {
+        generation++
+        onState { it.copy(suggestions = emptyList(), isSearching = false) }
     }
 
     fun onQueryChange(value: String) {
@@ -70,9 +81,11 @@ internal class CitySearchController(
     }
 
     private suspend fun handleQuery(query: String) {
+        val gen = generation
         val trimmed = query.trim()
         if (DebugWeatherStore.isMagicQuery(trimmed)) {
             onDebugMagicQuery()
+            if (gen != generation) return
             onState {
                 it.copy(
                     query = it.selectedCity?.displayName.orEmpty(),
@@ -84,6 +97,7 @@ internal class CitySearchController(
             return
         }
         if (trimmed.length < 2) {
+            if (gen != generation) return
             onState { it.copy(suggestions = emptyList(), isSearching = false) }
             return
         }
@@ -91,9 +105,11 @@ internal class CitySearchController(
         if (state.usingCurrentLocation && query == state.selectedCity?.displayName) {
             return
         }
+        if (gen != generation) return
         onState { it.copy(isSearching = true, errorMessage = null) }
         try {
             val local = citySearch.searchLocal(query, app)
+            if (gen != generation) return
             onState {
                 it.copy(
                     suggestions = local.cities,
@@ -102,11 +118,13 @@ internal class CitySearchController(
                 )
             }
             if (local.strongMatch) {
+                if (gen != generation) return
                 onState { it.copy(isSearching = false) }
                 return
             }
 
             val cities = citySearch.enrichRemote(query, local.cities)
+            if (gen != generation) return
             onState {
                 it.copy(
                     suggestions = cities,
@@ -122,6 +140,7 @@ internal class CitySearchController(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (gen != generation) return
             onState {
                 it.copy(
                     isSearching = false,

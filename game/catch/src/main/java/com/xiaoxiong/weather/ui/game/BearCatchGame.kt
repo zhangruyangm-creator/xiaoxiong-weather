@@ -74,11 +74,14 @@ class BearCatchGame {
         if (newSize == size || newSize.width <= 0 || newSize.height <= 0) return
         size = newSize
         catchX = (size.width / 2f).coerceIn(catchR, size.width - catchR)
-        if (phase == GamePhase.RUNNING) {
-            phase = GamePhase.READY
-            reset()
-        } else {
-            reset()
+        when (phase) {
+            // 结算界面改窗口（旋转/分屏）：只更新尺寸，保留本局分数与心数
+            GamePhase.OVER -> Unit
+            GamePhase.RUNNING -> {
+                phase = GamePhase.READY
+                reset()
+            }
+            else -> reset()
         }
     }
 

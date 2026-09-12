@@ -251,6 +251,35 @@ class SeasonTipGeneratorTest {
     }
 
     @Test
+    fun phenologyShift_windowEndOnLeapDay_doesNotCrashInNonLeapYear() {
+        // 31.2°N 冬花窗 12/15–2/28，偏移 +1 → 端点落到 2/29；2026 非闰年不得抛 DateTimeException
+        val tips =
+            SeasonTipGenerator.tipsFor(
+                latitude = 31.2,
+                longitude = 120.0,
+                onDate = LocalDate.of(2026, 1, 15),
+                phenologyShiftDays = 1,
+            )
+        val winter = tips.firstOrNull { it.kind == SeasonTipGenerator.Kind.WINTER_BLOOM }
+        assertTrue("expected winter bloom tip, got ${tips.map { it.kind }}", winter != null)
+        assertEquals(MonthDay.of(2, 29), winter?.windowEnd)
+        assertEquals(SeasonTipGenerator.Phase.PEAK, winter?.phase)
+    }
+
+    @Test
+    fun phenologyShift_windowStartOnLeapDay_doesNotCrashAtHighLatitude() {
+        // 52.9°N 冬花窗 3/1–4/10，偏移 -1 → 起点落到 2/29；4 月下旬走 nextOccurrence 分支
+        val tips =
+            SeasonTipGenerator.tipsFor(
+                latitude = 52.9,
+                longitude = 13.4,
+                onDate = LocalDate.of(2026, 4, 25),
+                phenologyShiftDays = -1,
+            )
+        assertTrue(tips.any { it.kind == SeasonTipGenerator.Kind.SPRING_BLOOM })
+    }
+
+    @Test
     fun phenologyShiftDays_carriedIntoTip() {
         val tips =
             SeasonTipGenerator.tipsFor(

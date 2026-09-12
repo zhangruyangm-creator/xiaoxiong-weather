@@ -138,13 +138,17 @@ class ColdStartController(
 
     /** 定位失败后回落到已保存/收藏/北京，避免界面一直空着。 */
     fun restoreFallbackCity() {
+        // 用户已手动选城时不要再覆盖
+        if (currentSelectedCity() != null) return
         scope.launch {
             val saved = selectedCityStore.getOnce()?.city
             val favorite = favoriteStore.firstOrNull()
+            // 异步读取期间用户可能已手动选城，同样不能覆盖
+            if (currentSelectedCity() != null) return@launch
             when {
                 saved != null -> selectCity(saved, false, false)
                 favorite != null -> selectCity(favorite, false, false)
-                else -> selectCity(fallbackBeijing(), false, false)
+                else -> selectCity(fallbackCity(), false, false)
             }
         }
     }
@@ -164,6 +168,8 @@ class ColdStartController(
                         favoriteDeferred.await(),
                     )
                 }
+            // 读取期间用户已手动选城：首启结果作废，避免把选择盖回去
+            if (currentSelectedCity() != null) return@launch
             val hasPermission = locationHelper.hasLocationPermission()
             val preferLocate = settings.preferLocationOnLaunch
             when {

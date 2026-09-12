@@ -30,6 +30,7 @@ import com.xiaoxiong.weather.data.WeatherPresentationEffects
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.domain.CitySearchUseCase
 import com.xiaoxiong.weather.fixtures.WeatherFixtures
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -138,8 +139,8 @@ class RecordingLocationSession : LocationSession {
 class RecordingFetcher(
     private val weatherBlock: suspend (City) -> WeatherSnapshot =
         { city -> snapshotFor(city, temp = 20.0) },
-    private val phenologyBlock: (City, LocalDate) -> Int? = { _, _ -> null },
-    private val historyBlock: (City, LocalDate) -> HistoryWeather? = { _, _ -> null },
+    private val phenologyBlock: suspend (City, LocalDate) -> Int? = { _, _ -> null },
+    private val historyBlock: suspend (City, LocalDate) -> HistoryWeather? = { _, _ -> null },
     private val historyRangeBlock:
         suspend (City, LocalDate, LocalDate) -> HistoryRangeSummary? = { _, _, _ -> null },
 ) : WeatherFetcher {
@@ -334,6 +335,19 @@ class FakeRecentCitySource : RecentCitySource {
 class FakeSelectedCitySource : SelectedCitySource {
     val saved = mutableListOf<SelectedCityStore.PersistedSelection>()
 
+    /** 非空时 [getOnce] 先挂起，模拟冷启动/回落读取缓慢。 */
+    var getOnceGate: CompletableDeferred<Unit>? = null
+
+    /** 非空时 [getOnce] 固定返回该值（模拟读取到的旧城市，不随保存变化）。 */
+    var getOnceOverride: SelectedCityStore.PersistedSelection? = null
+
+    fun seed(
+        city: City,
+        useLocation: Boolean = false,
+    ) {
+        saved += SelectedCityStore.PersistedSelection(city, useLocation)
+    }
+
     override suspend fun save(
         city: City,
         useLocation: Boolean,
@@ -341,7 +355,10 @@ class FakeSelectedCitySource : SelectedCitySource {
         saved += SelectedCityStore.PersistedSelection(city, useLocation)
     }
 
-    override suspend fun getOnce(): SelectedCityStore.PersistedSelection? = saved.lastOrNull()
+    override suspend fun getOnce(): SelectedCityStore.PersistedSelection? {
+        getOnceGate?.await()
+        return getOnceOverride ?: saved.lastOrNull()
+    }
 }
 
 class FakeAppSettingsSource(
@@ -388,6 +405,13 @@ class FakeNetworkStateSource(
     }
 }
 
+/** 可在测试中动态改变授权状态，模拟「运行时授权后 hasLocationPermission 变 true」。 */
+class FakeLocationPermissionSource(
+    var granted: Boolean,
+) : LocationPermissionSource {
+    override fun hasLocationPermission(): Boolean = granted
+}
+
 class ViewModelTestHarness(
     val vm: WeatherViewModel,
     val effects: RecordingPresentationEffects,
@@ -395,6 +419,7 @@ class ViewModelTestHarness(
     val favoriteStore: FakeFavoriteCitySource,
     val selectedCityStore: FakeSelectedCitySource,
     val fetcher: RecordingFetcher,
+    val locationPermissionSource: FakeLocationPermissionSource,
 )
 
 fun createTestViewModel(
@@ -408,21 +433,20 @@ fun createTestViewModel(
     favoriteStore: FakeFavoriteCitySource = FakeFavoriteCitySource(),
     selectedCityStore: FakeSelectedCitySource = FakeSelectedCitySource(),
     presentationEffects: RecordingPresentationEffects = RecordingPresentationEffects(),
+    citySearch: CitySearchUseCase = Mockito.mock(CitySearchUseCase::class.java),
 ): ViewModelTestHarness {
     val app = mockApplication()
+    val permissionSource = FakeLocationPermissionSource(locationPermission)
     val deps =
         WeatherViewModelDeps(
             weatherRepository = fetcher,
-            locationHelper =
-                object : LocationPermissionSource {
-                    override fun hasLocationPermission() = locationPermission
-                },
+            locationHelper = permissionSource,
             favoriteStore = favoriteStore,
             recentCityStore = FakeRecentCitySource(),
             selectedCityStore = selectedCityStore,
             weatherCacheStore = cache,
             phenologyCache = phenologyCache,
-            citySearch = Mockito.mock(CitySearchUseCase::class.java),
+            citySearch = citySearch,
             settingsStore = FakeAppSettingsSource(settings),
             debugWeatherStore = FakeDebugWeatherSource(),
             radarMapRepository = Mockito.mock(RadarMapRepository::class.java),
@@ -438,6 +462,7 @@ fun createTestViewModel(
         favoriteStore = favoriteStore,
         selectedCityStore = selectedCityStore,
         fetcher = fetcher as? RecordingFetcher ?: RecordingFetcher(),
+        locationPermissionSource = permissionSource,
     )
 }
 
@@ -494,10 +519,11 @@ fun messageForRes(id: Int): String =
         R.string.error_need_location_permission -> "请先授予定位权限"
         R.string.error_locate_failed -> "定位失败"
         R.string.info_location_denied -> "未授权定位，可手动搜索城市查看天气"
+        R.string.info_notification_denied -> "未开启通知权限，天气提醒不会弹出；可在系统设置中稍后开启"
         R.string.debug_entered -> "已进入调试模式"
         R.string.debug_exited -> "已退出调试模式"
         R.string.debug_applied -> "已应用调试覆盖"
         R.string.debug_override_cleared -> "已清除覆盖，恢复实况字段"
-        R.string.cold_start_fallback_city -> "北京"
+        R.string.cold_start_fallback_city -> "Beijing"
         else -> "error"
     }

@@ -257,9 +257,13 @@ class WeatherViewModel(
 
         val useLocation = fromLocation || city.isCurrentLocation
         val requestId = weatherRequestId.incrementAndGet()
+        val samePlace = roughlySameCity(_uiState.value.selectedCity, city)
+        // 手动选城：作废在途搜索，防止旧建议在选城后复活；静默刷新不动用户正在进行的搜索
+        if (!quiet) {
+            searchController.cancelPending()
+        }
 
         _uiState.update {
-            val samePlace = roughlySameCity(it.selectedCity, city)
             // 同城刷新 / 静默刷新保留旧数据，避免下拉或自动刷新把界面刷空
             val keepWeather = quiet || samePlace
             it.copy(
@@ -274,18 +278,23 @@ class WeatherViewModel(
                 isLoadingWeather = if (quiet) it.isLoadingWeather else true,
                 isLocating = if (quiet) it.isLocating else false,
                 usingCurrentLocation = useLocation,
-                // 换城后物候/历史天气属于旧城市，等再进入相关页面按需补齐
-                phenologyShiftDays = null,
-                historyWeather = null,
-                isHistoryLoading = false,
-                historyFailed = false,
-                historyNetworkFailed = false,
-                historyRange = null,
-                isHistoryRangeLoading = false,
-                historyRangeFailed = false,
-                historyRangeNetworkFailed = false,
+                // 换城后物候/历史天气属于旧城市，等再进入相关页面按需补齐；
+                // 同城刷新保留已有结果，避免静默刷新把刚查到的东西清空
+                phenologyShiftDays = if (samePlace) it.phenologyShiftDays else null,
+                historyWeather = if (samePlace) it.historyWeather else null,
+                isHistoryLoading = if (samePlace) it.isHistoryLoading else false,
+                historyFailed = if (samePlace) it.historyFailed else false,
+                historyNetworkFailed = if (samePlace) it.historyNetworkFailed else false,
+                historyRange = if (samePlace) it.historyRange else null,
+                isHistoryRangeLoading = if (samePlace) it.isHistoryRangeLoading else false,
+                historyRangeFailed = if (samePlace) it.historyRangeFailed else false,
+                historyRangeNetworkFailed = if (samePlace) it.historyRangeNetworkFailed else false,
                 errorMessage = null,
             )
+        }
+        if (!samePlace) {
+            // 换城即作废旧城市快照，避免退出调试模式时把上一城市天气回灌
+            _baseWeather.value = null
         }
         viewModelScope.launch {
             selectedCityStore.save(city, useLocation)
@@ -499,6 +508,9 @@ class WeatherViewModel(
 
     private suspend fun republishBaseWeather() {
         val base = _baseWeather.value ?: return
+        // 快照属于旧城市时不回灌（如换城后新城市尚未成功拉取）
+        val selectedCity = _uiState.value.selectedCity ?: return
+        if (!roughlySameCity(base.city, selectedCity)) return
         val shown = presentWeather(base)
         // DataStore 读取放到 update lambda 外：避免挂起点卡在 CAS 重试循环内、阻塞主线程状态更新
         val debugEnabled = debugWeatherStore.getOnce().enabled

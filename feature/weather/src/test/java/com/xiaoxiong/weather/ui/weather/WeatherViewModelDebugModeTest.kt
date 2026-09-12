@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.weather
 
+import com.xiaoxiong.weather.data.AppError
 import com.xiaoxiong.weather.data.DebugWeatherOverride
 import com.xiaoxiong.weather.fixtures.WeatherFixtures
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -95,6 +96,48 @@ class WeatherViewModelDebugModeTest {
             assertTrue(vm.uiState.value.debugEnabled)
             assertEquals("已清除覆盖，恢复实况字段", vm.uiState.value.infoMessage)
             awaitTemperature(vm, 20.0)
+        }
+
+    @Test
+    fun exitDebugMode_afterSwitchToFailingCity_doesNotReviveOldCityWeather() =
+        runTest {
+            val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)
+            val cityB = WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
+            val fetcher =
+                RecordingFetcher(
+                    weatherBlock = { city ->
+                        if (city.name == "青岛") {
+                            throw AppError.NetworkUnavailable()
+                        } else {
+                            snapshotFor(city, temp = 20.0)
+                        }
+                    },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            vm.selectCity(cityA)
+            advanceUntilIdle()
+            assertEquals(
+                "济南",
+                vm.uiState.value.weather
+                    ?.city
+                    ?.name,
+            )
+
+            // 换城后新城市请求失败：旧城市快照不能作为调试还原数据
+            vm.selectCity(cityB)
+            advanceUntilIdle()
+            assertNull(vm.uiState.value.weather)
+
+            vm.exitDebugMode()
+            advanceUntilIdle()
+
+            assertEquals(
+                "青岛",
+                vm.uiState.value.selectedCity
+                    ?.name,
+            )
+            assertNull(vm.uiState.value.weather)
         }
 
     @Test

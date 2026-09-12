@@ -160,6 +160,8 @@ object WeatherCodes {
             57,
             66,
             67,
+            68,
+            69,
             95,
             96,
             99,
@@ -395,6 +397,7 @@ object WeatherCodes {
             63 -> R.string.wx_moderate_rain
             65 -> R.string.wx_heavy_rain
             66, 67 -> R.string.wx_freezing_rain
+            68, 69 -> R.string.wx_sleet
             71 -> R.string.wx_light_snow
             73 -> R.string.wx_moderate_snow
             75 -> R.string.wx_heavy_snow
@@ -494,6 +497,7 @@ object WeatherCodes {
             51, 53, 56, 80 -> "🌦️"
             55, 57, 61, 63, 66, 67, 81 -> "🌧️"
             65, 82 -> "🌧️"
+            68, 69 -> "🌨️"
             71, 77, 85 -> "❄️"
             73 -> "🌨️"
             75, 86 -> "🌨️"

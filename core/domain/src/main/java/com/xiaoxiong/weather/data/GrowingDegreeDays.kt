@@ -85,7 +85,15 @@ object GrowingDegreeDays {
         var current = fromDate
         val result = mutableListOf<Double>()
         while (!current.isAfter(onDate)) {
-            normalByDay[MonthDay.from(current)]?.let { result += it }
+            val key = MonthDay.from(current)
+            val value =
+                normalByDay[key]
+                    ?: if (key.monthValue == 2 && key.dayOfMonth == 29) {
+                        normalByDay[MonthDay.of(2, 28)]
+                    } else {
+                        null
+                    }
+            value?.let { result += it }
             current = current.plusDays(1)
         }
         return result

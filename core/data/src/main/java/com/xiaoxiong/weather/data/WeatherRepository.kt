@@ -24,6 +24,11 @@ class WeatherRepository(
      * 默认为空 = 不启用故障转移；留待接入可验证的第二入口时配置。
      */
     forecastBaseFallbacks: List<String> = ForecastFetcher.DEFAULT_FORECAST_FALLBACKS,
+    /**
+     * MET Norway 降级数据源 base URL（见 ForecastFetcher）。null = 关闭降级；
+     * 测试或不需要降级的场景可显式传 null，避免访问外部网络。
+     */
+    metNorwayBase: String? = ForecastFetcher.DEFAULT_MET_NORWAY_BASE,
 ) : WeatherFetcher {
     private val citySearch = CitySearchFetcher(resources, searchClient, json, geocodingBase)
     private val forecast =
@@ -34,6 +39,7 @@ class WeatherRepository(
             forecastBase,
             airQualityBase,
             forecastBaseFallbacks,
+            metNorwayBase,
         )
     private val history = HistoryFetcher(client, json, archiveBase)
 

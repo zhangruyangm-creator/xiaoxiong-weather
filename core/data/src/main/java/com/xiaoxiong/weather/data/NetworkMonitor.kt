@@ -34,9 +34,10 @@ class NetworkMonitor(
     private val callback =
         object : ConnectivityManager.NetworkCallback() {
             override fun onLost(network: Network) {
-                // 默认网络丢失：池内连接全部对应旧网络，清池强制下次重建
+                // 默认网络丢失：池内连接全部对应旧网络，清池强制下次重建；
+                // 切换网络时旧网 onLost 可能晚于新网 onAvailable，不能无条件置离线，按当前活动网络重新判定
                 connectionPool.evictAll()
-                _isOnline.value = false
+                _isOnline.value = queryOnline()
             }
 
             override fun onAvailable(network: Network) {

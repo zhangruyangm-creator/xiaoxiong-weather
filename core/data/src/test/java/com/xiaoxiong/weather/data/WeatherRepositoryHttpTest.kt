@@ -44,6 +44,8 @@ class WeatherRepositoryHttpTest {
                 forecastBase = base,
                 airQualityBase = base,
                 archiveBase = base,
+                // 本文件专注 Open-Meteo 主链路错误语义，关闭 MET Norway 降级避免访问外网
+                metNorwayBase = null,
             )
     }
 

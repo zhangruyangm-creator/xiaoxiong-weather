@@ -22,11 +22,13 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.Task
 import com.xiaoxiong.weather.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
@@ -37,6 +39,16 @@ class LocationHelper(
 ) : LocationPermissionSource {
     private val placeCachePrefs by lazy {
         context.applicationContext.getSharedPreferences(PLACE_CACHE_PREFS, Context.MODE_PRIVATE)
+    }
+
+    /**
+     * API 33 以下的阻塞式 Geocoder 专用线程池：系统调用不响应协程取消，
+     * 放到守护线程执行并与协程超时/取消解耦，避免卡死 IO 线程与调用方。
+     */
+    private val geocoderExecutor by lazy {
+        Executors.newCachedThreadPool { runnable ->
+            Thread(runnable, "geocoder-blocking").apply { isDaemon = true }
+        }
     }
 
     override fun hasLocationPermission(): Boolean {
@@ -67,12 +79,14 @@ class LocationHelper(
     suspend fun resolveCurrentCityReuseLast(): City =
         withContext(Dispatchers.IO) {
             reuseLastLocation()?.let { return@withContext it }
-            runCatching {
+            try {
                 val location = resolveCurrentCoordinates()
                 val city = refineCityPlaceName(provisionalCity(location))
                 rememberLastLocation(city)
                 city
-            }.getOrElse {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 readLastLocation() ?: error(context.getString(R.string.error_locate_failed))
             }
         }
@@ -148,14 +162,35 @@ class LocationHelper(
             return it
         }
         if (isPlayServicesAvailable()) {
-            runCatching { peekFusedLastKnown() }
-                .getOrNull()
+            val fused =
+                try {
+                    peekFusedLastKnown()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            fused
                 ?.takeIf { isAcceptableFix(it, now, FRESH_LAST_KNOWN_MS) }
                 ?.let { return it }
         }
-        runCatching { awaitLocationSystem() }.getOrNull()?.let { return it }
+        val system =
+            try {
+                awaitLocationSystem()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        system?.let { return it }
         if (isPlayServicesAvailable()) {
-            return runCatching { awaitLocationFusedFresh(FUSED_FALLBACK_WAIT_MS) }.getOrNull()
+            return try {
+                awaitLocationFusedFresh(FUSED_FALLBACK_WAIT_MS)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
         }
         return null
     }
@@ -169,9 +204,23 @@ class LocationHelper(
     private fun peekSystemLastKnown(): Location? {
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
-            .filter { runCatching { manager.isProviderEnabled(it) }.getOrDefault(false) }
-            .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
-            .maxWithOrNull(compareBy { locationScore(it) })
+            .filter { provider ->
+                try {
+                    manager.isProviderEnabled(provider)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    false
+                }
+            }.mapNotNull { provider ->
+                try {
+                    manager.getLastKnownLocation(provider)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            }.maxWithOrNull(compareBy { locationScore(it) })
     }
 
     @SuppressLint("MissingPermission")
@@ -295,22 +344,29 @@ class LocationHelper(
                     finish(bestRef.get())
                 }
 
-            providers.forEach { provider ->
-                manager.requestLocationUpdates(
-                    provider,
-                    0L,
-                    0f,
-                    listener,
-                    Looper.getMainLooper(),
-                )
-            }
-            handler.postDelayed(timeoutRunnable, LOCATION_WAIT_MS)
-
+            // 先挂取消清理，再注册监听：注册中途抛异常时不会漏掉已注册的 listener
             cont.invokeOnCancellation {
                 providers.forEach { manager.removeUpdates(listener) }
                 handler.removeCallbacks(timeoutRunnable)
                 completed.set(true)
             }
+            try {
+                providers.forEach { provider ->
+                    manager.requestLocationUpdates(
+                        provider,
+                        0L,
+                        0f,
+                        listener,
+                        Looper.getMainLooper(),
+                    )
+                }
+            } catch (e: Exception) {
+                providers.forEach { runCatching { manager.removeUpdates(listener) } }
+                handler.removeCallbacks(timeoutRunnable)
+                if (cont.isActive) cont.resumeWithException(e)
+                return@suspendCancellableCoroutine
+            }
+            handler.postDelayed(timeoutRunnable, LOCATION_WAIT_MS)
         }
 
     private fun locationScore(location: Location): Double {
@@ -347,8 +403,13 @@ class LocationHelper(
                 val addresses = ArrayList<Address>(maxResults)
                 for (q in queries) {
                     val batch =
-                        runCatching { forwardGeocode(geocoder, q, maxResults) }
-                            .getOrDefault(emptyList())
+                        try {
+                            forwardGeocode(geocoder, q, maxResults)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
                     addresses += batch
                     if (addresses.isNotEmpty()) break
                 }
@@ -443,8 +504,27 @@ class LocationHelper(
                 }
             }.orEmpty()
         } else {
-            @Suppress("DEPRECATION")
-            geocoder.getFromLocationName(query, maxResults).orEmpty()
+            withTimeoutOrNull(GEOCODER_ONCE_TIMEOUT_MS) {
+                runGeocoderBlocking {
+                    @Suppress("DEPRECATION")
+                    geocoder.getFromLocationName(query, maxResults).orEmpty()
+                }
+            }.orEmpty()
+        }
+
+    /** 在守护线程池执行阻塞式 Geocoder 调用，协程取消/超时后不再等待（系统调用可能仍在后台跑完）。 */
+    private suspend fun <T> runGeocoderBlocking(block: () -> T): T =
+        suspendCancellableCoroutine { cont ->
+            val future =
+                geocoderExecutor.submit {
+                    try {
+                        val result = block()
+                        if (cont.isActive) cont.resume(result)
+                    } catch (e: Exception) {
+                        if (cont.isActive) cont.resumeWithException(e)
+                    }
+                }
+            cont.invokeOnCancellation { future.cancel(true) }
         }
 
     /**
@@ -485,8 +565,12 @@ class LocationHelper(
                     }
                 }.orEmpty()
             } else {
-                @Suppress("DEPRECATION")
-                geocoder.getFromLocation(lat, lon, 5).orEmpty()
+                withTimeoutOrNull(GEOCODER_ONCE_TIMEOUT_MS) {
+                    runGeocoderBlocking {
+                        @Suppress("DEPRECATION")
+                        geocoder.getFromLocation(lat, lon, 5).orEmpty()
+                    }
+                }.orEmpty()
             }
         if (addresses.isEmpty()) return null
         return addresses
@@ -585,7 +669,7 @@ class LocationHelper(
         val parts = raw.split('\u001f')
         if (parts.size < 4) return null
         val savedAt = parts[3].toLongOrNull() ?: return null
-        if (System.currentTimeMillis() - savedAt > PLACE_CACHE_TTL_MS) return null
+        if (!isWithinFreshnessWindow(savedAt, System.currentTimeMillis(), PLACE_CACHE_TTL_MS)) return null
         return PlaceName(
             name = parts[0],
             admin1 = parts[1].ifBlank { null },
@@ -651,7 +735,7 @@ class LocationHelper(
         val parts = raw.split('\u001f')
         if (parts.size < 7) return null
         val savedAt = parts[6].toLongOrNull() ?: return null
-        if (System.currentTimeMillis() - savedAt > REUSE_FRESH_MS) return null
+        if (!isWithinFreshnessWindow(savedAt, System.currentTimeMillis(), REUSE_FRESH_MS)) return null
         return readLastLocation()
     }
 

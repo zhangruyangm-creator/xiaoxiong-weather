@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.data
 
+import okhttp3.Call
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
@@ -34,7 +35,7 @@ class RetryInterceptor(
                 val delay =
                     baseDelayMs * (1L shl (attempt - 1)) +
                         Random.nextLong(0, baseDelayMs * (1L shl (attempt - 1)) / 2 + 1)
-                Thread.sleep(delay)
+                sleepCheckingCancellation(delay, chain.call())
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
                 throw lastError ?: IOException("retry interrupted")
@@ -42,5 +43,26 @@ class RetryInterceptor(
         }
     }
 
+    /**
+     * 分段 sleep 并检查取消：一次性 sleep 期间 [Call.cancel] 无法唤醒，
+     * 最多要等完整个退避窗口（约 1.8s）；分段后取消可在 100ms 内生效。
+     */
+    private fun sleepCheckingCancellation(
+        delayMs: Long,
+        call: Call,
+    ) {
+        var remaining = delayMs
+        while (remaining > 0) {
+            if (call.isCanceled()) throw IOException("retry canceled")
+            val slice = remaining.coerceAtMost(SLEEP_SLICE_MS)
+            Thread.sleep(slice)
+            remaining -= slice
+        }
+    }
+
     private fun shouldRetry(code: Int): Boolean = code == 429 || code in 500..599
+
+    companion object {
+        private const val SLEEP_SLICE_MS = 100L
+    }
 }

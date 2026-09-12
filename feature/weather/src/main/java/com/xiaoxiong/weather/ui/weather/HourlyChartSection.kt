@@ -36,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -129,6 +130,10 @@ fun HourlyChartSection(
 ) {
     var metric by remember { mutableStateOf(HourlyMetric.TEMPERATURE) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    // 换城市或切换指标后，旧下标指向的数据已不同，清掉选中标记
+    LaunchedEffect(hourly, metric) {
+        selectedIndex = null
+    }
     // 小时明细默认折叠，避免页面一进来就是 24 行列表
     var detailsExpanded by remember { mutableStateOf(false) }
     val tempUnit = LocalTemperatureUnit.current

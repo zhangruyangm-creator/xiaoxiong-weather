@@ -12,6 +12,9 @@ object CrashReporting {
 
     fun init(context: Context) {
         runCatching {
+            // 清单移除了 FirebaseInitProvider 自动初始化，同意后在此手动初始化默认 FirebaseApp
+            val appClass = Class.forName("com.google.firebase.FirebaseApp")
+            appClass.getMethod("initializeApp", Context::class.java).invoke(null, context)
             val clazz = Class.forName("com.google.firebase.crashlytics.FirebaseCrashlytics")
             val getInstance = clazz.getMethod("getInstance")
             val instance = getInstance.invoke(null)

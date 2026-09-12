@@ -49,8 +49,9 @@ class WeatherCacheStore(
                 .map { it[key] }
                 .first()
         // 超过时效的条目视为不存在：断网数天时离线回退不应展示过期一周的数据
+        val now = System.currentTimeMillis()
         return decode(raw)
-            .filter { System.currentTimeMillis() - it.savedAtEpochMs <= MAX_AGE_MS }
+            .filter { isWithinFreshnessWindow(it.savedAtEpochMs, now, MAX_AGE_MS) }
             .firstOrNull { sameCity(it.snapshot.city, city) }
     }
 
@@ -81,4 +82,17 @@ class WeatherCacheStore(
         /** 缓存条目最大存活时长：超过则 [get] 视为无缓存（离线回退不展示过期数据）。 */
         private const val MAX_AGE_MS = 24L * 60 * 60 * 1000
     }
+}
+
+/**
+ * 缓存新鲜度：年龄必须落在 [0, maxAgeMs]。
+ * savedAt 在未来（时钟回拨/异常写入）视为无效，否则回拨后缓存会永久不过期。
+ */
+internal fun isWithinFreshnessWindow(
+    savedAtEpochMs: Long,
+    nowEpochMs: Long,
+    maxAgeMs: Long,
+): Boolean {
+    val age = nowEpochMs - savedAtEpochMs
+    return age in 0..maxAgeMs
 }

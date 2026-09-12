@@ -24,11 +24,8 @@ fi
 if git tag -l "$VERSION_ARG" | grep -q .; then
   echo "错误: tag $VERSION_ARG 已存在"; exit 1
 fi
-if ! grep -q "versionName = \"$VERSION\"" app/build.gradle.kts; then
-  echo "错误: app/build.gradle.kts 中 versionName 不是 $VERSION"
-  echo "      请先修改版本号、更新 CHANGELOG.md 并提交"
-  exit 1
-fi
+echo "==> 校验版本一致性（versionName / CHANGELOG / tag）"
+python3 tools/verify_release_version.py "$VERSION_ARG"
 
 # ---------- 构建 ----------
 echo "==> 构建 full release APK（本地缓存，约 2-3 分钟）"

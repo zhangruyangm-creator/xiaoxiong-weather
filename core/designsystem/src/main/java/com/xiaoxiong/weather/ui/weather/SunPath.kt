@@ -71,14 +71,14 @@ fun sunPathBearMoment(
     time: LocalTime = LocalTime.now(),
     sunrise: LocalTime? = null,
 ): SunPathBearMoment {
-    if (phase == null) {
-        return if (isWeekend(date)) SunPathBearMoment.WEEKEND_MORNING else SunPathBearMoment.MORNING_EXERCISE
-    }
     val minutes = time.hour * 60 + time.minute
-    return if (phase.isDay) {
+    // 无日出日落数据时按本地钟点近似昼夜（6:00–18:00 为白天），
+    // 否则深夜会被当成早晨，显示晨练/周末早晨等不符合作息的画面
+    val isDay = phase?.isDay ?: (minutes in 6 * 60 until 18 * 60)
+    return if (isDay) {
         dayBearMoment(date, minutes, sunrise)
     } else {
-        nightBearMoment(date, minutes, phase.progress, sunrise)
+        nightBearMoment(date, minutes, phase?.progress ?: 0f, sunrise)
     }
 }
 

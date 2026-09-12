@@ -14,6 +14,7 @@
     <string name="wx_violent_rain">暴雨</string>
     <string name="wx_extreme_rain">猛烈阵雨</string>
     <string name="wx_freezing_rain">冻雨</string>
+    <string name="wx_sleet">雨夹雪</string>
     <string name="wx_light_snow">小雪</string>
     <string name="wx_moderate_snow">中雪</string>
     <string name="wx_heavy_snow">大雪</string>

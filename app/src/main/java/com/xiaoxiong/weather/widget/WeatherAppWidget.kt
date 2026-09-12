@@ -37,6 +37,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.xiaoxiong.weather.MainActivity
 import com.xiaoxiong.weather.R
 
 /**
@@ -146,12 +147,12 @@ private fun WeatherWidgetContent(ui: WeatherWidgetUi?) {
     val size = LocalSize.current
     val openApp =
         actionStartActivity(
-            context.packageManager
-                .getLaunchIntentForPackage(context.packageName)
-                ?: Intent(Intent.ACTION_MAIN).apply {
-                    setPackage(context.packageName)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                },
+            Intent(context, MainActivity::class.java).apply {
+                flags =
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
         )
     val showWide = size.width >= 260.dp
     val showTall = size.height >= 180.dp

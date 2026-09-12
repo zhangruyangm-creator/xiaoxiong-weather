@@ -94,6 +94,9 @@ fun HistoryWeatherScreen(
     var pickedDay by remember { mutableStateOf<String?>(null) }
     var rangeStart by remember { mutableStateOf<String?>(null) }
     var rangeEnd by remember { mutableStateOf<String?>(null) }
+    // 查询键提升到页面层：切换单日/区间模式时 RangeQueryContent 会销毁重建，
+    // 放在内部会丢失，导致切回区间模式后已有结果显示为空
+    var rangeQueriedKey by remember { mutableStateOf<String?>(null) }
     var showDayPicker by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -186,6 +189,8 @@ fun HistoryWeatherScreen(
                         isLoading = isHistoryRangeLoading,
                         failed = historyRangeFailed,
                         networkFailed = historyRangeNetworkFailed,
+                        queriedKey = rangeQueriedKey,
+                        onQueriedKeyChange = { rangeQueriedKey = it },
                         onPickStart = { showStartPicker = true },
                         onPickEnd = { showEndPicker = true },
                         onQuery = onFetchRange,
@@ -273,6 +278,8 @@ private fun RangeQueryContent(
     isLoading: Boolean,
     failed: Boolean,
     networkFailed: Boolean,
+    queriedKey: String?,
+    onQueriedKeyChange: (String?) -> Unit,
     onPickStart: () -> Unit,
     onPickEnd: () -> Unit,
     onQuery: (LocalDate, LocalDate) -> Unit,
@@ -291,7 +298,6 @@ private fun RangeQueryContent(
     val canQuery = rangeDays != null && !tooLong
     val currentKey = if (startDate != null && endDate != null) "$startDate|$endDate" else null
     // 仅展示「与当前所选区间一致」的查询结果，避免改日期后残留旧区间统计
-    var queriedKey by remember { mutableStateOf<String?>(null) }
     val showResult = summary != null && currentKey != null && currentKey == queriedKey
     // 长区间按月聚合展示，短区间保留逐日明细
     val useMonthly = rangeDays != null && rangeDays > RANGE_DAILY_DETAIL_MAX_DAYS
@@ -300,7 +306,7 @@ private fun RangeQueryContent(
 
     fun runQuery() {
         if (canQuery) {
-            queriedKey = currentKey
+            onQueriedKeyChange(currentKey)
             expandedMonth = null
             startDate?.let { s -> endDate?.let { e -> onQuery(s, e) } }
         }

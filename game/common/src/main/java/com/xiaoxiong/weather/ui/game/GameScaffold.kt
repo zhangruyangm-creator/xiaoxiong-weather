@@ -29,6 +29,11 @@ class GameLeaderboardState(
     var show by mutableStateOf(false)
     var lastRank by mutableIntStateOf(0)
     var entries by mutableStateOf(store.load())
+
+    /** 复位上局名次，避免零分/未上榜的新一局沿用旧排名（清空排行榜后也应复位）。 */
+    fun resetLastRank() {
+        lastRank = 0
+    }
 }
 
 /** 记住排行榜状态：数据从 [GameLeaderboardStore] 读取，弹窗 / 排名随 UI 更新。 */

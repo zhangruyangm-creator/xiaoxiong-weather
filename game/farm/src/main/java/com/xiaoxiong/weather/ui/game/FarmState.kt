@@ -105,6 +105,7 @@ internal class BearFarm(
 
     val currentSeason: Int get() = state.currentSeason
     val collectedCount: Int get() = state.collectedCount
+    val seasonCollectedCount: Int get() = state.seasonCollectedCount
     val allCollected: Boolean get() = state.allCollected
 
     fun load() {
@@ -278,6 +279,8 @@ internal class BearFarm(
     /** 开启新一季：重置金币/田地/解锁，保留背包/图鉴/记录，获得永久生长加成。 */
     fun startNewSeason() {
         runAction { FarmSimulator.startNewSeason(state) }
+        // 新一季只解锁初始四种作物，选中的种子若停在已锁定作物会导致无法种植
+        selectedSeedId = "radish"
         showCatalog = false
         showSeasonConfirm = false
         save()

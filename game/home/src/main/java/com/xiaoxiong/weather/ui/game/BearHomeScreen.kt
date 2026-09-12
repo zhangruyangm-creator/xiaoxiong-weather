@@ -86,6 +86,7 @@ fun BearHomeScreen(
     onOpenGame: (GameEntry) -> Unit = {},
 ) {
     var room by remember { mutableStateOf(HomeRoom.HUB) }
+
     /** 从阳台/枢纽进街后，返回时回到来处。 */
     var streetReturn by remember { mutableStateOf(HomeRoom.HUB) }
     var streetSpot by remember { mutableStateOf<StreetSpot?>(null) }
@@ -938,4 +939,3 @@ private fun HomeCloset() {
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
-

@@ -95,3 +95,13 @@ object MazeGameLogic {
         return curR to curC
     }
 }
+
+/** 出口开门动画进度 0..1：从最后一罐蜂蜜被收集的 [lastHoneyAt] 起，1 秒内平滑开门。 */
+internal fun doorOpenProgress(
+    time: Float,
+    lastHoneyAt: Float,
+): Float {
+    if (lastHoneyAt < 0f) return 1f // 本关无蜂蜜，出口直接视为全开
+    val t = (time - lastHoneyAt).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t) // smoothstep：开头慢、中间快、结尾缓
+}

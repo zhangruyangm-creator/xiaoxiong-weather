@@ -74,6 +74,34 @@ class GrowingDegreeDaysTest {
     }
 
     @Test
+    fun normalTempsUntil_leapYearUsesFeb28ValueForFeb29() {
+        val normal =
+            mapOf(
+                MonthDay.of(2, 26) to 5.0,
+                MonthDay.of(2, 27) to 6.0,
+                MonthDay.of(2, 28) to 7.0,
+                MonthDay.of(3, 1) to 8.0,
+                MonthDay.of(3, 2) to 9.0,
+            )
+        val leap =
+            GrowingDegreeDays.normalTempsUntil(
+                normal,
+                LocalDate.of(2024, 3, 2),
+                LocalDate.of(2024, 2, 26),
+            )
+        // 闰年含 2/29：缺失的 2/29 复用 2/28 的值，序列长度与日期范围一致
+        assertEquals(listOf(5.0, 6.0, 7.0, 7.0, 8.0, 9.0), leap)
+
+        val nonLeap =
+            GrowingDegreeDays.normalTempsUntil(
+                normal,
+                LocalDate.of(2025, 3, 2),
+                LocalDate.of(2025, 2, 26),
+            )
+        assertEquals(listOf(5.0, 6.0, 7.0, 8.0, 9.0), nonLeap)
+    }
+
+    @Test
     fun normalTempsUntil_returnsWindowInOrder() {
         val normal =
             mapOf(

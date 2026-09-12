@@ -28,13 +28,22 @@ class ForecastFetcher(
      * 缓解区域性 BGP 路由问题（见 OpenMeteoHttp 文档）。
      */
     private val forecastBaseFallbacks: List<String> = DEFAULT_FORECAST_FALLBACKS,
+    /**
+     * MET Norway 降级数据源 base URL（免密钥）。null = 关闭降级；
+     * 仅在 Open-Meteo 主站（含备用入口）全失败时启用，见 [fetchForecastWithFallback]。
+     */
+    metNorwayBase: String? = DEFAULT_MET_NORWAY_BASE,
 ) {
+    private val metNorway: MetNorwayFetcher? =
+        metNorwayBase?.let { MetNorwayFetcher(client, json, it) }
+
     suspend fun fetchWeather(city: City): WeatherSnapshot =
         withContext(Dispatchers.IO) {
             coroutineScope {
-                val forecastDeferred = async { fetchForecast(city) }
+                val forecastDeferred = async { fetchForecastWithFallback(city) }
                 // 空气质量是辅助数据，失败不应阻塞主天气加载；显式透传 CancellationException
-                // 避免 runCatching 吞掉取消信号导致挂后台后协程变"僵尸"继续跑
+                // 避免 runCatching 吞掉取消信号导致挂后台后协程变"僵尸"继续跑。
+                // 降级数据源不提供空气质量，此时 airQuality 为 null，展示层按无数据处理
                 val airDeferred =
                     async {
                         try {
@@ -80,6 +89,35 @@ class ForecastFetcher(
                     lifeIndices = lifeIndices,
                 )
             }
+        }
+
+    /**
+     * 主预报失败时先按 [forecastBaseFallbacks] 换 base URL（同格式镜像），
+     * 仍失败且错误属于「服务端/网络/数据格式」范畴时，再切 MET Norway 完全不同的数据源。
+     * 4xx（请求本身问题）不降级；降级源也失败时抛出主源错误，保持错误分类不变。
+     */
+    private suspend fun fetchForecastWithFallback(city: City): WeatherSnapshot =
+        try {
+            fetchForecast(city)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val fallback = metNorway?.takeIf { isMetNorwayFallbackWorthy(e) } ?: throw e
+            try {
+                fallback.fetchWeather(city)
+            } catch (e2: kotlinx.coroutines.CancellationException) {
+                throw e2
+            } catch (e2: Exception) {
+                throw e
+            }
+        }
+
+    private fun isMetNorwayFallbackWorthy(e: Exception): Boolean =
+        when (e) {
+            is AppError.Http -> e.code in 500..599
+            is AppError.NetworkUnavailable -> true
+            is AppError.DataFormat -> true
+            else -> e is java.io.IOException
         }
 
     private suspend fun fetchForecast(city: City): WeatherSnapshot {
@@ -144,14 +182,16 @@ class ForecastFetcher(
             if (forecastBaseFallbacks.isEmpty()) {
                 OpenMeteoHttp.execute(url.toString(), client)
             } else {
-                // 主 URL 与 fallback 入口（同参数）依序尝试，首个成功即用
+                // 主 URL 与 fallback 入口（同参数）依序尝试，首个成功即用。
+                // fallback base 自身可能带路径前缀（如自建代理 /xiaoxiong），需保留后再拼接请求路径
                 val fallbackUrls =
                     forecastBaseFallbacks.mapNotNull { base ->
                         runCatching {
-                            base
-                                .toHttpUrl()
+                            val parsed = base.toHttpUrl()
+                            val prefix = parsed.encodedPath.trimEnd('/')
+                            parsed
                                 .newBuilder()
-                                .encodedPath(url.encodedPath)
+                                .encodedPath(prefix + url.encodedPath)
                                 .query(url.encodedQuery)
                                 .build()
                                 .toString()
@@ -362,5 +402,8 @@ class ForecastFetcher(
          * ForecastFetcher 会自动在主站网络不可达时按序重试。
          */
         val DEFAULT_FORECAST_FALLBACKS: List<String> = emptyList()
+
+        /** MET Norway Locationforecast：免密钥、全球覆盖，作为主源故障时的降级数据源。 */
+        const val DEFAULT_MET_NORWAY_BASE = MetNorwayFetcher.DEFAULT_BASE_URL
     }
 }

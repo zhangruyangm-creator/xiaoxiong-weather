@@ -59,6 +59,21 @@ class SunPathMathTest {
     }
 
     @Test
+    fun bearMoment_nullPhase_infersDayNightFromLocalTime() {
+        val sunday = LocalDate.of(2026, 6, 21)
+        // 深夜缺日出日落数据时不应固定落到晨练/周末早晨
+        val night = sunPathBearMoment(null, sunday, LocalTime.of(23, 0))
+        assertEquals(SunPathBearMoment.BEDTIME_PREP, night)
+        assertNotEquals(SunPathBearMoment.MORNING_EXERCISE, night)
+        assertNotEquals(SunPathBearMoment.WEEKEND_MORNING, night)
+        // 白天钟点仍走原白天分段
+        assertEquals(
+            SunPathBearMoment.WEEKEND_EXPLORE,
+            sunPathBearMoment(null, sunday, LocalTime.of(10, 0)),
+        )
+    }
+
+    @Test
     fun bearMoment_byClock_weekday() {
         val weekday = LocalDate.of(2026, 8, 6) // Thursday
         val day = SunPathPhase(true, 0.5f)

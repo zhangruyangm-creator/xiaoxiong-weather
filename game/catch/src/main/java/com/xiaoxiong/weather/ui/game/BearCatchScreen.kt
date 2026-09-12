@@ -172,15 +172,18 @@ fun BearCatchScreen(
                     worldDt,
                     onCaught = { kind ->
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        texts.add(
-                            CatchFloatText(
-                                text = "+${BearCatchLogic.scoreOf(kind)}",
-                                x = game.catchX,
-                                y = game.catchY - game.catchR * 1.4f,
-                                life = 0.8f,
-                                color = Color(0xFFFFD54F),
-                            ),
-                        )
+                        // 护盾泡泡不加分：跳过 "+0" 飘字，避免误导
+                        if (kind != ItemKind.BUBBLE) {
+                            texts.add(
+                                CatchFloatText(
+                                    text = "+${BearCatchLogic.scoreOf(kind)}",
+                                    x = game.catchX,
+                                    y = game.catchY - game.catchR * 1.4f,
+                                    life = 0.8f,
+                                    color = Color(0xFFFFD54F),
+                                ),
+                            )
+                        }
                     },
                     onHit = { kind ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
@@ -239,7 +242,7 @@ fun BearCatchScreen(
                         // 按住即转向：不走 drag 的 touchSlop，静止按住也能控左右。
                         // try/finally：phase 变化会取消本协程（pointerInput key），
                         // 拖动中被取消也要复位 touchX，否则残留坐标会让熊朝旧位置漂移
-                        //（对齐 hockey 的写法）。
+                        // （对齐 hockey 的写法）。
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             game.touchX = down.position.x
@@ -302,6 +305,7 @@ fun BearCatchScreen(
                 onClear = {
                     lb.store.clear()
                     lb.entries = emptyList()
+                    lb.resetLastRank()
                     game.best = 0
                 },
                 onDismiss = { lb.show = false },
@@ -334,7 +338,10 @@ fun BearCatchScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(18.dp))
-                        Button(onClick = { game.start() }) {
+                        Button(onClick = {
+                            lb.resetLastRank()
+                            game.start()
+                        }) {
                             Text(stringResource(R.string.bear_catch_start))
                         }
                     }
@@ -411,7 +418,10 @@ fun BearCatchScreen(
                             TextButton(onClick = onExit) {
                                 Text(stringResource(R.string.bear_game_exit))
                             }
-                            Button(onClick = { game.start() }) {
+                            Button(onClick = {
+                                lb.resetLastRank()
+                                game.start()
+                            }) {
                                 Text(stringResource(R.string.bear_game_restart))
                             }
                         }
@@ -464,10 +474,10 @@ private fun CatchHud(
                         color = Color(0xFFFFD54F),
                     )
                 }
-                // 连击
+                // 连击（与 comboScoreMultiplier 的 ×5 封顶保持一致）
                 if (game.combo >= 2) {
                     Text(
-                        text = "×${game.combo}",
+                        text = "×${minOf(game.combo, 5)}",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFFFF176),

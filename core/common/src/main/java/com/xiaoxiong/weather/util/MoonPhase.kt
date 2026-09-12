@@ -74,5 +74,4 @@ object MoonPhaseCalculator {
         val epochDay = instant.epochSecond / 86400.0
         return epochDay + 2440587.5
     }
-
 }

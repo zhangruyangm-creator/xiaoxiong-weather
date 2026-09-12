@@ -114,6 +114,13 @@ class HourlyUtilsTest {
     }
 
     @Test
+    fun formatHourLabel_supportsTAndSpaceSeparators() {
+        assertEquals("14:35", formatHourLabel("2026-08-02T14:35"))
+        assertEquals("14:35", formatHourLabel("2026-08-02T14:35:00"))
+        assertEquals("14:35", formatHourLabel("2026-08-02 14:35"))
+    }
+
+    @Test
     fun formatHourDetailLabel_todayTomorrowOrDate() {
         val ref = "2026-08-05T07:30"
         val date = { m: Int, d: Int -> "${m}月${d}日" }

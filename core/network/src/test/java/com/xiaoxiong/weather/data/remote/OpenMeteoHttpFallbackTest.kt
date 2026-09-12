@@ -116,6 +116,29 @@ class OpenMeteoHttpFallbackTest {
         }
 
     @Test
+    fun httpError5xxThenNetworkError_keepsHttpErrorClassification() =
+        runBlocking {
+            // 前一候选 503，后一候选断连：IOException 不应覆盖更具体的 5xx 分类
+            serverA.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+            serverB.enqueue(
+                MockResponse()
+                    .setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AT_START),
+            )
+            val urlA = serverA.url("/v1/forecast").toString()
+            val urlB = serverB.url("/v1/forecast").toString()
+
+            val error =
+                assertThrows(AppError.Http::class.java) {
+                    runBlocking {
+                        OpenMeteoHttp.executeWithFallback(listOf(urlA, urlB), client)
+                    }
+                }
+
+            assertEquals(503, error.code)
+            assertEquals(1, serverB.requestCount)
+        }
+
+    @Test
     fun httpError4xx_doesNotFallBack() =
         runBlocking {
             // 4xx 是请求本身问题：换 host 没意义，不应命中备用站

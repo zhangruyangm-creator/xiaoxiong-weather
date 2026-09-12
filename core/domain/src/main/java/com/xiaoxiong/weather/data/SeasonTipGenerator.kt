@@ -5,6 +5,7 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.util.parseFlexibleDateTime
 import java.time.LocalDate
 import java.time.MonthDay
+import java.time.Year
 import kotlin.math.abs
 
 /**
@@ -356,6 +357,17 @@ object SeasonTipGenerator {
         return MonthDay.from(start) to MonthDay.from(end)
     }
 
+    /**
+     * 平移后的窗口端点可能是 2/29；非闰年 atYear 会抛 DateTimeException，
+     * 退到 2/28，保证跨年窗口的判断仍自洽。
+     */
+    private fun MonthDay.atYearOrClamp(year: Int): LocalDate =
+        if (monthValue == 2 && dayOfMonth == 29 && !Year.isLeap(year.toLong())) {
+            LocalDate.of(year, 2, 28)
+        } else {
+            atYear(year)
+        }
+
     private fun evaluate(
         kind: Kind,
         window: Pair<MonthDay, MonthDay>?,
@@ -385,9 +397,9 @@ object SeasonTipGenerator {
         monthDay: MonthDay,
         today: LocalDate,
     ): LocalDate {
-        var date = monthDay.atYear(today.year)
+        var date = monthDay.atYearOrClamp(today.year)
         if (!date.isAfter(today)) {
-            date = monthDay.atYear(today.year + 1)
+            date = monthDay.atYearOrClamp(today.year + 1)
         }
         return date
     }
@@ -410,20 +422,20 @@ object SeasonTipGenerator {
         end: MonthDay,
     ): Phase {
         val year = today.year
-        var startDate = start.atYear(year)
-        var endDate = end.atYear(year)
+        var startDate = start.atYearOrClamp(year)
+        var endDate = end.atYearOrClamp(year)
         if (endDate.isBefore(startDate) || start.isAfter(end)) {
             // 跨年：若今天在年末段，结束落到明年；若在年初段，起点落在去年
-            if (!today.isBefore(start.atYear(year)) || today.monthValue >= start.monthValue) {
-                startDate = start.atYear(year)
-                endDate = end.atYear(year + 1)
+            if (!today.isBefore(start.atYearOrClamp(year)) || today.monthValue >= start.monthValue) {
+                startDate = start.atYearOrClamp(year)
+                endDate = end.atYearOrClamp(year + 1)
                 if (today.isBefore(startDate) && today.monthValue <= end.monthValue) {
-                    startDate = start.atYear(year - 1)
-                    endDate = end.atYear(year)
+                    startDate = start.atYearOrClamp(year - 1)
+                    endDate = end.atYearOrClamp(year)
                 }
             } else {
-                startDate = start.atYear(year - 1)
-                endDate = end.atYear(year)
+                startDate = start.atYearOrClamp(year - 1)
+                endDate = end.atYearOrClamp(year)
             }
         }
         val total =
