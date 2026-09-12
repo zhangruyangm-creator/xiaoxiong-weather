@@ -29,6 +29,24 @@ private val floatTextPaint =
         setShadowLayer(4f, 0f, 2f, android.graphics.Color.argb(120, 0, 0, 0))
     }
 
+/** 冰墙固定冰蓝渐变：形状尺寸无关，顶层构造一次即可复用。 */
+private val iceWallBrush: Brush =
+    Brush.verticalGradient(
+        listOf(
+            Color(0xFFE4F3FF).copy(alpha = 0.95f),
+            Color(0xFFA8D5F7).copy(alpha = 0.90f),
+            Color(0xFF7CC0EF).copy(alpha = 0.95f),
+        ),
+    )
+
+/** 冰墙三根冰锥的水平位置（固定，避免每帧新建 float 数组）。 */
+private val iceWallIcicleFractions = floatArrayOf(0.22f, 0.5f, 0.78f)
+
+// 障碍绘制里形状固定的 Path，reset 后重填复用；Compose 在 drawPath 时复制路径，重复复用安全
+private val lightningBoltPath = Path()
+private val iciclePath = Path()
+private val iceCrackPath = Path()
+
 fun DrawScope.drawWorld(
     game: BearGame,
     contentColor: Color,
@@ -233,12 +251,9 @@ private fun DrawScope.drawHills(
     val groundY = game.groundY
     val segW = 260f * s
     val hillH = size.height * heightRatio
-    // 山丘带形状固定，缓存复用；每帧只做平移，避免每帧 new Path 引发 GC
-    val cached = game.hillPathCache
+    // 山丘带形状固定，按 (heightRatio, s) 缓存复用；每帧只做平移，避免每帧 new Path 引发 GC
     val path =
-        if (cached != null && cached.first == heightRatio) {
-            cached.second
-        } else {
+        game.hillPathCache.getOrPut(heightRatio to s) {
             Path()
                 .apply {
                     // 覆盖足够宽的固定山丘带（4096*s 逻辑像素 > 任何手机屏幕）
@@ -253,7 +268,7 @@ private fun DrawScope.drawHills(
                     lineTo(span, 4f * s)
                     lineTo(0f, 4f * s)
                     close()
-                }.also { game.hillPathCache = heightRatio to it }
+                }
         }
     val offset = -(game.distance * parallax % segW)
     withTransform({
@@ -503,33 +518,26 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                     cap = StrokeCap.Round,
                 )
                 // 闪电
-                val bolt =
-                    Path().apply {
-                        val bx = ob.x + ob.w * 0.5f
-                        val by = top + ob.h * 0.72f
-                        moveTo(bx + 6f * s, by)
-                        lineTo(bx - 8f * s, by + 16f * s)
-                        lineTo(bx, by + 16f * s)
-                        lineTo(bx - 6f * s, by + 30f * s)
-                        lineTo(bx + 8f * s, by + 12f * s)
-                        lineTo(bx + 1f * s, by + 12f * s)
-                        close()
-                    }
-                drawPath(bolt, Color(0xFFFFD54F))
+                lightningBoltPath.reset()
+                lightningBoltPath.apply {
+                    val bx = ob.x + ob.w * 0.5f
+                    val by = top + ob.h * 0.72f
+                    moveTo(bx + 6f * s, by)
+                    lineTo(bx - 8f * s, by + 16f * s)
+                    lineTo(bx, by + 16f * s)
+                    lineTo(bx - 6f * s, by + 30f * s)
+                    lineTo(bx + 8f * s, by + 12f * s)
+                    lineTo(bx + 1f * s, by + 12f * s)
+                    close()
+                }
+                drawPath(lightningBoltPath, Color(0xFFFFD54F))
             }
             ObstacleType.ICE_WALL -> {
                 val top = groundY - ob.h
                 val w = ob.w
                 // 冰柱本体：半透明冰蓝垂直渐变，窄而高
                 drawRoundRect(
-                    brush =
-                        Brush.verticalGradient(
-                            listOf(
-                                Color(0xFFE4F3FF).copy(alpha = 0.95f),
-                                Color(0xFFA8D5F7).copy(alpha = 0.90f),
-                                Color(0xFF7CC0EF).copy(alpha = 0.95f),
-                            ),
-                        ),
+                    brush = iceWallBrush,
                     topLeft = Offset(ob.x, top),
                     size = Size(w, ob.h),
                     cornerRadius = CornerRadius(6f * s),
@@ -542,17 +550,17 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                     cornerRadius = CornerRadius(6f * s),
                 )
                 // 上缘垂下的冰锥（三根，长短不一）
-                for (fx in floatArrayOf(0.22f, 0.5f, 0.78f)) {
+                for (fx in iceWallIcicleFractions) {
                     val ix = ob.x + w * fx
                     val h = (14f + ((fx * 7f) % 8f)) * s
-                    val icicle =
-                        Path().apply {
-                            moveTo(ix - 5f * s, top + 7f * s)
-                            lineTo(ix + 5f * s, top + 7f * s)
-                            lineTo(ix, top + 7f * s + h)
-                            close()
-                        }
-                    drawPath(icicle, Color(0xFFEAF7FF).copy(alpha = 0.92f))
+                    iciclePath.reset()
+                    iciclePath.apply {
+                        moveTo(ix - 5f * s, top + 7f * s)
+                        lineTo(ix + 5f * s, top + 7f * s)
+                        lineTo(ix, top + 7f * s + h)
+                        close()
+                    }
+                    drawPath(iciclePath, Color(0xFFEAF7FF).copy(alpha = 0.92f))
                 }
                 // 侧面高光
                 drawLine(
@@ -563,14 +571,14 @@ private fun DrawScope.drawObstacles(game: BearGame) {
                     cap = StrokeCap.Round,
                 )
                 // 冻结裂纹
-                val crack =
-                    Path().apply {
-                        moveTo(ob.x + w * 0.62f, top + ob.h * 0.38f)
-                        lineTo(ob.x + w * 0.76f, top + ob.h * 0.54f)
-                        lineTo(ob.x + w * 0.62f, top + ob.h * 0.72f)
-                    }
+                iceCrackPath.reset()
+                iceCrackPath.apply {
+                    moveTo(ob.x + w * 0.62f, top + ob.h * 0.38f)
+                    lineTo(ob.x + w * 0.76f, top + ob.h * 0.54f)
+                    lineTo(ob.x + w * 0.62f, top + ob.h * 0.72f)
+                }
                 drawPath(
-                    crack,
+                    iceCrackPath,
                     Color.White.copy(alpha = 0.6f),
                     style = Stroke(width = 2.2f * s, cap = StrokeCap.Round),
                 )

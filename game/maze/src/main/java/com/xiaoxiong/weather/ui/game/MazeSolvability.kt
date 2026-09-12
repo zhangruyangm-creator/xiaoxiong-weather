@@ -1,42 +1,88 @@
 package com.xiaoxiong.weather.ui.game
 
 /**
- * 带冰面滑行 / 钥匙锁 / 传送门的可达性判定（与 [MazeGame.tryMove] 规则对齐）。
- * 用于生成器拒收死关，以及单测。
+ * 求解状态空间允许的最大蜂蜜数：蜂蜜收集状态为 2^n，超过该值 BFS 状态数在主线程不可接受。
+ * 生成器必须保证「蜂蜜总数（含锁旁附加）≤ [MAX_SOLVE_HONEY]」，
+ * 这样 [mazeSolve] 对所有生成关卡都能给出精确结果，而不会退化为 [MazeSolveOutcome.TooLarge]。
  */
-internal fun mazeMapSolvable(map: List<String>): Boolean {
-    if (map.isEmpty()) return false
+internal const val MAX_SOLVE_HONEY = 10
+
+/**
+ * 求解结果。
+ *  - [Solved]：可解，附带「收齐全部蜂蜜并到达出口」的最小移动数与第一步方向（起点即终点时为 null）。
+ *  - [Unsolvable]：状态空间内确认无解。
+ *  - [TooLarge]：蜂蜜/钥匙/锁过多，状态空间过大而放弃求解（调用方自行决定放行或拒绝）。
+ */
+internal sealed interface MazeSolveOutcome {
+    data class Solved(
+        val minMoves: Int,
+        val firstDir: MazeDir?,
+    ) : MazeSolveOutcome
+
+    data object Unsolvable : MazeSolveOutcome
+
+    data object TooLarge : MazeSolveOutcome
+}
+
+/**
+ * 带冰面滑行 / 钥匙锁 / 传送门的可达性判定（与 [MazeGame.tryMove] 规则对齐）。
+ * 用于生成器拒收死关、提示（hint）与单测。
+ *
+ * 从地图解析起点、蜂蜜、钥匙、锁与传送门；[initialKeys] 为开局已持有的钥匙数
+ * （提示场景下玩家可能已经捡了钥匙），初始蜂蜜/钥匙/锁收集状态均为空。
+ * BFS 的每「步」对应玩家按一次方向键（冰面滑行算一步），返回最小步数与第一步方向。
+ */
+internal fun mazeSolve(
+    map: List<String>,
+    startR: Int = -1,
+    startC: Int = -1,
+    initialKeys: Int = 0,
+): MazeSolveOutcome {
+    if (map.isEmpty()) return MazeSolveOutcome.Unsolvable
     val rows = map.size
     val cols = map.maxOf { it.length }
     val g = Array(rows) { r -> CharArray(cols) { c -> map[r].getOrElse(c) { '#' } } }
 
-    var sr = -1
-    var sc = -1
-    val honeys = mutableListOf<Pair<Int, Int>>()
-    val keyCells = mutableListOf<Pair<Int, Int>>()
-    val lockCells = mutableListOf<Pair<Int, Int>>()
-    val portals = mutableMapOf<Int, MutableList<Pair<Int, Int>>>()
-    for (r in 0 until rows) {
-        for (c in 0 until cols) {
-            when (val ch = g[r][c]) {
-                'S' -> {
+    var sr = startR
+    var sc = startC
+    if (sr !in 0 until rows || sc !in 0 until cols || g[sr][sc] == '#') {
+        sr = -1
+        sc = -1
+        for (r in 0 until rows) {
+            for (c in 0 until cols) {
+                if (g[r][c] == 'S') {
                     sr = r
                     sc = c
                 }
-                'H' -> honeys.add(r to c)
-                'K' -> keyCells.add(r to c)
-                'L' -> lockCells.add(r to c)
-                in '1'..'9' -> portals.getOrPut(ch - '0') { mutableListOf() }.add(r to c)
             }
         }
     }
-    if (sr < 0) return false
-    // 状态空间过大时放行，避免生成卡住（战役关蜂蜜 ≤ 10）
-    if (honeys.size > 12 || keyCells.size > 4 || lockCells.size > 4) return true
+    val honeys = mutableListOf<Pair<Int, Int>>()
+    val keyCells = mutableListOf<Pair<Int, Int>>()
+    val lockCells = mutableListOf<Pair<Int, Int>>()
+    // 传送门两端用 r*cols+c 的 Int 编码，避免热循环内 Pair 分配
+    val portals = mutableMapOf<Int, MutableList<Int>>()
+    for (r in 0 until rows) {
+        for (c in 0 until cols) {
+            when (val ch = g[r][c]) {
+                'H' -> honeys.add(r to c)
+                'K' -> keyCells.add(r to c)
+                'L' -> lockCells.add(r to c)
+                in '1'..'9' -> portals.getOrPut(ch - '0') { mutableListOf() }.add(r * cols + c)
+            }
+        }
+    }
+    if (sr < 0) return MazeSolveOutcome.Unsolvable
+    // 状态空间过大时交给调用方定夺（生成器拒收，提示返回 TooLarge）
+    if (honeys.size > MAX_SOLVE_HONEY || keyCells.size > 4 || lockCells.size > 4) return MazeSolveOutcome.TooLarge
 
-    val honeyIndex = honeys.withIndex().associate { (i, p) -> p to i }
-    val keyIndex = keyCells.withIndex().associate { (i, p) -> p to i }
-    val lockIndex = lockCells.withIndex().associate { (i, p) -> p to i }
+    // 索引表用 r*cols+c 的 Int 键，遍历/查询不再分配 Pair
+    val honeyIndex = IntArray(rows * cols) { -1 }
+    val keyIndex = IntArray(rows * cols) { -1 }
+    val lockIndex = IntArray(rows * cols) { -1 }
+    honeys.forEachIndexed { i, p -> honeyIndex[p.first * cols + p.second] = i }
+    keyCells.forEachIndexed { i, p -> keyIndex[p.first * cols + p.second] = i }
+    lockCells.forEachIndexed { i, p -> lockIndex[p.first * cols + p.second] = i }
     val allHoneyMask = if (honeys.isEmpty()) 0 else (1 shl honeys.size) - 1
 
     fun walkable(
@@ -49,8 +95,8 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
         return when (g[r][c]) {
             '#' -> false
             'L' -> {
-                val idx = lockIndex[r to c]
-                if (idx != null && (lockOpen and (1 shl idx)) != 0) {
+                val idx = lockIndex[r * cols + c]
+                if (idx >= 0 && (lockOpen and (1 shl idx)) != 0) {
                     true
                 } else {
                     keys > 0
@@ -87,20 +133,20 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
         while (true) {
             when (val ch = g[r][c]) {
                 'H' -> {
-                    val idx = honeyIndex[r to c]
-                    if (idx != null) honey = honey or (1 shl idx)
+                    val idx = honeyIndex[r * cols + c]
+                    if (idx >= 0) honey = honey or (1 shl idx)
                 }
                 'K' -> {
-                    val idx = keyIndex[r to c]
-                    if (idx != null && (keyMask and (1 shl idx)) == 0) {
+                    val idx = keyIndex[r * cols + c]
+                    if (idx >= 0 && (keyMask and (1 shl idx)) == 0) {
                         keyMask = keyMask or (1 shl idx)
                         // 与 MazeGame 一致不设上限；入口已保证钥匙 ≤ 4，4 bit 装得下
                         keys++
                     }
                 }
                 'L' -> {
-                    val idx = lockIndex[r to c]
-                    if (idx != null && (lockOpen and (1 shl idx)) == 0 && keys > 0) {
+                    val idx = lockIndex[r * cols + c]
+                    if (idx >= 0 && (lockOpen and (1 shl idx)) == 0 && keys > 0) {
                         keys--
                         lockOpen = lockOpen or (1 shl idx)
                     }
@@ -109,9 +155,10 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
                     val id = ch - '0'
                     val ends = portals[id]
                     if (ends != null && ends.size == 2) {
-                        val other = if (ends[0] == r to c) ends[1] else ends[0]
-                        r = other.first
-                        c = other.second
+                        val here = r * cols + c
+                        val other = if (ends[0] == here) ends[1] else ends[0]
+                        r = other / cols
+                        c = other % cols
                         sliding = false
                     }
                 }
@@ -151,21 +198,32 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
             lockOpen.toLong()
 
     val q = ArrayDeque<Long>()
-    val seen = HashSet<Long>()
-    val start = pack(sr, sc, 0, 0, 0, 0)
+    val dist = HashMap<Long, Int>()
+    // 每个状态首次到达所走的第一步方向，用于把「最小步数」还原成「下一步怎么按」
+    val firstDir = HashMap<Long, MazeDir>()
+    val dirs =
+        arrayOf(
+            MazeDir.UP,
+            MazeDir.DOWN,
+            MazeDir.LEFT,
+            MazeDir.RIGHT,
+        )
+    val start = pack(sr, sc, initialKeys, 0, 0, 0)
+    dist[start] = 0
     q.add(start)
-    seen.add(start)
-    val dirs = intArrayOf(-1, 0, 1, 0, 0, -1, 0, 1)
     while (q.isNotEmpty()) {
         val st = q.removeFirst()
+        val steps = dist.getValue(st)
         val r = (st shr 48).toInt()
         val c = ((st shr 40) and 0xFF).toInt()
         val keys = ((st shr 36) and 0xF).toInt()
         val honey = ((st shr 20) and 0xFFFF).toInt()
         val keyMask = ((st shr 12) and 0xFF).toInt()
         val lockOpen = (st and 0xFFF).toInt()
-        if (g[r][c] == 'E' && honey == allHoneyMask) return true
-        for (i in 0 until 4) {
+        if (g[r][c] == 'E' && honey == allHoneyMask) {
+            return MazeSolveOutcome.Solved(steps, firstDir[st])
+        }
+        for (dir in dirs) {
             val next =
                 step(
                     r,
@@ -174,13 +232,42 @@ internal fun mazeMapSolvable(map: List<String>): Boolean {
                     honey,
                     keyMask,
                     lockOpen,
-                    dirs[i * 2],
-                    dirs[i * 2 + 1],
+                    dir.dr,
+                    dir.dc,
                 ) ?: continue
-            if (next[6] == 1) return true
+            if (next[6] == 1) {
+                return MazeSolveOutcome.Solved(steps + 1, firstDir[st] ?: dir)
+            }
             val p = pack(next[0], next[1], next[2], next[3], next[4], next[5])
-            if (seen.add(p)) q.add(p)
+            if (p !in dist) {
+                dist[p] = steps + 1
+                firstDir[p] = firstDir[st] ?: dir
+                q.add(p)
+            }
         }
     }
-    return false
+    return MazeSolveOutcome.Unsolvable
 }
+
+/** 从初始地图判定可解性（状态空间过大时放行，供生成器使用）。 */
+internal fun mazeMapSolvable(map: List<String>): Boolean =
+    when (mazeSolve(map)) {
+        is MazeSolveOutcome.Solved, MazeSolveOutcome.TooLarge -> true
+        MazeSolveOutcome.Unsolvable -> false
+    }
+
+/**
+ * 从当前对局状态求「收齐全部蜂蜜并到达出口」的最小步数与下一步方向。
+ * 传入的 [map] 应为**当前**棋盘（已消耗的蜂蜜/钥匙/已开的锁都已是 '.'），
+ * [initialKeys] 为玩家当前持有的钥匙数。无解或状态过大返回 null。
+ */
+internal fun mazeSolveFromState(
+    map: List<String>,
+    startR: Int,
+    startC: Int,
+    initialKeys: Int = 0,
+): MazeSolveOutcome.Solved? =
+    when (val outcome = mazeSolve(map, startR, startC, initialKeys)) {
+        is MazeSolveOutcome.Solved -> outcome
+        else -> null
+    }

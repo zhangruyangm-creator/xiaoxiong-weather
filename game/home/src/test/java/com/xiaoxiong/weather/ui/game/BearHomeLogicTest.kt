@@ -1,6 +1,8 @@
 package com.xiaoxiong.weather.ui.game
 
+import com.xiaoxiong.weather.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalTime
@@ -130,13 +132,45 @@ class BearHomeLogicTest {
             assertTrue("$weather day art missing", dayArt != 0)
             assertTrue("$weather night art missing", nightArt != 0)
             assertTrue("$weather tip missing", balconyWeatherTip(weather, false) != 0)
-            assertTrue("$weather label missing", balconyWeatherLabel(weather, false) != 0)
         }
         // 晴天昼夜应不同主图；雨天昼夜可同图
         assertTrue(
             balconySceneArt(FarmWeather.SUNNY, false, day) !=
                 balconySceneArt(FarmWeather.SUNNY, true, day),
         )
+    }
+
+    @Test
+    fun homeWeatherLabel_resolvesRainStrengthAndFreezingRain() {
+        // 降水强度细分：51/61/82 → 小/中/大雨
+        assertEquals(R.string.balcony_weather_rain_light, homeWeatherLabelRes(51, isDay = true))
+        assertEquals(R.string.balcony_weather_rain_moderate, homeWeatherLabelRes(61, isDay = true))
+        assertEquals(R.string.balcony_weather_rain_heavy, homeWeatherLabelRes(82, isDay = true))
+        // 冻雨 56/57/66/67 单独成类，与昼夜无关
+        assertEquals(R.string.balcony_weather_freezing_rain, homeWeatherLabelRes(56, isDay = true))
+        assertEquals(R.string.balcony_weather_freezing_rain, homeWeatherLabelRes(67, isDay = false))
+        // 其余天气
+        assertEquals(R.string.balcony_weather_storm, homeWeatherLabelRes(95, isDay = true))
+        assertEquals(R.string.balcony_weather_snow, homeWeatherLabelRes(71, isDay = true))
+        assertEquals(R.string.balcony_weather_fog, homeWeatherLabelRes(45, isDay = true))
+        assertEquals(R.string.balcony_weather_cloudy, homeWeatherLabelRes(3, isDay = true))
+        assertEquals(R.string.balcony_weather_sunny, homeWeatherLabelRes(0, isDay = true))
+        assertEquals(R.string.bear_home_summary_weather_unknown, homeWeatherLabelRes(null, null))
+    }
+
+    @Test
+    fun clearNight_isSpecialCasedInHome() {
+        // common 口径不变：0/1 夜晚仍归多云
+        assertEquals(FarmWeather.CLOUDY, farmWeatherFromScene(0, isDay = false))
+        assertTrue(isClearNight(0, false))
+        assertTrue(isClearNight(1, false))
+        assertFalse(isClearNight(0, true))
+        assertFalse(isClearNight(2, false))
+        assertFalse(isClearNight(null, false))
+        // home 内特判为晴天以复用晴夜插画/文案
+        assertEquals(FarmWeather.SUNNY, homeDisplayWeather(0, isDay = false))
+        assertEquals(FarmWeather.CLOUDY, homeDisplayWeather(3, isDay = false))
+        assertEquals(R.string.balcony_weather_clear_night, homeWeatherLabelRes(1, isDay = false))
     }
 
     @Test

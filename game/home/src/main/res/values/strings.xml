@@ -4,7 +4,7 @@
     <string name="bear_game_title">小熊跳跳</string>
     <string name="bear_home_back">返回客厅</string>
     <string name="bear_home_closet_hint">挑一挑游戏主角，或去阳台看看窗外。</string>
-    <string name="bear_home_closet_stub">游戏主角</string>
+    <string name="bear_home_closet_title">游戏主角</string>
     <string name="bear_home_cuisine_arabic">阿拉伯 / 中东</string>
     <string name="bear_home_cuisine_chinese">中式</string>
     <string name="bear_home_cuisine_korean">韩式</string>
@@ -239,6 +239,9 @@
     <string name="balcony_weather_clear_night">晴朗夜晚</string>
     <string name="balcony_weather_cloudy">多云</string>
     <string name="balcony_weather_rain_light">小雨</string>
+    <string name="balcony_weather_rain_moderate">中雨</string>
+    <string name="balcony_weather_rain_heavy">大雨</string>
+    <string name="balcony_weather_freezing_rain">冻雨</string>
     <string name="balcony_weather_storm">雷暴</string>
     <string name="balcony_weather_snow">下雪</string>
     <string name="balcony_weather_fog">大雾</string>
@@ -253,7 +256,10 @@
     <string name="bear_home_routine_now">正在做</string>
     <string name="bear_home_routine_soon">之后</string>
     <string name="bear_home_routine_title">今日作息</string>
-    <string name="bear_home_summary_stub">今天</string>
+    <string name="bear_home_summary_title">今日小结</string>
+    <string name="bear_home_summary_weather_unknown">—</string>
+    <string name="bear_home_summary_icon_day">☀</string>
+    <string name="bear_home_summary_icon_night">🌙</string>
     <string name="bear_home_summary_weather_title">窗外天气</string>
     <string name="bear_home_summary_progress">今天走过 %1$d / %2$d 段时光</string>
     <string name="bear_home_summary_now_doing">此刻 · %1$s</string>

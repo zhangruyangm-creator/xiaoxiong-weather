@@ -27,7 +27,16 @@ data class FarmState(
     /** 本季已收获的作物种类数（开启新一季的进度）。 */
     val seasonCollectedCount: Int get() = seasonCollected.size
 
-    /** 是否已集齐本季全部作物（开启新一季的条件）。 */
+    /**
+     * 本季开启新一季所需的作物种类数：随周目递增（12/16/20…），封顶 40。
+     * 不再要求集齐全部 128 种，降低周目门槛。
+     */
+    val seasonGoal: Int get() = (12 + completedSeasons * 4).coerceAtMost(40)
+
+    /** 本季是否已达成开季门槛。 */
+    val seasonReady: Boolean get() = seasonCollectedCount >= seasonGoal
+
+    /** 是否已集齐本季全部作物（开季门槛之外的额外成就）。 */
     val allCollected: Boolean get() = FARM_CROP_ORDER.all { it in seasonCollected }
 
     fun toSave(): FarmSave =
@@ -46,14 +55,24 @@ data class FarmState(
 
     companion object {
         /**
-         * 从存档构造。旧存档（1.x，无图鉴字段）一次性回填：已解锁的作物视为收集过，
-         * 避免老玩家迁移后图鉴从零开始、丢失已通关的积累感。
+         * 从存档构造。旧存档（1.x，无图鉴/本季收集字段）一次性回填：
+         * 已解锁的作物视为收集过，避免老玩家迁移后图鉴从零开始；
+         * 若旧档已集齐全部作物（图鉴或解锁覆盖全部 128 种），本季收集也一并回填，
+         * 让老玩家能像旧版「集齐开新季」一样立即开启新一季，而不是从 0/12 重新攒进度。
          */
         fun fromSave(
             save: FarmSave,
             backfillUnlockedAsCollected: Boolean,
-        ): FarmState =
-            FarmState(
+        ): FarmState {
+            val backfilledHarvestCounts =
+                if (backfillUnlockedAsCollected) {
+                    save.unlockedCropIds.toSet().associateWith { 1 }
+                } else {
+                    save.harvestCounts
+                }
+            val oldSaveFullyCollected =
+                save.schemaVersion < 2 && backfilledHarvestCounts.size >= FARM_CROPS.size
+            return FarmState(
                 coins = save.coins,
                 plots =
                     save.plots.map { it.copy() }.let { list ->
@@ -68,17 +87,14 @@ data class FarmState(
                         setOf("radish", "cabbage", "wheat", "tomato")
                     },
                 harvestedTotal = save.harvestedTotal,
-                harvestCounts =
-                    if (backfillUnlockedAsCollected) {
-                        save.unlockedCropIds.toSet().associateWith { 1 }
-                    } else {
-                        save.harvestCounts
-                    },
+                harvestCounts = backfilledHarvestCounts,
                 inventory = save.inventory,
                 completedSeasons = save.completedSeasons,
                 lifetimeHarvests = save.lifetimeHarvests,
-                seasonCollected = save.seasonCollected,
+                seasonCollected =
+                    if (oldSaveFullyCollected) backfilledHarvestCounts.keys else save.seasonCollected,
             )
+        }
     }
 }
 
@@ -92,7 +108,8 @@ data class FarmEffect(
     val toastRes: Int? = null,
     val toastArgs: List<Any> = emptyList(),
     val rewards: List<FarmRewardSpec> = emptyList(),
-    val unlockCropId: String? = null,
+    /** 本次操作新解锁的作物（一次操作可能解锁多个，如 [FarmSimulator.careAll]）。 */
+    val unlockCropIds: List<String> = emptyList(),
 )
 
 /**
@@ -152,6 +169,7 @@ object FarmSimulator {
                 dirty = true
 
                 val crop = cropById(plot.cropId)
+                val cropPrefers = crop?.prefers(weather) == true
                 while (elapsed >= minStepMs) {
                     val step = if (elapsed > sliceMs) sliceMs else elapsed
                     elapsed -= step
@@ -180,7 +198,7 @@ object FarmSimulator {
                     }
 
                     if (crop != null) {
-                        advanceGrowth(plot, crop, hours, fx, seasonMul)
+                        advanceGrowth(plot, crop, hours, fx, seasonMul, preferred = cropPrefers)
                     }
                 }
                 plot.lastTickMs = now
@@ -289,7 +307,7 @@ object FarmSimulator {
         state.harvestCounts = state.harvestCounts + (crop.id to (state.harvestCounts[crop.id] ?: 0) + 1)
         state.seasonCollected = state.seasonCollected + crop.id
         state.inventory = state.inventory + (crop.id to (state.inventory[crop.id] ?: 0) + 1)
-        val unlockCropId = unlockByProgress(state)
+        val unlockedCropId = unlockByProgress(state)
         state.plots =
             state.plots.mapIndexed { i, p ->
                 if (i == index) {
@@ -309,7 +327,7 @@ object FarmSimulator {
             toastRes = R.string.bear_farm_toast_harvest,
             toastArgs = listOf(crop.emoji, crop.nameZh),
             rewards = listOf(FarmRewardSpec(index, "+1 ${crop.emoji}")),
-            unlockCropId = unlockCropId,
+            unlockCropIds = listOfNotNull(unlockedCropId),
         )
     }
 
@@ -339,6 +357,7 @@ object FarmSimulator {
                             FERTILIZE_HOURS,
                             farmWeatherEffect(weather),
                             seasonGrowthMul(state.completedSeasons),
+                            preferred = crop.prefers(weather),
                         )
                     }
                 } else {
@@ -395,7 +414,7 @@ object FarmSimulator {
         var debugged = 0
         var cleared = 0
         val rewards = mutableListOf<FarmRewardSpec>()
-        var unlockCropId: String? = null
+        val unlockCropIds = mutableListOf<String>()
         state.plots.indices.forEach { index ->
             val plot = state.plots[index]
             val effect =
@@ -424,7 +443,7 @@ object FarmSimulator {
                 }
             if (effect != null) {
                 rewards += effect.rewards
-                if (unlockCropId == null) unlockCropId = effect.unlockCropId
+                unlockCropIds += effect.unlockCropIds
             }
         }
         val done = harvested + watered + weeded + debugged + cleared
@@ -432,13 +451,13 @@ object FarmSimulator {
             toastRes = if (done == 0) R.string.bear_farm_care_all_nothing else R.string.bear_farm_care_all_summary,
             toastArgs = if (done == 0) emptyList() else listOf(harvested, watered, weeded, debugged, cleared),
             rewards = rewards,
-            unlockCropId = unlockCropId,
+            unlockCropIds = unlockCropIds,
         )
     }
 
     /** 开启新一季：重置金币/田地/解锁，保留图鉴与累计记录，获得永久生长加成。 */
     fun startNewSeason(state: FarmState): FarmEffect {
-        if (!state.allCollected) return FarmEffect()
+        if (!state.seasonReady) return FarmEffect()
         state.coins = 80
         state.plots = List(FARM_PLOT_COUNT) { FarmPlotState(lastTickMs = System.currentTimeMillis()) }
         state.unlocked = setOf("radish", "cabbage", "wheat", "tomato")

@@ -4,12 +4,13 @@ import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * [MazeGame] 会话存档 / 进度读档的 JVM 单测：
- * 覆盖「保留无尽进度退出不再被 onDispose/ON_STOP 覆盖」与星数读档 clamp。
+ * 覆盖三种模式的存档-恢复往返、选关阶段不清档、主动放弃清档与星数读档 clamp。
  */
 class MazeGameSessionTest {
     private val sessionKey = "maze_session_v1"
@@ -32,18 +33,52 @@ class MazeGameSessionTest {
     }
 
     @Test
-    fun saveSession_selectWithoutResumeEndless_clearsSession() {
+    fun saveSession_selectKeepsCampaignAndDailySessions() {
         val prefs = FakePrefs()
         val game = MazeGame()
-        game.startEndless(1)
+
+        game.startLevel(5)
+        game.saveSession(prefs)
+        val campaignSaved = prefs.getString(sessionKey, null)
+        game.openSelect()
+        game.saveSession(prefs)
+        assertEquals("看一眼选关不应清掉战役存档", campaignSaved, prefs.getString(sessionKey, null))
+
+        game.startDaily(20_000L)
+        game.saveSession(prefs)
+        val dailySaved = prefs.getString(sessionKey, null)
+        game.openSelect()
+        game.saveSession(prefs)
+        assertEquals("看一眼选关不应清掉每日存档", dailySaved, prefs.getString(sessionKey, null))
+    }
+
+    @Test
+    fun abandonSession_clearsSavedSession() {
+        val prefs = FakePrefs()
+        val game = MazeGame()
+        game.startLevel(2)
         game.saveSession(prefs)
         assertTrue(prefs.contains(sessionKey))
 
+        game.abandonSession(prefs)
         game.openSelect()
-        game.resumeEndless = false
         game.saveSession(prefs)
 
-        assertFalse("战役对局选关退出应清理会话", prefs.contains(sessionKey))
+        assertFalse("主动放弃后选关兜底 saveSession 不应复活存档", prefs.contains(sessionKey))
+    }
+
+    @Test
+    fun startNewRunAfterAbandon_clearsOldSession() {
+        val prefs = FakePrefs()
+        val game = MazeGame()
+        game.startLevel(5)
+        game.saveSession(prefs)
+
+        // 选关页点新关卡：确认放弃旧档 → 开始新局
+        game.abandonSession(prefs)
+        game.startLevel(3)
+
+        assertFalse("开始新局应清掉旧档", prefs.contains(sessionKey))
     }
 
     @Test
@@ -57,8 +92,129 @@ class MazeGameSessionTest {
         val restored = MazeGame()
         assertTrue(restored.restoreSession(prefs))
         assertEquals(MazePhase.PLAYING, restored.phase)
-        assertTrue(restored.resumeEndless)
+        assertTrue(restored.endless)
         assertEquals("恢复后应保留快照，供再次被杀时恢复", saved, prefs.getString(sessionKey, null))
+    }
+
+    @Test
+    fun restoreSession_campaignRoundTripsLevelIndex() {
+        val prefs = FakePrefs()
+        val source = MazeGame()
+        source.startLevel(7)
+        source.moves = 3
+        source.saveSession(prefs)
+
+        val restored = MazeGame()
+        assertTrue(restored.restoreSession(prefs))
+        assertFalse(restored.endless)
+        assertFalse(restored.daily)
+        assertEquals(7, restored.levelIndex)
+        assertEquals(3, restored.moves)
+        assertEquals(MazePhase.PLAYING, restored.phase)
+    }
+
+    @Test
+    fun restoreSession_endlessRoundTripsWave() {
+        val prefs = FakePrefs()
+        val source = MazeGame()
+        source.startEndless(6)
+        source.saveSession(prefs)
+
+        val restored = MazeGame()
+        assertTrue(restored.restoreSession(prefs))
+        assertTrue(restored.endless)
+        assertFalse(restored.daily)
+        assertEquals(6, restored.endlessWave)
+        assertTrue(
+            "恢复的无尽棋盘应与原局一致",
+            restored.level.map == source.level.map,
+        )
+    }
+
+    @Test
+    fun restoreSession_dailyRoundTripsDateInsteadOfCampaignLevel() {
+        val prefs = FakePrefs()
+        val source = MazeGame()
+        source.startDaily(20_123L)
+        source.saveSession(prefs)
+
+        val restored = MazeGame()
+        assertTrue(restored.restoreSession(prefs))
+        assertTrue("每日档必须按每日模式恢复", restored.daily)
+        assertFalse(restored.endless)
+        assertEquals(20_123L, restored.dailyDate)
+        assertEquals(-1, restored.levelIndex)
+        assertEquals(MazePhase.PLAYING, restored.phase)
+        assertTrue(
+            "每日档恢复的棋盘应与当日布局一致",
+            restored.level.map == source.level.map,
+        )
+    }
+
+    @Test
+    fun peekSavedSession_recognizesAllThreeTypes() {
+        val prefs = FakePrefs()
+        val game = MazeGame()
+        assertNull("无会话应返回 null", game.peekSavedSession(prefs))
+
+        game.startLevel(9)
+        game.saveSession(prefs)
+        val campaign = game.peekSavedSession(prefs)
+        assertTrue("战役会话应识别为 Campaign", campaign is SavedSessionInfo.Campaign)
+        assertEquals(9, (campaign as SavedSessionInfo.Campaign).levelIndex)
+
+        game.startEndless(4)
+        game.saveSession(prefs)
+        val endless = game.peekSavedSession(prefs)
+        assertTrue("无尽会话应识别为 Endless", endless is SavedSessionInfo.Endless)
+        assertEquals(4, (endless as SavedSessionInfo.Endless).wave)
+
+        game.startDaily(20_321L)
+        game.saveSession(prefs)
+        val daily = game.peekSavedSession(prefs)
+        assertTrue("每日会话应识别为 Daily", daily is SavedSessionInfo.Daily)
+        assertEquals(20_321L, (daily as SavedSessionInfo.Daily).dateEpochDay)
+    }
+
+    @Test
+    fun saveSession_afterClear_dropsResumableSession() {
+        val prefs = FakePrefs()
+        val game = MazeGame()
+        game.startLevel(1)
+        game.saveSession(prefs)
+        assertTrue(prefs.contains(sessionKey))
+
+        // 结算相位：不应再保留可续会话，避免选关页出现已结算的旧档
+        game.phase = MazePhase.CLEAR
+        game.saveSession(prefs)
+
+        assertFalse(prefs.contains(sessionKey))
+        assertNull(game.peekSavedSession(prefs))
+    }
+
+    @Test
+    fun peekSavedSession_nullAfterAbandon() {
+        val prefs = FakePrefs()
+        val game = MazeGame()
+        game.startDaily(20_321L)
+        game.saveSession(prefs)
+        assertNotNull(game.peekSavedSession(prefs))
+
+        game.abandonSession(prefs)
+        assertNull(game.peekSavedSession(prefs))
+    }
+
+    @Test
+    fun restoreSession_roundTripsHintsUsed() {
+        val prefs = FakePrefs()
+        val source = MazeGame()
+        source.startEndless(1)
+        source.hintsUsed = 3
+        source.saveSession(prefs)
+
+        val restored = MazeGame()
+        assertTrue(restored.restoreSession(prefs))
+        assertEquals(3, restored.hintsUsed)
     }
 
     @Test

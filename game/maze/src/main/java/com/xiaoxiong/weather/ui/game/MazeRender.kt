@@ -3,31 +3,134 @@ package com.xiaoxiong.weather.ui.game
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
 // ---------------- 绘制 ----------------
 
-internal fun DrawScope.drawMazeWorld(
-    game: MazeGame,
-    sprites: BearSprites,
-    style: MazeThemeStyle,
-) {
+// 常量颜色：避免每帧/每格重复 copy(alpha)。
+private val boardShadow = Color.Black.copy(alpha = 0.18f)
+private val wallShadow = Color.Black.copy(alpha = 0.22f)
+private val wallSeamHigh = Color.Black.copy(alpha = 0.10f)
+private val wallSeamLow = Color.Black.copy(alpha = 0.07f)
+private val floorInnerShadow = Color.Black.copy(alpha = 0.06f)
+private val floorHighlight = Color.White.copy(alpha = 0.10f)
+private val honeyBase = Color(0xFFFFB300)
+private val honeyTop = Color(0xFFFFD54F)
+private val honeyLid = Color(0xFF8D6E63)
+private val keyGold = Color(0xFFFFD54F)
+private val lockBrown = Color(0xFF6D4C41)
+private val portalOuter = Color(0xFF7E57C2)
+private val portalRing = Color(0xFFB39DDB)
+private val portalCore = Color(0xFFE1BEE7)
+private val portalBand1 = Color(0xFF80CBC4)
+private val portalBand2 = Color(0xFFFFAB91)
+private val portalBand3 = Color(0xFFCE93D8)
+private val exitFrame = Color(0xFF6A7A6E)
+private val exitDoorOpen = Color(0xFF66BB6A)
+private val exitDoorClosed = Color(0xFF90A4AE)
+private val exitKnob = Color(0xFFFFF176)
+private val exitGlow = Color(0xFFA5D6A7)
+private val exitInner = Color(0xFFC8E6C9)
+
+/** 棋盘布局：由画布尺寸与行列数决定，供静态层烘焙与动态层共用，保证坐标一致。 */
+private class BoardLayout(
+    val cell: Float,
+    val ox: Float,
+    val oy: Float,
+)
+
+private fun boardLayout(
+    rows: Int,
+    cols: Int,
+    size: Size,
+): BoardLayout {
     val pad = 16f
     val hudTop = 110f
     val hudBottom = 200f
     val availW = size.width - pad * 2
     val availH = size.height - hudTop - hudBottom
-    val cell = min(availW / game.cols, availH / game.rows)
+    val cell = min(availW / cols, availH / rows)
+    val boardW = cell * cols
+    val boardH = cell * rows
+    return BoardLayout(
+        cell = cell,
+        ox = (size.width - boardW) / 2f,
+        oy = hudTop + (availH - boardH) / 2f,
+    )
+}
+
+/**
+ * 静态底层（墙/地板）缓存：墙与地板不随对局变化，按关卡/主题/画布尺寸烘焙一次，
+ * 之后每帧只 drawImage。蜂蜜/钥匙/锁等叠加物仍逐帧绘制。
+ */
+internal class MazeBaseLayerCache {
+    private var bitmap: ImageBitmap? = null
+    private var cachedLevel: MazeLevel? = null
+    private var cachedStyle: MazeThemeStyle? = null
+    private var cachedWidth = 0
+    private var cachedHeight = 0
+
+    fun bitmapFor(
+        game: MazeGame,
+        style: MazeThemeStyle,
+        size: Size,
+        density: Density,
+        layoutDirection: LayoutDirection,
+    ): ImageBitmap? {
+        val w = ceil(size.width).toInt()
+        val h = ceil(size.height).toInt()
+        if (w <= 0 || h <= 0) return null
+        val level = game.level
+        val cached = bitmap
+        if (cached != null &&
+            cachedWidth == w &&
+            cachedHeight == h &&
+            cachedLevel === level &&
+            cachedStyle == style
+        ) {
+            return cached
+        }
+        val next = ImageBitmap(w, h)
+        // 用原始浮点 size 布局，保证与直接绘制坐标一致；bitmap 取 ceil 仅多出边缘空像素。
+        CanvasDrawScope().draw(density, layoutDirection, Canvas(next), size) {
+            drawMazeCellBases(game, style)
+        }
+        bitmap = next
+        cachedLevel = level
+        cachedStyle = style
+        cachedWidth = w
+        cachedHeight = h
+        return next
+    }
+}
+
+internal fun DrawScope.drawMazeWorld(
+    game: MazeGame,
+    sprites: BearSprites,
+    style: MazeThemeStyle,
+    baseLayer: MazeBaseLayerCache,
+) {
+    val layout = boardLayout(game.rows, game.cols, size)
+    val cell = layout.cell
+    val ox = layout.ox
+    val oy = layout.oy
     val boardW = cell * game.cols
     val boardH = cell * game.rows
-    val ox = (size.width - boardW) / 2f
-    val oy = hudTop + (availH - boardH) / 2f
 
     // 天空地平线光晕：位于棋盘上方天空带，让背景更立体
     val horizonY = oy - cell * 0.5f
@@ -40,17 +143,37 @@ internal fun DrawScope.drawMazeWorld(
 
     // 棋盘阴影
     drawRoundRect(
-        Color.Black.copy(alpha = 0.18f),
+        boardShadow,
         Offset(ox + 4f, oy + 6f),
         Size(boardW, boardH),
         CornerRadius(12f),
     )
 
-    for (r in 0 until game.rows) {
-        for (c in 0 until game.cols) {
-            val x = ox + c * cell
+    // 静态底层：命中缓存则一次 drawImage，否则回退逐格绘制
+    val base = baseLayer.bitmapFor(game, style, size, this, layoutDirection)
+    if (base != null) {
+        drawImage(
+            image = base,
+            srcOffset = IntOffset.Zero,
+            srcSize = IntSize(base.width, base.height),
+            dstOffset = IntOffset.Zero,
+            dstSize = IntSize(base.width, base.height),
+            filterQuality = FilterQuality.None,
+        )
+    } else {
+        for (r in 0 until game.rows) {
             val y = oy + r * cell
-            drawCell(game, style, r, c, x, y, cell)
+            for (c in 0 until game.cols) {
+                drawCellBase(game, style, r, c, ox + c * cell, y, cell)
+            }
+        }
+    }
+
+    // 动态/叠加层：蜂蜜脉冲、传送门旋转、出口开门、冰/钥匙/锁/起点
+    for (r in 0 until game.rows) {
+        val y = oy + r * cell
+        for (c in 0 until game.cols) {
+            drawCellOverlay(game, style, r, c, ox + c * cell, y, cell)
         }
     }
 
@@ -59,6 +182,21 @@ internal fun DrawScope.drawMazeWorld(
     val bx = ox + (bc + 0.5f) * cell
     val by = oy + (br + 0.5f) * cell
     drawMazeBear(game, sprites, bx, by, cell)
+}
+
+/** 烘焙静态底层：遍历所有格绘制墙/地板，供 [MazeBaseLayerCache] 调用。 */
+private fun DrawScope.drawMazeCellBases(
+    game: MazeGame,
+    style: MazeThemeStyle,
+) {
+    val layout = boardLayout(game.rows, game.cols, size)
+    val cell = layout.cell
+    for (r in 0 until game.rows) {
+        val y = layout.oy + r * cell
+        for (c in 0 until game.cols) {
+            drawCellBase(game, style, r, c, layout.ox + c * cell, y, cell)
+        }
+    }
 }
 
 /** 整局天气覆盖层：雨/雪/雷暴时叠加与当前天气一致的粒子与天色；雨点密度随雨势。 */
@@ -144,14 +282,7 @@ internal fun DrawScope.drawMazeWeather(
                 lenMul = 1.25f,
                 alpha = 0.6f,
             )
-            if (sin(game.time * 6f) > 0.90f) {
-                drawLine(
-                    Color(0xFFFFF59D).copy(alpha = 0.85f),
-                    Offset(size.width * 0.7f, 0f),
-                    Offset(size.width * 0.58f, size.height * 0.16f),
-                    strokeWidth = 3f,
-                )
-            }
+            drawStormLightning(game.time, 1f, size.width, size.height)
         }
         FarmWeather.SNOWY -> {
             drawRect(Color(0xFFB9C7D6).copy(alpha = 0.08f))
@@ -232,7 +363,8 @@ internal fun DrawScope.drawThemeFx(
     }
 }
 
-internal fun DrawScope.drawCell(
+/** 静态底层单格：墙或地板。不随对局变化，可安全烘焙。 */
+private fun DrawScope.drawCellBase(
     game: MazeGame,
     style: MazeThemeStyle,
     r: Int,
@@ -247,7 +379,7 @@ internal fun DrawScope.drawCell(
         MazeTile.WALL -> {
             // 墙体底部阴影（右下）
             drawRoundRect(
-                Color.Black.copy(alpha = 0.22f),
+                wallShadow,
                 Offset(x + pad * 0.55f, y + pad * 0.55f),
                 Size(cell - pad * 0.5f, cell - pad * 0.5f),
                 CornerRadius(cell * 0.12f),
@@ -268,13 +400,13 @@ internal fun DrawScope.drawCell(
             )
             // 砖缝：两条细横线压暗，做出立体分层
             drawLine(
-                Color.Black.copy(alpha = 0.10f),
+                wallSeamHigh,
                 Offset(x + pad * 1.6f, y + pad + cell * 0.52f),
                 Offset(x + cell - pad * 1.6f, y + pad + cell * 0.52f),
                 strokeWidth = 1.5f,
             )
             drawLine(
-                Color.Black.copy(alpha = 0.07f),
+                wallSeamLow,
                 Offset(x + pad * 1.6f, y + pad + cell * 0.78f),
                 Offset(x + cell - pad * 1.6f, y + pad + cell * 0.78f),
                 strokeWidth = 1.5f,
@@ -290,7 +422,7 @@ internal fun DrawScope.drawCell(
             )
             // 地板四周内阴影，增强格子边界立体感
             drawRoundRect(
-                Color.Black.copy(alpha = 0.06f),
+                floorInnerShadow,
                 Offset(x + pad * 0.5f, y + pad * 0.5f),
                 Size(cell - pad, cell - pad),
                 CornerRadius(cell * 0.1f),
@@ -298,12 +430,26 @@ internal fun DrawScope.drawCell(
             )
             // 轻量纹理：左上高光小角
             drawCircle(
-                Color.White.copy(alpha = 0.10f),
+                floorHighlight,
                 cell * 0.08f,
                 Offset(x + pad + cell * 0.16f, y + pad + cell * 0.18f),
             )
         }
     }
+}
+
+/** 动态叠加单格：冰/蜂蜜/钥匙/锁/传送门/出口/起点。 */
+private fun DrawScope.drawCellOverlay(
+    game: MazeGame,
+    style: MazeThemeStyle,
+    r: Int,
+    c: Int,
+    x: Float,
+    y: Float,
+    cell: Float,
+) {
+    val tile = game.grid[r][c]
+    val pad = cell * 0.06f
     val cx = x + cell / 2
     val cy = y + cell / 2
     when (tile.tile) {
@@ -323,10 +469,10 @@ internal fun DrawScope.drawCell(
         }
         MazeTile.HONEY -> {
             // 蜜罐
-            drawCircle(Color(0xFFFFB300), cell * 0.22f, Offset(cx, cy + cell * 0.02f))
-            drawCircle(Color(0xFFFFD54F), cell * 0.14f, Offset(cx, cy - cell * 0.02f))
+            drawCircle(honeyBase, cell * 0.22f, Offset(cx, cy + cell * 0.02f))
+            drawCircle(honeyTop, cell * 0.14f, Offset(cx, cy - cell * 0.02f))
             drawRoundRect(
-                Color(0xFF8D6E63),
+                honeyLid,
                 Offset(cx - cell * 0.12f, cy - cell * 0.22f),
                 Size(cell * 0.24f, cell * 0.1f),
                 CornerRadius(3f),
@@ -336,9 +482,9 @@ internal fun DrawScope.drawCell(
             drawCircle(Color.White.copy(alpha = 0.35f * pulse), cell * 0.08f, Offset(cx - cell * 0.06f, cy - cell * 0.06f))
         }
         MazeTile.KEY -> {
-            drawCircle(Color(0xFFFFD54F), cell * 0.14f, Offset(cx, cy - cell * 0.08f))
+            drawCircle(keyGold, cell * 0.14f, Offset(cx, cy - cell * 0.08f))
             drawRoundRect(
-                Color(0xFFFFD54F),
+                keyGold,
                 Offset(cx - cell * 0.05f, cy - cell * 0.02f),
                 Size(cell * 0.1f, cell * 0.28f),
                 CornerRadius(2f),
@@ -347,13 +493,13 @@ internal fun DrawScope.drawCell(
         }
         MazeTile.LOCK -> {
             drawRoundRect(
-                Color(0xFF6D4C41),
+                lockBrown,
                 Offset(cx - cell * 0.22f, cy - cell * 0.1f),
                 Size(cell * 0.44f, cell * 0.32f),
                 CornerRadius(4f),
             )
             drawArc(
-                Color(0xFF6D4C41),
+                lockBrown,
                 startAngle = 180f,
                 sweepAngle = 180f,
                 useCenter = false,
@@ -361,19 +507,19 @@ internal fun DrawScope.drawCell(
                 size = Size(cell * 0.32f, cell * 0.28f),
                 style = Stroke(width = cell * 0.08f),
             )
-            drawCircle(Color(0xFFFFD54F), cell * 0.06f, Offset(cx, cy + cell * 0.02f))
+            drawCircle(keyGold, cell * 0.06f, Offset(cx, cy + cell * 0.02f))
         }
         MazeTile.PORTAL -> {
             val spin = game.time * 120f
             run {
-                drawCircle(Color(0xFF7E57C2).copy(alpha = 0.35f), cell * 0.32f, Offset(cx, cy))
+                drawCircle(portalOuter.copy(alpha = 0.35f), cell * 0.32f, Offset(cx, cy))
                 drawCircle(
-                    Color(0xFFB39DDB),
+                    portalRing,
                     cell * 0.22f,
                     Offset(cx, cy),
                     style = Stroke(width = cell * 0.06f),
                 )
-                drawCircle(Color(0xFFE1BEE7), cell * 0.10f, Offset(cx, cy))
+                drawCircle(portalCore, cell * 0.10f, Offset(cx, cy))
                 // 旋转星芒
                 for (i in 0 until 4) {
                     val a = Math.PI.toFloat() / 2f * i + spin * 0.017f
@@ -390,30 +536,29 @@ internal fun DrawScope.drawCell(
             // skip text — use color bands by id
             val band =
                 when (tile.portalId % 3) {
-                    1 -> Color(0xFF80CBC4)
-                    2 -> Color(0xFFFFAB91)
-                    else -> Color(0xFFCE93D8)
+                    1 -> portalBand1
+                    2 -> portalBand2
+                    else -> portalBand3
                 }
             drawCircle(band, cell * 0.06f, Offset(cx, cy - cell * 0.28f))
         }
         MazeTile.EXIT -> {
             val open = game.honeyLeft == 0
             // 门框：深色立柱 + 门楣
-            val frameC = Color(0xFF6A7A6E)
             drawRoundRect(
-                frameC,
+                exitFrame,
                 Offset(cx - cell * 0.32f, cy - cell * 0.34f),
                 Size(cell * 0.08f, cell * 0.66f),
                 CornerRadius(cell * 0.03f),
             )
             drawRoundRect(
-                frameC,
+                exitFrame,
                 Offset(cx + cell * 0.24f, cy - cell * 0.34f),
                 Size(cell * 0.08f, cell * 0.66f),
                 CornerRadius(cell * 0.03f),
             )
             drawRoundRect(
-                frameC.copy(alpha = 0.85f),
+                exitFrame.copy(alpha = 0.85f),
                 Offset(cx - cell * 0.32f, cy - cell * 0.42f),
                 Size(cell * 0.64f, cell * 0.10f),
                 CornerRadius(cell * 0.04f),
@@ -425,7 +570,7 @@ internal fun DrawScope.drawCell(
                 } else {
                     0f
                 }
-            val doorCol = if (open) Color(0xFF66BB6A) else Color(0xFF90A4AE)
+            val doorCol = if (open) exitDoorOpen else exitDoorClosed
             if (openT < 1f) {
                 val dy = -openT * cell * 0.42f
                 drawRoundRect(
@@ -434,15 +579,15 @@ internal fun DrawScope.drawCell(
                     Size(cell * 0.56f, cell * 0.6f),
                     CornerRadius(cell * 0.08f),
                 )
-                drawCircle(Color(0xFFFFF176), cell * 0.07f, Offset(cx + cell * 0.14f, cy + dy))
+                drawCircle(exitKnob, cell * 0.07f, Offset(cx + cell * 0.14f, cy + dy))
             }
             if (open) {
                 // 门洞发光：脉动光环
                 val pulse = 0.5f + 0.5f * sin(game.time * 3f)
-                drawCircle(Color(0xFFA5D6A7).copy(alpha = 0.40f + 0.2f * pulse), cell * 0.42f, Offset(cx, cy))
+                drawCircle(exitGlow.copy(alpha = 0.40f + 0.2f * pulse), cell * 0.42f, Offset(cx, cy))
                 // 门洞内侧亮光
                 drawRoundRect(
-                    Color(0xFFC8E6C9).copy(alpha = 0.5f),
+                    exitInner.copy(alpha = 0.5f),
                     Offset(cx - cell * 0.26f, cy - cell * 0.30f),
                     Size(cell * 0.52f, cell * 0.56f),
                     CornerRadius(cell * 0.06f),

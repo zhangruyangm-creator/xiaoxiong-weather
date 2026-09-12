@@ -16,5 +16,11 @@
     <string name="bear_character_sun">Sun bear</string>
     <string name="bear_character_sun_detail">Honey-brown sun bear — same as the weather explore art.</string>
     <string name="bear_character_done">Done</string>
+    <string name="bear_pause_title">Paused</string>
+    <string name="bear_pause_resume">Resume</string>
+    <string name="bear_pause_restart">Restart</string>
+    <string name="bear_pause_settings">Settings</string>
+    <string name="bear_pause_exit">Quit game</string>
+    <string name="cd_bear_pause">Pause</string>
     <string name="share_card_cancel">Cancel</string>
 </resources>

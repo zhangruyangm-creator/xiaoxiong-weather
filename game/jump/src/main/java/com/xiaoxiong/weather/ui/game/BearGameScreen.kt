@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
+import android.content.SharedPreferences
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
@@ -28,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -52,15 +54,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
 /** 跑酷场景：跟随当前天气。阴/雨（按强度分档）/雪/雷暴/冻雨/冰雹渲染对应粒子与灰调背景。 */
 enum class RunScene { SUNNY, CLOUDY, RAIN_LIGHT, RAIN, RAIN_HEAVY, SNOW, STORM, FREEZING_RAIN, HAIL }
+
+/** 跑酷快照键：对局进行中落盘，结束/重开/退出时清除。 */
+private const val JUMP_SNAPSHOT_KEY = "jump_snapshot_v1"
+
+/** 快照 meta 段的字段数，用于坏档校验。 */
+private const val JUMP_SNAPSHOT_META_FIELDS = 22
 
 private fun runSceneFromWeather(
     weather: FarmWeather,
@@ -122,6 +134,12 @@ class BearGame {
     var phase by mutableStateOf(GamePhase.READY)
     var best by mutableIntStateOf(0)
 
+    /** HUD 实时分数：仅在整数值变化时写入，避免组合期读取帧计数器导致每帧整屏重组。 */
+    var hudScore by mutableIntStateOf(0)
+
+    /** 连续吃金币、无漏接的连击数；仅供 HUD 展示（漏接/死亡/重开归零）。 */
+    var combo by mutableIntStateOf(0)
+
     /** 当前天气场景；由 [BearGameScreen] 在天气变化时刷新。 */
     var scene by mutableStateOf(RunScene.SUNNY)
 
@@ -136,8 +154,8 @@ class BearGame {
     var grounded = true
     var nextGap = Float.MAX_VALUE
 
-    /** 视差山丘 Path 缓存：key = heightRatio，避免每帧重建 Path 引发 GC。 */
-    var hillPathCache: Pair<Float, Path>? = null
+    /** 视差山丘 Path 缓存：key = (heightRatio, s)，避免每帧重建 Path 引发 GC。 */
+    val hillPathCache = mutableMapOf<Pair<Float, Float>, Path>()
     var bob = 0f
     var runPhase = 0f
     var deadT = 0f
@@ -155,11 +173,26 @@ class BearGame {
     var shakeT = 0f
     var dustT = 0f
 
+    /** 离地时长（秒）：土狼时间内仍可补第一段跳。 */
+    var airTime = 0f
+
+    /** 跳跃缓冲剩余时间（秒）：落地前点按会缓存，落地时立即消费。 */
+    var jumpBufferT = 0f
+
+    /** 下一个里程碑分数阈值：每 500 分飘一个字。 */
+    var nextMilestone = 500
+
     val obstacles = mutableListOf<Obstacle>()
     val coins = mutableListOf<Coin>()
     val clouds = mutableListOf<BgCloud>()
     val particles = mutableListOf<Particle>()
     val texts = mutableListOf<FloatText>()
+
+    /** 主动放弃/结束/退出后置位：阻止 ON_STOP/onDispose 的兜底落盘把已清理的对局写回复活。 */
+    private var snapshotDiscarded = false
+
+    /** 恢复出的快照尺寸：首次 resize 若与之一致则保留恢复状态，避免被整局回准备态。 */
+    private var restoredSize: IntSize? = null
 
     val s get() = size.height / 820f
     val groundY get() = size.height * 0.80f
@@ -178,15 +211,35 @@ class BearGame {
 
     fun score(): Int = BearGameLogic.score(distance, coinCount, s)
 
-    fun resize(newSize: IntSize) {
+    fun resize(
+        newSize: IntSize,
+        preserveRunning: Boolean = false,
+    ) {
         if (newSize == size || newSize.height <= 0) return
+        val oldS = s
+        // 恢复快照后首次拿到与存档一致的尺寸：保留恢复出的对局，不能整局回准备态；
+        // 真实旋转导致尺寸变化时 restoredSize 不匹配，仍按原逻辑重置。
+        // preserveRunning：暂停中改窗口尺寸（分屏折叠等）保留对局，避免暂停菜单分数失效。
+        val keepRestored = phase == GamePhase.RUNNING && (newSize == restoredSize || preserveRunning)
         size = newSize
-        // 对局中改尺寸会让障碍像素与碰撞错位，直接整局回准备态
-        if (phase == GamePhase.RUNNING || phase == GamePhase.OVER) {
-            phase = GamePhase.READY
-            reset()
-        } else if (phase == GamePhase.READY) {
-            reset()
+        // s 随尺寸变化，旧的 Path 不再命中且会占内存，直接清空
+        hillPathCache.clear()
+        restoredSize = null
+        if (keepRestored || phase == GamePhase.OVER) {
+            // 保留对局/结算展示：按新缩放折算距离，resize 前后 score() 数值保持一致
+            if (oldS > 0f) distance *= s / oldS
+        }
+        if (!keepRestored) {
+            when (phase) {
+                // 结算界面改窗口（旋转/分屏）：只更新尺寸，保留本局分数（对齐接雨雪）
+                GamePhase.OVER -> Unit
+                // 对局中改尺寸会让障碍像素与碰撞错位，直接整局回准备态
+                GamePhase.RUNNING -> {
+                    phase = GamePhase.READY
+                    reset()
+                }
+                else -> reset()
+            }
         }
         bearY = bearY.coerceIn(-size.height.toFloat(), floorY)
         if (clouds.isEmpty()) {
@@ -207,6 +260,7 @@ class BearGame {
         distance = 0f
         speed = 0f
         coinCount = 0
+        hudScore = 0
         bearY = floorY
         bearVY = 0f
         jumpsLeft = 2
@@ -220,6 +274,10 @@ class BearGame {
         flipT = -1f
         shakeT = 0f
         dustT = 0f
+        airTime = 0f
+        jumpBufferT = 0f
+        combo = 0
+        nextMilestone = 500
         obstacles.clear()
         coins.clear()
         particles.clear()
@@ -227,6 +285,7 @@ class BearGame {
     }
 
     fun start() {
+        snapshotDiscarded = false
         reset()
         phase = GamePhase.RUNNING
         speed = 340f * s
@@ -236,13 +295,26 @@ class BearGame {
         when (phase) {
             GamePhase.READY -> start()
             GamePhase.RUNNING ->
-                if (jumpsLeft > 0) {
-                    bearVY = if (jumpsLeft == 2) jumpV else jumpV2
-                    jumpsLeft--
-                    grounded = false
-                    // 二段跳触发前空翻
-                    if (jumpsLeft == 0) flipT = 0f
-                    burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+                when (BearGameLogic.resolveJumpIntent(grounded, airTime, jumpsLeft)) {
+                    BearGameLogic.JumpIntent.FIRST -> {
+                        bearVY = jumpV
+                        jumpsLeft = 1
+                        grounded = false
+                        airTime = 0f
+                        jumpBufferT = 0f
+                        burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+                    }
+                    BearGameLogic.JumpIntent.SECOND -> {
+                        bearVY = jumpV2
+                        jumpsLeft = 0
+                        grounded = false
+                        airTime = 0f
+                        jumpBufferT = 0f
+                        flipT = 0f
+                        burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+                    }
+                    // 空中且没有剩余跳跃：缓存这次点按，落地时立即消费（跳跃缓冲）
+                    BearGameLogic.JumpIntent.NONE -> jumpBufferT = BearGameLogic.JUMP_BUFFER_SEC
                 }
             GamePhase.OVER -> Unit
         }
@@ -373,13 +445,18 @@ class BearGame {
             }
         val x = size.width + 48f * s
         obstacles += Obstacle(type, x, w, h)
-        if (Random.nextFloat() < 0.4f) {
-            // 障碍上方一道金币弧线，鼓励踩着节奏跳
-            val cy = groundY - bearSize - (30f + Random.nextFloat() * 46f) * s
-            for (i in -2..2) {
-                val lift = (2 - abs(i)) * 14f * s
-                coins += Coin(x + w / 2 + i * 34f * s, cy - lift, 11f * s)
-            }
+        // 障碍上方一道金币弧线，鼓励踩着节奏跳；冰墙不生成（会落进墙体变陷阱）
+        val arcYs =
+            BearGameLogic.coinArcYs(
+                type = type,
+                roll = Random.nextFloat(),
+                lift = Random.nextFloat(),
+                groundY = groundY,
+                bearSize = bearSize,
+                s = s,
+            )
+        for ((idx, cy) in arcYs.withIndex()) {
+            coins += Coin(x + w / 2 + (idx - 2) * 34f * s, cy, 11f * s)
         }
     }
 
@@ -424,6 +501,7 @@ class BearGame {
         val dx = speed * dt
         distance += dx
         if (flipT >= 0f) flipT += dt
+        if (jumpBufferT > 0f) jumpBufferT = (jumpBufferT - dt).coerceAtLeast(0f)
 
         // 小熊物理（核心推进委托给引擎层，保证帧行为可测）
         val ph = BearGameLogic.stepBearPhysics(bearY, bearVY, jumpsLeft, grounded, floorY, s, dt)
@@ -432,7 +510,18 @@ class BearGame {
         jumpsLeft = ph.jumpsLeft
         grounded = ph.grounded
         if (ph.grounded) {
+            airTime = 0f
             if (ph.landed) onLand()
+            // 跳跃缓冲：落地前 ~110ms 的点按在此消费，直接补一段跳
+            if (jumpBufferT > 0f) {
+                jumpBufferT = 0f
+                bearVY = jumpV
+                jumpsLeft = 1
+                grounded = false
+                burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+            }
+        }
+        if (grounded) {
             // 步频跟速度走：步幅相位驱动四肢摆动与身体起伏
             runPhase += runPhaseRate() * dt
             bob = -abs(sin(runPhase)) * 3f * s
@@ -455,14 +544,18 @@ class BearGame {
                 }
             }
         } else {
+            airTime += dt
             bob = 0f
         }
 
         // 世界推进
         obstacles.forEach { it.x -= dx }
         obstacles.removeAll { it.x < -it.w - 20f * s }
+        val coinsBefore = coins.size
         coins.forEach { it.x -= dx }
+        // 漏接金币（飞出左边界）断连击
         coins.removeAll { it.x < -it.r - 20f * s }
+        if (coins.size < coinsBefore) combo = 0
         clouds.forEach {
             it.x -= dx * it.layer + 10f * s * dt
             if (it.x < -140f * s * it.scale) {
@@ -497,6 +590,7 @@ class BearGame {
             for (coinHit in overlapping) {
                 coins.remove(coinHit)
                 coinCount++
+                combo++
                 texts += FloatText(coinHit.x, coinHit.y - 24f * s, "+10")
                 burst(coinHit.x, coinHit.y, count = 4, spread = 150f * s, color = Color(0xFFFFCA28))
                 onCoin()
@@ -518,8 +612,145 @@ class BearGame {
                 )
             }
         if (dead) die(onDeath)
+        val v = score()
+        if (hudScore != v) hudScore = v
+        // 每 500 分里程碑飘字
+        if (v >= nextMilestone) {
+            texts +=
+                FloatText(
+                    bearX + bearSize / 2,
+                    groundY - bearSize * 2.2f,
+                    "$nextMilestone!",
+                )
+            nextMilestone += 500
+        }
+    }
+
+    /** 把足以续玩的一局编码落盘；仅在对局进行中写入，READY/OVER 不写。 */
+    fun saveSnapshot(prefs: SharedPreferences) {
+        if (phase != GamePhase.RUNNING || snapshotDiscarded) return
+        val meta =
+            SnapshotCodec.encode(
+                phase.ordinal,
+                time,
+                distance,
+                speed,
+                coinCount,
+                bearY,
+                bearVY,
+                jumpsLeft,
+                if (grounded) 1 else 0,
+                runPhase,
+                bob,
+                deadT,
+                blinkT,
+                squashT,
+                flipT,
+                shakeT,
+                dustT,
+                nextGap,
+                best,
+                scene.ordinal,
+                size.width,
+                size.height,
+            )
+        val obstacleGroups = obstacles.map { listOf<Number>(it.type.ordinal, it.x, it.w, it.h) }
+        val coinGroups = coins.map { listOf<Number>(it.x, it.y, it.r) }
+        val cloudGroups = clouds.map { listOf<Number>(it.x, it.y, it.scale, it.layer) }
+        val payload =
+            listOf(
+                meta,
+                SnapshotCodec.encodeGroups(obstacleGroups),
+                SnapshotCodec.encodeGroups(coinGroups),
+                SnapshotCodec.encodeGroups(cloudGroups),
+            ).joinToString("\n")
+        GameSnapshot.save(prefs, JUMP_SNAPSHOT_KEY, payload)
+    }
+
+    /** 读取并恢复一局；无档/坏档返回 false，保持 READY。恢复成功后保留快照供再次落盘。 */
+    @Suppress("ReturnCount")
+    fun restoreSnapshot(prefs: SharedPreferences): Boolean {
+        val raw = GameSnapshot.load(prefs, JUMP_SNAPSHOT_KEY) ?: return false
+        val sections = raw.split('\n')
+        val meta = SnapshotCodec.decodeFloatArray(sections.getOrNull(0)) ?: return false
+        if (meta.size < JUMP_SNAPSHOT_META_FIELDS) return false
+        // 只接受 RUNNING 档：旧档/标题档恢复后会造成「标题态却续着残缺对局」的错乱
+        if (GamePhase.entries.getOrNull(meta[0].toInt()) != GamePhase.RUNNING) return false
+        val obstacleGroups = decodeSnapshotSection(sections.getOrNull(1)) ?: return false
+        val coinGroups = decodeSnapshotSection(sections.getOrNull(2)) ?: return false
+        val cloudGroups = decodeSnapshotSection(sections.getOrNull(3)) ?: return false
+        // 先整体校验再落状态，避免坏档半途写入把对局留在 RUNNING 的残缺状态。
+        val newObstacles =
+            obstacleGroups.map { g ->
+                if (g.size < 4) return false
+                val type = ObstacleType.values().getOrNull(g[0].toInt()) ?: return false
+                Obstacle(type, g[1], g[2], g[3])
+            }
+        val newCoins =
+            coinGroups.map { g ->
+                if (g.size < 3) return false
+                Coin(g[0], g[1], g[2])
+            }
+        val newClouds =
+            cloudGroups.map { g ->
+                if (g.size < 4) return false
+                BgCloud(g[0], g[1], g[2], g[3])
+            }
+
+        phase = GamePhase.RUNNING
+        time = meta[1]
+        distance = meta[2]
+        speed = meta[3]
+        coinCount = meta[4].toInt()
+        bearY = meta[5]
+        bearVY = meta[6]
+        jumpsLeft = meta[7].toInt()
+        grounded = meta[8] >= 0.5f
+        runPhase = meta[9]
+        bob = meta[10]
+        deadT = meta[11]
+        blinkT = meta[12]
+        squashT = meta[13]
+        flipT = meta[14]
+        shakeT = meta[15]
+        dustT = meta[16]
+        nextGap = meta[17]
+        // 与现有最高分合并取大：旧快照不得把当前已提升的最高分改小
+        best = max(best, meta[18].toInt())
+        scene = RunScene.values().getOrElse(meta[19].toInt()) { RunScene.SUNNY }
+        val savedW = meta[20].toInt()
+        val savedH = meta[21].toInt()
+        // 恢复可能早于首次 onSizeChanged：用存档尺寸兜底，否则 score() 以零尺寸计算
+        // 会把 hudScore 归零，随后连续重播 500/1000… 里程碑飘字
+        if (size == IntSize.Zero && savedW > 0 && savedH > 0) {
+            size = IntSize(savedW, savedH)
+        }
+        restoredSize = IntSize(savedW, savedH)
+        hudScore = score()
+        nextMilestone = (hudScore / 500 + 1) * 500
+        airTime = 0f
+        jumpBufferT = 0f
+        combo = 0
+        snapshotDiscarded = false
+        obstacles.clear()
+        obstacles += newObstacles
+        coins.clear()
+        coins += newCoins
+        clouds.clear()
+        clouds += newClouds
+        return true
+    }
+
+    /** 清除落盘快照并抑制后续兜底落盘（结束/重开/退出时调用）。 */
+    fun clearSnapshot(prefs: SharedPreferences) {
+        snapshotDiscarded = true
+        GameSnapshot.clear(prefs, JUMP_SNAPSHOT_KEY)
     }
 }
+
+/** 解析快照的一个列表段；空白段视为空列表，非空但解析失败返回 null（坏档）。 */
+private fun decodeSnapshotSection(text: String?): List<FloatArray>? =
+    if (text.isNullOrBlank()) emptyList() else SnapshotCodec.decodeGroups(text)
 
 @Composable
 fun BearGameScreen(
@@ -528,10 +759,10 @@ fun BearGameScreen(
     onExit: () -> Unit,
     cityName: String? = null,
 ) {
-    BackHandler(onBack = onExit)
     val context = LocalContext.current
     val view = LocalView.current
     val style = weatherSceneStyle(sceneCode, isDay, appDark = false)
+    val pause = rememberGamePauseState()
 
     val prefs = rememberGamePrefs()
     val lb = rememberLeaderboardState(prefs, "leaderboard_run", "best")
@@ -542,6 +773,25 @@ fun BearGameScreen(
         remember {
             BearGame().also { it.best = prefs.getInt("best", 0) }
         }
+    // 进程重建（旋转/被杀）后恢复局中对局：放 LaunchedEffect 而非 remember 初始化块，
+    // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。
+    LaunchedEffect(Unit) {
+        game.restoreSnapshot(prefs)
+    }
+    // 组合销毁（切屏/旋转重建）时落盘，按 Home 等 ON_STOP 也落盘，避免进程被回收丢档；
+    // 只有 RUNNING 才写（clearSnapshot 后置位的 discarded 会抑制兜底落盘）。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) game.saveSnapshot(prefs)
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            game.saveSnapshot(prefs)
+        }
+    }
     // 天气/城市变化时实时更新上报所用值，避免 LaunchedEffect(Unit) 闭包捕获开局时的旧值
     val reportSceneCode by rememberUpdatedState(sceneCode)
     val reportCityName by rememberUpdatedState(cityName)
@@ -551,6 +801,19 @@ fun BearGameScreen(
     }
     val bearSprites = rememberBearSprites(characterState.selected)
     var frame by remember { mutableLongStateOf(0L) }
+    // 主动退出视为放弃本局：清档后再导航，onDispose 的兜底落盘不会复活它。
+    val exitGame: () -> Unit = {
+        game.clearSnapshot(prefs)
+        onExit()
+    }
+
+    BackHandler {
+        when {
+            pause.showMenu -> pause.resume()
+            game.phase == GamePhase.RUNNING -> pause.open()
+            else -> exitGame()
+        }
+    }
 
     // 帧循环：切后台不推进、dt 钳制（防掉帧瞬移穿模）由共享层处理。
     // game.tick 只在对局运行（每帧）或节流帧（约 12fps）时调用；
@@ -560,13 +823,14 @@ fun BearGameScreen(
     // 这里按真实帧累计 animDt，整笔提交给 tick（对齐 farm 的写法）。
     var animDt by remember { mutableFloatStateOf(0f) }
     GameFrameLoop(
-        paused = { lb.show || showCharacterPicker },
+        paused = { lb.show || showCharacterPicker || pause.paused },
         onTick = { dt, now ->
             val running = game.phase == GamePhase.RUNNING
             // 标题/结算界面无需 60fps：每 5 帧处理一次（约 12fps），省电并减少重组
             animDt += dt
             if (running || slowTick % 5 == 0) {
-                val worldDt = animDt
+                // 死亡结算走慢动作，其余界面按真实时间推进
+                val worldDt = animDt * gameOverTimeScale(game.phase)
                 animDt = 0f
                 game.tick(
                     worldDt,
@@ -575,6 +839,8 @@ fun BearGameScreen(
                     },
                     onDeath = { score ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        // 对局结束：清除快照，避免下次重进续上已死的一局
+                        game.clearSnapshot(prefs)
                         if (score > game.best) {
                             game.best = score
                             prefs.edit { putInt("best", score) }
@@ -604,7 +870,8 @@ fun BearGameScreen(
                 .fillMaxSize()
                 .background(Brush.verticalGradient(style.gradient))
                 .onSizeChanged { sz ->
-                    game.resize(IntSize(sz.width, sz.height))
+                    // 暂停中改尺寸（分屏/折叠）保留对局，避免菜单分数与实际进度不一致
+                    game.resize(IntSize(sz.width, sz.height), preserveRunning = pause.paused)
                 },
     ) {
         Canvas(
@@ -626,8 +893,8 @@ fun BearGameScreen(
 
         GameHud(
             game = game,
-            frame = frame,
-            onExit = onExit,
+            onExit = exitGame,
+            onPause = if (game.phase == GamePhase.RUNNING) pause::open else null,
             onLeaderboard = {
                 lb.entries = lb.store.load()
                 lb.show = true
@@ -752,11 +1019,12 @@ fun BearGameScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TextButton(onClick = onExit) {
+                            TextButton(onClick = exitGame) {
                                 Text(stringResource(R.string.bear_game_exit))
                             }
                             Button(onClick = {
                                 lb.resetLastRank()
+                                game.clearSnapshot(prefs)
                                 game.start()
                             }) {
                                 Text(stringResource(R.string.bear_game_restart))
@@ -767,14 +1035,29 @@ fun BearGameScreen(
             }
             GamePhase.RUNNING -> Unit
         }
+
+        if (pause.showMenu) {
+            GamePauseOverlay(
+                title = gamePauseTitle(),
+                scoreText = "${game.hudScore}",
+                onResume = pause::resume,
+                onRestart = {
+                    pause.resume()
+                    lb.resetLastRank()
+                    game.clearSnapshot(prefs)
+                    game.start()
+                },
+                onExit = exitGame,
+            )
+        }
     }
 }
 
 @Composable
 private fun GameHud(
     game: BearGame,
-    frame: Long,
     onExit: () -> Unit,
+    onPause: (() -> Unit)?,
     onLeaderboard: () -> Unit,
     onCharacter: () -> Unit,
 ) {
@@ -795,19 +1078,32 @@ private fun GameHud(
         }
         Spacer(modifier = Modifier.weight(1f))
         Column(horizontalAlignment = Alignment.End) {
-            frame // 订阅每帧更新，让实时分数随 distance 推进
-            Text(
-                text = "${game.score()}",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (game.combo >= 2) {
+                    Text(
+                        text = stringResource(R.string.bear_game_combo, game.combo),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFF176),
+                    )
+                }
+                Text(
+                    text = "${game.hudScore}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+            }
             Text(
                 text = stringResource(R.string.bear_game_best_label) + " ${game.best}",
                 style = MaterialTheme.typography.labelMedium,
                 color = Color.White.copy(alpha = 0.8f),
             )
         }
+        if (onPause != null) GamePauseButton(onClick = onPause)
         GameCharacterButton(onClick = onCharacter)
         LeaderboardButton(onClick = onLeaderboard)
     }

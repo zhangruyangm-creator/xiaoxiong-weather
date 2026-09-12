@@ -3,6 +3,9 @@ package com.xiaoxiong.weather.ui.weather
 import android.Manifest
 import android.app.Activity
 import android.app.Application
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -50,6 +53,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -98,6 +102,14 @@ private const val SECRET_TITLE_TAPS = 5
 /** 连点标题的计时窗口（毫秒）：窗口内点击计数，超时清零。 */
 private const val SECRET_TITLE_WINDOW_MS = 2_000L
 
+/** 从 Compose 的 [Context] 沿包装链找到宿主 Activity；找不到返回 null。 */
+private tailrec fun Context.findHostActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findHostActivity()
+        else -> null
+    }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(
@@ -139,6 +151,24 @@ private fun WeatherScreenContent(
     var showShareCard by remember { mutableStateOf(false) }
     // 等 DataStore 真实值读出前不渲染隐私门，避免老用户冷启动闪一下
     var privacyGateResolved by remember { mutableStateOf(false) }
+    var gameActive by remember { mutableStateOf(false) }
+
+    // 游戏激活期间锁定竖屏：旋转会重建 Activity 并丢失 remember 状态（对局直接重开）。
+    // 退出游戏 / 组合销毁时恢复系统默认方向。仅持有 Activity 引用，不做生命周期监听，避免泄漏。
+    val hostActivity = remember(context) { context.findHostActivity() }
+    LaunchedEffect(gameActive, hostActivity) {
+        hostActivity?.requestedOrientation =
+            if (gameActive) {
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+    }
+    DisposableEffect(hostActivity) {
+        onDispose {
+            hostActivity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
 
     // ── 标题连点彩蛋：2s 内连点 5 次打开游戏枢纽（小熊的家）──
     val lastTitleTapAt = remember { mutableLongStateOf(0L) }
@@ -511,6 +541,7 @@ private fun WeatherScreenContent(
                                             lastUpdatedText = state.lastUpdatedText,
                                             radarMapRepository = viewModel.radarMapRepository,
                                             cardLayout = appSettings.todayCards,
+                                            paused = gameActive,
                                         )
                                     1 ->
                                         HourlyPage(
@@ -549,6 +580,7 @@ private fun WeatherScreenContent(
             scope = scope,
             entries = gameEntries,
             requestPassword = secretRequest,
+            onActiveChange = { gameActive = it },
         )
     }
 }

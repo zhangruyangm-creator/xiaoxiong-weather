@@ -43,7 +43,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -107,7 +106,7 @@ internal fun FarmUnlockDialog(
                                 ),
                     )
                     Image(
-                        painter = painterResource(FarmCropArt.ripe(crop)),
+                        bitmap = rememberGameImage(FarmCropArt.ripe(crop), 512),
                         contentDescription = crop.nameZh,
                         modifier = Modifier.size(96.dp),
                         contentScale = ContentScale.Fit,
@@ -125,6 +124,16 @@ internal fun FarmUnlockDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = farmScheme().onSurfaceVariant,
                 )
+                crop.preferredWeather?.let { preferred ->
+                    Text(
+                        stringResource(
+                            R.string.bear_farm_crop_prefers,
+                            stringResource(farmWeatherNameRes(preferred)),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF6D4C41),
+                    )
+                }
                 if (crop.description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -320,7 +329,7 @@ internal fun FarmCatalogDialog(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Image(
-                                        painter = painterResource(FarmCropArt.ripe(crop)),
+                                        bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
                                         contentDescription = crop.nameZh,
                                         modifier =
                                             Modifier
@@ -330,7 +339,7 @@ internal fun FarmCatalogDialog(
                                     )
                                     if (!owned) {
                                         Text(
-                                            "?",
+                                            stringResource(R.string.bear_farm_catalog_unknown),
                                             color = farmScheme().onSurfaceVariant,
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
@@ -363,8 +372,22 @@ internal fun FarmCatalogDialog(
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.bear_farm_season_progress, farm.seasonCollectedCount, farm.seasonGoal),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFF6D4C41),
+                )
+                if (farm.allCollected) {
+                    Text(
+                        stringResource(R.string.bear_farm_all_collected),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = farmScheme().onSecondaryContainer,
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (farm.allCollected) {
+                    if (farm.seasonReady) {
                         Text(
                             stringResource(R.string.bear_farm_new_season_ready),
                             modifier = Modifier.weight(1f),
@@ -387,7 +410,7 @@ internal fun FarmCatalogDialog(
                         }
                     } else {
                         Text(
-                            stringResource(R.string.bear_farm_new_season_hint, FARM_CROPS.size - farm.seasonCollectedCount),
+                            stringResource(R.string.bear_farm_new_season_hint, farm.seasonGoal - farm.seasonCollectedCount),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
                             color = farmScheme().onSurfaceVariant,
@@ -464,7 +487,7 @@ private fun FarmCatalogCropDetail(
                                 ),
                     )
                     Image(
-                        painter = painterResource(FarmCropArt.ripe(crop)),
+                        bitmap = rememberGameImage(FarmCropArt.ripe(crop), 512),
                         contentDescription = crop.nameZh,
                         modifier =
                             Modifier
@@ -474,7 +497,7 @@ private fun FarmCatalogCropDetail(
                     )
                     if (!owned) {
                         Text(
-                            "?",
+                            stringResource(R.string.bear_farm_catalog_unknown),
                             color = farmScheme().onSurfaceVariant,
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
@@ -493,6 +516,16 @@ private fun FarmCatalogCropDetail(
                     style = MaterialTheme.typography.bodySmall,
                     color = farmScheme().onSurfaceVariant,
                 )
+                crop.preferredWeather?.let { preferred ->
+                    Text(
+                        stringResource(
+                            R.string.bear_farm_crop_prefers,
+                            stringResource(farmWeatherNameRes(preferred)),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF6D4C41),
+                    )
+                }
                 if (crop.description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(

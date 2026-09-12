@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.game
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -58,6 +59,11 @@ fun GameFrameLoop(
     onTick: (dt: Float, nowNanos: Long) -> Unit,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    // 用 rememberUpdatedState 捕获最新参数/回调，避免循环启动后重组换新值/新 lambda 时读到过期闭包
+    val currentPaused = rememberUpdatedState(paused)
+    val currentOnTick = rememberUpdatedState(onTick)
+    val currentThrottle = rememberUpdatedState(throttle)
+    val currentMaxDt = rememberUpdatedState(maxDtSeconds)
 
     LaunchedEffect(key) {
         var lastNanos = Long.MIN_VALUE
@@ -71,18 +77,28 @@ fun GameFrameLoop(
                 delay(300)
                 continue
             }
+            // 弹窗/选关等暂停态：不注册 vsync，低频轮询等待恢复，避免空转唤醒主线程
+            if (currentPaused.value()) {
+                lastNanos = Long.MIN_VALUE
+                slowTick = 0
+                delay(PAUSED_POLL_MS)
+                continue
+            }
             withFrameNanos { now ->
-                val dt = computeFrameDt(lastNanos, now, maxDtSeconds)
+                val dt = computeFrameDt(lastNanos, now, currentMaxDt.value)
                 lastNanos = now
-                if (paused()) return@withFrameNanos
-                if (throttle == FrameThrottle.FULL || slowTick % 5 == 0) {
-                    onTick(dt, now)
+                if (currentPaused.value()) return@withFrameNanos
+                if (currentThrottle.value == FrameThrottle.FULL || slowTick % 5 == 0) {
+                    currentOnTick.value(dt, now)
                 }
                 slowTick++
             }
         }
     }
 }
+
+/** 暂停态轮询间隔：弹窗/选关停留期间避免每 vsync 唤醒。 */
+private const val PAUSED_POLL_MS = 100L
 
 /**
  * 独立于帧循环的定时协程（如农场自动存档）。

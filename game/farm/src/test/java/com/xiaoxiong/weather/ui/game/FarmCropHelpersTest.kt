@@ -36,4 +36,22 @@ class FarmCropHelpersTest {
             assertEquals("${crop.id} unlock price mismatch", crop.seedCost * 5, farmUnlockPrice(crop))
         }
     }
+
+    @Test
+    fun farmCrops_hasExactly128Entries() {
+        assertEquals("作物数量应为 128（与注释/图鉴一致）", 128, FARM_CROPS.size)
+    }
+
+    @Test
+    fun preferredWeatherOf_mapsCategoriesToWeather() {
+        assertEquals(FarmWeather.RAINY, preferredWeatherOf("谷物"))
+        assertEquals(FarmWeather.RAINY, preferredWeatherOf("香草"))
+        assertEquals(FarmWeather.SUNNY, preferredWeatherOf("蔬菜"))
+        assertEquals(FarmWeather.SUNNY, preferredWeatherOf("水果"))
+        assertEquals(FarmWeather.CLOUDY, preferredWeatherOf("花卉"))
+        assertEquals(FarmWeather.FOGGY, preferredWeatherOf("菇菌"))
+        assertNull("其他类别无特别偏好", preferredWeatherOf("其他"))
+        assertEquals(FarmWeather.SUNNY, requireNotNull(cropById("radish")).preferredWeather)
+        assertTrue(requireNotNull(cropById("mushroom")).prefers(FarmWeather.FOGGY))
+    }
 }

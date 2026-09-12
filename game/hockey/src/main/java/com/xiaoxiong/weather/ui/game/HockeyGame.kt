@@ -1,10 +1,12 @@
 package com.xiaoxiong.weather.ui.game
 
+import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Body
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Difficulty
@@ -14,6 +16,9 @@ import com.xiaoxiong.weather.ui.game.HockeyLogic.Table
 import kotlin.math.hypot
 import kotlin.random.Random
 
+/** 冰面纵向渐变：颜色固定，仅 startY/endY 随球桌尺寸变化，resize 时重建缓存。 */
+private val TABLE_ICE_COLORS = listOf(Color(0xFFE8F6FF), Color(0xFFD2EAF8), Color(0xFFC5E0F2))
+
 /** 击球震动 / 火花的最小间隔（秒）：球被顶在墙角持续接触时，避免震动连发。 */
 private const val HIT_FEEDBACK_INTERVAL = 0.12f
 
@@ -22,6 +27,15 @@ private const val STUCK_ESCAPE_SECONDS = 0.35f
 
 /** 「原地抖动」的每帧净位移阈值（相对短边）。 */
 private const val STUCK_MOVE_EPS_MUL = 0.004f
+
+/** 对局快照 KEY：紧凑文本，仅存对局进行中的状态。 */
+private const val HOCKEY_SNAPSHOT_KEY = "hockey_snapshot_v1"
+
+/**
+ * 快照表头固定字段数（其后紧跟难度名称的字符码，再跟两个可选拖尾字段：
+ * paddleScaleBoth、matchDifficulty；缺省时按兼容值回退）。
+ */
+private const val HOCKEY_HEADER_FIELDS = 21
 
 /** 撞击火花。 */
 class HockeySpark(
@@ -44,7 +58,28 @@ class HockeyGame {
     var customLevel by mutableIntStateOf(5)
     var winScore by mutableIntStateOf(5)
 
-    fun effectiveParams() = HockeyLogic.params(difficulty, customLevel)
+    /** [startMatch] 时锁定的难度：对局中改难度只影响 AI，结算 / 成就仍按本局难度记账。 */
+    var matchDifficulty by mutableStateOf(Difficulty.NORMAL)
+
+    private var paramsCacheKey: Long? = null
+    private var paramsCache: HockeyLogic.DifficultyParams? = null
+
+    /** 难度参数按 difficulty/customLevel 缓存，避免 CUSTOM 每帧 lerpParams 新建对象。 */
+    fun effectiveParams(): HockeyLogic.DifficultyParams {
+        val key = difficulty.ordinal.toLong() shl 32 or customLevel.toLong()
+        val cached = paramsCache
+        if (cached != null && paramsCacheKey == key) return cached
+        return HockeyLogic.params(difficulty, customLevel).also {
+            paramsCache = it
+            paramsCacheKey = key
+        }
+    }
+
+    /** 设置保存 / 重开时主动失效参数缓存。 */
+    fun invalidateParamsCache() {
+        paramsCache = null
+        paramsCacheKey = null
+    }
 
     var playerScore by mutableIntStateOf(0)
     var aiScore by mutableIntStateOf(0)
@@ -52,6 +87,8 @@ class HockeyGame {
     var resultSubmitted = false
 
     var table: Table? = null
+    var tableGradient: Brush? = null
+        private set
     var player = Body(0f, 0f, r = 1f)
     var ai = Body(0f, 0f, r = 1f)
     var puck = Body(0f, 0f, r = 1f)
@@ -83,6 +120,15 @@ class HockeyGame {
     var scoreFlash by mutableFloatStateOf(0f)
     var lastScorer: Scorer? = null
     var matchWinner: Scorer? = null
+
+    /** 本次发球飞向玩家半场？null=首球方向随机未定（供发球提示显示）。 */
+    val serveTowardPlayer: Boolean?
+        get() =
+            when (lastScorer) {
+                Scorer.AI -> true
+                Scorer.PLAYER -> false
+                null -> null
+            }
     var hitFlash by mutableFloatStateOf(0f)
     var time by mutableFloatStateOf(0f)
 
@@ -95,6 +141,37 @@ class HockeyGame {
     var aiTargetX = 0f
     var aiTargetY = 0f
     var aiReactionAge = 0f
+
+    /** 对局进行中（非 READY/MATCH_OVER）：获胜分数与尺寸改动不即时生效。 */
+    val rulesLocked: Boolean
+        get() = phase != Phase.READY && phase != Phase.MATCH_OVER
+
+    // 对局进行中被延迟到下一局生效的设置（[rulesLocked] 时暂存，[startMatch] 时套用）。
+    private var pendingWinScore: Int? = null
+    private var pendingPaddleScale: Float? = null
+    private var pendingPaddleScaleBoth: Boolean? = null
+    private var pendingPuckScale: Float? = null
+    private var pendingGoalScale: Float? = null
+
+    /** 是否有等待下一局生效的设置（供 UI 提示）。 */
+    val hasPendingRules: Boolean
+        get() =
+            pendingWinScore != null ||
+                pendingPaddleScale != null ||
+                pendingPaddleScaleBoth != null ||
+                pendingPuckScale != null ||
+                pendingGoalScale != null
+
+    // 打开设置时展示的值：优先展示已暂存的「下一局」值。
+    fun displayWinScore(): Int = pendingWinScore ?: winScore
+
+    fun displayPaddleScale(): Float = pendingPaddleScale ?: paddleScale
+
+    fun displayPaddleScaleBoth(): Boolean = pendingPaddleScaleBoth ?: paddleScaleBoth
+
+    fun displayPuckScale(): Float = pendingPuckScale ?: puckScale
+
+    fun displayGoalScale(): Float = pendingGoalScale ?: goalScale
 
     val trail = ArrayDeque<Pair<Float, Float>>(16)
     val sparks = mutableListOf<HockeySpark>()
@@ -123,7 +200,14 @@ class HockeyGame {
         val goalW =
             (base.goalWidth * goalScale.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX))
                 .coerceIn(base.shortSide * 0.18f, base.width * 0.88f)
-        table = base.copy(puckR = puckR, goalWidth = goalW)
+        val built = base.copy(puckR = puckR, goalWidth = goalW)
+        table = built
+        tableGradient =
+            Brush.verticalGradient(
+                colors = TABLE_ICE_COLORS,
+                startY = built.top,
+                endY = built.bottom,
+            )
         puck.r = puckR
         // 倍率只加在挡板 Body 上；钳制 / AI 走位显式传各自半径，支持「仅玩家变大」
         player.r = base.paddleR * paddleScale
@@ -138,6 +222,8 @@ class HockeyGame {
             val (ax, ay) = HockeyLogic.clampPaddle(base, ai.x, ai.y, isPlayer = false, paddleR = ai.r)
             ai.x = ax
             ai.y = ay
+            // 桌/球尺寸变化后球可能落到桌外：钳回新桌内
+            clampPuckToTable()
         }
     }
 
@@ -147,7 +233,78 @@ class HockeyGame {
         resize(lastCanvasW, lastCanvasH, lastPadH, lastPadV)
     }
 
+    /** 把球钳回当前球桌内（尺寸变化后调用，避免球落桌外）。 */
+    private fun clampPuckToTable() {
+        val t = table ?: return
+        if (t.width <= puck.r * 2f || t.height <= puck.r * 2f) return
+        puck.x = puck.x.coerceIn(t.left + puck.r, t.right - puck.r)
+        puck.y = puck.y.coerceIn(t.top + puck.r, t.bottom - puck.r)
+    }
+
+    /**
+     * 应用设置：
+     * - 难度 / 自定义等级随时生效（仅影响之后的 AI 行为）；
+     * - 对局进行中（[rulesLocked]）获胜分数与挡板 / 球 / 门尺寸改动暂存，下一局 [startMatch] 生效；
+     * - 非对局期间立即生效；最后重建球桌并把球钳回新桌内。
+     */
+    fun applySettings(
+        difficulty: Difficulty,
+        customLevel: Int,
+        winScore: Int,
+        paddleScale: Float,
+        paddleScaleBoth: Boolean,
+        puckScale: Float,
+        goalScale: Float,
+    ) {
+        this.difficulty = difficulty
+        this.customLevel = customLevel
+        invalidateParamsCache()
+        val w = winScore.coerceIn(HockeyLogic.WIN_SCORE_MIN, HockeyLogic.WIN_SCORE_MAX)
+        val ps = paddleScale.coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX)
+        val pu = puckScale.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX)
+        val go = goalScale.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
+        if (rulesLocked) {
+            pendingWinScore = w
+            pendingPaddleScale = ps
+            pendingPaddleScaleBoth = paddleScaleBoth
+            pendingPuckScale = pu
+            pendingGoalScale = go
+        } else {
+            this.winScore = w
+            this.paddleScale = ps
+            this.paddleScaleBoth = paddleScaleBoth
+            this.puckScale = pu
+            this.goalScale = go
+            // 非对局期直接生效：清掉上一局遗留的暂存值，避免下一局又套用旧值
+            clearPendingRules()
+        }
+        relayout()
+        clampPuckToTable()
+    }
+
+    private fun clearPendingRules() {
+        pendingWinScore = null
+        pendingPaddleScale = null
+        pendingPaddleScaleBoth = null
+        pendingPuckScale = null
+        pendingGoalScale = null
+    }
+
+    /** 下一局开始时套用被延迟的设置。 */
+    private fun consumePendingRules() {
+        pendingWinScore?.let { winScore = it }
+        pendingPaddleScale?.let { paddleScale = it }
+        pendingPaddleScaleBoth?.let { paddleScaleBoth = it }
+        pendingPuckScale?.let { puckScale = it }
+        pendingGoalScale?.let { goalScale = it }
+        clearPendingRules()
+    }
+
     fun startMatch() {
+        // 本局难度开局锁定：局中改难度只影响 AI，结算按锁定值记账
+        matchDifficulty = difficulty
+        // 套用上一局期间暂存的设置，并按其重建球桌
+        consumePendingRules()
         playerScore = 0
         aiScore = 0
         matchWinner = null
@@ -158,6 +315,12 @@ class HockeyGame {
         trail.clear()
         stuckTime = 0f
         hitFeedbackCooldown = 0f
+        time = 0f
+        pendingHapticHit = false
+        pendingHapticGoal = false
+        invalidateParamsCache()
+        // phase 仍是旧值（READY/MATCH_OVER）：relayout 内部会复位，随后再按发球态摆位
+        relayout()
         resetPositions(serve = true)
         // 清掉上一局残留的触摸点（对局结束时手指可能还按着，手势协程已被取消），
         // 否则新一局发球阶段挡板会瞬移到旧坐标
@@ -196,6 +359,154 @@ class HockeyGame {
         }
     }
 
+    /**
+     * 局中落盘：进程被回收（或窗口重建）后由 [restoreSnapshot] 续玩。
+     * 仅对局进行中（SERVE/PLAYING/SCORED）保存；标题/结算不写。
+     *
+     * 编码：第 0 组为表头（含难度名称字符码），第 1/2/3 组为 player/ai/puck，
+     * 其后每两字段为一个拖尾点；球桌不落盘，恢复时按画布尺寸重建后套用坐标。
+     */
+    fun saveSnapshot(prefs: SharedPreferences) {
+        if (phase == Phase.READY || phase == Phase.MATCH_OVER) return
+        runCatching {
+            val name = difficulty.name
+            val header = mutableListOf<Number>()
+            header += phase.ordinal
+            header += playerScore
+            header += aiScore
+            header += serveTimer
+            header += scoreFlash
+            header += hitFlash
+            header += customLevel
+            header += winScore
+            header += paddleScale
+            header += puckScale
+            header += goalScale
+            header += bestWins
+            header += matchWinner?.ordinal ?: -1
+            header += if (resultSubmitted) 1 else 0
+            header += lastScorer?.ordinal ?: -1
+            header += time
+            header += lastCanvasW
+            header += lastCanvasH
+            header += lastPadH
+            header += lastPadV
+            header += name.length
+            name.forEach { header += it.code }
+            // 拖尾字段：放在难度名之后以兼容旧档解析（读时缺省回退）
+            header += if (paddleScaleBoth) 1 else 0
+            header += matchDifficulty.ordinal
+            val groups = mutableListOf<List<Number>>()
+            groups += header
+            groups += listOf(player.x, player.y, player.vx, player.vy, player.r)
+            groups += listOf(ai.x, ai.y, ai.vx, ai.vy, ai.r)
+            groups += listOf(puck.x, puck.y, puck.vx, puck.vy, puck.r)
+            trail.forEach { (x, y) -> groups += listOf(x, y) }
+            GameSnapshot.save(prefs, HOCKEY_SNAPSHOT_KEY, SnapshotCodec.encodeGroups(groups))
+        }
+    }
+
+    /** 恢复局中快照；无档 / 坏档返回 false（坏档会被清除，当作无档）。 */
+    fun restoreSnapshot(prefs: SharedPreferences): Boolean {
+        val groups = SnapshotCodec.decodeGroups(GameSnapshot.load(prefs, HOCKEY_SNAPSHOT_KEY)) ?: return false
+        return runCatching { applySnapshot(groups) }.getOrElse {
+            clearSnapshot(prefs)
+            false
+        }
+    }
+
+    /** 清档：结算、暂停重开、退出时调用，避免陈旧续玩。 */
+    fun clearSnapshot(prefs: SharedPreferences) {
+        GameSnapshot.clear(prefs, HOCKEY_SNAPSHOT_KEY)
+    }
+
+    private fun applySnapshot(groups: List<FloatArray>): Boolean {
+        val header = groups.firstOrNull() ?: return false
+        if (header.size < HOCKEY_HEADER_FIELDS) return false
+        val savedPhase = Phase.entries.getOrNull(header[0].toInt()) ?: return false
+        if (savedPhase == Phase.READY || savedPhase == Phase.MATCH_OVER) return false
+        val nameLen = header[20].toInt()
+        if (nameLen < 0 || header.size < HOCKEY_HEADER_FIELDS + nameLen) return false
+        val name = buildString { for (i in 0 until nameLen) append(header[HOCKEY_HEADER_FIELDS + i].toInt().toChar()) }
+        val savedDifficulty = Difficulty.entries.firstOrNull { it.name == name } ?: return false
+        // 旧档没有拖尾字段：paddleScaleBoth 回退为 true，matchDifficulty 回退为存档难度
+        val trailing = HOCKEY_HEADER_FIELDS + nameLen
+        val savedPaddleScaleBoth = header.getOrNull(trailing)?.let { it != 0f } ?: true
+        val savedMatchDifficulty =
+            header
+                .getOrNull(trailing + 1)
+                ?.toInt()
+                ?.let { Difficulty.entries.getOrNull(it) }
+                ?: savedDifficulty
+        val playerG = groups.getOrNull(1)?.takeIf { it.size >= 5 } ?: return false
+        val aiG = groups.getOrNull(2)?.takeIf { it.size >= 5 } ?: return false
+        val puckG = groups.getOrNull(3)?.takeIf { it.size >= 5 } ?: return false
+
+        difficulty = savedDifficulty
+        matchDifficulty = savedMatchDifficulty
+        customLevel = header[6].toInt().coerceIn(HockeyLogic.CUSTOM_LEVEL_MIN, HockeyLogic.CUSTOM_LEVEL_MAX)
+        winScore = header[7].toInt().coerceIn(HockeyLogic.WIN_SCORE_MIN, HockeyLogic.WIN_SCORE_MAX)
+        paddleScale = header[8].coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX)
+        paddleScaleBoth = savedPaddleScaleBoth
+        puckScale = header[9].coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX)
+        goalScale = header[10].coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
+        invalidateParamsCache()
+        // 球桌可能已由 Screen 的 resize 先建好，也可能尚未建立（恢复早于首次 onSizeChanged）：
+        // 前者按存档倍率重建，后者用存档画布尺寸 layout，之后再套用坐标。
+        val canvasW = header[16]
+        val canvasH = header[17]
+        if (table == null && canvasW > 0f && canvasH > 0f) {
+            resize(canvasW, canvasH, header[18], header[19])
+        } else {
+            relayout()
+        }
+
+        // 半径按当前球桌与倍率重算，绝不用存档里的旧半径（画布尺寸可能已变，
+        // 旧半径过大会让 clampPaddle 区间反转并导致整档静默丢失）。
+        val t = table
+        val playerR = t?.paddleR?.times(paddleScale) ?: playerG[4]
+        val aiR = t?.let { it.paddleR * (if (paddleScaleBoth) paddleScale else 1f) } ?: aiG[4]
+        player = Body(playerG[0], playerG[1], playerG[2], playerG[3], playerR)
+        ai = Body(aiG[0], aiG[1], aiG[2], aiG[3], aiR)
+        puck = Body(puckG[0], puckG[1], puckG[2], puckG[3], t?.puckR ?: puckG[4])
+        playerPrevX = player.x
+        playerPrevY = player.y
+        // 触摸点是瞬时输入，不落盘；恢复时清空，避免挡板瞬移到旧手指位置
+        touchX = null
+        touchY = null
+        if (t != null) {
+            val (px, py) = HockeyLogic.clampPaddle(t, player.x, player.y, isPlayer = true, paddleR = player.r)
+            player.x = px
+            player.y = py
+            val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r)
+            ai.x = ax
+            ai.y = ay
+            clampPuckToTable()
+        }
+        // aiTargetX/Y 初值为 (0,0)：恢复后若不修正，AI 会朝原点猛冲（冲角落）。
+        // 同步到恢复位置并标记为「已过反应延迟」，下一帧立即重算目标。
+        aiTargetX = ai.x
+        aiTargetY = ai.y
+        aiReactionAge = 99f
+        playerScore = header[1].toInt()
+        aiScore = header[2].toInt()
+        serveTimer = header[3]
+        scoreFlash = header[4]
+        hitFlash = header[5]
+        bestWins = header[11].toInt().coerceAtLeast(0)
+        matchWinner = Scorer.entries.getOrNull(header[12].toInt())
+        resultSubmitted = header[13] != 0f
+        lastScorer = Scorer.entries.getOrNull(header[14].toInt())
+        time = header[15]
+        trail.clear()
+        for (i in 4 until groups.size) {
+            val g = groups[i]
+            if (g.size >= 2) trail.addLast(g[0] to g[1])
+        }
+        phase = savedPhase
+        return true
+    }
+
     fun tick(dt: Float) {
         val t = table ?: return
         time += dt
@@ -204,18 +515,20 @@ class HockeyGame {
         if (hitFeedbackCooldown > 0f) hitFeedbackCooldown -= dt
 
         // 火花
-        val it = sparks.iterator()
-        while (it.hasNext()) {
-            val s = it.next()
-            s.life -= dt
-            if (s.life <= 0f) {
-                it.remove()
-                continue
+        if (sparks.isNotEmpty()) {
+            val it = sparks.iterator()
+            while (it.hasNext()) {
+                val s = it.next()
+                s.life -= dt
+                if (s.life <= 0f) {
+                    it.remove()
+                    continue
+                }
+                s.x += s.vx * dt
+                s.y += s.vy * dt
+                s.vy += 220f * dt
+                s.vx *= 0.98f
             }
-            s.x += s.vx * dt
-            s.y += s.vy * dt
-            s.vy += 220f * dt
-            s.vx *= 0.98f
         }
 
         when (phase) {
@@ -244,10 +557,9 @@ class HockeyGame {
                 serveTimer -= dt
                 if (serveTimer <= 0f) {
                     if (HockeyLogic.matchOver(playerScore, aiScore, winScore)) {
-                        matchWinner = HockeyLogic.winner(playerScore, aiScore)
-                        if (matchWinner == Scorer.PLAYER) {
-                            bestWins += 1
-                        }
+                        // 幂等结算：横幅期间界面可能已提前补结算（退出 / 提交榜单），
+                        // 这里只负责推相位，胜场不会被重复累加
+                        settleDecidedMatch()
                         phase = Phase.MATCH_OVER
                     } else {
                         resetPositions(serve = true)
@@ -263,6 +575,22 @@ class HockeyGame {
         }
     }
 
+    /**
+     * 幂等结算：达到决胜分时记录胜者并累加胜场，返回本局是否已决胜。
+     * 只结算数据、不推 [phase]——SCORED 进球横幅由 [tick] 播完再转 MATCH_OVER，
+     * 提前退出时界面调用本方法补结算后直接提交榜单。
+     */
+    fun settleDecidedMatch(): Boolean {
+        if (!HockeyLogic.matchOver(playerScore, aiScore, winScore)) return false
+        if (matchWinner == null) {
+            matchWinner = HockeyLogic.winner(playerScore, aiScore)
+            if (matchWinner == Scorer.PLAYER) {
+                bestWins += 1
+            }
+        }
+        return true
+    }
+
     private fun stepPlaying(
         t: Table,
         dt: Float,
@@ -270,19 +598,20 @@ class HockeyGame {
         val params = effectiveParams()
         followPlayer(t, dt)
 
-        // AI
+        // AI：未到反应延迟时 updateAiTarget 只会原样返回缓存，直接跳过以省 Triple 分配
         aiReactionAge += dt
-        val (tx, ty, refreshed) =
-            HockeyLogic.updateAiTarget(
-                table = t,
-                puck = puck,
-                params = params,
-                reactionAge = aiReactionAge,
-                cachedTargetX = aiTargetX,
-                cachedTargetY = aiTargetY,
-                paddleR = ai.r,
-            )
-        if (refreshed) {
+        if (aiReactionAge >= params.reactionDelay) {
+            val (tx, ty) =
+                HockeyLogic.updateAiTarget(
+                    table = t,
+                    puck = puck,
+                    params = params,
+                    reactionAge = aiReactionAge,
+                    cachedTargetX = aiTargetX,
+                    cachedTargetY = aiTargetY,
+                    paddleR = ai.r,
+                    ai = ai,
+                )
             aiTargetX = tx
             aiTargetY = ty
             aiReactionAge = 0f
@@ -329,6 +658,8 @@ class HockeyGame {
             }
         } else if (wallContact && hitFeedbackCooldown <= 0f) {
             hitFeedbackCooldown = HIT_FEEDBACK_INTERVAL
+            // 碰库：轻短反馈（与击球共用节流）
+            pendingHapticHit = true
             spawnHitSparks(puck.x, puck.y, count = 4, muted = true)
         }
 

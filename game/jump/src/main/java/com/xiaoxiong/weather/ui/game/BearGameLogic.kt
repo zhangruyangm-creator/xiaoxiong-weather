@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -70,6 +71,65 @@ object BearGameLogic {
         when (scene) {
             RunScene.SNOW -> 300
             else -> 200
+        }
+
+    // ── 障碍金币弧（冰墙防空陷阱）────────────────────────────
+
+    /** 障碍上方生成金币弧的概率（与旧实现一致）。 */
+    const val COIN_ARC_CHANCE = 0.4f
+
+    /**
+     * 障碍上方金币弧：返回 5 枚金币的中心 y（从高到低，首尾对称），不生成时返回空数组。
+     *
+     * 冰墙高 195–210·s、需二段跳才够，旧写法把金币弧生成在 `groundY-bearSize-…`
+     * 处，正好落进墙体，让「吃金币」直接变成「撞墙」。冰墙因此不生成金币，
+     * 其余障碍保持原有弧线手感。
+     *
+     * @param roll [0,1) 随机数，仅 `<` [COIN_ARC_CHANCE] 时生成
+     * @param lift [0,1) 随机数，决定弧线基准高度
+     */
+    fun coinArcYs(
+        type: ObstacleType,
+        roll: Float,
+        lift: Float,
+        groundY: Float,
+        bearSize: Float,
+        s: Float,
+    ): FloatArray {
+        if (type == ObstacleType.ICE_WALL || roll >= COIN_ARC_CHANCE) return FloatArray(0)
+        val cy = groundY - bearSize - (30f + lift * 46f) * s
+        return FloatArray(5) { idx ->
+            val i = idx - 2
+            cy - (2 - abs(i)) * 14f * s
+        }
+    }
+
+    // ── 跳跃手感：土狼时间 + 跳跃缓冲（纯决策，可测）─────────────
+
+    /** 土狼时间（秒）：离地后仍可补第一段跳的宽限。 */
+    const val COYOTE_TIME_SEC = 0.09f
+
+    /** 跳跃缓冲（秒）：落地前的点按会被缓存，落地时立即消费。 */
+    const val JUMP_BUFFER_SEC = 0.11f
+
+    /** 一次点按希望触发的跳跃段位；NONE 时由调用方写入跳跃缓冲。 */
+    enum class JumpIntent { FIRST, SECOND, NONE }
+
+    /**
+     * 解析一次点按的跳跃意图（无副作用）。
+     * - [grounded] 或离地未超 [COYOTE_TIME_SEC]：可补第一段跳（需 [jumpsLeft] ≥ 2）；
+     * - 否则若只剩一次跳跃则触发二段跳；
+     * - 都没有则返回 [JumpIntent.NONE]，由调用方写入 [JUMP_BUFFER_SEC] 的缓冲。
+     */
+    fun resolveJumpIntent(
+        grounded: Boolean,
+        airTime: Float,
+        jumpsLeft: Int,
+    ): JumpIntent =
+        when {
+            (grounded || airTime <= COYOTE_TIME_SEC) && jumpsLeft >= 2 -> JumpIntent.FIRST
+            jumpsLeft == 1 -> JumpIntent.SECOND
+            else -> JumpIntent.NONE
         }
 
     // ── 物理推进（核心引擎，见类内 KDoc 的等价性说明）───────────

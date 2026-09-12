@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FarmGrowthTest {
@@ -49,5 +50,18 @@ class FarmGrowthTest {
         val wilted = FarmPlotState(cropId = "radish", stage = 5)
         advanceGrowth(wilted, radish, hours = 10f, fx = sunnyFx, seasonMul = 1f)
         assertEquals(5, wilted.stage)
+    }
+
+    @Test
+    fun advanceGrowth_preferredWeatherGrowsFaster() {
+        val base = FarmPlotState(cropId = "radish", stage = 1, moisture = 1f)
+        val preferred = FarmPlotState(cropId = "radish", stage = 1, moisture = 1f)
+        // 萝卜喜好晴天
+        advanceGrowth(base, radish, hours = 1f, fx = sunnyFx, seasonMul = 1f, preferred = false)
+        advanceGrowth(preferred, radish, hours = 1f, fx = sunnyFx, seasonMul = 1f, preferred = true)
+        assertTrue(
+            "喜好天气进度 ${preferred.stageProgress} 应高于普通 ${base.stageProgress}",
+            preferred.stageProgress > base.stageProgress,
+        )
     }
 }

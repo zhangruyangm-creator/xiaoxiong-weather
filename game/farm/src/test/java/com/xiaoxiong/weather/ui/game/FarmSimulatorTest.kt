@@ -130,7 +130,7 @@ class FarmSimulatorTest {
         val effect = FarmSimulator.harvest(state, 0)
 
         assertEquals(R.string.bear_farm_toast_harvest, effect.toastRes)
-        assertEquals("cucumber", effect.unlockCropId)
+        assertEquals(listOf("cucumber"), effect.unlockCropIds)
         assertTrue("cucumber" in state.unlocked)
         assertEquals(1, state.inventory["radish"])
         assertEquals(1, state.harvestCounts["radish"])
@@ -166,9 +166,9 @@ class FarmSimulatorTest {
 
         val effect = FarmSimulator.sellAll(state, "radish", FarmWeather.SUNNY)
 
-        // 18 × 1.15 = 20.7 → 21；×3 = 63
+        // 萝卜喜晴：18 × 1.25 = 22.5 → 23；×3 = 69
         assertEquals(R.string.bear_farm_toast_sell, effect.toastRes)
-        assertEquals(63, state.coins)
+        assertEquals(69, state.coins)
         assertFalse("radish" in state.inventory)
     }
 
@@ -215,6 +215,49 @@ class FarmSimulatorTest {
         assertEquals(0, state.plots[2].stage)
         assertTrue(state.plots[3].moisture > 0.5f)
         assertEquals(0, state.plots[4].stage)
+    }
+
+    @Test
+    fun careAll_collectsEveryUnlockedCrop() {
+        val state = FarmState(harvestedTotal = 1, plots = List(FARM_PLOT_COUNT) { FarmPlotState() })
+        // 三块熟地：收获计数 2/3/4，分别在 unlocked=4 的阈值 2、5 的阈值 4 各解锁一种
+        state.plots =
+            state.plots.mapIndexed { i, p ->
+                if (i < 3) p.copy(cropId = "radish", stage = 4) else p
+            }
+
+        val effect = FarmSimulator.careAll(state)
+
+        assertEquals(3, effect.rewards.size)
+        assertEquals(listOf("cucumber", "carrot"), effect.unlockCropIds)
+        assertTrue("cucumber" in state.unlocked)
+        assertTrue("carrot" in state.unlocked)
+    }
+
+    @Test
+    fun lifetimeHarvests_countsAcrossSeasons() {
+        val state = FarmState(coins = 100)
+        state.plots =
+            state.plots.mapIndexed { i, p ->
+                if (i == 0) p.copy(cropId = "radish", stage = 4) else p
+            }
+        FarmSimulator.harvest(state, 0)
+        assertEquals(1, state.harvestedTotal)
+        assertEquals(1, state.lifetimeHarvests)
+
+        // 达成开季门槛后开新一季：本季计数清零，累计保留
+        state.seasonCollected = FARM_CROPS.take(12).map { it.id }.toSet()
+        FarmSimulator.startNewSeason(state)
+        assertEquals(0, state.harvestedTotal)
+        assertEquals(1, state.lifetimeHarvests)
+
+        state.plots =
+            state.plots.mapIndexed { i, p ->
+                if (i == 0) p.copy(cropId = "wheat", stage = 4) else p
+            }
+        FarmSimulator.harvest(state, 0)
+        assertEquals(1, state.harvestedTotal)
+        assertEquals(2, state.lifetimeHarvests)
     }
 
     @Test
@@ -274,6 +317,31 @@ class FarmSimulatorTest {
         assertNull(effect.toastRes)
         assertEquals(500, state.coins)
         assertEquals(0, state.completedSeasons)
+    }
+
+    @Test
+    fun seasonGoal_growsWithSeasonsAndCaps() {
+        assertEquals(12, FarmState(completedSeasons = 0).seasonGoal)
+        assertEquals(16, FarmState(completedSeasons = 1).seasonGoal)
+        assertEquals(28, FarmState(completedSeasons = 4).seasonGoal)
+        assertEquals(40, FarmState(completedSeasons = 7).seasonGoal)
+        assertEquals(40, FarmState(completedSeasons = 99).seasonGoal)
+    }
+
+    @Test
+    fun startNewSeason_requiresSeasonGoalNotFullCollection() {
+        val ids = FARM_CROPS.map { it.id }
+        val state = FarmState(seasonCollected = ids.take(12).toSet())
+
+        assertTrue("12 种应达成本季目标", state.seasonReady)
+        assertEquals(12, state.seasonGoal)
+
+        val effect = FarmSimulator.startNewSeason(state)
+
+        assertEquals(R.string.bear_farm_new_season_started, effect.toastRes)
+        assertEquals(1, state.completedSeasons)
+        assertTrue(state.seasonCollected.isEmpty())
+        assertEquals(16, state.seasonGoal)
     }
 
     @Test

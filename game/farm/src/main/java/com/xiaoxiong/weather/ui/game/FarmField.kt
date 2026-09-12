@@ -2,10 +2,6 @@ package com.xiaoxiong.weather.ui.game
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -44,13 +40,13 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaoxiong.weather.R
+import kotlin.math.sin
 
 @Composable
 internal fun FarmToolBar(
@@ -187,6 +183,7 @@ private fun FarmToolChip(
 @Composable
 internal fun FarmPlotCell(
     plot: FarmPlotState,
+    time: () -> Float,
     onClick: () -> Unit,
 ) {
     val crop = cropById(plot.cropId)
@@ -205,6 +202,7 @@ internal fun FarmPlotCell(
                 plot = plot,
                 crop = crop,
                 dry = dry,
+                time = time,
                 modifier = Modifier.fillMaxSize(),
             )
             if (plot.weed || plot.bug) {
@@ -217,7 +215,7 @@ internal fun FarmPlotCell(
                 ) {
                     if (plot.weed) {
                         Image(
-                            painter = painterResource(FarmCropArt.weed()),
+                            bitmap = rememberGameImage(FarmCropArt.weed(), 256),
                             contentDescription = null,
                             modifier = Modifier.size(22.dp),
                             contentScale = ContentScale.Fit,
@@ -225,7 +223,7 @@ internal fun FarmPlotCell(
                     }
                     if (plot.bug) {
                         Image(
-                            painter = painterResource(FarmCropArt.bug()),
+                            bitmap = rememberGameImage(FarmCropArt.bug(), 256),
                             contentDescription = null,
                             modifier = Modifier.size(22.dp),
                             contentScale = ContentScale.Fit,
@@ -272,6 +270,7 @@ internal fun FarmPlotCell(
             if (needEmoji != null) {
                 FarmNeedBubble(
                     emoji = needEmoji,
+                    time = time,
                     modifier = Modifier.align(Alignment.TopCenter),
                 )
             }
@@ -279,26 +278,17 @@ internal fun FarmPlotCell(
     }
 }
 
-/** 作物需求气泡：白色圆角气泡，轻微上下浮动。 */
+/** 作物需求气泡：白色圆角气泡，用共享时钟 [time] 派生轻微上下浮动。 */
 @Composable
 private fun FarmNeedBubble(
     emoji: String,
+    time: () -> Float,
     modifier: Modifier = Modifier,
 ) {
-    val transition = rememberInfiniteTransition(label = "needBubble")
-    val bob by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 900),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "bob",
-    )
     Surface(
         modifier =
             modifier.graphicsLayer {
+                val bob = wave(time(), BUBBLE_BOB_FREQ)
                 translationY = -2.dp.toPx() * bob
             },
         shape = CircleShape,
@@ -325,11 +315,12 @@ private fun FarmPlotVisual(
     plot: FarmPlotState,
     crop: CropDef?,
     dry: Boolean,
+    time: () -> Float,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Image(
-            painter = painterResource(FarmCropArt.soil(dry = dry)),
+            bitmap = rememberGameImage(FarmCropArt.soil(dry = dry), 256),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
@@ -345,18 +336,8 @@ private fun FarmPlotVisual(
             }
             4 -> {
                 val c = crop ?: return
-                val transition = rememberInfiniteTransition(label = "ripe")
-                val pulse by transition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = 1f,
-                    animationSpec =
-                        infiniteRepeatable(
-                            animation = tween(durationMillis = 700),
-                            repeatMode = RepeatMode.Reverse,
-                        ),
-                    label = "pulse",
-                )
                 Canvas(modifier = Modifier.fillMaxSize()) {
+                    val pulse = wave(time(), RIPE_PULSE_FREQ)
                     drawCircle(
                         Color(0xFFFFF59D).copy(alpha = 0.12f + 0.14f * pulse),
                         radius = size.minDimension * 0.42f,
@@ -364,13 +345,13 @@ private fun FarmPlotVisual(
                     )
                 }
                 Image(
-                    painter = painterResource(FarmCropArt.ripe(c)),
+                    bitmap = rememberGameImage(FarmCropArt.ripe(c), 256),
                     contentDescription = c.nameZh,
                     modifier =
                         Modifier
                             .fillMaxSize(0.78f)
                             .graphicsLayer {
-                                val s = 1f + 0.08f * pulse
+                                val s = 1f + 0.08f * wave(time(), RIPE_PULSE_FREQ)
                                 scaleX = s
                                 scaleY = s
                             },
@@ -404,7 +385,7 @@ private fun FarmPlotVisual(
                         }
                     }
                     Image(
-                        painter = painterResource(stageRes),
+                        bitmap = rememberGameImage(stageRes, 256),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(scale),
                         contentScale = ContentScale.Fit,
@@ -413,7 +394,7 @@ private fun FarmPlotVisual(
                 // 成长阶段角落小预览：成熟后的作物长相
                 if (plot.stage in 2..3 && crop != null) {
                     Image(
-                        painter = painterResource(FarmCropArt.ripe(crop)),
+                        bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
                         contentDescription = null,
                         modifier =
                             Modifier
@@ -477,3 +458,15 @@ internal fun FloatingRewardItem(
         )
     }
 }
+
+/** 需求气泡上下浮动频率（约 1.8s 一个周期）。 */
+private const val BUBBLE_BOB_FREQ = 3.5f
+
+/** 成熟 pulse 频率（约 1.4s 一个周期）。 */
+private const val RIPE_PULSE_FREQ = 4.5f
+
+/** 把共享时钟 t 归一化到 0..1 的正弦波，供气泡 / pulse 在 layer/draw 里派生动画。 */
+private fun wave(
+    t: Float,
+    freq: Float,
+): Float = 0.5f + 0.5f * sin(t * freq)

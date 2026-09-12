@@ -75,6 +75,7 @@ internal class BearFarm(
     var floatingRewards by mutableStateOf<List<FarmReward>>(emptyList())
     private var rewardSeq = 0
     var unlockCard by mutableStateOf<CropDef?>(null)
+    private val unlockQueue = ArrayDeque<String>()
     var showCatalog by mutableStateOf(false)
     var showInventory by mutableStateOf(false)
     var showSeasonConfirm by mutableStateOf(false)
@@ -85,6 +86,9 @@ internal class BearFarm(
 
     /** 纯数据状态：所有规则走 FarmSimulator。 */
     private var state = FarmState()
+
+    /** 上次落盘的快照：与当前一致时跳过 JSON 编码与写盘。 */
+    private var lastSaved: FarmSave? = null
 
     private fun str(
         id: Int,
@@ -106,6 +110,8 @@ internal class BearFarm(
     val currentSeason: Int get() = state.currentSeason
     val collectedCount: Int get() = state.collectedCount
     val seasonCollectedCount: Int get() = state.seasonCollectedCount
+    val seasonGoal: Int get() = state.seasonGoal
+    val seasonReady: Boolean get() = state.seasonReady
     val allCollected: Boolean get() = state.allCollected
 
     fun load() {
@@ -119,12 +125,15 @@ internal class BearFarm(
                     backfillUnlockedAsCollected = save.schemaVersion < 2 && save.unlockedCropIds.size > 4,
                 )
             syncFromState()
+            lastSaved = state.toSave()
         }
     }
 
     fun save() {
         val s = state.toSave()
+        if (s == lastSaved) return
         prefs.edit { putString("farm_save_v1", farmJson.encodeToString(FarmSave.serializer(), s)) }
+        lastSaved = s
     }
 
     fun toast(msg: String) {
@@ -178,7 +187,22 @@ internal class BearFarm(
             toast(str(res, *effect.toastArgs.toTypedArray()))
         }
         effect.rewards.forEach { addReward(it.label, it.plotIndex) }
-        effect.unlockCropId?.let { unlockCard = cropById(it) }
+        effect.unlockCropIds.forEach { enqueueUnlockCard(it) }
+    }
+
+    /** 解锁弹卡逐个展示：已有卡在显示时先排队，关闭当前卡后再弹下一张。 */
+    private fun enqueueUnlockCard(cropId: String) {
+        val crop = cropById(cropId) ?: return
+        if (unlockCard == null) {
+            unlockCard = crop
+        } else {
+            unlockQueue.addLast(crop.id)
+        }
+    }
+
+    /** 关闭当前解锁卡；队列里还有则继续弹下一张。 */
+    fun dismissUnlockCard() {
+        unlockCard = unlockQueue.removeFirstOrNull()?.let { cropById(it) }
     }
 
     fun tick(

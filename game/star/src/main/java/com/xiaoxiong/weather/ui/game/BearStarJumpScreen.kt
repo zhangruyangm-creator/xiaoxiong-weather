@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -49,6 +50,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import kotlin.random.Random
 
@@ -62,6 +66,7 @@ fun BearStarJumpScreen(
     val context = LocalContext.current
     val view = LocalView.current
     val density = LocalDensity.current.density
+    val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
     val lb = rememberLeaderboardState(prefs, "leaderboard_jump", "best_jump")
     val characterState = rememberBearCharacterState()
@@ -71,6 +76,25 @@ fun BearStarJumpScreen(
             StarJumpGame().also { it.best = prefs.getInt("best_jump", 0) }
         }
     val jumpWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
+    // 进程重建（旋转/被杀）后恢复局中对局：放 LaunchedEffect 而非 remember 初始化块，
+    // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。
+    LaunchedEffect(Unit) {
+        game.restoreSnapshot(prefs)
+    }
+    // 组合销毁（切屏/旋转重建）时落盘，按 Home 等 ON_STOP 也落盘，避免进程被回收丢档；
+    // 只有 RUNNING 才写（clearSnapshot 后置位的 discarded 会抑制兜底落盘）。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) game.saveSnapshot(prefs)
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            game.saveSnapshot(prefs)
+        }
+    }
     // 天气/城市变化时实时更新上报所用值，避免 LaunchedEffect(Unit) 闭包捕获开局时的旧值
     val reportSceneCode by rememberUpdatedState(sceneCode)
     val reportCityName by rememberUpdatedState(cityName)
@@ -80,18 +104,24 @@ fun BearStarJumpScreen(
     }
     val bearSprites = rememberBearSprites(characterState.selected)
     var frame by remember { mutableLongStateOf(0L) }
+    // 主动退出视为放弃本局：清档后再导航，onDispose 的兜底落盘不会复活它。
+    val exitGame: () -> Unit = {
+        game.clearSnapshot(prefs)
+        onExit()
+    }
 
     // READY / OVER 菜单不需要 60fps：节流到约 12fps。dt 按真实帧累计后整笔提交，
     // 避免节流状态下动画以真实速度的 1/5 慢动作运行（对齐 jump/catch/farm 写法）。
     var slowTick by remember { mutableStateOf(0) }
     var animDt by remember { mutableFloatStateOf(0f) }
     GameFrameLoop(
-        paused = { lb.show || showCharacterPicker },
+        paused = { lb.show || showCharacterPicker || pause.paused },
         onTick = { dt, now ->
             val running = game.phase == GamePhase.RUNNING
             animDt += dt
             if (running || slowTick % 5 == 0) {
-                val worldDt = animDt
+                // 死亡结算走慢动作，其余界面按真实时间推进
+                val worldDt = animDt * gameOverTimeScale(game.phase)
                 animDt = 0f
                 game.tick(
                     worldDt,
@@ -106,6 +136,8 @@ fun BearStarJumpScreen(
                     },
                     onDeath = { score ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        // 对局结束：清除快照，避免下次重进续上已死的一局
+                        game.clearSnapshot(prefs)
                         if (score > game.best) {
                             game.best = score
                             prefs.edit { putInt("best_jump", score) }
@@ -129,14 +161,26 @@ fun BearStarJumpScreen(
         },
     )
 
-    BackHandler { onExit() }
+    BackHandler {
+        when {
+            pause.showMenu -> pause.resume()
+            game.phase == GamePhase.RUNNING -> pause.open()
+            else -> exitGame()
+        }
+    }
 
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .onSizeChanged { sz ->
-                    game.setDims(sz.width.toFloat(), sz.height.toFloat(), density)
+                    // 暂停中改尺寸（分屏/折叠）保留对局，避免菜单分数与实际进度不一致
+                    game.setDims(
+                        sz.width.toFloat(),
+                        sz.height.toFloat(),
+                        density,
+                        preserveRunning = pause.paused,
+                    )
                 },
     ) {
         Canvas(
@@ -183,8 +227,8 @@ fun BearStarJumpScreen(
 
         JumpHud(
             game = game,
-            frame = frame,
-            onExit = onExit,
+            onExit = exitGame,
+            onPause = if (game.phase == GamePhase.RUNNING) pause::open else null,
             onLeaderboard = {
                 lb.entries = lb.store.load()
                 lb.show = true
@@ -316,11 +360,12 @@ fun BearStarJumpScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TextButton(onClick = onExit) {
+                            TextButton(onClick = exitGame) {
                                 Text(stringResource(R.string.bear_game_exit))
                             }
                             Button(onClick = {
                                 lb.resetLastRank()
+                                game.clearSnapshot(prefs)
                                 game.start()
                             }) {
                                 Text(stringResource(R.string.bear_game_restart))
@@ -331,20 +376,32 @@ fun BearStarJumpScreen(
             }
             GamePhase.RUNNING -> Unit
         }
+
+        if (pause.showMenu) {
+            GamePauseOverlay(
+                title = gamePauseTitle(),
+                scoreText = "${game.score}",
+                onResume = pause::resume,
+                onRestart = {
+                    pause.resume()
+                    lb.resetLastRank()
+                    game.clearSnapshot(prefs)
+                    game.start()
+                },
+                onExit = exitGame,
+            )
+        }
     }
 }
 
 @Composable
 private fun JumpHud(
     game: StarJumpGame,
-    frame: Long,
     onExit: () -> Unit,
+    onPause: (() -> Unit)?,
     onLeaderboard: () -> Unit,
     onCharacter: () -> Unit,
 ) {
-    // frame 仅用于驱动 HUD 每帧刷新分数
-    @Suppress("UNUSED_EXPRESSION")
-    frame
     Row(
         modifier =
             Modifier
@@ -376,6 +433,7 @@ private fun JumpHud(
                 color = Color.White.copy(alpha = 0.85f),
             )
         }
+        if (onPause != null) GamePauseButton(onClick = onPause)
         GameCharacterButton(onClick = onCharacter)
         LeaderboardButton(onClick = onLeaderboard)
     }

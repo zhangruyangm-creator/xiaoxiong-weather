@@ -71,6 +71,17 @@ private val unitStarPath: Path =
         close()
     }
 
+/** 碎裂平台两瓣的方向，避免每帧 listOf 分配。 */
+private val breakSides = floatArrayOf(-1f, 1f)
+
+/** 弹簧彩虹拱色带，避免每帧 listOf 分配。 */
+private val springBandColors =
+    longArrayOf(0xFFFF5252, 0xFFFFB300, 0xFFFFEB3B, 0xFF4CAF50, 0xFF2196F3)
+
+/** 地面草坡渐变与位置/时间无关，缓存复用。 */
+private val jumpGroundBrush =
+    Brush.verticalGradient(listOf(Color(0xFF8BC34A), Color(0xFF558B2F)))
+
 internal fun DrawScope.drawJumpWorld(
     game: StarJumpGame,
     sprites: BearSprites,
@@ -261,7 +272,7 @@ internal fun DrawScope.drawJumpWorld(
     val groundTop = -cam
     if (groundTop < h + 40f * s) {
         drawRect(
-            Brush.verticalGradient(listOf(Color(0xFF8BC34A), Color(0xFF558B2F))),
+            jumpGroundBrush,
             Offset(0f, groundTop),
             Size(w, h - groundTop + 40f * s),
         )
@@ -442,7 +453,7 @@ private fun DrawScope.drawPlatform(
         val alpha = (1f - t / 0.6f).coerceIn(0f, 1f)
         if (alpha <= 0f) return
         val fall = t * t * 900f * s
-        for (side in listOf(-1f, 1f)) {
+        for (side in breakSides) {
             val halfW = p.w / 2f
             val cx = p.x + halfW / 2f + (if (side > 0f) halfW else 0f) + side * t * 90f * s
             withTransform({
@@ -517,9 +528,8 @@ private fun DrawScope.drawPlatform(
         PlatType.SPRING -> {
             cloudPuffs(Offset(p.x, py), p.w, ph, Color.White, Color(0xFFE3ECF5), s, 1f)
             // 彩虹拱
-            val bands = listOf(0xFFFF5252, 0xFFFFB300, 0xFFFFEB3B, 0xFF4CAF50, 0xFF2196F3)
             val cx = p.x + p.w / 2f
-            bands.forEachIndexed { i, c ->
+            springBandColors.forEachIndexed { i, c ->
                 drawArc(
                     color = Color(c),
                     startAngle = 180f,
@@ -582,6 +592,10 @@ private fun DrawScope.drawJumpParticles(game: StarJumpGame) {
             Offset(p.x, p.y - game.cameraY),
             alpha = alpha * 0.9f,
         )
+    }
+    if (game.texts.isNotEmpty()) {
+        // 字号随缩放走（原先在 setDims 里设置；移到绘制期，保持 setDims 纯 JVM 可测）
+        jumpTextPaint.textSize = 15f * game.s
     }
     for (t in game.texts) {
         val k = (t.life / 0.9f).coerceIn(0f, 1f)

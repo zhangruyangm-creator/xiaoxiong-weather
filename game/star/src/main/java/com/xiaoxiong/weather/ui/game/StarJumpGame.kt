@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
+import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +11,12 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
+
+/** 摘星快照键：对局进行中落盘，结束/重开/退出时清除。 */
+private const val STAR_SNAPSHOT_KEY = "star_snapshot_v1"
+
+/** 快照 meta 段的字段数，用于坏档校验。 */
+private const val STAR_SNAPSHOT_META_FIELDS = 19
 
 internal enum class PlatType { NORMAL, MOVING, BREAK, SPRING }
 
@@ -88,7 +95,7 @@ internal class StarJumpGame {
     var bearVY = 0f
     var cameraY = 0f // 屏幕顶对应的世界 y
     var maxHeight = 0f // 到达过的最小 bearY
-    var starsCollected = 0
+    var starsCollected by mutableIntStateOf(0)
 
     var touchX: Float? = null
     var squashT = -1f
@@ -101,23 +108,46 @@ internal class StarJumpGame {
     val texts = mutableListOf<JumpFloatText>()
     var nextPlatY = 0f
 
+    /** 主动放弃/结束/退出后置位：阻止 ON_STOP/onDispose 的兜底落盘把已清理的对局写回复活。 */
+    private var snapshotDiscarded = false
+
+    /** 恢复出的快照尺寸：首次 setDims 若与之一致则保留恢复状态，避免被整局回准备态。 */
+    private var restoredDims: Triple<Float, Float, Float>? = null
+
     val altitudeKm get() = StarJumpLogic.altitudeKm(cameraY, s)
 
     fun setDims(
         width: Float,
         height: Float,
         scale: Float,
+        preserveRunning: Boolean = false,
     ) {
         if (width <= 0f || height <= 0f) return
         val first = w <= 0f || h <= 0f
         if (!first && w == width && h == height && abs(s - scale) < 0.001f) return
+        // 恢复快照后首次拿到与存档一致的尺寸：保留恢复出的对局，不能整局回准备态；
+        // 真实旋转导致尺寸变化时 restoredDims 不匹配，仍按原逻辑重置。
+        // preserveRunning：暂停中改窗口尺寸（分屏折叠等）保留对局，避免暂停菜单分数失效。
+        val restoredMatch =
+            restoredDims?.let { abs(it.first - width) < 0.5f && abs(it.second - height) < 0.5f } == true
+        val keepRestored = phase == GamePhase.RUNNING && (restoredMatch || preserveRunning)
         w = width
         h = height
         s = scale
-        jumpTextPaint.textSize = 15f * s
-        // 对局中改尺寸会让平台像素与碰撞错位，整局回准备态（与跑酷一致）
-        phase = GamePhase.READY
-        reset()
+        // 注：jumpTextPaint（Android Paint）的字号在绘制时按 s 设置，
+        // 不在这里触碰，保证 setDims 可在纯 JVM 单测中调用。
+        restoredDims = null
+        if (keepRestored) return
+        when (phase) {
+            // 结算界面改窗口（旋转/分屏）：只更新尺寸，保留本局分数（对齐接雨雪）
+            GamePhase.OVER -> Unit
+            // 对局中改尺寸会让平台像素与碰撞错位，整局回准备态（与跑酷一致）
+            GamePhase.RUNNING -> {
+                phase = GamePhase.READY
+                reset()
+            }
+            else -> reset()
+        }
     }
 
     fun reset() {
@@ -145,6 +175,7 @@ internal class StarJumpGame {
     }
 
     fun start() {
+        snapshotDiscarded = false
         reset()
         phase = GamePhase.RUNNING
         bearVY = -1400f * s
@@ -343,4 +374,104 @@ internal class StarJumpGame {
         texts.forEach { it.life -= dt }
         texts.removeAll { it.life <= 0f }
     }
+
+    /** 把足以续玩的一局编码落盘；仅在对局进行中写入，READY/OVER 不写。 */
+    fun saveSnapshot(prefs: SharedPreferences) {
+        if (phase != GamePhase.RUNNING || snapshotDiscarded) return
+        val meta =
+            SnapshotCodec.encode(
+                phase.ordinal,
+                time,
+                bearX,
+                bearY,
+                bearVX,
+                bearVY,
+                cameraY,
+                maxHeight,
+                starsCollected,
+                score,
+                squashT,
+                shakeT,
+                deadT,
+                best,
+                scene.ordinal,
+                w,
+                h,
+                s,
+                nextPlatY,
+            )
+        val platformGroups =
+            platforms.map {
+                listOf<Number>(it.type.ordinal, it.x, it.y, it.w, it.vx, if (it.broken) 1 else 0, it.breakT)
+            }
+        val starGroups = stars.map { listOf<Number>(it.x, it.y, if (it.taken) 1 else 0, it.seed) }
+        val payload =
+            listOf(
+                meta,
+                SnapshotCodec.encodeGroups(platformGroups),
+                SnapshotCodec.encodeGroups(starGroups),
+            ).joinToString("\n")
+        GameSnapshot.save(prefs, STAR_SNAPSHOT_KEY, payload)
+    }
+
+    /** 读取并恢复一局；无档/坏档返回 false，保持 READY。恢复成功后保留快照供再次落盘。 */
+    @Suppress("ReturnCount")
+    fun restoreSnapshot(prefs: SharedPreferences): Boolean {
+        val raw = GameSnapshot.load(prefs, STAR_SNAPSHOT_KEY) ?: return false
+        val sections = raw.split('\n')
+        val meta = SnapshotCodec.decodeFloatArray(sections.getOrNull(0)) ?: return false
+        if (meta.size < STAR_SNAPSHOT_META_FIELDS) return false
+        // 只接受 RUNNING 档：旧档/标题档恢复后会造成「标题态却续着残缺对局」的错乱
+        if (GamePhase.entries.getOrNull(meta[0].toInt()) != GamePhase.RUNNING) return false
+        val platformGroups = decodeSnapshotSection(sections.getOrNull(1)) ?: return false
+        val starGroups = decodeSnapshotSection(sections.getOrNull(2)) ?: return false
+        // 先整体校验再落状态，避免坏档半途写入把对局留在 RUNNING 的残缺状态。
+        val newPlatforms =
+            platformGroups.map { g ->
+                if (g.size < 7) return false
+                val type = PlatType.values().getOrNull(g[0].toInt()) ?: return false
+                Platform(g[1], g[2], g[3], type, vx = g[4], broken = g[5] >= 0.5f, breakT = g[6])
+            }
+        val newStars =
+            starGroups.map { g ->
+                if (g.size < 4) return false
+                StarItem(g[0], g[1], taken = g[2] >= 0.5f, seed = g[3])
+            }
+
+        phase = GamePhase.RUNNING
+        time = meta[1]
+        bearX = meta[2]
+        bearY = meta[3]
+        bearVX = meta[4]
+        bearVY = meta[5]
+        cameraY = meta[6]
+        maxHeight = meta[7]
+        starsCollected = meta[8].toInt()
+        score = meta[9].toInt()
+        squashT = meta[10]
+        shakeT = meta[11]
+        deadT = meta[12]
+        // 与现有最高分合并取大：旧快照不得把当前已提升的最高分改小
+        best = max(best, meta[13].toInt())
+        scene = JumpScene.values().getOrElse(meta[14].toInt()) { JumpScene.SUNNY }
+        restoredDims = Triple(meta[15], meta[16], meta[17])
+        nextPlatY = meta[18]
+        touchX = null
+        snapshotDiscarded = false
+        platforms.clear()
+        platforms += newPlatforms
+        stars.clear()
+        stars += newStars
+        return true
+    }
+
+    /** 清除落盘快照并抑制后续兜底落盘（结束/重开/退出时调用）。 */
+    fun clearSnapshot(prefs: SharedPreferences) {
+        snapshotDiscarded = true
+        GameSnapshot.clear(prefs, STAR_SNAPSHOT_KEY)
+    }
 }
+
+/** 解析快照的一个列表段；空白段视为空列表，非空但解析失败返回 null（坏档）。 */
+private fun decodeSnapshotSection(text: String?): List<FloatArray>? =
+    if (text.isNullOrBlank()) emptyList() else SnapshotCodec.decodeGroups(text)

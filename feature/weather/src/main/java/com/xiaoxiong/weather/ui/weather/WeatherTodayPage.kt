@@ -85,6 +85,7 @@ fun TodayPage(
     lastUpdatedText: String?,
     radarMapRepository: RadarMapRepository,
     cardLayout: List<TodayCardPref> = TodayCardLayout.defaults,
+    paused: Boolean = false,
 ) {
     val layout = remember(cardLayout) { TodayCardLayout.mergeWithDefaults(cardLayout) }
     LazyColumn(
@@ -117,7 +118,7 @@ fun TodayPage(
         ) { pref ->
             when (pref.id) {
                 TodayCardId.ALERTS -> AlertsSection(weather.alerts)
-                TodayCardId.CURRENT -> CurrentWeatherCard(weather)
+                TodayCardId.CURRENT -> CurrentWeatherCard(weather, paused = paused)
                 TodayCardId.LIFE_INDICES -> LifeIndicesSection(weather.lifeIndices)
                 TodayCardId.AIR_QUALITY ->
                     weather.airQuality?.let { aq ->
@@ -313,13 +314,17 @@ private fun AlertCard(
 }
 
 @Composable
-internal fun CurrentWeatherCard(snapshot: WeatherSnapshot) {
+internal fun CurrentWeatherCard(
+    snapshot: WeatherSnapshot,
+    paused: Boolean = false,
+) {
     val current = snapshot.current
     val precipRate = WeatherCodes.intensityPrecipMmPerHour(current)
     val displayCode = WeatherCodes.displayCode(current.weatherCode, precipRate)
     WeatherAtmosphereCard(
         code = displayCode,
         isDay = current.isDay,
+        paused = paused,
         modifier = Modifier.fillMaxWidth(),
     ) { style ->
         Column(modifier = Modifier.padding(20.dp)) {

@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -61,10 +62,15 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchScene
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.ItemKind
@@ -110,6 +116,38 @@ private val catchTextPaint =
         typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
 
+/** 单位闪电（以原点为中心、落在 [-1,1]），绘制时 translate/scale 复用，避免每帧 new Path。 */
+private val unitLightningPath: Path =
+    Path().apply {
+        moveTo(-0.5f, -1f)
+        lineTo(0.2f, -0.1f)
+        lineTo(-0.05f, -0.05f)
+        lineTo(0.6f, 1f)
+        lineTo(0.1f, 0.3f)
+        lineTo(0.35f, 0.28f)
+        lineTo(-0.6f, -0.5f)
+        close()
+    }
+
+private fun cachedSkyBrush(
+    top: Long,
+    bottom: Long,
+): Brush = Brush.verticalGradient(skyGradient(Color(top), Color(bottom)))
+
+/** 天空/地面渐变与时间、位置无关，按场景缓存复用，避免每帧新建 Brush。 */
+private val catchSkySunnyDay = cachedSkyBrush(0xFF4FC3F7, 0xFFB3E5FC)
+private val catchSkySunnyNight = cachedSkyBrush(0xFF1A237E, 0xFF3F51B5)
+private val catchSkyCloudy = cachedSkyBrush(0xFF92A1AD, 0xFFCAD1D8)
+private val catchSkyRainLight = cachedSkyBrush(0xFF7C94A8, 0xFFB4C7D2)
+private val catchSkyRain = cachedSkyBrush(0xFF5D7B94, 0xFF9DB4C3)
+private val catchSkyRainHeavy = cachedSkyBrush(0xFF47657F, 0xFF8198AC)
+private val catchSkySnow = cachedSkyBrush(0xFFBEC7D3, 0xFFE8EDF2)
+private val catchSkyStorm = cachedSkyBrush(0xFF33414F, 0xFF6B7B8A)
+private val catchSkyFreezingRain = cachedSkyBrush(0xFF5A6E86, 0xFFA7BCC8)
+private val catchSkyHail = cachedSkyBrush(0xFF3D5568, 0xFF8BA2B5)
+private val catchGroundBrush =
+    Brush.verticalGradient(listOf(Color(0xFF8BC34A), Color(0xFF558B2F)))
+
 /**
  * 小熊接雨雪：竖屏接住类。小熊底部左右移动（手指跟随），接得分物、躲惩罚物。
  * 掉落物种类由当前天气决定：“接雨滴/雪花/硬币/花瓣，躲乌云/冰雹/闪电”。
@@ -123,6 +161,7 @@ fun BearCatchScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
     val lb = rememberLeaderboardState(prefs, "leaderboard_catch", "best_catch")
     val characterState = rememberBearCharacterState()
@@ -131,7 +170,39 @@ fun BearCatchScreen(
         remember {
             BearCatchGame().also { it.best = prefs.getInt("best_catch", 0) }
         }
+    // 进程重建（如旋转/被系统回收后重进）时恢复局中快照；坏档/无档保持标题
+    LaunchedEffect(Unit) {
+        game.restoreSnapshot(prefs)
+    }
+    // 退出流程（HUD 关闭 / 暂停退出 / 返回键）：先清档并置标记，
+    // 避免随后的 onDispose 兜底把已结束/已退出的对局重新落盘
+    var exiting by remember { mutableStateOf(false) }
+
+    fun exitGame() {
+        exiting = true
+        game.clearSnapshot(prefs)
+        onExit()
+    }
+    // ON_STOP（按 Home 等切后台）与组合销毁时落盘，避免进程被系统回收丢档
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP && !exiting) game.saveSnapshot(prefs)
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (!exiting) game.saveSnapshot(prefs)
+        }
+    }
+    // 死亡结算后清档：重进应从标题开始，而不是续到已结束的对局
+    LaunchedEffect(game.phase) {
+        if (game.phase == GamePhase.OVER) game.clearSnapshot(prefs)
+    }
     val texts = remember { mutableListOf<CatchFloatText>() }
+    // 飘字在非组合的帧回调里生成，提前在组合期解析文案
+    val blockedText = stringResource(R.string.bear_catch_blocked)
     val catchWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     // 天气/城市变化时实时更新上报所用值，避免 LaunchedEffect(Unit) 闭包捕获开局时的旧值
     val reportSceneCode by rememberUpdatedState(sceneCode)
@@ -150,12 +221,13 @@ fun BearCatchScreen(
     // 真实速度的 1/5 慢动作运行。这里按真实帧累计 animDt 后整笔提交（对齐 farm 写法）。
     var animDt by remember { mutableFloatStateOf(0f) }
     GameFrameLoop(
-        paused = { lb.show || showCharacterPicker },
+        paused = { lb.show || showCharacterPicker || pause.paused },
         onTick = { dt, now ->
             val running = game.phase == GamePhase.RUNNING
             animDt += dt
             if (running || slowTick % 5 == 0) {
-                val worldDt = animDt
+                // 死亡结算走慢动作，其余界面按真实时间推进
+                val worldDt = animDt * gameOverTimeScale(game.phase)
                 animDt = 0f
                 // 飘字整体推进（原地更新，避免每帧重建列表）
                 val ite = texts.iterator()
@@ -197,8 +269,23 @@ fun BearCatchScreen(
                             ),
                         )
                     },
+                    onBlocked = {
+                        // 护盾挡下：青色「格挡」飘字 + 轻震，不再飘红字「-N」
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        texts.add(
+                            CatchFloatText(
+                                text = blockedText,
+                                x = game.catchX,
+                                y = game.catchY - game.catchR * 1.4f,
+                                life = 0.8f,
+                                color = Color(0xFF4DD0E1),
+                            ),
+                        )
+                    },
                     onDeath = { score ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        // 死亡即清档：不能只等 LaunchedEffect，进程被回收会漏掉清档而重复续玩
+                        game.clearSnapshot(prefs)
                         if (score > game.best) {
                             game.best = score
                             prefs.edit { putInt("best_catch", score) }
@@ -222,14 +309,21 @@ fun BearCatchScreen(
         },
     )
 
-    BackHandler { onExit() }
+    BackHandler {
+        when {
+            pause.showMenu -> pause.resume()
+            game.phase == GamePhase.RUNNING -> pause.open()
+            else -> exitGame()
+        }
+    }
 
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .onSizeChanged { sz ->
-                    game.resize(IntSize(sz.width, sz.height))
+                    // 暂停中改尺寸（分屏/折叠）保留对局，避免菜单分数与实际进度不一致
+                    game.resize(IntSize(sz.width, sz.height), preserveRunning = pause.paused)
                 },
     ) {
         Canvas(
@@ -282,8 +376,8 @@ fun BearCatchScreen(
 
         CatchHud(
             game = game,
-            frame = frame,
-            onExit = onExit,
+            onExit = { exitGame() },
+            onPause = if (game.phase == GamePhase.RUNNING) pause::open else null,
             onLeaderboard = {
                 lb.entries = lb.store.load()
                 lb.show = true
@@ -415,11 +509,12 @@ fun BearCatchScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TextButton(onClick = onExit) {
+                            TextButton(onClick = { exitGame() }) {
                                 Text(stringResource(R.string.bear_game_exit))
                             }
                             Button(onClick = {
                                 lb.resetLastRank()
+                                game.clearSnapshot(prefs)
                                 game.start()
                             }) {
                                 Text(stringResource(R.string.bear_game_restart))
@@ -430,20 +525,32 @@ fun BearCatchScreen(
             }
             GamePhase.RUNNING -> Unit
         }
+
+        if (pause.showMenu) {
+            GamePauseOverlay(
+                title = gamePauseTitle(),
+                scoreText = "${game.score}",
+                onResume = pause::resume,
+                onRestart = {
+                    pause.resume()
+                    lb.resetLastRank()
+                    game.clearSnapshot(prefs)
+                    game.start()
+                },
+                onExit = { exitGame() },
+            )
+        }
     }
 }
 
 @Composable
 private fun CatchHud(
     game: BearCatchGame,
-    frame: Long,
     onExit: () -> Unit,
+    onPause: (() -> Unit)?,
     onLeaderboard: () -> Unit,
     onCharacter: () -> Unit,
 ) {
-    // frame 仅用于驱动 HUD 每帧刷新分数
-    @Suppress("UNUSED_EXPRESSION")
-    frame
     Row(
         modifier =
             Modifier
@@ -468,7 +575,7 @@ private fun CatchHud(
                 // 双倍得分倒计时
                 if (game.doubleT > 0f) {
                     Text(
-                        text = "×2 ${game.doubleT.toInt() + 1}s",
+                        text = stringResource(R.string.bear_catch_double_time, game.doubleT.toInt() + 1),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFFFD54F),
@@ -477,14 +584,14 @@ private fun CatchHud(
                 // 连击（与 comboScoreMultiplier 的 ×5 封顶保持一致）
                 if (game.combo >= 2) {
                     Text(
-                        text = "×${minOf(game.combo, 5)}",
+                        text = stringResource(R.string.bear_catch_combo, minOf(game.combo, 5)),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFFFF176),
                     )
                 }
                 Text(
-                    text = "${game.score}",
+                    text = stringResource(R.string.bear_catch_score_value, game.score),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -502,7 +609,12 @@ private fun CatchHud(
                     repeat(BearCatchGame.MAX_HEARTS) { i ->
                         Icon(
                             imageVector = if (i < game.hearts) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = null,
+                            contentDescription =
+                                if (i < game.hearts) {
+                                    stringResource(R.string.cd_catch_heart_full, i + 1, BearCatchGame.MAX_HEARTS)
+                                } else {
+                                    stringResource(R.string.cd_catch_heart_empty, i + 1, BearCatchGame.MAX_HEARTS)
+                                },
                             tint =
                                 if (i <
                                     game.hearts
@@ -517,7 +629,16 @@ private fun CatchHud(
                     // 一次性护盾：持有时亮色 + 半透明边框，冷却中显示倒计时并灰显
                     Icon(
                         imageVector = Icons.Filled.Shield,
-                        contentDescription = null,
+                        contentDescription =
+                            when {
+                                game.hasShield -> stringResource(R.string.cd_catch_shield_ready)
+                                game.shieldCooldownT > 0f ->
+                                    stringResource(
+                                        R.string.cd_catch_shield_cooldown,
+                                        game.shieldCooldownT.toInt() + 1,
+                                    )
+                                else -> stringResource(R.string.cd_catch_shield_none)
+                            },
                         tint =
                             when {
                                 game.hasShield -> Color(0xFF80DEEA)
@@ -528,27 +649,37 @@ private fun CatchHud(
                     )
                     if (!game.hasShield && game.shieldCooldownT > 0f) {
                         Text(
-                            text = "${game.shieldCooldownT.toInt() + 1}s",
+                            text =
+                                stringResource(
+                                    R.string.bear_catch_shield_cooldown,
+                                    game.shieldCooldownT.toInt() + 1,
+                                ),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White.copy(alpha = 0.55f),
                         )
                     }
                     // 风暴爆发波次提示
                     if (game.inBurstWave) {
+                        val burstDesc = stringResource(R.string.cd_catch_burst)
                         Text(
-                            text = "⚡",
+                            text = stringResource(R.string.bear_catch_burst_icon),
+                            modifier =
+                                Modifier.semantics {
+                                    contentDescription = burstDesc
+                                },
                             style = MaterialTheme.typography.labelLarge,
                             color = Color(0xFFFFEB3B),
                         )
                     }
                 }
                 Text(
-                    text = "· ${stringResource(R.string.bear_game_best_label)} ${game.best}",
+                    text = stringResource(R.string.bear_catch_best_suffix, game.best),
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White.copy(alpha = 0.85f),
                 )
             }
         }
+        if (onPause != null) GamePauseButton(onClick = onPause)
         GameCharacterButton(onClick = onCharacter)
         LeaderboardButton(onClick = onLeaderboard)
     }
@@ -583,7 +714,7 @@ private fun DrawScope.drawCatchWorld(
     // 地面（底部一条绿草坡）
     val groundY = game.catchY + game.catchR * 0.6f
     drawRect(
-        Brush.verticalGradient(listOf(Color(0xFF8BC34A), Color(0xFF558B2F))),
+        catchGroundBrush,
         topLeft = Offset(0f, groundY),
         size = Size(w, h - groundY),
     )
@@ -624,24 +755,51 @@ private fun DrawScope.drawCatchSky(
     w: Float,
     h: Float,
 ) {
-    val (top, bottom) =
-        when (scene) {
-            CatchScene.SUNNY ->
-                if (isDay) {
-                    Color(0xFF4FC3F7) to Color(0xFFB3E5FC)
-                } else {
-                    Color(0xFF1A237E) to Color(0xFF3F51B5)
-                }
-            CatchScene.CLOUDY -> Color(0xFF92A1AD) to Color(0xFFCAD1D8)
-            CatchScene.RAIN_LIGHT -> Color(0xFF7C94A8) to Color(0xFFB4C7D2)
-            CatchScene.RAIN -> Color(0xFF5D7B94) to Color(0xFF9DB4C3)
-            CatchScene.RAIN_HEAVY -> Color(0xFF47657F) to Color(0xFF8198AC)
-            CatchScene.SNOW -> Color(0xFFBEC7D3) to Color(0xFFE8EDF2)
-            CatchScene.STORM -> Color(0xFF33414F) to Color(0xFF6B7B8A)
-            CatchScene.FREEZING_RAIN -> Color(0xFF5A6E86) to Color(0xFFA7BCC8)
-            CatchScene.HAIL -> Color(0xFF3D5568) to Color(0xFF8BA2B5)
+    val brush: Brush
+    val bottom: Color
+    when (scene) {
+        CatchScene.SUNNY ->
+            if (isDay) {
+                brush = catchSkySunnyDay
+                bottom = Color(0xFFB3E5FC)
+            } else {
+                brush = catchSkySunnyNight
+                bottom = Color(0xFF3F51B5)
+            }
+        CatchScene.CLOUDY -> {
+            brush = catchSkyCloudy
+            bottom = Color(0xFFCAD1D8)
         }
-    drawRect(Brush.verticalGradient(skyGradient(top, bottom)))
+        CatchScene.RAIN_LIGHT -> {
+            brush = catchSkyRainLight
+            bottom = Color(0xFFB4C7D2)
+        }
+        CatchScene.RAIN -> {
+            brush = catchSkyRain
+            bottom = Color(0xFF9DB4C3)
+        }
+        CatchScene.RAIN_HEAVY -> {
+            brush = catchSkyRainHeavy
+            bottom = Color(0xFF8198AC)
+        }
+        CatchScene.SNOW -> {
+            brush = catchSkySnow
+            bottom = Color(0xFFE8EDF2)
+        }
+        CatchScene.STORM -> {
+            brush = catchSkyStorm
+            bottom = Color(0xFF6B7B8A)
+        }
+        CatchScene.FREEZING_RAIN -> {
+            brush = catchSkyFreezingRain
+            bottom = Color(0xFFA7BCC8)
+        }
+        CatchScene.HAIL -> {
+            brush = catchSkyHail
+            bottom = Color(0xFF8BA2B5)
+        }
+    }
+    drawRect(brush)
     drawHorizonGlow(h * 0.95f, midColor(bottom, Color.White), h * 0.16f)
 }
 
@@ -875,19 +1033,17 @@ private fun DrawScope.drawCatchItem(
         }
         ItemKind.LIGHTNING -> {
             drawSoftGlow(x, y, r * 1.6f, Color(0xFFFFEB3B))
-            val path =
-                Path().apply {
-                    moveTo(x - r * 0.5f, y - r)
-                    lineTo(x + r * 0.2f, y - r * 0.1f)
-                    lineTo(x - r * 0.05f, y - r * 0.05f)
-                    lineTo(x + r * 0.6f, y + r)
-                    lineTo(x + r * 0.1f, y + r * 0.3f)
-                    lineTo(x + r * 0.35f, y + r * 0.28f)
-                    lineTo(x - r * 0.6f, y - r * 0.5f)
-                    close()
-                }
-            drawPath(path, Color(0xFFFFF176))
-            drawPath(path, Color(0xFFFFFDE7), style = Stroke(width = 1.2f * s))
+            withTransform({
+                translate(x, y)
+                scale(r, r, pivot = Offset.Zero)
+            }) {
+                drawPath(unitLightningPath, Color(0xFFFFF176))
+                drawPath(
+                    unitLightningPath,
+                    Color(0xFFFFFDE7),
+                    style = Stroke(width = (1.2f * s) / r.coerceAtLeast(0.1f)),
+                )
+            }
         }
     }
 }

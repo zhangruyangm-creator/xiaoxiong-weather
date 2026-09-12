@@ -19,10 +19,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -31,7 +29,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,10 +49,10 @@ internal fun HomeBalcony(
     date: LocalDate = LocalDate.now(),
     onGoStreet: () -> Unit = {},
 ) {
-    val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
+    val weather = remember(sceneCode, isDay) { homeDisplayWeather(sceneCode, isDay) }
     val night = isDay == false
     val artRes = remember(weather, night, date) { balconySceneArt(weather, night, date) }
-    val labelRes = balconyWeatherLabel(weather, night)
+    val labelRes = homeWeatherLabelRes(sceneCode, isDay)
     val tipRes = balconyWeatherTip(weather, night)
 
     val timeState = remember { mutableFloatStateOf(0f) }
@@ -63,22 +60,9 @@ internal fun HomeBalcony(
         weather == FarmWeather.RAINY ||
             weather == FarmWeather.STORMY ||
             weather == FarmWeather.SNOWY
-    LaunchedEffect(needsFx) {
-        if (!needsFx) return@LaunchedEffect
-        var last = Long.MIN_VALUE
-        while (true) {
-            withFrameNanos { now ->
-                val dt =
-                    if (last == Long.MIN_VALUE) {
-                        1f / 60f
-                    } else {
-                        ((now - last) / 1e9f).coerceIn(0f, 0.05f)
-                    }
-                last = now
-                // 只在 draw 里读 floatValue，避免带动 Image/文案每帧重组
-                timeState.floatValue += dt
-            }
-        }
+    // 用共享帧循环：切后台/锁屏时自动停推，避免阳台粒子在后台空转
+    GameFrameLoop(key = needsFx) { dt, _ ->
+        if (needsFx) timeState.floatValue += dt
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFF6E8))) {
@@ -91,7 +75,7 @@ internal fun HomeBalcony(
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 Image(
-                    painter = painterResource(artRes),
+                    bitmap = rememberGameImage(artRes, 1536),
                     contentDescription = stringResource(R.string.bear_home_room_balcony),
                     modifier = Modifier.fillMaxWidth(),
                     contentScale = ContentScale.FillWidth,
@@ -189,20 +173,52 @@ internal fun balconySceneArt(
         FarmWeather.FOGGY -> R.drawable.ic_bear_home_balcony_fog
     }
 
+/** 晴夜特判：0/1 是晴天码，但 [farmWeatherFromScene] 在夜间会归为多云；home 内单独识别。 */
+internal fun isClearNight(
+    sceneCode: Int?,
+    isDay: Boolean?,
+): Boolean = isDay == false && sceneCode != null && sceneCode in 0..1
+
+/**
+ * home 内部展示用天气：晴夜（0/1 且夜间）按晴天处理，以复用晴朗夜景插画/文案；
+ * 其余与 [farmWeatherFromScene] 一致（不改 `:game:common` 口径）。
+ */
+internal fun homeDisplayWeather(
+    sceneCode: Int?,
+    isDay: Boolean?,
+): FarmWeather =
+    if (isClearNight(sceneCode, isDay)) {
+        FarmWeather.SUNNY
+    } else {
+        farmWeatherFromScene(sceneCode, isDay)
+    }
+
+/**
+ * 阳台与今日小结共用的天气标签：降雨按 [rainStrengthOf] 分小/中/大雨，
+ * 冻雨（56/57/66/67）优先单独成类，晴夜显示「晴朗夜晚」而不是多云。
+ */
 @StringRes
-internal fun balconyWeatherLabel(
-    weather: FarmWeather,
-    isNight: Boolean,
-): Int =
-    when (weather) {
+internal fun homeWeatherLabelRes(
+    sceneCode: Int?,
+    isDay: Boolean?,
+): Int {
+    val code = sceneCode ?: return R.string.bear_home_summary_weather_unknown
+    if (isFreezingRainCode(code)) return R.string.balcony_weather_freezing_rain
+    return when (homeDisplayWeather(code, isDay)) {
         FarmWeather.SUNNY ->
-            if (isNight) R.string.balcony_weather_clear_night else R.string.balcony_weather_sunny
+            if (isClearNight(code, isDay)) R.string.balcony_weather_clear_night else R.string.balcony_weather_sunny
         FarmWeather.CLOUDY -> R.string.balcony_weather_cloudy
-        FarmWeather.RAINY -> R.string.balcony_weather_rain_light
+        FarmWeather.RAINY ->
+            when (rainStrengthOf(code)) {
+                RainStrength.LIGHT, RainStrength.NONE -> R.string.balcony_weather_rain_light
+                RainStrength.MODERATE -> R.string.balcony_weather_rain_moderate
+                RainStrength.HEAVY -> R.string.balcony_weather_rain_heavy
+            }
         FarmWeather.STORMY -> R.string.balcony_weather_storm
         FarmWeather.SNOWY -> R.string.balcony_weather_snow
         FarmWeather.FOGGY -> R.string.balcony_weather_fog
     }
+}
 
 @StringRes
 internal fun balconyWeatherTip(

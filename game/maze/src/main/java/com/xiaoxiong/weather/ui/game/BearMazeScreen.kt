@@ -20,10 +20,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
+import java.time.LocalDate
 
 @Composable
 fun BearMazeScreen(
@@ -32,6 +34,7 @@ fun BearMazeScreen(
     onExit: () -> Unit,
 ) {
     val view = LocalView.current
+    val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
     val characterState = rememberBearCharacterState()
     var showCharacterPicker by remember { mutableStateOf(false) }
@@ -43,11 +46,15 @@ fun BearMazeScreen(
         remember {
             MazeGame().also { it.loadProgress(prefs) }
         }
-    // 旋转屏幕等进程重建后恢复局中进度。放 LaunchedEffect 而非 remember 初始化块：
-    // restoreSession 会写 phase/bearR 等 snapshot state，组合期写入会触发额外重组；
-    // 且若该次组合被丢弃（如立即导航离开），组合期执行恢复的副作用不应生效。
-    LaunchedEffect(Unit) {
-        game.restoreSession(prefs)
+    // 本地日（用于每日迷宫与完成记录）
+    val today = remember { LocalDate.now().toEpochDay() }
+    // 可续会话摘要：进入先回选关，只有点「继续」才 restoreSession
+    var savedSession by remember { mutableStateOf<SavedSessionInfo?>(null) }
+    // 进入 / 回到选关时探测存档；选关阶段的 saveSession 不再清档，只有主动开新局才放弃
+    LaunchedEffect(game.phase) {
+        if (game.phase == MazePhase.SELECT) {
+            savedSession = game.peekSavedSession(prefs)
+        }
     }
     // 组合销毁（切屏/旋转重建）时把局中对局落盘，供下次恢复；
     // 按 Home 等切入后台（ON_STOP）时也落盘一次，避免进程被系统回收丢档
@@ -64,8 +71,24 @@ fun BearMazeScreen(
         }
     }
     val sprites = rememberBearSprites(characterState.selected)
-    var frame by remember { mutableLongStateOf(0L) }
+    // 帧时间以 State 形式传入绘制层：只有 Canvas 的 draw lambda 读它，
+    // 避免每帧更新 Long 触发整个 BearMazeScreen 重组。
+    val frame = remember { mutableLongStateOf(0L) }
     var showAbandonDialog by remember { mutableStateOf(false) }
+    // 存在可续会话（战役/无尽/每日）时，开始新局前的放弃确认
+    var showOverwriteDialog by remember { mutableStateOf(false) }
+    var pendingStart by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val dailyBest = prefs.getInt("maze_daily_$today", -1)
+
+    // 有存档时先确认再开新局；确认后丢弃旧会话
+    fun guardedStart(action: () -> Unit) {
+        if (savedSession != null) {
+            pendingStart = action
+            showOverwriteDialog = true
+        } else {
+            action()
+        }
+    }
 
     // 选关列表只需标题/主题等元数据，轻量同步可得；完整关卡（含迷宫图）在
     // 点击某关开始游玩时才生成，避免进入选关界面就批量生成造成等待。
@@ -75,40 +98,50 @@ fun BearMazeScreen(
     // SELECT 阶段 time 空转 60fps 耗电（与 jump/catch 的 paused 语义一致）。
     GameFrameLoop(
         paused = {
-            showAbandonDialog || showCharacterPicker || game.phase == MazePhase.SELECT
+            showAbandonDialog || showCharacterPicker || game.phase == MazePhase.SELECT || pause.paused
         },
     ) { dt, now ->
         val before = game.phase
         val wasMoving = game.moving
-        game.tick(dt)
+        val event = game.tick(dt)
         if (wasMoving && !game.moving) {
-            // 落地事件里可能清关；结算触感
             if (game.phase == MazePhase.CLEAR && before != MazePhase.CLEAR) {
+                // 结算触感 + 落盘进度；结算即清掉落盘会话，避免选关页出现已结算的旧档
                 view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 game.saveProgress(prefs)
+                game.saveSession(prefs)
+                if (game.daily) {
+                    val key = "maze_daily_${game.dailyDate}"
+                    val prev = prefs.getInt(key, -1)
+                    if (prev < 0 || game.moves < prev) prefs.edit { putInt(key, game.moves) }
+                }
             } else {
-                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                // 按落地事件类型区分触感（落地只响一次，按键本身不再响）
+                val haptic =
+                    when (event) {
+                        MazeStepEvent.HONEY, MazeStepEvent.KEY, MazeStepEvent.LOCK ->
+                            HapticFeedbackConstants.VIRTUAL_KEY
+                        MazeStepEvent.PORTAL -> HapticFeedbackConstants.KEYBOARD_TAP
+                        MazeStepEvent.EXIT_LOCKED -> HapticFeedbackConstants.LONG_PRESS
+                        else -> HapticFeedbackConstants.CLOCK_TICK
+                    }
+                view.performHapticFeedback(haptic)
             }
         }
-        frame = now
+        frame.longValue = now
     }
 
     BackHandler {
-        if (showAbandonDialog) {
-            showAbandonDialog = false
-        } else {
-            when (game.phase) {
-                MazePhase.SELECT -> onExit()
-                MazePhase.PLAYING -> {
-                    if (game.endless) {
-                        // 无尽退出前询问：保留进度续玩，或放弃从第 1 波重来
-                        showAbandonDialog = true
-                    } else {
-                        game.openSelect()
-                    }
-                }
-                MazePhase.CLEAR -> game.openSelect()
+        when {
+            pause.showMenu -> pause.resume()
+            showOverwriteDialog -> {
+                showOverwriteDialog = false
+                pendingStart = null
             }
+            showAbandonDialog -> showAbandonDialog = false
+            game.phase == MazePhase.PLAYING -> pause.open()
+            game.phase == MazePhase.SELECT -> onExit()
+            else -> game.openSelect()
         }
     }
 
@@ -118,8 +151,16 @@ fun BearMazeScreen(
                 MazeLevelSelect(
                     game = game,
                     campaignMetas = campaignMetas,
-                    onPick = { game.startLevel(it) },
-                    onEndless = { game.startEndless(1) },
+                    savedSession = savedSession,
+                    dailyBest = dailyBest,
+                    dailyDone = dailyBest >= 0,
+                    onPick = { guardedStart { game.startLevel(it) } },
+                    onEndless = { guardedStart { game.startEndless(1) } },
+                    onResume = {
+                        game.restoreSession(prefs)
+                        savedSession = null
+                    },
+                    onDaily = { guardedStart { game.startDaily(today) } },
                     onExit = onExit,
                     onCharacter = { showCharacterPicker = true },
                 )
@@ -134,28 +175,41 @@ fun BearMazeScreen(
                     freezingRain = mazeFreezingRain,
                     hail = mazeHail,
                     onExitSelect = {
-                        if (game.endless && game.phase == MazePhase.PLAYING) {
-                            showAbandonDialog = true
-                        } else {
-                            game.openSelect()
+                        when {
+                            game.endless && game.phase == MazePhase.PLAYING -> showAbandonDialog = true
+                            game.phase == MazePhase.PLAYING -> {
+                                // 战役/每日回选关：先落盘当前进度，选关页可「继续」
+                                game.saveSession(prefs)
+                                game.openSelect()
+                            }
+                            else -> game.openSelect()
                         }
                     },
                     onRestart = { game.restart() },
+                    onPause = pause::open,
                     onNext = {
-                        if (game.endless) {
-                            game.startEndless(game.endlessWave + 1)
-                        } else {
-                            val n = game.levelIndex + 1
-                            if (n < MAZE_CAMPAIGN_SIZE) {
-                                game.startLevel(n)
-                            } else {
-                                game.openSelect()
+                        when {
+                            game.daily -> game.openSelect()
+                            game.endless -> game.startEndless(game.endlessWave + 1)
+                            else -> {
+                                val n = game.levelIndex + 1
+                                if (n < MAZE_CAMPAIGN_SIZE) {
+                                    game.startLevel(n)
+                                } else {
+                                    game.openSelect()
+                                }
                             }
                         }
                     },
                     onMove = { dir ->
-                        if (game.tryMove(dir)) {
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        // 按键本身不给触感；成功移动的反馈在落地事件里统一给，
+                        // 被墙/锁挡住时给一次 REJECT，避免与落地音重复
+                        if (!game.tryMove(dir) &&
+                            game.phase == MazePhase.PLAYING &&
+                            !game.moving &&
+                            !game.cleared
+                        ) {
+                            view.performHapticFeedback(HapticFeedbackConstants.REJECT)
                         }
                     },
                     onCharacter = { showCharacterPicker = true },
@@ -180,16 +234,82 @@ fun BearMazeScreen(
                     game.openSelect()
                 },
                 onAbandon = {
-                    // 彻底放弃本次无尽对局：删除落盘会话，并清除续玩标记，
+                    // 彻底放弃本次对局：删除落盘会话并清除续玩标记，
                     // 避免 onDispose 的兜底 saveSession 把已放弃的对局重新写回复活
-                    game.discardSavedSession(prefs)
-                    game.resumeEndless = false
+                    game.abandonSession(prefs)
                     showAbandonDialog = false
                     game.openSelect()
                 },
             )
         }
+
+        val overwriteInfo = savedSession
+        if (showOverwriteDialog && overwriteInfo != null) {
+            OverwriteSessionDialog(
+                info = overwriteInfo,
+                onCancel = {
+                    showOverwriteDialog = false
+                    pendingStart = null
+                },
+                onConfirm = {
+                    game.abandonSession(prefs)
+                    savedSession = null
+                    showOverwriteDialog = false
+                    val action = pendingStart
+                    pendingStart = null
+                    action?.invoke()
+                },
+            )
+        }
+
+        if (pause.showMenu) {
+            GamePauseOverlay(
+                title = gamePauseTitle(),
+                onResume = pause::resume,
+                // 暂停里的「重新开始」= 重开当前局（战役重开本关 / 无尽重开本波 / 每日同一张图），
+                // 与 HUD 刷新按钮语义一致；回选关请用 HUD 的关闭按钮。
+                onRestart = {
+                    pause.resume()
+                    game.restart()
+                },
+                onExit = onExit,
+            )
+        }
     }
+}
+
+/** 开始新局前提示旧进度（战役/每日/无尽）将被放弃。 */
+@Composable
+private fun OverwriteSessionDialog(
+    info: SavedSessionInfo,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val message =
+        when (info) {
+            is SavedSessionInfo.Campaign ->
+                stringResource(R.string.bear_maze_overwrite_text_campaign, info.levelIndex + 1)
+            is SavedSessionInfo.Endless -> stringResource(R.string.bear_maze_overwrite_text, info.wave)
+            is SavedSessionInfo.Daily -> stringResource(R.string.bear_maze_overwrite_text_daily)
+        }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(stringResource(R.string.bear_maze_overwrite_title)) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    stringResource(R.string.bear_maze_overwrite_confirm),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.bear_maze_overwrite_cancel))
+            }
+        },
+    )
 }
 
 /** 无尽退出选择：保留进度续玩，或放弃并从第 1 波重来。 */

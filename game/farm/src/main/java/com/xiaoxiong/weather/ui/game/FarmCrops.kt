@@ -114,6 +114,12 @@ data class CropDef(
     /** 一句话介绍（图鉴详情/解锁弹卡展示）。 */
     val description: String get() = FARM_CROP_DESCRIPTIONS[id] ?: ""
 
+    /** 喜好天气（按 [category] 推导）；null 表示无特别偏好。 */
+    val preferredWeather: FarmWeather? get() = preferredWeatherOf(category)
+
+    /** 当前天气是否为该作物的喜好天气。 */
+    fun prefers(weather: FarmWeather): Boolean = preferredWeather == weather
+
     /**
      * 后期作物加价加时（延缓通关节奏）：种子价/售价按 [costMul] 缩放，
      * 各阶段时长按 [hourMul] 缩放；售价与成本同步缩放以保持利润率。
@@ -307,7 +313,7 @@ val FARM_CROPS: List<CropDef> =
         }
     }
 
-/** 收获解锁顺序 = 作物表顺序（避免每次收获都重新 map 一遍 110 项）。 */
+/** 收获解锁顺序 = 作物表顺序（避免每次收获都重新 map 一遍 128 项）。 */
 val FARM_CROP_ORDER: List<String> = FARM_CROPS.map { it.id }
 
 private val FARM_CROPS_BY_ID: Map<String, CropDef> = FARM_CROPS.associateBy { it.id }
@@ -400,11 +406,69 @@ fun farmSellBonus(weather: FarmWeather): Float =
         else -> 1f
     }
 
-/** 单个作物的卖出价（含当前天气加成，四舍五入）。 */
+/** 喜好天气的生长加成（+20%）。 */
+const val CROP_PREFERRED_GROWTH_BONUS = 0.20f
+
+/**
+ * 喜好天气的售价加成（+25%）。与通用天气加成取**较大值**而非相乘，
+ * 且必须高于 [farmSellBonus] 的晴天加成（+15%），否则「喜晴」作物在晴天
+ * 只会吃到通用加成，喜好形同虚设。
+ */
+const val CROP_PREFERRED_SELL_BONUS = 0.25f
+
+/**
+ * 按类别定义作物「喜好天气」策略：
+ * 谷物/香草（叶菜）喜雨、果蔬/根菜喜晴、花卉喜多云、菇菌喜雾；
+ * 其他作物无特别偏好。控制改动量，只按类别区分，不逐株配置。
+ */
+fun preferredWeatherOf(category: String): FarmWeather? =
+    when (category) {
+        "谷物", "香草" -> FarmWeather.RAINY
+        "水果", "蔬菜" -> FarmWeather.SUNNY
+        "花卉" -> FarmWeather.CLOUDY
+        "菇菌" -> FarmWeather.FOGGY
+        else -> null
+    }
+
+/** 喜好天气的短名资源（商店/图鉴「喜好天气」展示用）。 */
+fun farmWeatherNameRes(weather: FarmWeather): Int =
+    when (weather) {
+        FarmWeather.SUNNY -> R.string.bear_farm_weather_name_sunny
+        FarmWeather.CLOUDY -> R.string.bear_farm_weather_name_cloudy
+        FarmWeather.RAINY -> R.string.bear_farm_weather_name_rainy
+        FarmWeather.STORMY -> R.string.bear_farm_weather_name_stormy
+        FarmWeather.SNOWY -> R.string.bear_farm_weather_name_snowy
+        FarmWeather.FOGGY -> R.string.bear_farm_weather_name_foggy
+    }
+
+/** 单个作物的卖出价（通用天气加成与喜好天气加成取较大值，四舍五入）。 */
 fun sellPriceOf(
     crop: CropDef,
     weather: FarmWeather,
-): Int = (crop.sellPrice * farmSellBonus(weather)).roundToInt()
+): Int {
+    val weatherBonus = farmSellBonus(weather)
+    val preferredBonus = if (crop.prefers(weather)) 1f + CROP_PREFERRED_SELL_BONUS else 1f
+    return (crop.sellPrice * maxOf(weatherBonus, preferredBonus)).roundToInt()
+}
+
+/**
+ * 背包顶部展示用：库存作物的最优售价加成。
+ * 卡片单价按 [sellPriceOf] 逐种计算（含喜好加成），顶部汇总必须与之一致，
+ * 否则会出现「顶部显示无加成、卡片却按喜好价」的矛盾。
+ */
+fun bestSellBonusOf(
+    cropIds: Collection<String>,
+    weather: FarmWeather,
+): Float {
+    val weatherBonus = farmSellBonus(weather)
+    val preferredBonus =
+        if (cropIds.any { cropById(it)?.prefers(weather) == true }) {
+            1f + CROP_PREFERRED_SELL_BONUS
+        } else {
+            1f
+        }
+    return maxOf(weatherBonus, preferredBonus)
+}
 
 /** 金肥料：单次花费与推进小时数。 */
 const val FERTILIZE_COST = 25
@@ -418,6 +482,8 @@ const val WEED_KILLER_COST = 20
 /**
  * 按给定小时数推进一格作物的生长（离线模拟与金肥料共用同一套进度公式）。
  * 有杂草/害虫/缺水时生长被阻断，直接返回。
+ *
+ * [preferred] 为真（当前天气恰为该作物喜好）时额外乘 [CROP_PREFERRED_GROWTH_BONUS]。
  */
 fun advanceGrowth(
     plot: FarmPlotState,
@@ -425,12 +491,14 @@ fun advanceGrowth(
     hours: Float,
     fx: FarmWeatherEffect,
     seasonMul: Float,
+    preferred: Boolean = false,
 ) {
     if (plot.stage !in 1..3) return
     if (plot.weed || plot.bug || plot.moisture < 0.25f) return
     val stageIdx = plot.stage - 1
     val needH = crop.stageHours.getOrElse(stageIdx) { 1f }.coerceAtLeast(0.2f)
-    val mul = fx.growthMul * (0.7f + 0.3f * plot.moisture) * seasonMul
+    val prefMul = if (preferred) 1f + CROP_PREFERRED_GROWTH_BONUS else 1f
+    val mul = fx.growthMul * (0.7f + 0.3f * plot.moisture) * seasonMul * prefMul
     plot.stageProgress += (hours / needH) * mul
     while (plot.stageProgress >= 1f && plot.stage in 1..3) {
         plot.stageProgress -= 1f

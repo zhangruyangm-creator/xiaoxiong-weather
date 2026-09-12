@@ -14,6 +14,7 @@ const val EASTER_EGG_BEAR_MAZE = "#小熊迷宫"
 const val EASTER_EGG_BEAR_FARM = "#小熊农场"
 const val EASTER_EGG_BEAR_HOME = "#小熊回家"
 const val EASTER_EGG_BEAR_HOCKEY = "#小熊冰球"
+const val EASTER_EGG_BEAR_POOL = "#小熊台球"
 
 /** 插画相册：以全屏页呈现全部生活片刻/节日插画（非游戏）。 */
 const val EASTER_EGG_BEAR_ALBUM = "#小熊相册"

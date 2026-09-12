@@ -36,6 +36,7 @@ import kotlin.random.Random
 fun WeatherAtmosphereCard(
     code: Int?,
     isDay: Boolean?,
+    paused: Boolean = false,
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.(WeatherSceneStyle) -> Unit,
 ) {
@@ -49,7 +50,7 @@ fun WeatherAtmosphereCard(
                 .clip(shape)
                 .background(Brush.verticalGradient(style.gradient)),
     ) {
-        WeatherAtmosphereOverlay(scene = style.scene, isDay = isDay != false)
+        WeatherAtmosphereOverlay(scene = style.scene, isDay = isDay != false, paused = paused)
         content(style)
     }
 }
@@ -58,6 +59,7 @@ fun WeatherAtmosphereCard(
 private fun WeatherAtmosphereOverlay(
     scene: WeatherScene,
     isDay: Boolean,
+    paused: Boolean = false,
 ) {
     val particles =
         remember(scene) {
@@ -83,9 +85,9 @@ private fun WeatherAtmosphereOverlay(
             }
         }
 
-    // 除 UNKNOWN 外都有动画元素（粒子/星光/云漂移/太阳光芒）；UNKNOWN 或减弱动画时不启动无限动画
+    // 除 UNKNOWN 外都有动画元素（粒子/星光/云漂移/太阳光芒）；UNKNOWN、减弱动画或暂停时不启动无限动画
     val reduceMotion = LocalReduceMotion.current
-    if (scene == WeatherScene.UNKNOWN || reduceMotion) {
+    if (scene == WeatherScene.UNKNOWN || reduceMotion || paused) {
         AtmosphereCanvas(scene, isDay, particles, phase = { 0f }, flash = { 0f }, drift = { 0f })
     } else {
         AnimatedAtmosphereCanvas(scene, isDay, particles)

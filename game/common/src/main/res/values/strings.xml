@@ -16,5 +16,11 @@
     <string name="bear_character_sun">小棕熊</string>
     <string name="bear_character_sun_detail">蜂蜜棕太阳熊，和天气页探索插画同款。</string>
     <string name="bear_character_done">好了</string>
+    <string name="bear_pause_title">已暂停</string>
+    <string name="bear_pause_resume">继续</string>
+    <string name="bear_pause_restart">重新开始</string>
+    <string name="bear_pause_settings">设置</string>
+    <string name="bear_pause_exit">退出游戏</string>
+    <string name="cd_bear_pause">暂停</string>
     <string name="share_card_cancel">取消</string>
 </resources>

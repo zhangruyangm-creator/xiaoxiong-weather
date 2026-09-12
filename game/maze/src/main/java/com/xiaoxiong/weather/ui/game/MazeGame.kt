@@ -23,6 +23,20 @@ internal enum class MazeDir(
 
 internal enum class MazePhase { SELECT, PLAYING, CLEAR }
 
+/** 一次落地的格子事件类型，供 UI 映射不同触感反馈。 */
+internal enum class MazeStepEvent { NONE, HONEY, KEY, LOCK, PORTAL, EXIT_LOCKED, CLEAR }
+
+/** [MazeGame.hint] 的结果：方向 / 确认无解 / 状态空间过大暂不支持提示。 */
+internal sealed interface MazeHint {
+    data class Direction(
+        val dir: MazeDir,
+    ) : MazeHint
+
+    data object NoSolution : MazeHint
+
+    data object TooLarge : MazeHint
+}
+
 /**
  * 局中会话快照：进程重建（如旋转屏幕）时恢复当前对局。
  * gridRows 复用 [MazeLevel.parse] 的字符集编码，传送门用 '1'..'9' 表示。
@@ -50,11 +64,54 @@ private data class MazeSession(
     val needHoneyHintT: Float,
     val lastHoneyAt: Float,
     val time: Float,
+    val hintsUsed: Int = 0,
+    val daily: Boolean = false,
+    val dailyDate: Long = 0,
 )
+
+/** 落盘会话的类型化摘要：选关页据此展示对应模式的「继续」入口。 */
+internal sealed interface SavedSessionInfo {
+    /** 战役第 [levelIndex] 关（0 基）。 */
+    data class Campaign(
+        val levelIndex: Int,
+    ) : SavedSessionInfo
+
+    /** 无尽第 [wave] 波。 */
+    data class Endless(
+        val wave: Int,
+    ) : SavedSessionInfo
+
+    /** 每日迷宫（[dateEpochDay] 为 `LocalDate.toEpochDay()`）。 */
+    data class Daily(
+        val dateEpochDay: Long,
+    ) : SavedSessionInfo
+}
 
 private val sessionJson = Json { ignoreUnknownKeys = true }
 
 private const val MAZE_SESSION_KEY = "maze_session_v1"
+
+/** 撤销历史上限。 */
+private const val UNDO_LIMIT = 30
+
+/**
+ * 一步移动前的完整对局快照。棋盘按值深拷贝（[MazeCell] 不可变，浅拷即可），
+ * 这样被消耗的蜂蜜/钥匙、被打开的锁、踩过的传送门是否已触发都能精确回滚。
+ */
+private class MazeSnapshot(
+    val grid: Array<Array<MazeCell>>,
+    val bearR: Int,
+    val bearC: Int,
+    val fromR: Int,
+    val fromC: Int,
+    val facing: MazeDir,
+    val moves: Int,
+    val honeyLeft: Int,
+    val keys: Int,
+    val cleared: Boolean,
+    val lastHoneyAt: Float,
+    val needHoneyHintT: Float,
+)
 
 private fun tileToChar(cell: MazeCell): Char =
     when (cell.tile) {
@@ -95,8 +152,10 @@ internal class MazeGame {
     var endlessWave by mutableIntStateOf(1)
     var endlessBest by mutableIntStateOf(0)
 
-    /** 是否有可续玩的无尽对局：主动退出/意外中断都会保留，结算后清除。 */
-    var resumeEndless = false
+    /** 进度版本号：星级/解锁变化时自增，供选关页做 remember key，避免逐帧复制 stars。 */
+    var progressVersion by mutableIntStateOf(0)
+        private set
+
     private var endlessSessionSeed = Random.nextLong()
 
     var rows = 0
@@ -121,6 +180,13 @@ internal class MazeGame {
     var failed by mutableStateOf(false)
     var clearStars by mutableIntStateOf(0)
 
+    /** 本局使用提示的次数（结算展示）。 */
+    var hintsUsed by mutableIntStateOf(0)
+
+    /** 每日迷宫：按本地日期派生的确定性布局，[dailyDate] 为 `LocalDate.toEpochDay()`。 */
+    var daily by mutableStateOf(false)
+    var dailyDate = 0L
+
     /** 站在出口但蜂蜜未收齐时的提示剩余时间（秒）。 */
     var needHoneyHintT by mutableFloatStateOf(0f)
 
@@ -137,12 +203,19 @@ internal class MazeGame {
     val level: MazeLevel get() = currentLevel
     val moving get() = moveT < 1f
 
+    /** 撤销历史（上限 [UNDO_LIMIT]）：每次真正开始移动前压入快照，结算/换关时清空。 */
+    private val history = ArrayDeque<MazeSnapshot>()
+
+    /** 当前是否可撤销：仅对局中、不在移动动画中且有历史。 */
+    val canUndo: Boolean get() = history.isNotEmpty() && phase == MazePhase.PLAYING && !moving && !cleared
+
     fun loadProgress(prefs: android.content.SharedPreferences) {
         unlocked = prefs.getInt("maze_unlocked", 1).coerceIn(1, MAZE_CAMPAIGN_SIZE)
         for (i in stars.indices) {
             stars[i] = prefs.getInt("maze_star_$i", 0).coerceIn(0, 3)
         }
         endlessBest = prefs.getInt("maze_endless_best", 0)
+        progressVersion++
     }
 
     fun saveProgress(prefs: android.content.SharedPreferences) {
@@ -154,18 +227,17 @@ internal class MazeGame {
         }
     }
 
-    /** 局中会话落盘：旋转屏幕等进程重建后由 [restoreSession] 恢复；选关阶段只清理/保留旧会话，不写新快照。 */
+    /**
+     * 局中会话落盘：旋转屏幕等进程重建后由 [restoreSession] 恢复。
+     * 选关阶段不动落盘会话——选关页可能正展示「继续」入口，只有玩家主动
+     * 开新局/放弃（[abandonSession]）或对局结算（CLEAR）才会清档。
+     */
     fun saveSession(prefs: android.content.SharedPreferences) {
         if (phase == MazePhase.CLEAR) {
             prefs.edit { remove(MAZE_SESSION_KEY) }
             return
         }
-        // 选关界面：战役对局视为放弃（删除）；无尽对局保留已有的落盘会话，
-        // 不能在这里另写一份（openSelect 已把 endless/levelIndex 清成战役值，会覆盖正确存档）
-        if (phase == MazePhase.SELECT) {
-            if (!resumeEndless) prefs.edit { remove(MAZE_SESSION_KEY) }
-            return
-        }
+        if (phase == MazePhase.SELECT) return
         if (!::grid.isInitialized) return
         val rowsEncoded = grid.map { row -> row.joinToString("") { tileToChar(it).toString() } }
         val session =
@@ -191,6 +263,9 @@ internal class MazeGame {
                 needHoneyHintT = needHoneyHintT,
                 lastHoneyAt = lastHoneyAt,
                 time = time,
+                hintsUsed = hintsUsed,
+                daily = daily,
+                dailyDate = dailyDate,
             )
         prefs.edit { putString(MAZE_SESSION_KEY, sessionJson.encodeToString(MazeSession.serializer(), session)) }
     }
@@ -201,14 +276,14 @@ internal class MazeGame {
         val session =
             runCatching { sessionJson.decodeFromString(MazeSession.serializer(), raw) }.getOrNull()
                 ?: return false
-        // 先按关卡/种子重建初始棋盘（含全部蜂蜜/钥匙/锁），再覆盖为已消耗状态
-        if (session.endless) {
-            endlessSessionSeed = session.seed
-            resumeEndless = true
-            startEndless(session.endlessWave, freshSeed = false)
-        } else {
-            resumeEndless = false
-            startLevel(session.levelIndex.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1))
+        // 先按类型重建初始棋盘（含全部蜂蜜/钥匙/锁），再覆盖为已消耗状态
+        when {
+            session.endless -> {
+                endlessSessionSeed = session.seed
+                startEndless(session.endlessWave, freshSeed = false)
+            }
+            session.daily -> startDaily(session.dailyDate)
+            else -> startLevel(session.levelIndex.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1))
         }
         session.gridRows.forEachIndexed { r, line ->
             line.forEachIndexed { c, ch ->
@@ -246,13 +321,32 @@ internal class MazeGame {
         needHoneyHintT = session.needHoneyHintT
         lastHoneyAt = session.lastHoneyAt
         time = session.time
+        hintsUsed = session.hintsUsed
+        history.clear()
         moveT = 1f
         sliding = false
         phase = MazePhase.PLAYING
         return true
     }
 
-    fun discardSavedSession(prefs: android.content.SharedPreferences) {
+    /**
+     * 读取落盘会话的类型化摘要用于「继续」入口，不改变当前对局。
+     * 无会话或解析失败时返回 null。
+     */
+    fun peekSavedSession(prefs: android.content.SharedPreferences): SavedSessionInfo? {
+        val raw = prefs.getString(MAZE_SESSION_KEY, null) ?: return null
+        val session =
+            runCatching { sessionJson.decodeFromString(MazeSession.serializer(), raw) }.getOrNull()
+                ?: return null
+        return when {
+            session.endless -> SavedSessionInfo.Endless(session.endlessWave.coerceAtLeast(1))
+            session.daily -> SavedSessionInfo.Daily(session.dailyDate)
+            else -> SavedSessionInfo.Campaign(session.levelIndex.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1))
+        }
+    }
+
+    /** 玩家主动开始新局/放弃时清除落盘会话；saveSession 的选关阶段不再做清理。 */
+    fun abandonSession(prefs: android.content.SharedPreferences) {
         prefs.edit { remove(MAZE_SESSION_KEY) }
     }
 
@@ -260,6 +354,8 @@ internal class MazeGame {
         phase = MazePhase.SELECT
         cleared = false
         endless = false
+        daily = false
+        history.clear()
         // 若在移动/冰面滑行动画中退出，立即结束动画，
         // 否则帧循环继续推进 moveT，落地事件可能在选关界面触发 finishLevel 弹结算
         sliding = false
@@ -268,7 +364,7 @@ internal class MazeGame {
 
     fun startLevel(index: Int) {
         endless = false
-        resumeEndless = false
+        daily = false
         levelIndex = index.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1)
         loadLevel(mazeCampaignLevel(levelIndex))
     }
@@ -279,23 +375,28 @@ internal class MazeGame {
         freshSeed: Boolean = true,
     ) {
         endless = true
-        resumeEndless = true
+        daily = false
         endlessWave = wave.coerceAtLeast(1)
         // 仅在开新局时掷会话种子；重开（freshSeed=false）复用当前种子，保证同一张图
         if (freshSeed) endlessSessionSeed = Random.nextLong()
         levelIndex = -1
         val diff = MazeGameLogic.endlessDifficulty(endlessWave)
-        val seed = endlessSessionSeed xor (endlessWave.toLong() * 0x9E3779B9L)
         loadLevel(
-            generateMazeLevel(
-                seed = seed,
-                id = endlessWave,
+            cachedEndlessLevel(
+                sessionSeed = endlessSessionSeed,
+                wave = endlessWave,
                 difficulty = diff,
-            ).copy(
-                titleZh = "无尽 · 第${endlessWave}波",
-                titleEn = "Endless #$endlessWave",
             ),
         )
+    }
+
+    /** 每日迷宫：按 [dateEpochDay]（本地日 `LocalDate.toEpochDay()`）派生确定性布局。 */
+    fun startDaily(dateEpochDay: Long) {
+        endless = false
+        daily = true
+        dailyDate = dateEpochDay
+        levelIndex = -1
+        loadLevel(dailyMazeLevel(dateEpochDay))
     }
 
     private fun loadLevel(lv: MazeLevel) {
@@ -312,6 +413,8 @@ internal class MazeGame {
         clearStars = 0
         needHoneyHintT = 0f
         lastHoneyAt = -1f
+        hintsUsed = 0
+        history.clear()
         sliding = false
         moveT = 1f
         facing = MazeDir.RIGHT
@@ -342,11 +445,13 @@ internal class MazeGame {
     }
 
     fun restart() {
-        if (endless) {
-            // 重开复用当前会话种子，保持与战役「重开同一关」语义一致
-            startEndless(endlessWave, freshSeed = false)
-        } else {
-            startLevel(levelIndex)
+        when {
+            daily -> startDaily(dailyDate)
+            endless -> {
+                // 重开复用当前会话种子，保持与战役「重开同一关」语义一致
+                startEndless(endlessWave, freshSeed = false)
+            }
+            else -> startLevel(levelIndex)
         }
     }
 
@@ -373,6 +478,7 @@ internal class MazeGame {
         val nr = bearR + dir.dr
         val nc = bearC + dir.dc
         if (!walkable(nr, nc)) return false
+        pushHistory()
         facing = dir
         beginStep(nr, nc)
         return true
@@ -391,28 +497,28 @@ internal class MazeGame {
         sliding = grid[nr][nc].tile == MazeTile.ICE
     }
 
-    /** 步进动画结束时结算格子事件；若在冰上则继续滑。 */
-    fun onStepLanded(): Boolean {
+    /** 步进动画结束时结算格子事件；若在冰上则继续滑。返回本次落地的事件类型。 */
+    fun onStepLanded(): MazeStepEvent {
         val cell = grid[bearR][bearC]
-        var haptic = false
+        var event = MazeStepEvent.NONE
         when (cell.tile) {
             MazeTile.HONEY -> {
                 grid[bearR][bearC] = MazeCell(MazeTile.FLOOR)
                 honeyLeft = (honeyLeft - 1).coerceAtLeast(0)
                 // 收齐最后一罐：记录此刻时间，出口门从这一秒开始播开启动画
                 if (honeyLeft == 0) lastHoneyAt = time
-                haptic = true
+                event = MazeStepEvent.HONEY
             }
             MazeTile.KEY -> {
                 grid[bearR][bearC] = MazeCell(MazeTile.FLOOR)
                 keys++
-                haptic = true
+                event = MazeStepEvent.KEY
             }
             MazeTile.LOCK -> {
                 if (keys > 0) {
                     keys--
                     grid[bearR][bearC] = MazeCell(MazeTile.FLOOR)
-                    haptic = true
+                    event = MazeStepEvent.LOCK
                 }
             }
             MazeTile.PORTAL -> {
@@ -430,7 +536,7 @@ internal class MazeGame {
                             fromC = c
                             moveT = 1f
                             sliding = false
-                            haptic = true
+                            event = MazeStepEvent.PORTAL
                             break@outer
                         }
                     }
@@ -439,10 +545,10 @@ internal class MazeGame {
             MazeTile.EXIT -> {
                 if (honeyLeft == 0) {
                     finishLevel()
-                    return true
+                    return MazeStepEvent.CLEAR
                 } else {
                     needHoneyHintT = 2.2f
-                    haptic = true
+                    event = MazeStepEvent.EXIT_LOCKED
                 }
             }
             else -> Unit
@@ -463,14 +569,77 @@ internal class MazeGame {
                 sliding = false
             }
         }
-        return haptic
+        return event
+    }
+
+    /** 撤销上一次移动；不可撤销时返回 false。 */
+    fun undo(): Boolean {
+        if (!canUndo) return false
+        val s = history.removeLast()
+        grid = s.grid
+        bearR = s.bearR
+        bearC = s.bearC
+        fromR = s.fromR
+        fromC = s.fromC
+        facing = s.facing
+        moves = s.moves
+        honeyLeft = s.honeyLeft
+        keys = s.keys
+        cleared = s.cleared
+        lastHoneyAt = s.lastHoneyAt
+        needHoneyHintT = s.needHoneyHintT
+        moveT = 1f
+        sliding = false
+        return true
+    }
+
+    /**
+     * 提示：从当前状态求「收齐剩余蜂蜜并到达出口」的下一步方向。
+     * 对局已结束/移动中返回 [MazeHint.NoSolution]；状态空间过大返回 [MazeHint.TooLarge]。
+     * 成功给出方向时 [hintsUsed] + 1。
+     */
+    fun hint(): MazeHint {
+        if (phase != MazePhase.PLAYING || moving || cleared) return MazeHint.NoSolution
+        val map = grid.map { row -> row.joinToString("") { tileToChar(it).toString() } }
+        return when (val outcome = mazeSolve(map, bearR, bearC, keys)) {
+            is MazeSolveOutcome.Solved -> {
+                val dir = outcome.firstDir
+                if (dir == null) {
+                    MazeHint.NoSolution
+                } else {
+                    hintsUsed++
+                    MazeHint.Direction(dir)
+                }
+            }
+            MazeSolveOutcome.Unsolvable -> MazeHint.NoSolution
+            MazeSolveOutcome.TooLarge -> MazeHint.TooLarge
+        }
+    }
+
+    private fun pushHistory() {
+        if (history.size >= UNDO_LIMIT) history.removeFirst()
+        history.addLast(
+            MazeSnapshot(
+                grid = Array(grid.size) { r -> grid[r].copyOf() },
+                bearR = bearR,
+                bearC = bearC,
+                fromR = fromR,
+                fromC = fromC,
+                facing = facing,
+                moves = moves,
+                honeyLeft = honeyLeft,
+                keys = keys,
+                cleared = cleared,
+                lastHoneyAt = lastHoneyAt,
+                needHoneyHintT = needHoneyHintT,
+            ),
+        )
     }
 
     private fun finishLevel() {
         cleared = true
         phase = MazePhase.CLEAR
-        // 结算后不再续玩（死亡/通关后下次从新局开始）
-        resumeEndless = false
+        history.clear()
         val budget = level.moveBudget
         // 仅在蜂蜜收齐后踩出口才会到这里，直接按步数定星级
         clearStars = MazeGameLogic.starsFor(moves, budget)
@@ -480,6 +649,7 @@ internal class MazeGame {
             if (clearStars > stars[levelIndex]) stars[levelIndex] = clearStars
             val next = levelIndex + 2 // 1-based unlock count
             if (next > unlocked) unlocked = next.coerceAtMost(MAZE_CAMPAIGN_SIZE)
+            progressVersion++
         }
     }
 
@@ -493,7 +663,7 @@ internal class MazeGame {
         return r to c
     }
 
-    fun tick(dt: Float) {
+    fun tick(dt: Float): MazeStepEvent {
         time += dt
         if (needHoneyHintT > 0f) {
             needHoneyHintT = (needHoneyHintT - dt).coerceAtLeast(0f)
@@ -507,10 +677,11 @@ internal class MazeGame {
                 if (endless && moves > level.moveBudget) {
                     failEndless()
                 } else {
-                    onStepLanded()
+                    return onStepLanded()
                 }
             }
         }
+        return MazeStepEvent.NONE
     }
 
     /** 无尽超步失败：结算界面显示失败，不更新最高波次、不可续玩。 */
@@ -518,7 +689,7 @@ internal class MazeGame {
         if (phase != MazePhase.PLAYING) return
         failed = true
         cleared = false
-        resumeEndless = false
+        history.clear()
         phase = MazePhase.CLEAR
     }
 }

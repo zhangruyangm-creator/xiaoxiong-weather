@@ -216,13 +216,12 @@ object HockeyLogic {
         val r = paddleR
         val minX = table.left + r
         val maxX = table.right - r
-        val cx = x.coerceIn(minX, maxX)
-        val cy =
-            if (isPlayer) {
-                y.coerceIn(table.midY + r * 0.35f, table.bottom - r)
-            } else {
-                y.coerceIn(table.top + r, table.midY - r * 0.35f)
-            }
+        // 半径异常大（旧存档 / 退化尺寸）时区间会反转，coerceIn 会抛异常；
+        // 退回半场中轴，保证任何输入都能返回可用坐标而不是让存档静默丢失。
+        val cx = if (minX <= maxX) x.coerceIn(minX, maxX) else table.midX
+        val minY = if (isPlayer) table.midY + r * 0.35f else table.top + r
+        val maxY = if (isPlayer) table.bottom - r else table.midY - r * 0.35f
+        val cy = if (minY <= maxY) y.coerceIn(minY, maxY) else table.midY
         return cx to cy
     }
 
@@ -305,7 +304,6 @@ object HockeyLogic {
         paddleVx: Float,
         paddleVy: Float,
         table: Table,
-        impulse: Float = 1.15f,
     ): Boolean {
         val dx = puck.x - paddle.x
         val dy = puck.y - paddle.y
@@ -325,12 +323,12 @@ object HockeyLogic {
         val rvy = puck.vy - paddleVy
         val vn = rvx * nx + rvy * ny
         if (vn < 0f) {
-            // 弹性碰撞 + 挡板速度注入
+            // 弹性碰撞（挡板视为无限质量）：puck.v_n' = paddle.v_n − e·(puck.v_n − paddle.v_n)，
+            // 公式已包含挡板沿法线速度，不能再额外注入一次（否则重复施力：
+            // 球已远离、挡板仍在追时会凭空加速，甚至把球顶进自家球门）。
             puck.vx -= (1.85f) * vn * nx
             puck.vy -= (1.85f) * vn * ny
         }
-        puck.vx += paddleVx * impulse
-        puck.vy += paddleVy * impulse
 
         val maxSp = table.shortSide * 2.35f
         val minSp = table.shortSide * 0.18f
@@ -393,8 +391,9 @@ object HockeyLogic {
     /**
      * AI：带延迟目标 + 预判 + 守门/出击混合。
      *
-     * - 低难度（predict 较低）：保持原来的「跟球 + 半场出击」，手感偏憨。
-     * - 高难度（predict ≥ 0.5）：来球时优先堵射门线落点（含侧墙折返）。
+     * - 传入 [ai] 时启用「防乌龙走位」：球在本方半场时，AI 只会绕到球的**上方**
+     *   （更靠自家球门一侧）再向下推，绝不从下往上顶球；来球威胁时优先堵射门线落点。
+     * - 不传 [ai]（旧调用/测试）时保持原「跟球 + 半场出击」逻辑。
      */
     fun updateAiTarget(
         table: Table,
@@ -404,6 +403,7 @@ object HockeyLogic {
         cachedTargetX: Float,
         cachedTargetY: Float,
         paddleR: Float = table.paddleR,
+        ai: Body? = null,
     ): Triple<Float, Float, Boolean> {
         val refresh = reactionAge >= params.reactionDelay
         if (!refresh) {
@@ -413,23 +413,92 @@ object HockeyLogic {
         val homeY = table.top + table.height * 0.16f
         val minX = table.left + paddleR
         val maxX = table.right - paddleR
+        val d = paddleR + puck.r
+        val midY = table.midY
         val smartDefense = params.predict >= 0.5f
-        val approachingGoal = puck.vy < -1f
+        val dangerous = puck.vy < -table.shortSide * 0.10f
 
-        if (smartDefense && approachingGoal) {
+        if (smartDefense && dangerous) {
             val goalY = table.top + paddleR * 0.85f
+            // 传了 ai 且它还在球下方 / 同一水平带时，先按进攻分支的方式侧移绕行：
+            // 从内侧接触会把原本会弹库的球蹭进自家门；到球上方（ai.y 越过
+            // puck.y - d·0.35）后自动落回下面的射门线拦截。
+            if (ai != null && ai.y > puck.y - d * 0.35f) {
+                val side =
+                    when {
+                        cachedTargetX < puck.x - 1f -> -1f
+                        cachedTargetX > puck.x + 1f -> 1f
+                        ai.x <= puck.x -> -1f
+                        else -> 1f
+                    }
+                val besideX = (puck.x + side * paddleR * 2f).coerceIn(minX, maxX)
+                return if (kotlin.math.abs(ai.x - besideX) > paddleR * 0.5f) {
+                    // 先侧移到球侧方（保持当前 y，避免上移时穿过球）
+                    Triple(besideX, ai.y, true)
+                } else {
+                    // 再沿侧面上移到球上方
+                    Triple(besideX, (puck.y - d).coerceIn(table.top + paddleR, midY - paddleR * 0.35f), true)
+                }
+            }
             val interceptX = goalLineInterceptX(table, puck, goalY)
             // 高难度几乎贴死落点
             val tx =
                 lerp(puck.x, interceptX, 0.72f + params.predict * 0.28f)
                     .coerceIn(minX, maxX)
+            // 挡板必须位于来球「上方」(更靠自家球门)，接触才会把球压回去而不是顶进去
             val ty =
-                lerp(homeY, puck.y.coerceAtMost(table.midY - paddleR), params.chase * 0.28f)
-                    .coerceIn(table.top + paddleR, table.midY - paddleR * 0.35f)
+                (puck.y - paddleR * 0.9f)
+                    .coerceIn(table.top + paddleR, midY - paddleR * 0.35f)
             return Triple(tx, ty, true)
         }
 
-        // —— 低/中难度：原跟球逻辑 ——
+        if (ai != null) {
+            // —— 防乌龙走位：球在本方半场时，先绕到球上方再向下推 ——
+            val inAiHalf = puck.y < midY
+            val attacking = inAiHalf && puck.vy < table.shortSide * 0.35f
+            if (attacking) {
+                val aboveContact = puck.y - d * 0.55f
+                // 侧面选择「锁存」：优先沿用上一帧目标所在的侧，避免目标点左右抖动导致原地打转
+                val side =
+                    when {
+                        cachedTargetX < puck.x - 1f -> -1f
+                        cachedTargetX > puck.x + 1f -> 1f
+                        ai.x <= puck.x -> -1f
+                        else -> 1f
+                    }
+                val besideX = (puck.x + side * paddleR * 2f).coerceIn(minX, maxX)
+                val above = ai.y <= aboveContact
+                return if (above) {
+                    // 已在上方：对准球心向下推，把球送往玩家球门（正中轴线）
+                    val tx = puck.x.coerceIn(minX, maxX)
+                    val ty = (puck.y + d * 0.15f).coerceIn(table.top + paddleR, midY - paddleR * 0.35f)
+                    Triple(tx, ty, true)
+                } else if (kotlin.math.abs(ai.x - besideX) > paddleR * 0.5f) {
+                    // 先侧移到球侧方（保持当前 y，避免上移时穿过球）
+                    Triple(besideX, ai.y, true)
+                } else {
+                    // 再沿侧面上移到球上方
+                    Triple(besideX, (puck.y - d).coerceIn(table.top + paddleR, midY - paddleR * 0.35f), true)
+                }
+            }
+            // 守门/回位：挡住来球或退回本场，挡板始终在球上方
+            val interceptX =
+                if (dangerous) {
+                    goalLineInterceptX(table, puck, table.top + paddleR * 0.85f)
+                } else {
+                    (puck.x + puck.vx * (params.predict * 0.28f))
+                }
+            val tx = lerp(puck.x, interceptX, 0.35f + params.chase * 0.4f).coerceIn(minX, maxX)
+            val ty =
+                if (inAiHalf) {
+                    (puck.y - paddleR * 0.7f).coerceIn(table.top + paddleR, midY - paddleR * 0.35f)
+                } else {
+                    homeY.coerceIn(table.top + paddleR, midY - paddleR * 0.35f)
+                }
+            return Triple(tx, ty, true)
+        }
+
+        // —— 低/中难度：原跟球逻辑（未传 ai 的兼容路径） ——
         val predictT = params.predict * 0.28f
         var tx = puck.x + puck.vx * predictT
         var ty = puck.y + puck.vy * predictT

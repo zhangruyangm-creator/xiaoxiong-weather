@@ -39,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaoxiong.weather.R
+import java.util.Locale
 
 /** 商店道具卡片：点击购买并立即生效。 */
 @Composable
@@ -131,8 +131,13 @@ internal fun FarmShopDialog(
                     color = farmScheme().onSurface,
                 )
                 Text(
-                    stringResource(R.string.bear_farm_shop_hint, farm.harvestedTotal) +
-                        " · ${farm.unlocked.size}/${FARM_CROPS.size}",
+                    stringResource(
+                        R.string.bear_farm_shop_meta,
+                        // 「累计收获」用图鉴口径（跨周目），本季计数在开新一季后会清零
+                        farm.lifetimeHarvests,
+                        farm.unlocked.size,
+                        FARM_CROPS.size,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = farmScheme().onSurfaceVariant,
                 )
@@ -223,7 +228,7 @@ internal fun FarmShopDialog(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Image(
-                                    painter = painterResource(FarmCropArt.ripe(crop)),
+                                    bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
                                     contentDescription = crop.nameZh,
                                     modifier = Modifier.size(40.dp),
                                     contentScale = ContentScale.Fit,
@@ -237,12 +242,28 @@ internal fun FarmShopDialog(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    "约${"%.0f".format(crop.totalHours)}时 · 售${crop.sellPrice}",
+                                    stringResource(
+                                        R.string.bear_farm_shop_crop_meta,
+                                        String.format(Locale.US, "%.0f", crop.totalHours),
+                                        crop.sellPrice,
+                                    ),
                                     style = MaterialTheme.typography.labelSmall,
                                     textAlign = TextAlign.Center,
                                     fontSize = 10.sp,
                                     color = farmScheme().onSurfaceVariant,
                                 )
+                                crop.preferredWeather?.let { preferred ->
+                                    Text(
+                                        stringResource(
+                                            R.string.bear_farm_crop_prefers,
+                                            stringResource(farmWeatherNameRes(preferred)),
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF6D4C41),
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 if (owned) {
                                     Text(

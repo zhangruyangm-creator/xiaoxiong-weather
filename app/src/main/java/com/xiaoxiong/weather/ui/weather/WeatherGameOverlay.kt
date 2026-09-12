@@ -4,8 +4,10 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
 import com.xiaoxiong.weather.game.GameEntry
@@ -34,6 +36,7 @@ fun BearGameOverlay(
     scope: CoroutineScope,
     entries: List<GameEntry>,
     requestPassword: Pair<Int, String>? = null,
+    onActiveChange: (Boolean) -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     // 口令注册表直接来自装配方（ServiceLoader），无需过滤
@@ -65,18 +68,29 @@ fun BearGameOverlay(
         scope.launch { pagerState.animateScrollToPage(0) }
     }
 
-    val activeEntry = enabledEntries.firstOrNull { it.password == activePassword } ?: return
-    activeEntry.Content(
-        sceneCode = sceneCode,
-        isDay = isDay,
-        cityName = cityName,
-        onExit = {
-            activePassword = null
-            exitToHome()
-        },
-        onOpenGame = { password ->
-            enabledEntries.firstOrNull { it.password == password }?.let(launchGame)
-        },
-        otherGames = enabledEntries.filter { it.password != activePassword },
-    )
+    val activeEntry = enabledEntries.firstOrNull { it.password == activePassword }
+    val currentOnActiveChange by rememberUpdatedState(onActiveChange)
+    LaunchedEffect(activeEntry) {
+        currentOnActiveChange(activeEntry != null)
+    }
+    val entry = activeEntry ?: return
+    val otherGames =
+        remember(activePassword, enabledEntries) {
+            enabledEntries.filter { it.password != activePassword }
+        }
+    key(activePassword) {
+        entry.Content(
+            sceneCode = sceneCode,
+            isDay = isDay,
+            cityName = cityName,
+            onExit = {
+                activePassword = null
+                exitToHome()
+            },
+            onOpenGame = { password ->
+                enabledEntries.firstOrNull { it.password == password }?.let(launchGame)
+            },
+            otherGames = otherGames,
+        )
+    }
 }

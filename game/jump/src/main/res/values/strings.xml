@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="bear_game_best_label">最高</string>
+    <string name="bear_game_combo">×%1$d</string>
     <string name="bear_game_exit">回到天气</string>
     <string name="bear_game_hint_jump">点击跳跃 · 空中可再跳一次</string>
     <string name="bear_game_over">哎呀，撞到了</string>

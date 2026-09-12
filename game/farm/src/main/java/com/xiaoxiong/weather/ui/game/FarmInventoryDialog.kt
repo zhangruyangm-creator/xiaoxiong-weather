@@ -33,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,7 +48,7 @@ internal fun FarmInventoryDialog(
     weather: FarmWeather,
     onDismiss: () -> Unit,
 ) {
-    val bonus = farmSellBonus(weather)
+    val bonus = bestSellBonusOf(farm.inventory.keys, weather)
     val entries = farm.inventory.entries.sortedBy { it.key }
     Box(
         modifier =
@@ -86,7 +85,7 @@ internal fun FarmInventoryDialog(
                         color = farmScheme().surfaceVariant.copy(alpha = 0.92f),
                     ) {
                         Text(
-                            "🪙 ${farm.coins}",
+                            stringResource(R.string.bear_farm_coins, farm.coins),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF6D4C41),
@@ -201,7 +200,7 @@ private fun FarmInventoryCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Image(
-                painter = painterResource(FarmCropArt.ripe(crop)),
+                bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
                 contentDescription = crop.nameZh,
                 modifier = Modifier.size(40.dp),
                 contentScale = ContentScale.Fit,
@@ -215,7 +214,7 @@ private fun FarmInventoryCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                "×$count",
+                text = stringResource(R.string.bear_farm_inventory_count, count),
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp,
                 color = farmScheme().onSecondaryContainer,

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="bear_game_best_label">Best</string>
+    <string name="bear_game_combo">×%1$d</string>
     <string name="bear_game_exit">Back to weather</string>
     <string name="bear_game_hint_jump">Tap to jump · once more in mid-air</string>
     <string name="bear_game_over">Oops, bumped!</string>

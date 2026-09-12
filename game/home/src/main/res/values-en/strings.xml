@@ -4,7 +4,7 @@
     <string name="bear_game_title">Bear Hop</string>
     <string name="bear_home_back">Back to living room</string>
     <string name="bear_home_closet_hint">Pick your game bear, or peek outside from the balcony.</string>
-    <string name="bear_home_closet_stub">Playable bear</string>
+    <string name="bear_home_closet_title">Playable bear</string>
     <string name="bear_home_cuisine_arabic">Arabic / Middle Eastern</string>
     <string name="bear_home_cuisine_chinese">Chinese</string>
     <string name="bear_home_cuisine_korean">Korean</string>
@@ -239,6 +239,9 @@
     <string name="balcony_weather_clear_night">Clear night</string>
     <string name="balcony_weather_cloudy">Cloudy</string>
     <string name="balcony_weather_rain_light">Light rain</string>
+    <string name="balcony_weather_rain_moderate">Moderate rain</string>
+    <string name="balcony_weather_rain_heavy">Heavy rain</string>
+    <string name="balcony_weather_freezing_rain">Freezing rain</string>
     <string name="balcony_weather_storm">Thunderstorm</string>
     <string name="balcony_weather_snow">Snow</string>
     <string name="balcony_weather_fog">Fog</string>
@@ -253,7 +256,10 @@
     <string name="bear_home_routine_now">Now</string>
     <string name="bear_home_routine_soon">Later</string>
     <string name="bear_home_routine_title">Today\'s routine</string>
-    <string name="bear_home_summary_stub">Today</string>
+    <string name="bear_home_summary_title">Today\'s Summary</string>
+    <string name="bear_home_summary_weather_unknown">—</string>
+    <string name="bear_home_summary_icon_day">☀</string>
+    <string name="bear_home_summary_icon_night">🌙</string>
     <string name="bear_home_summary_weather_title">Weather outside</string>
     <string name="bear_home_summary_progress">%1$d / %2$d moments behind today</string>
     <string name="bear_home_summary_now_doing">Now · %1$s</string>

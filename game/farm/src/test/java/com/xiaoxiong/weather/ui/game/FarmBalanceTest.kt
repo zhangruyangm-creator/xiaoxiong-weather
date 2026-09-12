@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.ui.game
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.roundToInt
 
 class FarmBalanceTest {
     @Test
@@ -58,11 +59,42 @@ class FarmBalanceTest {
 
     @Test
     fun sellPrice_appliesWeatherBonus() {
+        // 无喜好天气的作物（bamboo 属「其他」）只吃通用加成
+        val plain = FARM_CROPS.first { it.preferredWeather == null }
+        assertEquals(plain.sellPrice, sellPriceOf(plain, FarmWeather.CLOUDY))
+        assertEquals((plain.sellPrice * 1.15f).roundToInt(), sellPriceOf(plain, FarmWeather.SUNNY))
+        assertEquals((plain.sellPrice * 1.05f).roundToInt(), sellPriceOf(plain, FarmWeather.RAINY))
+    }
+
+    @Test
+    fun sellPrice_preferredWeatherAddsBonus() {
+        // 谷物（小麦）喜好雨天：1.25 高于通用 1.05，雨天售价确有喜好收益
+        val wheat = requireNotNull(cropById("wheat"))
+        val cloudy = sellPriceOf(wheat, FarmWeather.CLOUDY)
+        val rainy = sellPriceOf(wheat, FarmWeather.RAINY)
+        assertTrue("rainy $rainy should exceed cloudy $cloudy", rainy > cloudy)
+        assertEquals((wheat.sellPrice * 1.25f).roundToInt(), rainy)
+
+        // 喜晴的萝卜在晴天：1.25 > 通用 1.15，不再被通用加成吞掉
         val radish = requireNotNull(cropById("radish"))
-        assertEquals(18, sellPriceOf(radish, FarmWeather.CLOUDY))
-        // 18 × 1.15 = 20.7 → 21
-        assertEquals(21, sellPriceOf(radish, FarmWeather.SUNNY))
-        // 18 × 1.05 = 18.9 → 19
-        assertEquals(19, sellPriceOf(radish, FarmWeather.RAINY))
+        val sunny = sellPriceOf(radish, FarmWeather.SUNNY)
+        assertEquals((radish.sellPrice * 1.25f).roundToInt(), sunny)
+        assertTrue(
+            "sunny $sunny should exceed cloudy ${sellPriceOf(radish, FarmWeather.CLOUDY)}",
+            sunny > sellPriceOf(radish, FarmWeather.CLOUDY),
+        )
+    }
+
+    @Test
+    fun bestSellBonusOf_matchesInventoryPreferredCrops() {
+        // 空背包只吃通用加成
+        assertEquals(1f, bestSellBonusOf(emptyList(), FarmWeather.CLOUDY), 1e-4f)
+        assertEquals(1.15f, bestSellBonusOf(emptyList(), FarmWeather.SUNNY), 1e-4f)
+        // 任一作物喜当前天气 → 顶部显示喜好加成（与卡片单价一致）
+        assertEquals(1f + CROP_PREFERRED_SELL_BONUS, bestSellBonusOf(listOf("radish"), FarmWeather.SUNNY), 1e-4f)
+        assertEquals(1f + CROP_PREFERRED_SELL_BONUS, bestSellBonusOf(listOf("moss", "wheat"), FarmWeather.RAINY), 1e-4f)
+        // 作物不喜欢当前天气则不加成
+        assertEquals(1f, bestSellBonusOf(listOf("radish"), FarmWeather.CLOUDY), 1e-4f)
+        assertEquals(1.05f, bestSellBonusOf(listOf("moss"), FarmWeather.RAINY), 1e-4f)
     }
 }

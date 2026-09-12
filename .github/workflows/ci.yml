@@ -59,7 +59,8 @@ jobs:
             com.xiaoxiong.weather.ui.game.BearFarmEntryProvider \
             com.xiaoxiong.weather.ui.game.BearHomeEntryProvider \
             com.xiaoxiong.weather.ui.game.BearCatchEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider
+            com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearPoolEntryProvider
           do
             grep -qx "$provider" /tmp/game_providers.txt \
               || { echo "ServiceLoader registration missing: $provider"; exit 1; }
@@ -82,7 +83,8 @@ jobs:
             com.xiaoxiong.weather.ui.game.BearFarmEntryProvider \
             com.xiaoxiong.weather.ui.game.BearHomeEntryProvider \
             com.xiaoxiong.weather.ui.game.BearCatchEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider
+            com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearPoolEntryProvider
           do
             # 全限定名转 dex 内部描述符：com.a.B -> Lcom/a/B;
             cls="L$(echo "$provider" | tr '.' '/');"

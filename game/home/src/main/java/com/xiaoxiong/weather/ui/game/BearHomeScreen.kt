@@ -46,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -203,7 +202,7 @@ fun BearHomeScreen(
                             stringResource(R.string.bear_home_street_title)
                         }
                     }
-                    HomeRoom.SUMMARY -> stringResource(R.string.bear_home_summary_stub)
+                    HomeRoom.SUMMARY -> stringResource(R.string.bear_home_summary_title)
                 },
             showBack = room != HomeRoom.HUB,
             onBack = {
@@ -297,7 +296,7 @@ private fun HomeHub(
     ) {
         // 宽度顶满、贴顶；FillWidth 保证不留左右边距，高度随图比例
         Image(
-            painter = painterResource(R.drawable.ic_bear_home_hub),
+            bitmap = rememberGameImage(R.drawable.ic_bear_home_hub, 1280),
             contentDescription = stringResource(R.string.bear_home_title),
             modifier =
                 Modifier
@@ -394,8 +393,8 @@ private fun HomeHub(
                 modifier = Modifier.clickable(onClick = onOpenSummary),
             ) {
                 Image(
-                    painter = painterResource(bearRes),
-                    contentDescription = stringResource(R.string.bear_home_summary_stub),
+                    bitmap = rememberGameImage(bearRes, 256),
+                    contentDescription = stringResource(R.string.bear_home_summary_title),
                     modifier = Modifier.size(88.dp),
                 )
                 Text(
@@ -407,7 +406,7 @@ private fun HomeHub(
                     modifier = Modifier.padding(top = 6.dp, start = 24.dp, end = 24.dp),
                 )
                 Text(
-                    text = stringResource(R.string.bear_home_summary_stub),
+                    text = stringResource(R.string.bear_home_summary_title),
                     style = MaterialTheme.typography.labelMedium,
                     color = Color(0xFF8D6E63),
                     modifier = Modifier.padding(top = 2.dp),
@@ -463,7 +462,7 @@ private fun HomeLiving(
     ) {
         Spacer(modifier = Modifier.height(72.dp))
         Image(
-            painter = painterResource(bearRes),
+            bitmap = rememberGameImage(bearRes, 512),
             contentDescription = narration,
             modifier =
                 Modifier
@@ -500,7 +499,7 @@ private fun HomeLiving(
                 Text(stringResource(R.string.bear_home_street_exit))
             }
             TextButton(onClick = onOpenSummary) {
-                Text(stringResource(R.string.bear_home_summary_stub))
+                Text(stringResource(R.string.bear_home_summary_title))
             }
         }
     }
@@ -513,7 +512,7 @@ private fun HomeRoomHero(
 ) {
     // 宽度顶满、贴顶；FillWidth 按原图比例撑开高度，不裁切、不留左右边
     Image(
-        painter = painterResource(artRes),
+        bitmap = rememberGameImage(artRes, 768),
         contentDescription = contentDescription,
         modifier = Modifier.fillMaxWidth(),
         contentScale = ContentScale.FillWidth,
@@ -559,7 +558,7 @@ private fun HomeBedroom(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Image(
-                        painter = painterResource(slot.moment.bearResFor(routineDay)),
+                        bitmap = rememberGameImage(slot.moment.bearResFor(routineDay), 256),
                         contentDescription = null,
                         modifier = Modifier.size(52.dp),
                     )
@@ -600,23 +599,8 @@ private fun HomeSummary(
     date: LocalDate,
     time: LocalTime,
 ) {
-    val weatherLabel =
-        remember(sceneCode, isDay) {
-            val code = sceneCode ?: return@remember "—"
-            // 复用统一天气分类口径（与阳台/其它小游戏一致），避免各组件映射漂移
-            when (farmWeatherFromScene(code, isDay)) {
-                FarmWeather.STORMY -> "雷暴"
-                FarmWeather.SNOWY -> "下雪"
-                FarmWeather.FOGGY -> "大雾"
-                FarmWeather.RAINY ->
-                    when (rainStrengthOf(code)) {
-                        RainStrength.LIGHT -> "小雨"
-                        else -> "大雨"
-                    }
-                FarmWeather.SUNNY -> if (isDay == false) "晴朗夜晚" else "晴天"
-                FarmWeather.CLOUDY -> "多云"
-            }
-        }
+    // 复用 home 内共享映射：降雨强度细分、冻雨单列、晴夜特判，与阳台完全一致
+    val weatherLabelRes = remember(sceneCode, isDay) { homeWeatherLabelRes(sceneCode, isDay) }
     val routineDay = homeRoutineDay(date, time)
     val slots = remember(routineDay) { homeRoutineSlots(routineDay) }
     val doneCount =
@@ -649,14 +633,21 @@ private fun HomeSummary(
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = weatherLabel,
+                            text = stringResource(weatherLabelRes),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF5D4037),
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = if (isDay != false) "☀" else "🌙",
+                            text =
+                                stringResource(
+                                    if (isDay != false) {
+                                        R.string.bear_home_summary_icon_day
+                                    } else {
+                                        R.string.bear_home_summary_icon_night
+                                    },
+                                ),
                             fontSize = 28.sp,
                         )
                     }
@@ -712,7 +703,7 @@ private fun HomeSummary(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Image(
-                        painter = painterResource(slot.moment.bearResFor(routineDay)),
+                        bitmap = rememberGameImage(slot.moment.bearResFor(routineDay), 256),
                         contentDescription = null,
                         modifier = Modifier.size(44.dp),
                     )
@@ -829,7 +820,7 @@ private fun MealDexCard(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Image(
-                painter = painterResource(dish.drawableRes),
+                bitmap = rememberGameImage(dish.drawableRes, 512),
                 contentDescription = stringResource(dish.nameRes),
                 modifier =
                     Modifier
@@ -928,13 +919,7 @@ private fun HomeCloset() {
             contentDescription = stringResource(R.string.bear_home_room_closet),
         )
         Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = stringResource(R.string.bear_home_closet_stub),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        Spacer(modifier = Modifier.height(12.dp))
+        // 标题由 GameCharacterPickerPanel 自带（bear_character_title），页面不再重复渲染
         GameCharacterPickerPanel(state = characterState)
         Spacer(modifier = Modifier.height(24.dp))
     }

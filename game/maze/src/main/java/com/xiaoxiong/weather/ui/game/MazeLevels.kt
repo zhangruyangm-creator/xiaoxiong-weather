@@ -1,6 +1,16 @@
 package com.xiaoxiong.weather.ui.game
 
 import androidx.compose.ui.graphics.Color
+import java.util.Locale
+
+/**
+ * 关卡标题的中英选择：系统语言为中文（zh*）取中文，其余语言取英文。
+ * 复用同一规则避免选关卡片与对局 HUD 出现不一致的标题。
+ */
+internal fun localizedMazeTitle(
+    titleZh: String,
+    titleEn: String,
+): String = if (Locale.getDefault().language == "zh") titleZh else titleEn
 
 /** 迷宫主题：决定天空/地面/墙体配色与装饰物。 */
 enum class MazeTheme {
@@ -133,6 +143,9 @@ data class MazeLevel(
 ) {
     val rows: Int get() = map.size
     val cols: Int get() = map.maxOf { it.length }
+
+    /** 按系统语言展示关卡名（英文回退 [titleEn]）。 */
+    fun displayTitle(): String = localizedMazeTitle(titleZh, titleEn)
 
     fun parse(): Array<Array<MazeCell>> {
         val grid =

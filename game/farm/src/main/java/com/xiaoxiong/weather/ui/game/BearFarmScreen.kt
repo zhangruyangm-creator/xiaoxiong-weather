@@ -36,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -50,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -69,6 +69,7 @@ fun BearFarmScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val pause = rememberGamePauseState()
     val appContext = remember(context) { context.applicationContext }
     val farm = remember(appContext) { BearFarm(appContext).also { it.load() } }
     val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
@@ -93,7 +94,7 @@ fun BearFarmScreen(
     // farm.time 按 weather 重置的节流变量累积 animDt，慢速时每 5 帧才写一次。
     var slowTick by remember(weather) { mutableStateOf(0) }
     var animDt by remember(weather) { mutableFloatStateOf(0f) }
-    GameFrameLoop(key = weather, maxDtSeconds = 0.05f) { dt, _ ->
+    GameFrameLoop(key = weather, maxDtSeconds = 0.05f, paused = { pause.paused }) { dt, _ ->
         // 雨/雪/雷暴有粒子动画需要 60fps；晴/多云/雾降频到约 12fps 即可
         val needsHighFps =
             weather == FarmWeather.RAINY ||
@@ -113,9 +114,22 @@ fun BearFarmScreen(
     // 自动保存与渲染帧解耦：独立 5 秒定时，不再依赖帧循环
     GameRepeatingInterval(intervalMs = 5_000L) { farm.save() }
 
+    // 退出兜底：切到其它游戏/主页时补记最后一次改动（BackHandler 仍保留）
+    DisposableEffect(Unit) {
+        onDispose { farm.save() }
+    }
+
     BackHandler {
-        farm.save()
-        onExit()
+        when {
+            pause.showMenu -> pause.resume()
+            // 先关闭农场内容弹窗，避免与暂停菜单同时显示
+            farm.showShop -> farm.showShop = false
+            farm.showCatalog -> farm.showCatalog = false
+            farm.showInventory -> farm.showInventory = false
+            farm.showSeasonConfirm -> farm.showSeasonConfirm = false
+            farm.unlockCard != null -> farm.dismissUnlockCard()
+            else -> pause.open()
+        }
     }
 
     val skyBrush =
@@ -183,12 +197,13 @@ fun BearFarmScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                GamePauseButton(onClick = { pause.open() })
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = farmScheme().surfaceVariant.copy(alpha = 0.92f),
                 ) {
                     Text(
-                        "🪙 ${farm.coins}",
+                        stringResource(R.string.bear_farm_coins, farm.coins),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF6D4C41),
@@ -246,6 +261,7 @@ fun BearFarmScreen(
                     itemsIndexed(farm.plots) { index, plot ->
                         FarmPlotCell(
                             plot = plot,
+                            time = { farm.time },
                             onClick = {
                                 farm.onPlot(index, weather)
                                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
@@ -292,7 +308,7 @@ fun BearFarmScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Image(
-                                    painter = painterResource(FarmCropArt.ripe(crop)),
+                                    bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
                                     contentDescription = crop.nameZh,
                                     modifier = Modifier.size(34.dp),
                                     contentScale = ContentScale.Fit,
@@ -304,7 +320,7 @@ fun BearFarmScreen(
                                     color = farmScheme().onSurface,
                                 )
                                 Text(
-                                    "${crop.seedCost}币",
+                                    stringResource(R.string.bear_farm_seed_cost, crop.seedCost),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = farmScheme().onSurfaceVariant,
                                 )
@@ -373,9 +389,26 @@ fun BearFarmScreen(
             lastUnlockCrop.value?.let { crop ->
                 FarmUnlockDialog(
                     crop = crop,
-                    onDismiss = { farm.unlockCard = null },
+                    onDismiss = { farm.dismissUnlockCard() },
                 )
             }
+        }
+
+        if (pause.showMenu) {
+            GamePauseOverlay(
+                title = gamePauseTitle(),
+                scoreText = stringResource(R.string.bear_farm_coins, farm.coins),
+                onResume = pause::resume,
+                // 农场无「重开一局」概念：以「撤回未保存进度、载入最近存档」为最小破坏行为
+                onRestart = {
+                    pause.resume()
+                    farm.load()
+                },
+                onExit = {
+                    farm.save()
+                    onExit()
+                },
+            )
         }
     }
 }

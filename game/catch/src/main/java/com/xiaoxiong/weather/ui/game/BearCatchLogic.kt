@@ -119,8 +119,10 @@ object BearCatchLogic {
                 when {
                     r < 0.07f -> ItemKind.COIN
                     r < 0.86f -> ItemKind.SNOWFLAKE
-                    r < 0.96f -> ItemKind.CLOUD
-                    else -> ItemKind.GIFT
+                    r < 0.94f -> ItemKind.CLOUD
+                    r < 0.96f -> ItemKind.GIFT
+                    // 雪天也要能拿到护盾，且其余场景一致放在分布末尾（约 4%）
+                    else -> ItemKind.BUBBLE
                 }
             CatchScene.STORM ->
                 when {

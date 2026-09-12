@@ -37,6 +37,16 @@ class BearCatchLogicTest {
     }
 
     @Test
+    fun `snow scene can spawn shield bubbles`() {
+        val rnd = Random(99)
+        val kinds = (1..2000).map { BearCatchLogic.itemKindFor(CatchScene.SNOW, rnd.nextFloat()) }
+        assertTrue("雪天应能刷出泡泡护盾", kinds.any { it == ItemKind.BUBBLE })
+        assertEquals("分布末尾区间固定为泡泡", ItemKind.BUBBLE, BearCatchLogic.itemKindFor(CatchScene.SNOW, 0.995f))
+        // 补泡泡后雪花仍是绝对主力
+        assertTrue("雪花仍应占多数", kinds.count { it == ItemKind.SNOWFLAKE } > kinds.size / 2)
+    }
+
+    @Test
     fun `rain scenes rarely spawn lightning`() {
         val rnd = Random(13)
         val storm =
@@ -803,5 +813,39 @@ class BearCatchLogicTest {
         game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
         assertEquals("闪电无视护盾直扣 2 心", 1, game.hearts)
         assertTrue("护盾不被消耗（闪电直接扣血）", game.hasShield)
+    }
+
+    @Test
+    fun `shield blocks hit and reports blocked instead of hit`() {
+        val game = BearCatchGame()
+        game.resize(
+            androidx.compose.ui.unit
+                .IntSize(400, 800),
+        )
+        game.start()
+        game.hasShield = true
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.CLOUD,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 30f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        val hits = mutableListOf<ItemKind>()
+        val blocks = mutableListOf<ItemKind>()
+        game.tick(
+            dt = 0.001f,
+            onCaught = {},
+            onHit = { hits.add(it) },
+            onDeath = {},
+            onBlocked = { blocks.add(it) },
+        )
+        assertEquals("护盾挡下不扣心", BearCatchGame.MAX_HEARTS, game.hearts)
+        assertFalse("护盾应被消耗", game.hasShield)
+        assertEquals(listOf(ItemKind.CLOUD), blocks)
+        assertTrue("护盾挡下不应触发真扣血的 onHit", hits.isEmpty())
     }
 }

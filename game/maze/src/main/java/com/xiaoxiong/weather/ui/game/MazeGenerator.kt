@@ -1,10 +1,36 @@
 package com.xiaoxiong.weather.ui.game
 
+import java.util.LinkedHashMap
 import kotlin.random.Random
 
 /** 战役总关数：前 12 关手写，其后种子随机生成（可复现）。 */
 const val MAZE_HANDCRAFTED_COUNT = 12
 const val MAZE_CAMPAIGN_SIZE = 60
+
+/** 生成关卡缓存上限：战役 60 关 + 无尽若干波，够用即可。 */
+private const val MAZE_LEVEL_CACHE_MAX = 128
+
+/** 有界 LRU 缓存：键为 Long，值为不可变 [MazeLevel]。同一 seed/难度结果确定，命中直接复用。 */
+private class MazeLevelCache(
+    private val capacity: Int,
+) {
+    private val map =
+        object : LinkedHashMap<Long, MazeLevel>(capacity, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, MazeLevel>?): Boolean = size > capacity
+        }
+
+    fun getOrPut(
+        key: Long,
+        create: () -> MazeLevel,
+    ): MazeLevel =
+        synchronized(map) {
+            map[key] ?: create().also { map[key] = it }
+        }
+}
+
+private val campaignLevelCache = MazeLevelCache(MAZE_CAMPAIGN_SIZE)
+private val endlessLevelCache = MazeLevelCache(MAZE_LEVEL_CACHE_MAX)
+private val dailyLevelCache = MazeLevelCache(8)
 
 private val GEN_TITLES =
     mapOf(
@@ -25,7 +51,10 @@ data class MazeLevelMeta(
     val titleZh: String,
     val titleEn: String,
     val theme: MazeTheme,
-)
+) {
+    /** 按系统语言展示关卡名（英文回退 [titleEn]）。 */
+    fun displayTitle(): String = localizedMazeTitle(titleZh, titleEn)
+}
 
 /**
  * 取选关列表元数据：手写关直接读常量，生成关只按 id 推主题与标题，
@@ -49,9 +78,48 @@ fun mazeCampaignMeta(index: Int): MazeLevelMeta {
 fun mazeCampaignLevel(index: Int): MazeLevel {
     val i = index.coerceIn(0, MAZE_CAMPAIGN_SIZE - 1)
     if (i < MAZE_HANDCRAFTED.size) return MAZE_HANDCRAFTED[i]
-    val difficulty = i // 越高越难
-    val seed = 0xBEEF0000L xor (i.toLong() * 0x9E3779B9L)
-    return generateMazeLevel(seed = seed, id = i + 1, difficulty = difficulty)
+    return campaignLevelCache.getOrPut(i.toLong()) {
+        val difficulty = i // 越高越难
+        val seed = 0xBEEF0000L xor (i.toLong() * 0x9E3779B9L)
+        generateMazeLevel(seed = seed, id = i + 1, difficulty = difficulty)
+    }
+}
+
+/**
+ * 无尽关卡：按 (会话种子, 波次) 缓存带标题的 [MazeLevel]。
+ * 重开同一波或从存档恢复时复用同一对象，避免主线程重复跑生成与可解性 BFS。
+ */
+internal fun cachedEndlessLevel(
+    sessionSeed: Long,
+    wave: Int,
+    difficulty: Int,
+): MazeLevel {
+    val seed = sessionSeed xor (wave.toLong() * 0x9E3779B9L)
+    val key = (seed shl 8) or (wave.toLong() and 0xFF)
+    return endlessLevelCache.getOrPut(key) {
+        // 波次标题由 UI 层用资源模板生成（中英各自渲染），这里只保留中性标题
+        generateMazeLevel(seed = seed, id = wave, difficulty = difficulty).copy(
+            titleZh = "无尽挑战",
+            titleEn = "Endless",
+        )
+    }
+}
+
+/** 每日迷宫固定种子盐，避免与战役/无尽种子空间重叠。 */
+private const val DAILY_SEED_SALT = 0xDA11_0000L
+
+/**
+ * 每日迷宫：以本地日 [dateEpochDay]（`LocalDate.toEpochDay()`）派生确定性种子，
+ * 同一天多次进入完全一致，不同日期几乎必然不同。难度固定，便于横向比较成绩。
+ */
+internal fun dailyMazeLevel(dateEpochDay: Long): MazeLevel {
+    val seed = DAILY_SEED_SALT xor (dateEpochDay * 0x9E3779B9L)
+    return dailyLevelCache.getOrPut(dateEpochDay) {
+        generateMazeLevel(seed = seed, id = 0, difficulty = 14).copy(
+            titleZh = "每日迷宫",
+            titleEn = "Daily Maze",
+        )
+    }
 }
 
 /**
@@ -74,7 +142,13 @@ fun generateMazeLevel(
                 themeOverride = themeOverride,
                 allowIce = true,
             )
-        if (mazeMapSolvable(level.map)) return level
+        // 严格预算：能算出精确最小步数时，保证预算留有余量，避免「可解但完美操作也超步」
+        val solved = mazeSolve(level.map)
+        when (solved) {
+            is MazeSolveOutcome.Solved -> return level.withStrictBudget(solved.minMoves)
+            MazeSolveOutcome.TooLarge -> return level
+            MazeSolveOutcome.Unsolvable -> Unit
+        }
     }
     // 兜底：无冰面，仍校验可解性；再失败则退化为无锁/无传送门的低难度纯迷宫（必可解）
     val fallback =
@@ -85,14 +159,30 @@ fun generateMazeLevel(
             themeOverride = themeOverride,
             allowIce = false,
         )
-    if (mazeMapSolvable(fallback.map)) return fallback
-    return generateMazeLevelOnce(
-        seed = seed xor 0x5EEDF00DL,
-        id = id,
-        difficulty = 0,
-        themeOverride = themeOverride,
-        allowIce = false,
-    )
+    when (val solved = mazeSolve(fallback.map)) {
+        is MazeSolveOutcome.Solved -> return fallback.withStrictBudget(solved.minMoves)
+        MazeSolveOutcome.TooLarge -> return fallback
+        MazeSolveOutcome.Unsolvable -> Unit
+    }
+    val last =
+        generateMazeLevelOnce(
+            seed = seed xor 0x5EEDF00DL,
+            id = id,
+            difficulty = 0,
+            themeOverride = themeOverride,
+            allowIce = false,
+        )
+    val solved = mazeSolve(last.map)
+    return if (solved is MazeSolveOutcome.Solved) last.withStrictBudget(solved.minMoves) else last
+}
+
+/**
+ * 严格预算回填：最小步数 × 1.15（至少多 1 步）作为保底预算。
+ * 若原预算更宽裕则不动；只有算不出最小步数（状态空间过大）时才放弃校验。
+ */
+private fun MazeLevel.withStrictBudget(minMoves: Int): MazeLevel {
+    val required = (minMoves * 1.15f).toInt().coerceAtLeast(minMoves + 1)
+    return if (moveBudget < required) copy(moveBudget = required) else this
 }
 
 private fun generateMazeLevelOnce(
@@ -211,8 +301,18 @@ private fun generateMazeLevelOnce(
             }.shuffled(rng)
             .toMutableList()
 
-    // 蜂蜜：随难度增多
-    val honeyCount = (2 + difficulty / 4).coerceIn(2, 10)
+    // 蜂蜜：随难度增多。锁旁会再附加蜂蜜（最多 2 罐），基础蜂蜜数要为它们留出预算，
+    // 保证总蜂蜜 ≤ MAX_SOLVE_HONEY，避免可解性判定退化为 TooLarge。
+    val lockHoneyReserve =
+        if (difficulty >= 10) {
+            2
+        } else if (difficulty >= 4) {
+            1
+        } else {
+            0
+        }
+    val budgetHoneyCount = (2 + difficulty / 4).coerceIn(2, 10)
+    val honeyCount = budgetHoneyCount.coerceAtMost(MAX_SOLVE_HONEY - lockHoneyReserve)
     repeat(honeyCount) {
         if (open.isEmpty()) return@repeat
         val (r, c) = open.removeAt(0)
@@ -356,8 +456,9 @@ private fun generateMazeLevelOnce(
     }
 
     val map = g.map { String(it) }
-    // 预算：最短路 × 系数 + 蜂蜜绕路（公式集中在 MazeGameLogic）
-    val budget = MazeGameLogic.moveBudget(best, honeyCount, difficulty)
+    // 预算：最短路 × 系数 + 蜂蜜绕路（公式集中在 MazeGameLogic）；
+    // 用未裁剪的预算蜂蜜数保持原数值，实际蜂蜜总数由上文裁剪保证 ≤ MAX_SOLVE_HONEY
+    val budget = MazeGameLogic.moveBudget(best, budgetHoneyCount, difficulty)
 
     val titles = GEN_TITLES[theme] ?: listOf("迷雾迷宫")
     val title = titles[id % titles.size]
