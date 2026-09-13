@@ -15,7 +15,10 @@ import kotlinx.serialization.json.Json
 import java.util.Locale
 import kotlin.math.abs
 
-private val Context.weatherCacheDataStore by preferencesDataStore("weather_cache_v1")
+private val Context.weatherCacheDataStore by preferencesDataStore(
+    name = "weather_cache_v1",
+    corruptionHandler = corruptionHandlerLogging("weather_cache_v1"),
+)
 
 /**
  * 天气快照缓存。

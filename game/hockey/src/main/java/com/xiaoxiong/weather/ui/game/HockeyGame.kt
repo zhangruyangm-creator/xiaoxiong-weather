@@ -22,18 +22,22 @@ private val TABLE_ICE_COLORS = listOf(Color(0xFFE8F6FF), Color(0xFFD2EAF8), Colo
 /** 击球震动 / 火花的最小间隔（秒）：球被顶在墙角持续接触时，避免震动连发。 */
 private const val HIT_FEEDBACK_INTERVAL = 0.12f
 
-/** 墙角死锁判定：持续接触挡板且原地抖动超过该时长（秒），触发解脱。 */
-private const val STUCK_ESCAPE_SECONDS = 0.35f
+/**
+ * 墙角死锁判定窗口（秒）：窗口内球相对起点的净位移 < 2*puckR 且持续接触挡板才算卡住。
+ * 单帧位移阈值会被「每帧 2–5px 的往复抖动」反复清零而永不触发。
+ */
+private const val STUCK_WINDOW_SECONDS = 0.3f
 
-/** 「原地抖动」的每帧净位移阈值（相对短边）。 */
-private const val STUCK_MOVE_EPS_MUL = 0.004f
+/** 角落区域挡板接触限速（相对短边/秒）：避免 1.85 恢复系数向被顶在墙角的球持续泵能。 */
+private const val CORNER_CONTACT_SPEED_MUL = 1.1f
 
 /** 对局快照 KEY：紧凑文本，仅存对局进行中的状态。 */
 private const val HOCKEY_SNAPSHOT_KEY = "hockey_snapshot_v1"
 
 /**
- * 快照表头固定字段数（其后紧跟难度名称的字符码，再跟两个可选拖尾字段：
- * paddleScaleBoth、matchDifficulty；缺省时按兼容值回退）。
+ * 快照表头固定字段数（其后紧跟难度名称的字符码，再跟可选拖尾字段：
+ * paddleScaleBoth、matchDifficulty、5 个局中暂存设置 pending* 与场地主题 id；
+ * 缺省时按兼容值回退）。
  */
 private const val HOCKEY_HEADER_FIELDS = 21
 
@@ -105,6 +109,9 @@ class HockeyGame {
     /** 球门宽度倍率。 */
     var goalScale by mutableFloatStateOf(HockeyLogic.GOAL_SCALE_DEFAULT)
 
+    /** 场地主题（当前生效）：决定地面摩擦与静态外观。 */
+    var rinkTheme by mutableStateOf(RinkTheme.DEFAULT)
+
     // 最近一次画布尺寸：设置变更后重建球桌用（onSizeChanged 不会主动触发）
     private var lastCanvasW = 0f
     private var lastCanvasH = 0f
@@ -132,11 +139,24 @@ class HockeyGame {
     var hitFlash by mutableFloatStateOf(0f)
     var time by mutableFloatStateOf(0f)
 
+    /**
+     * 「减弱动态效果」：冻结装饰用 [time]（蜜罐滚动 / 发球脉冲 / 场外天气），
+     * 物理与计时仍按 dt 推进（与 PoolGame 一致）。
+     */
+    var reduceMotion = false
+
     /** 击球震动 / 火花的节流计时。 */
     private var hitFeedbackCooldown = 0f
 
-    /** 墙角死锁计时：球持续接触挡板且位移极小时累计，触发解脱后清零。 */
-    private var stuckTime = 0f
+    /** 墙角死锁检测窗口：窗口起点、累计时间与是否在窗口内。 */
+    private var stuckWindowTime = 0f
+    private var stuckWindowStartX = 0f
+    private var stuckWindowStartY = 0f
+    private var stuckWindowActive = false
+
+    /** 已触发的墙角解脱次数（诊断 / 回归测试用）。 */
+    var cornerEscapeCount = 0
+        private set
 
     var aiTargetX = 0f
     var aiTargetY = 0f
@@ -152,6 +172,7 @@ class HockeyGame {
     private var pendingPaddleScaleBoth: Boolean? = null
     private var pendingPuckScale: Float? = null
     private var pendingGoalScale: Float? = null
+    private var pendingRinkTheme: RinkTheme? = null
 
     /** 是否有等待下一局生效的设置（供 UI 提示）。 */
     val hasPendingRules: Boolean
@@ -160,7 +181,8 @@ class HockeyGame {
                 pendingPaddleScale != null ||
                 pendingPaddleScaleBoth != null ||
                 pendingPuckScale != null ||
-                pendingGoalScale != null
+                pendingGoalScale != null ||
+                pendingRinkTheme != null
 
     // 打开设置时展示的值：优先展示已暂存的「下一局」值。
     fun displayWinScore(): Int = pendingWinScore ?: winScore
@@ -172,6 +194,8 @@ class HockeyGame {
     fun displayPuckScale(): Float = pendingPuckScale ?: puckScale
 
     fun displayGoalScale(): Float = pendingGoalScale ?: goalScale
+
+    fun displayRinkTheme(): RinkTheme = pendingRinkTheme ?: rinkTheme
 
     val trail = ArrayDeque<Pair<Float, Float>>(16)
     val sparks = mutableListOf<HockeySpark>()
@@ -244,7 +268,8 @@ class HockeyGame {
     /**
      * 应用设置：
      * - 难度 / 自定义等级随时生效（仅影响之后的 AI 行为）；
-     * - 对局进行中（[rulesLocked]）获胜分数与挡板 / 球 / 门尺寸改动暂存，下一局 [startMatch] 生效；
+     * - 对局进行中（[rulesLocked]）获胜分数、场地主题与挡板 / 球 / 门尺寸改动暂存，
+     *   下一局 [startMatch] 生效；
      * - 非对局期间立即生效；最后重建球桌并把球钳回新桌内。
      */
     fun applySettings(
@@ -255,6 +280,7 @@ class HockeyGame {
         paddleScaleBoth: Boolean,
         puckScale: Float,
         goalScale: Float,
+        rinkTheme: RinkTheme = RinkTheme.DEFAULT,
     ) {
         this.difficulty = difficulty
         this.customLevel = customLevel
@@ -269,12 +295,14 @@ class HockeyGame {
             pendingPaddleScaleBoth = paddleScaleBoth
             pendingPuckScale = pu
             pendingGoalScale = go
+            pendingRinkTheme = rinkTheme
         } else {
             this.winScore = w
             this.paddleScale = ps
             this.paddleScaleBoth = paddleScaleBoth
             this.puckScale = pu
             this.goalScale = go
+            this.rinkTheme = rinkTheme
             // 非对局期直接生效：清掉上一局遗留的暂存值，避免下一局又套用旧值
             clearPendingRules()
         }
@@ -288,6 +316,7 @@ class HockeyGame {
         pendingPaddleScaleBoth = null
         pendingPuckScale = null
         pendingGoalScale = null
+        pendingRinkTheme = null
     }
 
     /** 下一局开始时套用被延迟的设置。 */
@@ -297,6 +326,7 @@ class HockeyGame {
         pendingPaddleScaleBoth?.let { paddleScaleBoth = it }
         pendingPuckScale?.let { puckScale = it }
         pendingGoalScale?.let { goalScale = it }
+        pendingRinkTheme?.let { rinkTheme = it }
         clearPendingRules()
     }
 
@@ -313,7 +343,9 @@ class HockeyGame {
         resultSubmitted = false
         sparks.clear()
         trail.clear()
-        stuckTime = 0f
+        stuckWindowTime = 0f
+        stuckWindowActive = false
+        cornerEscapeCount = 0
         hitFeedbackCooldown = 0f
         time = 0f
         pendingHapticHit = false
@@ -396,6 +428,19 @@ class HockeyGame {
             // 拖尾字段：放在难度名之后以兼容旧档解析（读时缺省回退）
             header += if (paddleScaleBoth) 1 else 0
             header += matchDifficulty.ordinal
+            // 局中暂存、待下一局生效的设置：不落盘会在恢复后被旧值覆盖导致永不生效。
+            // -1 表示「无暂存」，旧档缺这些字段时同样回退为无暂存并保持旧行为。
+            header += pendingWinScore ?: -1
+            header += pendingPaddleScale ?: -1f
+            header += pendingPaddleScaleBoth?.let { if (it) 1f else 0f } ?: -1f
+            header += pendingPuckScale ?: -1f
+            header += pendingGoalScale ?: -1f
+            // 场地主题：按稳定 id 字符串落盘（长度 + 字符码）。旧档缺这两段时
+            // 读回默认 ICE / 无暂存，保持旧档可恢复。
+            header += rinkTheme.id.length
+            rinkTheme.id.forEach { header += it.code }
+            header += pendingRinkTheme?.id?.length ?: -1
+            pendingRinkTheme?.id?.forEach { header += it.code }
             val groups = mutableListOf<List<Number>>()
             groups += header
             groups += listOf(player.x, player.y, player.vx, player.vy, player.r)
@@ -438,6 +483,35 @@ class HockeyGame {
                 ?.toInt()
                 ?.let { Difficulty.entries.getOrNull(it) }
                 ?: savedDifficulty
+        // 局中暂存设置：旧档（无这些字段）读回 null，保持「无暂存」的旧行为
+        val pendingBase = trailing + 2
+        pendingWinScore =
+            header
+                .getOrNull(pendingBase)
+                ?.takeIf { it >= 0f }
+                ?.toInt()
+                ?.coerceIn(HockeyLogic.WIN_SCORE_MIN, HockeyLogic.WIN_SCORE_MAX)
+        pendingPaddleScale =
+            header
+                .getOrNull(pendingBase + 1)
+                ?.takeIf { it >= 0f }
+                ?.coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX)
+        pendingPaddleScaleBoth = header.getOrNull(pendingBase + 2)?.let { if (it < 0f) null else it != 0f }
+        pendingPuckScale =
+            header
+                .getOrNull(pendingBase + 3)
+                ?.takeIf { it >= 0f }
+                ?.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX)
+        pendingGoalScale =
+            header
+                .getOrNull(pendingBase + 4)
+                ?.takeIf { it >= 0f }
+                ?.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
+        // 场地主题（可选拖尾）：旧档没有该字段时回退默认 ICE / 无暂存
+        val (savedRinkTheme, afterRinkTheme) = readRinkThemeId(header, pendingBase + 5)
+        rinkTheme = savedRinkTheme ?: RinkTheme.DEFAULT
+        val (savedPendingRinkTheme, _) = readRinkThemeId(header, afterRinkTheme)
+        pendingRinkTheme = savedPendingRinkTheme
         val playerG = groups.getOrNull(1)?.takeIf { it.size >= 5 } ?: return false
         val aiG = groups.getOrNull(2)?.takeIf { it.size >= 5 } ?: return false
         val puckG = groups.getOrNull(3)?.takeIf { it.size >= 5 } ?: return false
@@ -507,9 +581,27 @@ class HockeyGame {
         return true
     }
 
+    /**
+     * 解析表头拖尾的场地主题 id（长度 + 字符码）：缺省 / 空段 / 越界返回 null，
+     * 由调用方回退默认主题；第二返回值是下一个待读字段的位置，便于继续读 pending 主题。
+     * 长度 -1 表示「无暂存」。
+     */
+    private fun readRinkThemeId(
+        header: FloatArray,
+        offset: Int,
+    ): Pair<RinkTheme?, Int> {
+        val len = header.getOrNull(offset)?.toInt() ?: return null to offset
+        if (len < 0) return null to offset + 1
+        val end = offset + len + 1
+        if (len == 0 || end > header.size) return null to offset + 1
+        val id = buildString { for (i in offset + 1 until end) append(header[i].toInt().toChar()) }
+        return RinkTheme.fromId(id) to end
+    }
+
     fun tick(dt: Float) {
         val t = table ?: return
-        time += dt
+        // 减弱动画：冻结装饰用时间轴，物理 / 计时（发球倒数、进球横幅）不受影响
+        if (!reduceMotion) time += dt
         if (hitFlash > 0f) hitFlash = (hitFlash - dt * 3.2f).coerceAtLeast(0f)
         if (scoreFlash > 0f) scoreFlash = (scoreFlash - dt * 1.1f).coerceAtLeast(0f)
         if (hitFeedbackCooldown > 0f) hitFeedbackCooldown -= dt
@@ -619,7 +711,9 @@ class HockeyGame {
         HockeyLogic.stepAiVelocity(ai, aiTargetX, aiTargetY, t, params, dt)
         ai.x += ai.vx * dt
         ai.y += ai.vy * dt
-        val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r)
+        // 门线解围期间才放开 AI 的 y 下界（允许压到 top+r/2），其余时刻保持原有走位手感
+        val goalLineHug = HockeyLogic.aiGoalLineClearanceActive(t, puck, ai.r)
+        val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r, aiGoalLineHug = goalLineHug)
         ai.x = ax
         ai.y = ay
 
@@ -636,7 +730,8 @@ class HockeyGame {
         val frameStartY = puck.y
         repeat(steps) {
             if (scored != null) return@repeat
-            val r = HockeyLogic.integratePuck(puck, t, sub)
+            // 场地主题统一决定球面摩擦：AI 对局与玩家共用同一值
+            val r = HockeyLogic.integratePuck(puck, t, sub, friction = rinkTheme.friction)
             if (r.scored != null) {
                 scored = r.scored
                 return@repeat
@@ -663,20 +758,48 @@ class HockeyGame {
             spawnHitSparks(puck.x, puck.y, count = 4, muted = true)
         }
 
-        // 墙角死锁检测：球被挡板顶在墙角时，墙面反弹与挡板碰撞互相抵消，
-        // 球原地高频抖动（持续接触 + 净位移极小）永远出不来——朝场内一脚解脱
-        val moved = hypot(puck.x - frameStartX, puck.y - frameStartY)
-        if (paddleContact && moved < t.shortSide * STUCK_MOVE_EPS_MUL) {
-            stuckTime += dt
-            if (stuckTime >= STUCK_ESCAPE_SECONDS) {
-                stuckTime = 0f
-                hitFlash = 1f
-                pendingHapticHit = true
-                HockeyLogic.cornerEscapeKick(t, puck)
-                spawnHitSparks(puck.x, puck.y, count = 12)
+        // 角落区域挡板接触限速：1.85 恢复系数叠加墙面反弹会向被顶在墙角的球持续泵能，
+        // 先压住速度上限，避免球在解脱前就加速到上限乱飞。
+        if (paddleContact && HockeyLogic.inCornerZone(t, puck)) {
+            HockeyLogic.clampSpeed(puck, 0f, t.shortSide * CORNER_CONTACT_SPEED_MUL)
+        }
+        // 门线解围同样限速：扫球是解围不是大力抽射，避免球被抽到全场乱飞后 AI 失位
+        if (paddleContact && goalLineHug) {
+            HockeyLogic.clampSpeed(puck, 0f, t.shortSide * CORNER_CONTACT_SPEED_MUL)
+        }
+
+        // 墙角死锁检测：单帧位移阈值会被「每帧 2–5px 的往复抖动」反复清零，
+        // 改为 0.3s 窗口内看相对起点的净位移：几乎没离开原地 + 持续接触挡板即解脱。
+        // 另外要求球处于墙角区域：沿直库（非角落）慢速推球同样「持续接触 + 净位移小」，
+        // 但球会自行沿库弹开，不属于死锁，不应瞬移解脱。
+        val nearWall =
+            puck.x - puck.r < t.left + t.puckR * 2f ||
+                puck.x + puck.r > t.right - t.puckR * 2f ||
+                puck.y - puck.r < t.top + t.puckR * 2f ||
+                puck.y + puck.r > t.bottom - t.puckR * 2f
+        if (paddleContact && nearWall && HockeyLogic.inCornerZone(t, puck)) {
+            if (!stuckWindowActive) {
+                stuckWindowActive = true
+                stuckWindowTime = 0f
+                stuckWindowStartX = frameStartX
+                stuckWindowStartY = frameStartY
+            }
+            stuckWindowTime += dt
+            if (stuckWindowTime >= STUCK_WINDOW_SECONDS) {
+                val netMoved = hypot(puck.x - stuckWindowStartX, puck.y - stuckWindowStartY)
+                if (netMoved < t.puckR * 2f) {
+                    hitFlash = 1f
+                    pendingHapticHit = true
+                    cornerEscapeCount += 1
+                    HockeyLogic.cornerEscapeKick(t, puck)
+                    spawnHitSparks(puck.x, puck.y, count = 12)
+                }
+                stuckWindowActive = false
+                stuckWindowTime = 0f
             }
         } else {
-            stuckTime = (stuckTime - dt * 2f).coerceAtLeast(0f)
+            stuckWindowActive = false
+            stuckWindowTime = 0f
         }
 
         // 轨迹

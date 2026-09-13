@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.LocalReduceMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -69,11 +70,12 @@ fun BearFarmScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
-    val pause = rememberGamePauseState()
     val appContext = remember(context) { context.applicationContext }
     val farm = remember(appContext) { BearFarm(appContext).also { it.load() } }
     val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     val fx = remember(weather) { farmWeatherEffect(weather) }
+    // 减弱动画：跳过农场雨雪/星空/萤火虫等动态氛围，只保留静态天空与田地
+    val reduceMotion = LocalReduceMotion.current
     var phase by remember(isDay) { mutableStateOf(farmSkyPhase(isDay)) }
 
     // 昼夜时段随钟点慢速更新（5 分钟一次），长时间挂着也能跨过黄昏/入夜
@@ -94,7 +96,14 @@ fun BearFarmScreen(
     // farm.time 按 weather 重置的节流变量累积 animDt，慢速时每 5 帧才写一次。
     var slowTick by remember(weather) { mutableStateOf(0) }
     var animDt by remember(weather) { mutableFloatStateOf(0f) }
-    GameFrameLoop(key = weather, maxDtSeconds = 0.05f, paused = { pause.paused }) { dt, _ ->
+    // 弹窗打开时没有需要逐帧推进的内容：暂停帧循环（tick 走离线追赶），避免空转唤醒 vsync
+    val dialogOpen =
+        farm.showShop ||
+            farm.showCatalog ||
+            farm.showInventory ||
+            farm.showSeasonConfirm ||
+            farm.unlockCard != null
+    GameFrameLoop(key = weather, maxDtSeconds = 0.05f, paused = { dialogOpen }) { dt, _ ->
         // 雨/雪/雷暴有粒子动画需要 60fps；晴/多云/雾降频到约 12fps 即可
         val needsHighFps =
             weather == FarmWeather.RAINY ||
@@ -114,21 +123,23 @@ fun BearFarmScreen(
     // 自动保存与渲染帧解耦：独立 5 秒定时，不再依赖帧循环
     GameRepeatingInterval(intervalMs = 5_000L) { farm.save() }
 
-    // 退出兜底：切到其它游戏/主页时补记最后一次改动（BackHandler 仍保留）
+    // 退出兜底：切到其它游戏/主页时补记最后一次改动
     DisposableEffect(Unit) {
         onDispose { farm.save() }
     }
 
+    // 农场是挂机经营玩法，不设暂停菜单：返回键先关内容弹窗，否则保存后直接退出
     BackHandler {
         when {
-            pause.showMenu -> pause.resume()
-            // 先关闭农场内容弹窗，避免与暂停菜单同时显示
             farm.showShop -> farm.showShop = false
             farm.showCatalog -> farm.showCatalog = false
             farm.showInventory -> farm.showInventory = false
             farm.showSeasonConfirm -> farm.showSeasonConfirm = false
             farm.unlockCard != null -> farm.dismissUnlockCard()
-            else -> pause.open()
+            else -> {
+                farm.save()
+                onExit()
+            }
         }
     }
 
@@ -164,7 +175,7 @@ fun BearFarmScreen(
                 },
                 size.height * 0.30f,
             )
-            drawFarmAtmosphere(weather, farm.time, phase)
+            drawFarmAtmosphere(weather, farm.time, phase, reduceMotion = reduceMotion)
         }
 
         Column(
@@ -197,7 +208,6 @@ fun BearFarmScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                GamePauseButton(onClick = { pause.open() })
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = farmScheme().surfaceVariant.copy(alpha = 0.92f),
@@ -392,23 +402,6 @@ fun BearFarmScreen(
                     onDismiss = { farm.dismissUnlockCard() },
                 )
             }
-        }
-
-        if (pause.showMenu) {
-            GamePauseOverlay(
-                title = gamePauseTitle(),
-                scoreText = stringResource(R.string.bear_farm_coins, farm.coins),
-                onResume = pause::resume,
-                // 农场无「重开一局」概念：以「撤回未保存进度、载入最近存档」为最小破坏行为
-                onRestart = {
-                    pause.resume()
-                    farm.load()
-                },
-                onExit = {
-                    farm.save()
-                    onExit()
-                },
-            )
         }
     }
 }

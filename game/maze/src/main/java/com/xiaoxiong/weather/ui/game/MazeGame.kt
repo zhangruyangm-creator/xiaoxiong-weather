@@ -38,6 +38,18 @@ internal sealed interface MazeHint {
 }
 
 /**
+ * 提示求解请求：主线程抓取的不可变局面快照，交给后台线程做纯 BFS。
+ * [MazeGame.applyHint] 回写前会校验快照是否仍与当前局面一致；
+ * 内容相同即视为同一局面（data class 相等性），供 [MazeHintSession] 缓存复用。
+ */
+internal data class MazeHintRequest(
+    val map: List<String>,
+    val bearR: Int,
+    val bearC: Int,
+    val keys: Int,
+)
+
+/**
  * 局中会话快照：进程重建（如旋转屏幕）时恢复当前对局。
  * gridRows 复用 [MazeLevel.parse] 的字符集编码，传送门用 '1'..'9' 表示。
  */
@@ -602,6 +614,63 @@ internal class MazeGame {
         if (phase != MazePhase.PLAYING || moving || cleared) return MazeHint.NoSolution
         val map = grid.map { row -> row.joinToString("") { tileToChar(it).toString() } }
         return when (val outcome = mazeSolve(map, bearR, bearC, keys)) {
+            is MazeSolveOutcome.Solved -> {
+                val dir = outcome.firstDir
+                if (dir == null) {
+                    MazeHint.NoSolution
+                } else {
+                    hintsUsed++
+                    MazeHint.Direction(dir)
+                }
+            }
+            MazeSolveOutcome.Unsolvable -> MazeHint.NoSolution
+            MazeSolveOutcome.TooLarge -> MazeHint.TooLarge
+        }
+    }
+
+    /**
+     * 抓取当前局面的提示求解请求（不可变快照）；对局不在正常操作态时返回 null。
+     * BFS 本身可在后台线程执行，结果由 [applyHint] 回主线程校验并写回。
+     */
+    fun hintRequest(): MazeHintRequest? {
+        if (phase != MazePhase.PLAYING || moving || cleared) return null
+        return MazeHintRequest(
+            map = grid.map { row -> row.joinToString("") { tileToChar(it).toString() } },
+            bearR = bearR,
+            bearC = bearC,
+            keys = keys,
+        )
+    }
+
+    /** [request] 快照是否仍对应当前局面（棋盘内容 / 位置 / 钥匙 / 阶段一致）。 */
+    fun hintRequestMatches(request: MazeHintRequest): Boolean {
+        if (phase != MazePhase.PLAYING || moving || cleared) return false
+        if (bearR != request.bearR || bearC != request.bearC || keys != request.keys) return false
+        if (request.map.size != rows) return false
+        for (r in 0 until rows) {
+            val row = request.map[r]
+            if (row.length != cols) return false
+            for (c in 0 until cols) {
+                if (row[c] != tileToChar(grid[r][c])) return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * 回写后台求解结果：仅在快照仍与当前局面一致时计入 [hintsUsed] 并返回提示；
+     * 局面已变化（移动 / 撤销 / 换关）时返回 null，由调用方丢弃过期结果。
+     *
+     * 计数语义：每次成功回写计一次提示。UI 用 [MazeHintSession] 对同一局面缓存
+     * 结果、避免重复 BFS 与重复回写，因此正常路径下同一局面至多计一次；
+     * 本方法自身不去重（内容相同的 request 重复调用仍各计一次）。
+     */
+    fun applyHint(
+        request: MazeHintRequest,
+        outcome: MazeSolveOutcome,
+    ): MazeHint? {
+        if (!hintRequestMatches(request)) return null
+        return when (outcome) {
             is MazeSolveOutcome.Solved -> {
                 val dir = outcome.firstDir
                 if (dir == null) {

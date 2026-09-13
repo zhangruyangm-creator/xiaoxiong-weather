@@ -44,6 +44,7 @@
     <string name="settings_notifications_subtitle">后台约每 %1$d 小时刷新；有明显变化时提醒</string>
     <string name="settings_notifications_toggle">天气变化通知</string>
     <string name="settings_notifications_toggle_sub">关闭后仍会后台更新缓存与小组件，但不弹通知</string>
+    <string name="settings_notifications_toggle_sub_permission">系统通知权限未开启；打开开关会请求授权，若已被永久拒绝将跳转系统设置</string>
     <string name="settings_prefer_location">启动时优先定位</string>
     <string name="settings_prefer_location_sub">关闭后优先恢复上次查看的城市</string>
     <string name="settings_privacy_policy">隐私政策</string>

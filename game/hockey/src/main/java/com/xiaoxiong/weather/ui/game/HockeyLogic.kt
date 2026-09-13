@@ -212,6 +212,7 @@ object HockeyLogic {
         y: Float,
         isPlayer: Boolean,
         paddleR: Float = table.paddleR,
+        aiGoalLineHug: Boolean = false,
     ): Pair<Float, Float> {
         val r = paddleR
         val minX = table.left + r
@@ -219,7 +220,15 @@ object HockeyLogic {
         // 半径异常大（旧存档 / 退化尺寸）时区间会反转，coerceIn 会抛异常；
         // 退回半场中轴，保证任何输入都能返回可用坐标而不是让存档静默丢失。
         val cx = if (minX <= maxX) x.coerceIn(minX, maxX) else table.midX
-        val minY = if (isPlayer) table.midY + r * 0.35f else table.top + r
+        // AI 默认下界 top+r；仅在门线解围（[aiGoalLineClearanceActive]）时允许压到 top+r/2：
+        // 球贴门线时只有站到球心上方（y 更小）才能向下/侧向解围，否则会从下往上顶进自家门；
+        // 但中心不能压到 top，否则半个挡板会穿出球门框。
+        val minY =
+            when {
+                isPlayer -> table.midY + r * 0.35f
+                aiGoalLineHug -> table.top + r * 0.5f
+                else -> table.top + r
+            }
         val maxY = if (isPlayer) table.bottom - r else table.midY - r * 0.35f
         val cy = if (minY <= maxY) y.coerceIn(minY, maxY) else table.midY
         return cx to cy
@@ -368,6 +377,16 @@ object HockeyLogic {
         puck.y = puck.y.coerceIn(table.top + puck.r, table.bottom - puck.r)
     }
 
+    /** 球是否贴近某个墙角（球心距最近角点 2*puckR 内）：角落挤压限能与解脱判定的区域。 */
+    fun inCornerZone(
+        table: Table,
+        puck: Body,
+    ): Boolean {
+        val dx = min(puck.x - table.left, table.right - puck.x).coerceAtLeast(0f)
+        val dy = min(puck.y - table.top, table.bottom - puck.y).coerceAtLeast(0f)
+        return hypot(dx, dy) <= puck.r * 2f
+    }
+
     fun clampSpeed(
         body: Body,
         minSpeed: Float,
@@ -417,6 +436,13 @@ object HockeyLogic {
         val midY = table.midY
         val smartDefense = params.predict >= 0.5f
         val dangerous = puck.vy < -table.shortSide * 0.10f
+
+        // 球贴门线且不朝自家门快速飞来时，「绕到球上方」因挡板 y 下界而不可达：
+        // 改走横向扫球解围，避免从侧下方把球顶进自家门（乌龙）或停在球侧
+        // 2*paddleR 处完全不触球（死锁）。
+        if (ai != null && aiGoalLineClearanceActive(table, puck, paddleR)) {
+            return aiGoalLineSweep(table, puck, ai, paddleR, minX, maxX, midY)
+        }
 
         if (smartDefense && dangerous) {
             val goalY = table.top + paddleR * 0.85f
@@ -524,6 +550,76 @@ object HockeyLogic {
             ty = lerp(ty, homeY, 0.4f)
         }
         return Triple(tx.coerceIn(minX, maxX), ty, true)
+    }
+
+    /**
+     * 门线解围条件：球贴门线（约 2 个挡板半径内）且不朝自家门快速飞来，
+     * 同时（慢球 / 静止球）必须在门洞横向范围内才成立。该区域 AI 需要允许压到门线
+     * （[clampPaddle] 的 `aiGoalLineHug`）并走横向扫球，否则会从侧下方顶出乌龙或停在
+     * 球侧不触球（死锁）；远离门洞的顶库慢球走原跟球逻辑，避免被无谓地扫向同侧角落。
+     * 正在外出的球只在门洞内卡位（否则按原跟球逻辑离远一点，避免无谓地改变整场走势）。
+     */
+    fun aiGoalLineClearanceActive(
+        table: Table,
+        puck: Body,
+        paddleR: Float,
+    ): Boolean {
+        if (puck.y >= table.top + paddleR * 2f) return false
+        if (puck.vy < -table.shortSide * 0.10f) return false
+        val goalHalf = table.goalWidth * 0.5f
+        val dx = kotlin.math.abs(puck.x - table.midX)
+        if (puck.vy <= table.shortSide * 0.06f) {
+            // 慢球 / 静止 / 缓速来球：留约 1.5 个挡板半径余量，覆盖门柱附近防死锁；
+            // 更远的顶库慢球不触发，保持原有跟球逻辑（否则整条顶库都会被横向扫球接管）。
+            return dx <= goalHalf + puck.r + paddleR * 1.5f
+        }
+        // 正在外出的球：只有还在门洞横向范围内才需要防「顶回门线」
+        return dx <= goalHalf + puck.r
+    }
+
+    /**
+     * 门线附近解围（球不朝自家门快速飞来时）：AI 站到球的台面内侧（y 更大的安全侧），
+     * 沿 x 横向把球扫向远离门洞中心的一侧，而不是绕到球上方推击（门线附近不可达）。
+     *
+     * 接触法线保证不指向自家球门：
+     * - 球在 AI 上方（y 更小）前只做水平位移或向下退让，绝不从下往上撞球；
+     * - 扫球阶段目标点略高于球心，接触只会把球推向侧方 / 台面内侧。
+     */
+    private fun aiGoalLineSweep(
+        table: Table,
+        puck: Body,
+        ai: Body,
+        paddleR: Float,
+        minX: Float,
+        maxX: Float,
+        midY: Float,
+    ): Triple<Float, Float, Boolean> {
+        val d = paddleR + puck.r
+        val maxY = midY - paddleR * 0.35f
+        // 朝远离门洞中心的方向解围：球在左半侧往左扫，右半侧往右扫
+        val pushDir = if (puck.x <= table.midX) -1f else 1f
+        val standX = (puck.x - pushDir * d * 1.3f).coerceIn(minX, maxX)
+        val standY = puck.y.coerceIn(table.top, maxY)
+        val beside = kotlin.math.abs(ai.x - standX) <= d * 0.25f
+        // 球下方先退到安全距离，保证横移不会从下往上蹭到球
+        val safeBelowY = (puck.y + d * 1.05f).coerceAtMost(maxY)
+        // 正在外出的球只卡住侧位、不主动扫：避免把它顶回门线，也避免给球注入额外能量
+        val exiting = puck.vy > table.shortSide * 0.06f
+        return when {
+            // 不在侧位又离球太近（在球下方）：先下沉让开通道，避免横移时从下往上蹭球
+            ai.y > puck.y && !beside && ai.y < safeBelowY -> Triple(ai.x, safeBelowY, true)
+            ai.y > puck.y && !beside -> Triple(standX, ai.y, true)
+            // 已到侧位：上移到球的水平线（x 已错开 d 以上，不会从下方撞球）
+            ai.y > puck.y -> Triple(standX, standY, true)
+            !beside -> Triple(standX, standY, true)
+            exiting -> Triple(standX, standY, true)
+            else ->
+                Triple(
+                    (puck.x + pushDir * d).coerceIn(minX, maxX),
+                    (puck.y - paddleR * 0.15f).coerceIn(table.top, maxY),
+                    true,
+                )
+        }
     }
 
     /**

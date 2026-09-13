@@ -50,4 +50,26 @@ class GameFrameLoopTest {
             }
         dts.forEach { assertEquals(0.016f, it, 2e-3f) }
     }
+
+    // ── 定时器（GameRepeatingInterval 的纯状态机）────────────────
+
+    @Test
+    fun `resume from background fires exactly once`() {
+        // 后台→前台的第一轮补一次；持续前台不再重复补
+        assertEquals(true, shouldFireOnResume(started = true, wasStarted = false))
+        assertEquals(false, shouldFireOnResume(started = true, wasStarted = true))
+    }
+
+    @Test
+    fun `background does not fire`() {
+        assertEquals(false, shouldFireOnResume(started = false, wasStarted = false))
+        assertEquals(false, shouldFireOnResume(started = false, wasStarted = true))
+    }
+
+    @Test
+    fun `interval delay clamps non-positive to 1ms`() {
+        assertEquals(1L, intervalDelayMs(0L))
+        assertEquals(1L, intervalDelayMs(-5_000L))
+        assertEquals(5_000L, intervalDelayMs(5_000L))
+    }
 }

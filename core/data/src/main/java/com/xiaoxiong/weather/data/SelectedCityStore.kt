@@ -16,7 +16,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
 
-private val Context.selectedCityDataStore by preferencesDataStore("weather_selected_city")
+private val Context.selectedCityDataStore by preferencesDataStore(
+    name = "weather_selected_city",
+    corruptionHandler = corruptionHandlerLogging("weather_selected_city"),
+)
 
 class SelectedCityStore(
     private val context: Context,
@@ -153,7 +156,7 @@ internal class SelectionWriteGate {
 }
 
 /** [expected] 与 DataStore 当前选择是否一致：城市坐标 0.01 阈值内视为同城，flag 必须相等。 */
-internal fun isSameSelection(
+fun isSameSelection(
     expected: SelectedCityStore.PersistedSelection?,
     current: SelectedCityStore.PersistedSelection?,
 ): Boolean {

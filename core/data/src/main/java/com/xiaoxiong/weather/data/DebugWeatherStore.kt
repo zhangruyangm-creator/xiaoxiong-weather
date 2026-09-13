@@ -13,7 +13,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-private val Context.debugWeatherDataStore by preferencesDataStore("debug_weather_v1")
+private val Context.debugWeatherDataStore by preferencesDataStore(
+    name = "debug_weather_v1",
+    corruptionHandler = corruptionHandlerLogging("debug_weather_v1"),
+)
 
 /** 调试覆盖字段；null 表示沿用实况。 */
 @Serializable
@@ -65,6 +68,14 @@ class DebugWeatherStore(
     private val overrideKey = stringPreferencesKey("override_json")
     private val json = Json { ignoreUnknownKeys = true }
 
+    // 设置里的温度单位：既供本类 apply 重算预警，也注入 ForecastFetcher 的进程级 provider，
+    // 让前台拉取的快照预警文案跟随设置（AppSettingsStore 只读复用）。
+    private val settingsStore = AppSettingsStore(context)
+
+    init {
+        ForecastFetcher.installTemperatureUnitProvider { settingsStore.getOnce().temperatureUnit }
+    }
+
     override val state: Flow<DebugWeatherState> =
         context.debugWeatherDataStore.data.map { prefs ->
             val override =
@@ -79,7 +90,11 @@ class DebugWeatherStore(
             )
         }
 
-    override suspend fun getOnce(): DebugWeatherState = state.first()
+    override suspend fun getOnce(): DebugWeatherState {
+        // 记住最近一次设置单位，供非挂起的 companion apply 默认使用（温度文案同步）
+        lastKnownTemperatureUnit = settingsStore.getOnce().temperatureUnit
+        return state.first()
+    }
 
     override suspend fun setEnabled(enabled: Boolean) {
         context.debugWeatherDataStore.edit { prefs ->
@@ -112,6 +127,10 @@ class DebugWeatherStore(
         const val MAGIC_QUERY_ZH = "#熊调试"
         const val ABOUT_TAP_COUNT = 7
 
+        /** [getOnce] 读到的最新设置温度单位；非挂起 [apply] 默认按它重算预警文案。 */
+        @Volatile
+        private var lastKnownTemperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS
+
         fun isMagicQuery(query: String): Boolean {
             val t = query.trim()
             return t.equals(MAGIC_QUERY_EN, ignoreCase = true) || t == MAGIC_QUERY_ZH
@@ -121,6 +140,7 @@ class DebugWeatherStore(
             base: WeatherSnapshot,
             override: DebugWeatherOverride,
             resources: Resources,
+            temperatureUnit: TemperatureUnit = lastKnownTemperatureUnit,
         ): WeatherSnapshot {
             if (!override.hasAny()) return base
             // 只设实际温度时体感温度自动跟随，避免预警仍按旧体感判断导致测试失真
@@ -193,6 +213,7 @@ class DebugWeatherStore(
                     hourly,
                     daily,
                     air,
+                    temperatureUnit,
                 )
             val lifeIndices =
                 LifeIndexGenerator.generate(

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
@@ -45,12 +48,20 @@ import com.xiaoxiong.weather.util.formatTemperature
 import com.xiaoxiong.weather.util.indexOfCurrentHour
 import com.xiaoxiong.weather.util.isSameHour
 import com.xiaoxiong.weather.util.parseFlexibleDateTime
+import com.xiaoxiong.weather.util.weatherCodeDescription
 
 /**
  * 无日出日落数据时的小时级昼夜口径：6:00（含）~18:00（不含）视为白天，
  * 与图表/其它页面口径保持一致（核心模块的日出日落优先）。
  */
 internal fun isDayHour(hour: Int): Boolean = hour in 6 until 18
+
+/**
+ * 逐小时昼夜标记预派生：每个时刻只解析一次，item 组合期直接取用；
+ * 时间解析失败按白天处理（与历史行为一致）。
+ */
+internal fun hourlyDayFlags(hourly: List<HourlyWeather>): List<Boolean> =
+    hourly.map { parseFlexibleDateTime(it.time)?.hour?.let(::isDayHour) ?: true }
 
 @Composable
 fun HourlyPage(
@@ -150,16 +161,18 @@ internal fun HourlyStrip(
             )
         }
     val tempUnit = LocalTemperatureUnit.current
+    val dayFlags = remember(hourly) { hourlyDayFlags(hourly) }
 
     LazyRow(
         state = listState,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(
+        itemsIndexed(
             items = hourly,
-            key = { it.time },
-        ) { item ->
+            key = { _, item -> item.time },
+        ) { index, item ->
             val isNow = isSameHour(item.time, currentTime)
+            val iconDescription = weatherCodeDescription(item.weatherCode, item.precipitationMm)
             Column(
                 modifier =
                     Modifier
@@ -178,8 +191,11 @@ internal fun HourlyStrip(
                 Spacer(modifier = Modifier.height(4.dp))
                 WeatherIcon(
                     code = item.weatherCode,
-                    isDay = parseFlexibleDateTime(item.time)?.hour?.let(::isDayHour) ?: true,
-                    modifier = Modifier.size(28.dp),
+                    isDay = dayFlags.getOrElse(index) { true },
+                    modifier =
+                        Modifier
+                            .size(28.dp)
+                            .semantics { contentDescription = iconDescription },
                     precipMmPerHour = item.precipitationMm,
                 )
                 Text(

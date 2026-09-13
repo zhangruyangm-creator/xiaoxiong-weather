@@ -24,8 +24,10 @@ fun weatherSceneStyle(
                 WeatherSceneStyle(
                     scene = scene,
                     gradient = listOf(Color(0xFF56CCF2), Color(0xFF2F80ED), Color(0xFF6DD5FA)),
-                    contentColor = Color.White,
-                    mutedContentColor = Color.White.copy(alpha = 0.82f),
+                    // 亮蓝渐变改用深海军蓝（同色相）：白字最差仅 1.67:1，
+                    // 深字对最亮 stop 7.66:1、对品牌蓝 3.32:1（大号/图标可辨）
+                    contentColor = Color(0xFF0A3550),
+                    mutedContentColor = Color(0xFF0E3A5B),
                 )
             } else {
                 WeatherSceneStyle(
@@ -43,8 +45,9 @@ fun weatherSceneStyle(
                 WeatherSceneStyle(
                     scene = scene,
                     gradient = listOf(Color(0xFF89CFF0), Color(0xFF7F9CF5), Color(0xFFB8C6FF)),
-                    contentColor = Color.White,
-                    mutedContentColor = Color.White.copy(alpha = 0.85f),
+                    // 亮堇紫渐变：深靛蓝正文/次级（白字最低仅 1.67:1）
+                    contentColor = Color(0xFF1A237E),
+                    mutedContentColor = Color(0xFF283593),
                 )
             } else {
                 WeatherSceneStyle(
@@ -76,7 +79,8 @@ fun weatherSceneStyle(
                     scene = scene,
                     gradient = listOf(Color(0xFFB0BEC5), Color(0xFF90A4AE), Color(0xFFCFD8DC)),
                     contentColor = Color(0xFF263238),
-                    mutedContentColor = Color(0xFF37474F),
+                    // 次级文字从 #37474F 加深：原值对中间灰 3.72:1，大号尚可但不够稳
+                    mutedContentColor = Color(0xFF2E3B42),
                 )
             }
 
@@ -84,8 +88,9 @@ fun weatherSceneStyle(
             WeatherSceneStyle(
                 scene = scene,
                 gradient = listOf(Color(0xFF74A9CF), Color(0xFF5C8DB8), Color(0xFF89B4D4)),
-                contentColor = Color.White,
-                mutedContentColor = Color.White.copy(alpha = 0.85f),
+                // 亮蓝灰渐变：深石板蓝正文/次级（白字最低仅 2.20:1）
+                contentColor = Color(0xFF14364A),
+                mutedContentColor = Color(0xFF1B3A4B),
             )
 
         WeatherScene.RAIN ->
@@ -123,9 +128,10 @@ fun weatherSceneStyle(
         WeatherScene.FREEZING_RAIN ->
             WeatherSceneStyle(
                 scene = scene,
-                gradient = listOf(Color(0xFF5B7C8A), Color(0xFF3E5A66), Color(0xFF7FA0AE)),
+                gradient = listOf(Color(0xFF5B7C8A), Color(0xFF3E5A66), Color(0xFF6C8FA0)),
+                // 末端亮 stop 从 #7FA0AE 稍加深：白字由 2.78:1 → 3.46:1（大号/图标可辨）
                 contentColor = Color.White,
-                mutedContentColor = Color.White.copy(alpha = 0.85f),
+                mutedContentColor = Color.White.copy(alpha = 0.9f),
             )
 
         WeatherScene.SNOW ->

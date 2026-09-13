@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.ui.game
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Body
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Difficulty
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Scorer
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -41,7 +42,9 @@ class HockeyAiTest {
             HockeyLogic.stepAiVelocity(ai, cachedX, cachedY, t, params, dt)
             ai.x += ai.vx * dt
             ai.y += ai.vy * dt
-            val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r)
+            val goalLineHug = HockeyLogic.aiGoalLineClearanceActive(t, puck, ai.r)
+            val (ax, ay) =
+                HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r, aiGoalLineHug = goalLineHug)
             ai.x = ax
             ai.y = ay
             val r = HockeyLogic.integratePuck(puck, t, dt)
@@ -123,7 +126,9 @@ class HockeyAiTest {
             HockeyLogic.stepAiVelocity(ai, cachedX, cachedY, t, params, dt)
             ai.x += ai.vx * dt
             ai.y += ai.vy * dt
-            val (ax, ay) = HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r)
+            val goalLineHug = HockeyLogic.aiGoalLineClearanceActive(t, puck, ai.r)
+            val (ax, ay) =
+                HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r, aiGoalLineHug = goalLineHug)
             ai.x = ax
             ai.y = ay
             val r = HockeyLogic.integratePuck(puck, t, dt)
@@ -164,6 +169,189 @@ class HockeyAiTest {
             // 防守完成：球未越过自家门线（未进自家门，可被解围或反击进对侧）
             assertTrue("case $i: 球进了自家门 (y=${puck.y})", puck.y > t.top + t.puckR - 1f)
         }
+    }
+
+    private class AiRunResult(
+        val ownGoal: Boolean,
+        val knockIn: Boolean,
+        val aiTouches: Int,
+        val scorer: Scorer?,
+    )
+
+    /**
+     * 运行 AI 与球的完整循环，记录乌龙、AI 触球次数与首次进球方。
+     *
+     * [AiRunResult.knockIn] 是「AI 触球即自家丢分」的精确判定：AI 在自家门洞、门线附近
+     * 触球后把球往门里顶（接触给球增加了朝自家门的动量）。正常比赛里 AI 出击/防守被
+     * 反击破门不算——只查 AI 主动把球顶向自家门这种乌龙。
+     */
+    private fun runAi(
+        t: HockeyLogic.Table,
+        puck: Body,
+        ai: Body,
+        params: HockeyLogic.DifficultyParams,
+        frames: Int = 900,
+        dt: Float = 1f / 120f,
+    ): AiRunResult {
+        var cachedX = ai.x
+        var cachedY = ai.y
+        var ownGoal = false
+        var knockIn = false
+        var touches = 0
+        var scorer: Scorer? = null
+        for (i in 0 until frames) {
+            val (tx, ty, refreshed) =
+                HockeyLogic.updateAiTarget(
+                    table = t,
+                    puck = puck,
+                    params = params,
+                    reactionAge = 1f,
+                    cachedTargetX = cachedX,
+                    cachedTargetY = cachedY,
+                    paddleR = ai.r,
+                    ai = ai,
+                )
+            if (refreshed) {
+                cachedX = tx
+                cachedY = ty
+            }
+            HockeyLogic.stepAiVelocity(ai, cachedX, cachedY, t, params, dt)
+            ai.x += ai.vx * dt
+            ai.y += ai.vy * dt
+            val goalLineHug = HockeyLogic.aiGoalLineClearanceActive(t, puck, ai.r)
+            val (ax, ay) =
+                HockeyLogic.clampPaddle(t, ai.x, ai.y, isPlayer = false, paddleR = ai.r, aiGoalLineHug = goalLineHug)
+            ai.x = ax
+            ai.y = ay
+            val r = HockeyLogic.integratePuck(puck, t, dt)
+            if (r.scored != null) {
+                scorer = r.scored
+                if (r.scored == Scorer.PLAYER) ownGoal = true
+                break
+            }
+            val preVy = puck.vy
+            val preX = puck.x
+            val preY = puck.y
+            val hit = HockeyLogic.collidePaddle(puck, ai, ai.vx, ai.vy, t)
+            if (hit) {
+                touches++
+                val inGoalMouth = kotlin.math.abs(preX - t.midX) <= t.goalWidth * 0.5f + puck.r
+                val towardOwnGoal = puck.vy < -0.5f && puck.vy < preVy - 0.5f
+                if (preY < t.top + t.paddleR * 2f && inGoalMouth && towardOwnGoal) knockIn = true
+            }
+        }
+        return AiRunResult(ownGoal, knockIn, touches, scorer)
+    }
+
+    /**
+     * 门线死区回归①：球静止在门内中轴附近，AI 从多组位置逼近，不得出现
+     * 「AI 触球把球顶进自家门」（门洞内、门线附近接触给球增加朝自家门的动量）。
+     */
+    @Test
+    fun aiNearOwnGoalLine_staticPuck_neverKnocksInOwnGoal() {
+        val t = table()
+        val params = HockeyLogic.params(Difficulty.MASTER)
+        val puckYs = listOf(t.top + t.puckR, t.top + t.puckR * 1.6f)
+        val puckXs = listOf(t.midX - t.goalWidth * 0.3f, t.midX, t.midX + t.goalWidth * 0.3f)
+        val aiXs = listOf(t.midX - t.paddleR * 3f, t.midX, t.midX + t.paddleR * 3f)
+        val aiYs =
+            listOf(
+                t.top + t.puckR + (t.paddleR + t.puckR) * 1.1f,
+                t.top + t.paddleR * 3f,
+                t.top + t.paddleR * 6f,
+            )
+        for (py in puckYs) {
+            for (px in puckXs) {
+                for (ax in aiXs) {
+                    for (ay in aiYs) {
+                        if (kotlin.math.hypot(ax - px, ay - py) < t.paddleR + t.puckR + 1f) continue
+                        val puck = Body(px, py, 0f, 0f, t.puckR)
+                        val ai = Body(ax, ay, 0f, 0f, t.paddleR)
+                        val result = runAi(t, puck, ai, params, frames = 900)
+                        assertFalse(
+                            "AI 从 ($ax,$ay) 逼近把球顶向自家门 (puck=($px,$py), ownGoal=${result.ownGoal})",
+                            result.knockIn,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 门线死区回归②：球在门内以最小速度向玩家半场移动，AI 不得把它顶回自家门
+     * （不得出现 Scorer.PLAYER，且球最终仍在门线之外）。
+     */
+    @Test
+    fun aiNearOwnGoalLine_exitingPuck_notKnockedBack() {
+        val t = table()
+        val params = HockeyLogic.params(Difficulty.MASTER)
+        val minSpeed = t.shortSide * 0.12f
+        val aiStarts =
+            listOf(
+                t.midX to t.top + t.puckR + (t.paddleR + t.puckR) * 1.2f,
+                t.midX - t.paddleR * 3f to t.top + t.paddleR * 4f,
+                t.midX + t.paddleR * 3f to t.top + t.paddleR * 5f,
+                t.midX to t.top + t.paddleR * 7f,
+            )
+        aiStarts.forEachIndexed { i, (ax, ay) ->
+            val puck = Body(t.midX, t.top + t.puckR * 0.5f, 0f, minSpeed, t.puckR)
+            val ai = Body(ax, ay, 0f, 0f, t.paddleR)
+            val result = runAi(t, puck, ai, params, frames = 900)
+            assertFalse("case $i: 外出球被顶回自家门", result.knockIn)
+            assertTrue("case $i: 球应离开门线 y=${puck.y}", puck.y > t.top + t.puckR)
+        }
+    }
+
+    /** 门线死区回归③：球停在门柱附近，AI 必须在 15s 内触球（不得停在球侧不触球）。 */
+    @Test
+    fun aiNearOwnGoalLine_puckAtPost_touchesWithinFifteenSeconds() {
+        val t = table()
+        val params = HockeyLogic.params(Difficulty.MASTER)
+        val postX = t.midX + t.goalWidth * 0.5f
+        val puck = Body(postX + t.puckR * 0.5f, t.top + t.puckR, 0f, 0f, t.puckR)
+        val ai = Body(t.midX, t.top + t.height * 0.25f, 0f, 0f, t.paddleR)
+        val result = runAi(t, puck, ai, params, frames = 1800)
+        assertTrue("AI 必须在 15s 内触球（防死锁）", result.aiTouches > 0)
+    }
+
+    /**
+     * 反例回归：贴顶库但远离门洞的慢球不得触发门线解围扫球。
+     * 旧条件只看「贴门线 + 非快速外出」，整条顶库都会被 [HockeyLogic.aiGoalLineSweep] 接管，
+     * 替代原有的跟球推进逻辑；修复后应仍按原逻辑把目标对准球心。
+     */
+    @Test
+    fun topRailSlowPuckFarFromGoal_usesNormalFollowLogic() {
+        val t = table()
+        val params = HockeyLogic.params(Difficulty.MASTER)
+        // 左库附近（远离门洞横向范围）贴顶库的静止球
+        val puck = Body(t.left + t.paddleR * 1.5f, t.top + t.puckR, 0f, 0f, t.puckR)
+        assertFalse(
+            "远离门洞的贴顶库慢球不应触发门线解围",
+            HockeyLogic.aiGoalLineClearanceActive(t, puck, t.paddleR),
+        )
+        // 对照：同在门线、门洞横向范围内的慢球仍须触发（门柱防死锁逻辑保留）
+        val mouthPuck = Body(t.midX, t.top + t.puckR, 0f, 0f, t.puckR)
+        assertTrue(
+            "门洞内的门线慢球仍须解围",
+            HockeyLogic.aiGoalLineClearanceActive(t, mouthPuck, t.paddleR),
+        )
+
+        // 原跟球逻辑：AI 已绕到球上方，目标对准球心推进；扫球则会把目标推到侧位 standX
+        val ai = Body(puck.x, puck.y - (t.paddleR + t.puckR), 0f, 0f, t.paddleR)
+        val (tx, _, refreshed) =
+            HockeyLogic.updateAiTarget(
+                table = t,
+                puck = puck,
+                params = params,
+                reactionAge = 1f,
+                cachedTargetX = ai.x,
+                cachedTargetY = ai.y,
+                paddleR = ai.r,
+                ai = ai,
+            )
+        assertTrue(refreshed)
+        assertEquals("应回到跟球推进目标 x", puck.x, tx, 1f)
     }
 
     @Test

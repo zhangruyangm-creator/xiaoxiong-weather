@@ -84,6 +84,9 @@ internal class MazeFxHost {
     private var prevCleared = false
     private var lastTrailAt = -10f
 
+    /** 通关庆祝是否已被 [observe] 观测到（绘制阶段才派发），避免帧循环抢跑暂停。 */
+    private var clearObserved = false
+
     private fun spawn(
         x: Float,
         y: Float,
@@ -155,6 +158,14 @@ internal class MazeFxHost {
             prevGrid = game.grid
             count = 0
             cursor = 0
+            // 宿主跨关卡复用时清掉上一局的演出时间点，效果等同新建实例
+            bumpAt = -10f
+            landAt = -10f
+            hopAt = -10f
+            portalAt = -10f
+            unlockAt = -10f
+            clearAt = -10f
+            clearObserved = false
             prevHoney = game.honeyLeft
             prevKeys = game.keys
             prevR = game.bearR
@@ -283,6 +294,7 @@ internal class MazeFxHost {
         // 通关庆祝
         if (game.cleared && !prevCleared) {
             clearAt = t
+            clearObserved = true
             for (i in 0 until 36) {
                 val a = mazeHash01(serial + i, 551) * Math.PI.toFloat() * 2f
                 val sp = 0.8f + 1.8f * mazeHash01(serial + i, 552)
@@ -405,13 +417,12 @@ internal class MazeFxHost {
         cell: Float,
     ): Float = bumpDecay(time) * cell * 0.10f
 
-    /** 事件粒子绘制（reduceMotion 时由调用方跳过）。 */
-    fun DrawScope.drawParticles(
-        layout: MazeBoardLayout,
-        time: Float,
-    ) {
-        if (count <= 0 || layout.cell <= 0f) return
-        val cell = layout.cell
+    /**
+     * 原地压缩环形池：把仍存活的粒子按相对顺序搬到数组前段，
+     * 并把写入游标同步到存活区间末尾（`count % CAP`），
+     * 否则环形回绕会覆盖仍存活的粒子。返回存活数量。
+     */
+    fun compact(time: Float): Int {
         var write = 0
         for (read in 0 until count) {
             val life = pLife[read]
@@ -429,10 +440,44 @@ internal class MazeFxHost {
                 pKind[write] = pKind[read]
                 pColor[write] = pColor[read]
             }
-            drawParticle(write, age, life, layout, time)
             write++
         }
         count = write
+        cursor = count % CAP
+        return count
+    }
+
+    /** 当前时间下仍存活的粒子数（绘制区间 `[0, count)` 内）。 */
+    fun liveCount(time: Float): Int {
+        var live = 0
+        for (i in 0 until count) {
+            val age = time - pBorn[i]
+            if (age >= 0f && age < pLife[i]) live++
+        }
+        return live
+    }
+
+    /**
+     * 对局是否已完全静止：通关庆祝已结束且没有任何存活粒子。
+     * 通关但庆祝尚未被 [observe] 观测时返回 false，避免帧循环抢在首帧绘制前暂停。
+     */
+    fun isIdle(game: MazeGame): Boolean {
+        if (game.cleared && !clearObserved) return false
+        if (celebrateAge(game.time) >= 0f) return false
+        return liveCount(game.time) == 0
+    }
+
+    /** 事件粒子绘制（reduceMotion 时由调用方跳过）。 */
+    fun DrawScope.drawParticles(
+        layout: MazeBoardLayout,
+        time: Float,
+    ) {
+        if (count <= 0 || layout.cell <= 0f) return
+        val live = compact(time)
+        if (live == 0) return
+        for (i in 0 until live) {
+            drawParticle(i, time - pBorn[i], pLife[i], layout, time)
+        }
     }
 
     private fun DrawScope.drawParticle(
@@ -607,11 +652,13 @@ internal fun DrawScope.drawThemeMotes(
     }
 }
 
-/** 冰面滑行拖尾：沿运动反方向的两道高光，增强滑行速度感。 */
+/** 冰面滑行拖尾：沿运动反方向的两道高光，增强滑行速度感；减弱动画时冻结不画。 */
 internal fun DrawScope.drawIceTrail(
     game: MazeGame,
     layout: MazeBoardLayout,
+    reduceMotion: Boolean,
 ) {
+    if (reduceMotion) return
     if (!game.moving || !game.sliding) return
     val cell = layout.cell
     if (cell <= 0f) return

@@ -26,6 +26,7 @@ import com.xiaoxiong.weather.di.appContainer
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.theme.XiaoxiongWeatherTheme
 import com.xiaoxiong.weather.ui.weather.WeatherScreen
+import com.xiaoxiong.weather.util.CrashReporting
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,7 +66,7 @@ class MainActivity : ComponentActivity() {
                             Settings.Global.ANIMATOR_DURATION_SCALE,
                             1f,
                         ) == 0f
-                    }.getOrDefault(false),
+                    }.onFailure { CrashReporting.record(it) }.getOrDefault(false),
                 )
             }
             DisposableEffect(context) {
@@ -79,7 +80,7 @@ class MainActivity : ComponentActivity() {
                                         Settings.Global.ANIMATOR_DURATION_SCALE,
                                         1f,
                                     ) == 0f
-                                }.getOrDefault(false)
+                                }.onFailure { CrashReporting.record(it) }.getOrDefault(false)
                         }
                     }
                 context.contentResolver.registerContentObserver(

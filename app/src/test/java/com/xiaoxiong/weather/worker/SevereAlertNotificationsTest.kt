@@ -1,9 +1,15 @@
 package com.xiaoxiong.weather.worker
 
+import android.app.NotificationManager
 import com.xiaoxiong.weather.data.AlertKind
 import com.xiaoxiong.weather.data.AlertSeverity
+import com.xiaoxiong.weather.data.City
+import com.xiaoxiong.weather.data.CurrentWeather
 import com.xiaoxiong.weather.data.WeatherAlertGenerator
+import com.xiaoxiong.weather.data.WeatherSnapshot
+import com.xiaoxiong.weather.util.WeatherCodes
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -104,6 +110,54 @@ class SevereAlertNotificationsTest {
         assertTrue(
             severeNotificationSignature("北京", spec) !=
                 severeNotificationSignature("青岛", spec),
+        )
+    }
+
+    @Test
+    fun notificationSpecs_selectsSevereAlertsFromSnapshot() {
+        // fresh 命中分支复用同一评估入口：大风 WARNING 必须仍被选中
+        val snapshot =
+            WeatherSnapshot(
+                city = City(id = 1L, name = "测试市", latitude = 36.65, longitude = 117.12),
+                current =
+                    CurrentWeather(
+                        time = "2026-08-02T12:00",
+                        weatherCode = 0,
+                        windGustsKmh = WeatherCodes.WIND_WARNING_KMH,
+                    ),
+            )
+
+        val selected = selectSevereNotificationSpecs(notificationSpecs(snapshot))
+
+        assertTrue(selected.any { it.kind == AlertKind.WIND })
+    }
+
+    @Test
+    fun canDisplaySystemNotifications_requiresSystemAndChannelEnabled() {
+        assertTrue(
+            canDisplaySystemNotifications(
+                systemNotificationsEnabled = true,
+                channelImportance = null,
+            ),
+        )
+        assertTrue(
+            canDisplaySystemNotifications(
+                systemNotificationsEnabled = true,
+                channelImportance = NotificationManager.IMPORTANCE_LOW,
+            ),
+        )
+        assertFalse(
+            canDisplaySystemNotifications(
+                systemNotificationsEnabled = false,
+                channelImportance = NotificationManager.IMPORTANCE_LOW,
+            ),
+        )
+        // 渠道被用户关闭：不展示也不写去重记忆
+        assertFalse(
+            canDisplaySystemNotifications(
+                systemNotificationsEnabled = true,
+                channelImportance = NotificationManager.IMPORTANCE_NONE,
+            ),
         )
     }
 }

@@ -11,7 +11,8 @@ import com.xiaoxiong.weather.R
 /**
  * 按天气切换桌面启动图标（activity-alias）。
  *
- * 前台立刻切换 alias 会在部分机型杀进程；前台只排队，退后台再改。
+ * 前台立刻切换 alias 会在部分机型杀进程：前台 [scheduleForWeatherCode] 只排队，
+ * 由注入的 [flushScheduler] 合并 + 延迟触发（见 WeatherApp），退后台/Worker 再立即执行。
  * applicationId 与 namespace 均为 com.xiaoxiong.weather。
  */
 object WeatherLauncherIcon {
@@ -20,11 +21,19 @@ object WeatherLauncherIcon {
     private const val KEY_ALIAS = "active_alias"
     private const val KEY_PENDING = "pending_alias"
 
+    /** 只保护 pending/alias 的 prefs 读写（短锁），主线程 schedule 不阻塞在 PM 操作上。 */
+    private val pendingLock = Any()
+
+    /** 只保护 PackageManager 应用与全量校正（长锁）；与 [pendingLock] 分开避免主线程被拖住。 */
+    private val pmLock = Any()
+
     /**
-     * 进程内串行化 prefs + PackageManager 操作：
-     * 前台 `scheduleForWeatherCode` 与后台 `apply` 并发时不再互相覆盖。
+     * 主线程排队后触发后台 flush 的钩子：App 启动时注入 appScope 实现（合并 + 延迟，
+     * 避免天气加载路径立即做 PM 全量切换、同一轮发布连切两次）；未注入时保持
+     * 「只排队、退后台再 flush」。
      */
-    private val lock = Any()
+    @Volatile
+    var flushScheduler: ((Context) -> Unit)? = null
 
     enum class Style(
         val aliasSimpleName: String,
@@ -194,7 +203,7 @@ object WeatherLauncherIcon {
             Style.HAIL -> R.drawable.ic_launcher_bear_hail
         }
 
-    /** 前台调用：只排队，不立刻改组件。 */
+    /** 前台调用：短锁排队 pending，随后触发注入的合并延迟 flush（PM 操作不占主线程）。 */
     fun scheduleForWeatherCode(
         context: Context,
         weatherCode: Int?,
@@ -203,28 +212,42 @@ object WeatherLauncherIcon {
     ) {
         val app = context.applicationContext
         val style = fromWeather(weatherCode, precipMmPerHour, isDay)
-        synchronized(lock) {
-            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val current = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
-            if (current == style.aliasSimpleName) {
-                prefs.edit { remove(KEY_PENDING) }
-                return
+        val queued =
+            synchronized(pendingLock) {
+                val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                val current = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
+                if (current == style.aliasSimpleName) {
+                    prefs.edit { remove(KEY_PENDING) }
+                    false
+                } else {
+                    prefs.edit { putString(KEY_PENDING, style.aliasSimpleName) }
+                    Log.d(TAG, "queued launcher icon -> ${style.aliasSimpleName}")
+                    true
+                }
             }
-            prefs.edit { putString(KEY_PENDING, style.aliasSimpleName) }
-            Log.d(TAG, "queued launcher icon -> ${style.aliasSimpleName}")
-        }
+        if (queued) flushScheduler?.invoke(app)
     }
 
     /** Activity onStop / 后台 Worker：执行排队中的图标切换。 */
     fun flushPending(context: Context) {
         val app = context.applicationContext
-        synchronized(lock) {
-            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val pending = prefs.getString(KEY_PENDING, null) ?: return
-            val ok = applyLocked(app, Style.fromAlias(pending))
-            if (!ok) {
-                Log.w(TAG, "keep pending alias=$pending after failed apply")
+        val pending =
+            synchronized(pendingLock) {
+                val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                val value = prefs.getString(KEY_PENDING, null) ?: return
+                // 先读出并清除：PM 全程持长锁，期间主线程仍可短锁排队新 pending
+                prefs.edit { remove(KEY_PENDING) }
+                Style.fromAlias(value)
             }
+        if (!synchronized(pmLock) { applyLocked(app, pending) }) {
+            synchronized(pendingLock) {
+                val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                // 已有更新排队时不回滚旧目标，避免覆盖主线程刚写入的 pending
+                if (prefs.getString(KEY_PENDING, null) == null) {
+                    prefs.edit { putString(KEY_PENDING, pending.aliasSimpleName) }
+                }
+            }
+            Log.w(TAG, "keep pending alias=${pending.aliasSimpleName} after failed apply")
         }
     }
 
@@ -245,16 +268,16 @@ object WeatherLauncherIcon {
      */
     fun reconcile(context: Context) {
         val app = context.applicationContext
-        synchronized(lock) {
+        synchronized(pmLock) {
             val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val stored = Style.fromAlias(prefs.getString(KEY_ALIAS, null))
             val pm = app.packageManager
             val enabled = Style.entries.filter { isEnabled(pm, it.componentName(app)) }
             val target = reconcileTarget(stored, enabled)
-            if (enabled.size == 1 && enabled.first() == target && stored == target) return
-            val corrected = runCatching { correctAll(app, pm, target) }.isSuccess
+            val alreadyCorrect = enabled.size == 1 && enabled.first() == target && stored == target
+            val corrected = alreadyCorrect || runCatching { correctAll(app, pm, target) }.isSuccess
             if (corrected) {
-                prefs.edit().putString(KEY_ALIAS, target.aliasSimpleName).apply()
+                writeAlias(app, target)
             }
             Log.d(
                 TAG,
@@ -270,7 +293,7 @@ object WeatherLauncherIcon {
         style: Style,
     ): Boolean {
         val app = context.applicationContext
-        return synchronized(lock) { applyLocked(app, style) }
+        return synchronized(pmLock) { applyLocked(app, style) }
     }
 
     /**
@@ -284,14 +307,9 @@ object WeatherLauncherIcon {
         val pm = app.packageManager
         return try {
             correctAll(app, pm, style)
-            // apply()：主线程不做 commit 磁盘等待；进程内由 lock 串行，
+            // apply()：主线程不做 commit 磁盘等待；进程内由锁串行，
             // 跨进程被杀后由启动时 reconcile 用 PackageManager 实际状态对账
-            app
-                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit()
-                .putString(KEY_ALIAS, style.aliasSimpleName)
-                .remove(KEY_PENDING)
-                .apply()
+            writeAlias(app, style)
             Log.d(TAG, "launcher icon -> ${style.aliasSimpleName}")
             true
         } catch (e: Exception) {
@@ -299,13 +317,25 @@ object WeatherLauncherIcon {
             // 失败恢复同样走全量校正：只留 SUNNY，避免残留多个 enabled alias
             val recovered = runCatching { correctAll(app, pm, Style.SUNNY) }.isSuccess
             if (recovered) {
-                app
-                    .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .edit()
-                    .putString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
-                    .apply()
+                writeAlias(app, Style.SUNNY)
             }
             false
+        }
+    }
+
+    /** 写入生效 alias（apply 语义）；只清除与本次目标一致的 pending，避免误删新排队目标。 */
+    private fun writeAlias(
+        app: Context,
+        style: Style,
+    ) {
+        synchronized(pendingLock) {
+            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            prefs.edit {
+                putString(KEY_ALIAS, style.aliasSimpleName)
+                if (shouldClearPending(prefs.getString(KEY_PENDING, null), style)) {
+                    remove(KEY_PENDING)
+                }
+            }
         }
     }
 
@@ -346,6 +376,12 @@ object WeatherLauncherIcon {
                     .getOrDefault(true)
         }
 }
+
+/** 生效 alias 写入后是否应清除 pending：只有 pending 与已生效目标一致时才清，避免误删新排队目标。 */
+internal fun shouldClearPending(
+    pendingAlias: String?,
+    applied: WeatherLauncherIcon.Style,
+): Boolean = pendingAlias != null && pendingAlias == applied.aliasSimpleName
 
 /**
  * 启动对账时选目标 alias：PackageManager 实际状态优先于 prefs；

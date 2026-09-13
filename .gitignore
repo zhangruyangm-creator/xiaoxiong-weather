@@ -1,5 +1,6 @@
 *.iml
 .gradle
+/.kotlin/
 /local.properties
 /.idea
 .DS_Store
@@ -23,6 +24,8 @@ output.json
 !debug.keystore
 app/release/
 app/build/
+# Firebase/Crashlytics 配置文件含密钥，不入库（本地放置后自动启用插件）
+app/google-services.json
 **/build/
 keystore.properties
 app/release.keystore

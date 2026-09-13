@@ -1,11 +1,17 @@
 package com.xiaoxiong.weather.widget
 
 import android.content.Context
+import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.updateAll
+import com.xiaoxiong.weather.util.CrashReporting
+import com.xiaoxiong.weather.util.runCatchingCancellable
+import kotlinx.coroutines.CancellationException
 
 object WeatherWidgetUpdater {
+    private const val TAG = "WeatherWidgetUpdater"
+
     suspend fun updateAll(context: Context) {
         val appContext = context.applicationContext
         // 调用方通常刚写入新缓存/快照：清空去重缓存，避免拿到 30s 内的旧渲染
@@ -24,9 +30,19 @@ object WeatherWidgetUpdater {
         widget: GlanceAppWidget,
         provider: Class<out GlanceAppWidget>,
     ) {
-        // 查询失败时保守刷新（宁可多一次渲染，不可漏更新）
-        val hasInstances = runCatching { manager.getGlanceIds(provider).isNotEmpty() }.getOrDefault(true)
+        // 查询失败时保守刷新（宁可多一次渲染，不可漏更新）；取消必须透传
+        val hasInstances =
+            runCatchingCancellable { manager.getGlanceIds(provider).isNotEmpty() }
+                .getOrDefault(true)
         if (!hasInstances) return
-        widget.updateAll(context)
+        try {
+            widget.updateAll(context)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // 单个类型渲染失败（DataStore 损坏/IO 异常）不能拖垮其余 widget 或崩掉调用方
+            CrashReporting.record(e)
+            Log.w(TAG, "failed to update ${provider.simpleName}", e)
+        }
     }
 }

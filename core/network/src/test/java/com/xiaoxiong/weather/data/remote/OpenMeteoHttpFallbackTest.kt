@@ -174,10 +174,26 @@ class OpenMeteoHttpFallbackTest {
         assertTrue(OpenMeteoHttp.isRetryableHttpCode(529))
         assertTrue(OpenMeteoHttp.isRetryableHttpCode(429))
         assertTrue(OpenMeteoHttp.isRetryableHttpCode(408))
+        assertTrue(OpenMeteoHttp.isRetryableHttpCode(425))
         org.junit.Assert.assertFalse(OpenMeteoHttp.isRetryableHttpCode(400))
         org.junit.Assert.assertFalse(OpenMeteoHttp.isRetryableHttpCode(404))
         org.junit.Assert.assertFalse(OpenMeteoHttp.isRetryableHttpCode(499))
     }
+
+    @Test
+    fun httpError425_fallsBackToSecondary() =
+        runBlocking {
+            // 425 Too Early 同 408/429 属瞬态，换入口重试有意义
+            serverA.enqueue(MockResponse().setResponseCode(425).setBody("too early"))
+            serverB.enqueue(MockResponse().setResponseCode(200).setBody("""{"ok":true,"from":"b"}"""))
+            val urlA = serverA.url("/v1/forecast").toString()
+            val urlB = serverB.url("/v1/forecast").toString()
+
+            val body = OpenMeteoHttp.executeWithFallback(listOf(urlA, urlB), client)
+
+            assertEquals("""{"ok":true,"from":"b"}""", body)
+            assertEquals(1, serverB.requestCount)
+        }
 
     @Test
     fun httpError4xx_doesNotFallBack() =

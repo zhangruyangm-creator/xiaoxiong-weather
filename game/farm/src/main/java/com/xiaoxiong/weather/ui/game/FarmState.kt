@@ -16,6 +16,62 @@ internal enum class FarmTool { CARE, PLANT, CLEAR, INFO, WATER, WEED, BUG, HARVE
 internal val PRIMARY_TOOLS = listOf(FarmTool.CARE, FarmTool.PLANT, FarmTool.CLEAR)
 internal val EXTRA_TOOLS = listOf(FarmTool.INFO, FarmTool.WATER, FarmTool.WEED, FarmTool.BUG, FarmTool.HARVEST, FarmTool.FERTILIZE)
 
+/** 初始解锁种子；回档后选中种子失效时的默认回退（与 [FarmState] 初始解锁集合一致）。 */
+internal const val DEFAULT_SEED_ID = "radish"
+
+/**
+ * 回档后把选中的种子归位到当前已解锁作物：优先保留原选择；
+ * 原选择已随回档失效时回落到默认种子，再不行取任一已解锁作物。
+ * 纯逻辑便于单测。
+ */
+internal fun seedIdAfterLoad(
+    unlocked: Set<String>,
+    selected: String,
+): String =
+    when {
+        selected in unlocked -> selected
+        DEFAULT_SEED_ID in unlocked -> DEFAULT_SEED_ID
+        else -> unlocked.minOrNull() ?: DEFAULT_SEED_ID
+    }
+
+/** 回档后需复位的瞬态 UI：全部清空 + 选中种子归位到已解锁作物。 */
+internal data class FarmLoadedUi(
+    val toast: FarmToast?,
+    val floatingRewards: List<FarmReward>,
+    val unlockCard: CropDef?,
+    val unlockQueue: List<String>,
+    val selectedSeedId: String,
+)
+
+/** 回档结果：纯数据状态 + 复位后的瞬态 UI。 */
+internal data class FarmLoadResult(
+    val state: FarmState,
+    val ui: FarmLoadedUi,
+)
+
+/**
+ * 由存档计算回档结果（纯逻辑，可单测）：状态按 [FarmState.fromSave] 恢复，
+ * 瞬态 UI（toast/飘字/解锁卡与队列）一律清空，选中种子归位到已解锁作物。
+ */
+internal fun loadFarmFromSave(
+    save: FarmSave,
+    currentSelectedSeedId: String,
+    backfillUnlockedAsCollected: Boolean,
+): FarmLoadResult {
+    val state = FarmState.fromSave(save, backfillUnlockedAsCollected)
+    return FarmLoadResult(
+        state = state,
+        ui =
+            FarmLoadedUi(
+                toast = null,
+                floatingRewards = emptyList(),
+                unlockCard = null,
+                unlockQueue = emptyList(),
+                selectedSeedId = seedIdAfterLoad(state.unlocked, currentSelectedSeedId),
+            ),
+    )
+}
+
 /** toast 消息：带自增 id，同文案连点时也能重启 2.5s 自动清除定时器。 */
 internal data class FarmToast(
     val id: Int,
@@ -118,14 +174,22 @@ internal class BearFarm(
         val raw = prefs.getString("farm_save_v1", null) ?: return
         runCatching {
             val save = farmJson.decodeFromString(FarmSave.serializer(), raw)
-            state =
-                FarmState.fromSave(
+            val loaded =
+                loadFarmFromSave(
                     save = save,
+                    currentSelectedSeedId = selectedSeedId,
                     // 旧存档（1.x，无图鉴字段）一次性回填：已解锁的作物视为收集过
                     backfillUnlockedAsCollected = save.schemaVersion < 2 && save.unlockedCropIds.size > 4,
                 )
+            state = loaded.state
             syncFromState()
             lastSaved = state.toSave()
+            // 回档会覆盖当前进度：清空与旧局面绑定的瞬态 UI，并把选中种子归位到已解锁作物
+            toast = loaded.ui.toast
+            floatingRewards = loaded.ui.floatingRewards
+            unlockCard = loaded.ui.unlockCard
+            unlockQueue.clear()
+            selectedSeedId = loaded.ui.selectedSeedId
         }
     }
 
@@ -302,7 +366,7 @@ internal class BearFarm(
 
     /** 开启新一季：重置金币/田地/解锁，保留背包/图鉴/记录，获得永久生长加成。 */
     fun startNewSeason() {
-        runAction { FarmSimulator.startNewSeason(state) }
+        runAction { FarmSimulator.startNewSeason(state, System.currentTimeMillis()) }
         // 新一季只解锁初始四种作物，选中的种子若停在已锁定作物会导致无法种植
         selectedSeedId = "radish"
         showCatalog = false

@@ -83,6 +83,9 @@ internal fun MazeHudTopBar(
     theme: MazeTheme,
     style: MazeThemeStyle,
     game: MazeGame,
+    moving: Boolean,
+    canUndo: Boolean,
+    hintBusy: Boolean,
     onClose: () -> Unit,
     onUndo: () -> Unit,
     onHint: () -> Unit,
@@ -123,14 +126,14 @@ internal fun MazeHudTopBar(
                 icon = Icons.AutoMirrored.Filled.Undo,
                 contentDescription = stringResource(R.string.cd_maze_undo),
                 style = style,
-                enabled = game.canUndo,
+                enabled = canUndo,
                 onClick = onUndo,
             )
             MazeGlassButton(
                 icon = Icons.Default.Lightbulb,
                 contentDescription = stringResource(R.string.cd_maze_hint),
                 style = style,
-                enabled = game.phase == MazePhase.PLAYING && !game.moving,
+                enabled = game.phase == MazePhase.PLAYING && !moving && !hintBusy,
                 onClick = onHint,
             )
             MazeGlassButton(

@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.widget
 
 import android.content.Context
+import android.util.Log
 import androidx.annotation.DrawableRes
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
@@ -11,10 +12,12 @@ import com.xiaoxiong.weather.data.WeatherRefreshPolicy
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.di.AppContainer
 import com.xiaoxiong.weather.di.appContainer
+import com.xiaoxiong.weather.util.CrashReporting
 import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.WeatherLauncherIcon
 import com.xiaoxiong.weather.util.formatHourLabel
 import com.xiaoxiong.weather.util.formatTemperature
+import com.xiaoxiong.weather.util.runCatchingCancellable
 import com.xiaoxiong.weather.util.upcomingFromCurrent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -22,9 +25,15 @@ import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlin.math.abs
 
+/** 线程安全的「更新时间」格式：DateTimeFormatter 不可变，避免每次渲染重复创建。 */
+private val WIDGET_UPDATED_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+
 object WeatherWidgetData {
+    private const val TAG = "WeatherWidgetData"
+
     /** 多个 widget 并发 provideGlance 时的内存去重窗口：窗口内只允许一次真正读取/联网。 */
     private const val LOAD_DEDUP_TTL_MS = 30_000L
 
@@ -43,8 +52,9 @@ object WeatherWidgetData {
             loadOrNull(context)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // DataStore 损坏/IO 异常若从 provideGlance 抛出会直接崩溃小组件，降级为空态
+            CrashReporting.record(e)
             null
         }
 
@@ -82,7 +92,10 @@ object WeatherWidgetData {
 
         val city =
             if (selection.useLocation && locationHelper.hasLocationPermission()) {
-                runCatching { locationHelper.resolveCurrentCityReuseLast() }.getOrDefault(selection.city)
+                // 透传取消：Glance 取消 widget update 时不能把取消吞成「定位失败回退选中城市」
+                runCatchingCancellable {
+                    locationHelper.resolveCurrentCityReuseLast()
+                }.getOrDefault(selection.city)
             } else {
                 selection.city
             }
@@ -102,14 +115,30 @@ object WeatherWidgetData {
             val refreshed =
                 try {
                     val snapshot = container.weatherRepository.fetchWeather(city)
-                    cacheStore.save(snapshot)
+                    // 新数据已到手：落盘/写选择失败只记日志，不能把内存快照一起丢掉
+                    try {
+                        cacheStore.save(snapshot)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        CrashReporting.record(e)
+                        Log.w(TAG, "failed to save weather cache", e)
+                    }
                     if (selection.useLocation) {
-                        container.selectedCityStore.saveIfUnchanged(selection, city, useLocation = true)
+                        try {
+                            container.selectedCityStore.saveIfUnchanged(selection, city, useLocation = true)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            CrashReporting.record(e)
+                            Log.w(TAG, "failed to persist selected city", e)
+                        }
                     }
                     snapshot to System.currentTimeMillis()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    CrashReporting.record(e)
                     null
                 }
 
@@ -210,8 +239,8 @@ object WeatherWidgetData {
             bgRes = widgetBgRes(displayCode, current.isDay),
             feelsLikeText = current.apparentTemperatureC?.let { formatTemperature(it, unit) } ?: "",
             humidityText = current.humidityPercent?.let { "$it%" } ?: "--",
-            windText = current.windSpeedKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--",
-            pressureText = current.pressureHpa?.let { "${"%.0f".format(it)} hPa" } ?: "--",
+            windText = current.windSpeedKmh?.let { "${String.format(Locale.US, "%.0f", it)} km/h" } ?: "--",
+            pressureText = current.pressureHpa?.let { "${String.format(Locale.US, "%.0f", it)} hPa" } ?: "--",
         )
     }
 
@@ -241,7 +270,7 @@ object WeatherWidgetData {
             Instant
                 .ofEpochMilli(epochMs)
                 .atZone(ZoneId.systemDefault())
-                .format(DateTimeFormatter.ofPattern("HH:mm"))
+                .format(WIDGET_UPDATED_TIME_FORMATTER)
         return context.getString(R.string.widget_updated, time)
     }
 }
@@ -289,11 +318,11 @@ internal fun widgetEmoji(
     isDay: Boolean,
 ): String = WeatherCodes.emoji(code, isDay)
 
-/** 本地 6:00–18:59 视为白天，与常见天气 App 的昼夜展示一致。 */
+/** 本地 6:00–17:59 视为白天，与 [com.xiaoxiong.weather.util.isDaytimeHour] 口径一致。 */
 internal fun isWidgetDaytime(isoTime: String?): Boolean {
     val timePart =
         isoTime?.substringAfter('T')?.takeUnless { it == isoTime }
             ?: isoTime?.substringAfter(' ')
     val hour = timePart?.substringBefore(':')?.toIntOrNull() ?: return true
-    return hour in 6..18
+    return hour in 6 until 18
 }

@@ -208,3 +208,19 @@ internal fun fallbackBeijing() =
         country = "中国",
         admin1 = "北京",
     )
+
+/**
+ * 回退城市按当前 locale 构造：展示名用调用方传入的本地化名称，
+ * 同时清空硬编码的中文 admin1/admin2/country，避免英文环境
+ * [City.displayName] 拼出 "Beijing, 北京, 中国"。
+ */
+internal fun localizedFallbackCity(
+    base: City,
+    displayName: String,
+): City =
+    base.copy(
+        name = displayName,
+        admin1 = null,
+        admin2 = null,
+        country = null,
+    )

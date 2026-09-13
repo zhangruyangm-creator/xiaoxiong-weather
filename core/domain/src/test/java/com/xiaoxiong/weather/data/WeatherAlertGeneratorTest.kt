@@ -833,7 +833,7 @@ class WeatherAlertGeneratorTest {
                 .first { it.kind == AlertKind.COLD_WAVE }
         assertEquals(AlertSeverity.WATCH, wave.severity)
         assertEquals(R.string.alert_cold_wave_title, wave.titleRes)
-        assertEquals(11.0, wave.messageArg) // max 20→9
+        assertEquals("11°C", wave.messageArg) // max 20→9
     }
 
     @Test
@@ -850,7 +850,7 @@ class WeatherAlertGeneratorTest {
                 .first { it.kind == AlertKind.COLD_WAVE }
         assertEquals(AlertSeverity.WARNING, wave.severity)
         assertEquals(R.string.alert_cold_wave_warning_title, wave.titleRes)
-        assertEquals(15.0, wave.messageArg) // max 18→3
+        assertEquals("15°C", wave.messageArg) // max 18→3
     }
 
     @Test
@@ -957,7 +957,86 @@ class WeatherAlertGeneratorTest {
         assertFalse(specs.any { it.kind == AlertKind.COLD_WAVE })
         val cool = specs.first { it.kind == AlertKind.COOLDOWN }
         assertEquals(R.string.alert_cold_wave_title, cool.titleRes)
-        assertEquals(11.0, cool.messageArg)
+        assertEquals("11°C", cool.messageArg)
         assertEquals(AlertSeverity.WATCH, cool.severity)
+    }
+
+    @Test
+    fun alertTemperature_formatting_absoluteAndDeltaForBothUnits() {
+        // 绝对温度：°C 原样，°F ×9/5+32
+        assertEquals("38°C", WeatherAlertGenerator.formatAlertTemperature(38.0, TemperatureUnit.CELSIUS))
+        assertEquals("37°C", WeatherAlertGenerator.formatAlertTemperature(37.0, TemperatureUnit.CELSIUS))
+        assertEquals("100°F", WeatherAlertGenerator.formatAlertTemperature(38.0, TemperatureUnit.FAHRENHEIT))
+        assertEquals("99°F", WeatherAlertGenerator.formatAlertTemperature(37.0, TemperatureUnit.FAHRENHEIT))
+        assertEquals("5°F", WeatherAlertGenerator.formatAlertTemperature(-15.0, TemperatureUnit.FAHRENHEIT))
+        // 温差：华氏只 ×9/5（不 +32）
+        assertEquals("11°C", WeatherAlertGenerator.formatAlertTemperatureDelta(11.0, TemperatureUnit.CELSIUS))
+        assertEquals("20°F", WeatherAlertGenerator.formatAlertTemperatureDelta(11.0, TemperatureUnit.FAHRENHEIT))
+        assertEquals("18°F", WeatherAlertGenerator.formatAlertTemperatureDelta(10.0, TemperatureUnit.FAHRENHEIT))
+        assertEquals("25°F", WeatherAlertGenerator.formatAlertTemperatureDelta(14.0, TemperatureUnit.FAHRENHEIT))
+    }
+
+    @Test
+    fun heatAndCold_specsUseFahrenheitWhenRequested() {
+        val heat =
+            WeatherAlertGenerator
+                .specs(
+                    WeatherFixtures.current(temperatureC = 30.0, apparentTemperatureC = 38.0),
+                    emptyList(),
+                    emptyList(),
+                    null,
+                    TemperatureUnit.FAHRENHEIT,
+                ).first { it.kind == AlertKind.HEAT }
+        assertEquals("100°F", heat.messageArg)
+
+        val cold =
+            WeatherAlertGenerator
+                .specs(
+                    WeatherFixtures.current(temperatureC = 0.0, apparentTemperatureC = -16.0),
+                    emptyList(),
+                    emptyList(),
+                    null,
+                    TemperatureUnit.FAHRENHEIT,
+                ).first { it.kind == AlertKind.COLD }
+        assertEquals("3°F", cold.messageArg)
+    }
+
+    @Test
+    fun heatWave_messageCarriesUnitAwareThreshold() {
+        val daily =
+            listOf(
+                WeatherFixtures.daily("2026-07-10", tempMaxC = 35.0, tempMinC = 26.0),
+                WeatherFixtures.daily("2026-07-11", tempMaxC = 36.0, tempMinC = 27.0),
+                WeatherFixtures.daily("2026-07-12", tempMaxC = 35.5, tempMinC = 26.5),
+            )
+        val celsius =
+            WeatherAlertGenerator
+                .specs(WeatherFixtures.current(), emptyList(), daily, null)
+                .first { it.kind == AlertKind.HEAT_WAVE }
+        assertEquals(3, celsius.messageArg)
+        assertEquals("35°C", celsius.messageArg2)
+
+        val fahrenheit =
+            WeatherAlertGenerator
+                .specs(WeatherFixtures.current(), emptyList(), daily, null, TemperatureUnit.FAHRENHEIT)
+                .first { it.kind == AlertKind.HEAT_WAVE }
+        assertEquals(3, fahrenheit.messageArg)
+        // 35°C 门槛 → 95°F
+        assertEquals("95°F", fahrenheit.messageArg2)
+    }
+
+    @Test
+    fun coldWave_specsUseFahrenheitDeltaWithoutOffset() {
+        val current = WeatherFixtures.current(time = "2026-11-10T14:00", temperatureC = 20.0)
+        val daily =
+            listOf(
+                WeatherFixtures.daily("2026-11-10", tempMaxC = 20.0, tempMinC = 10.0),
+                WeatherFixtures.daily("2026-11-11", tempMaxC = 9.0, tempMinC = 2.0),
+            )
+        val wave =
+            WeatherAlertGenerator
+                .specs(current, emptyList(), daily, null, TemperatureUnit.FAHRENHEIT)
+                .first { it.kind == AlertKind.COLD_WAVE }
+        assertEquals("20°F", wave.messageArg) // 11°C × 9/5，不加 32
     }
 }

@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.game
 
 import com.xiaoxiong.weather.ui.game.PoolBallKind.CUE
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -73,6 +74,25 @@ class PoolGameTest {
         val ok = game.tryPlaceCue(other.x, other.y)
         assertTrue("overlapping placement should be rejected", !ok)
         assertEquals(cue.id, game.cueBall()!!.id)
+    }
+
+    @Test
+    fun tryPlaceCue_rejectsPocketCaptureArea() {
+        val game = newGame()
+        game.startMatch(PoolSide.PLAYER, seed = 6L)
+        val cue = game.cueBall()!!
+        for (pocket in game.table.pockets) {
+            assertFalse("袋口中心不可摆球", game.tryPlaceCue(pocket.x, pocket.y))
+            val r = PoolPhysics.pocketCaptureRadius(pocket, cue.radius)
+            val dx = game.table.centerX - pocket.x
+            val dy = game.table.centerY - pocket.y
+            val l = kotlin.math.hypot(dx, dy).coerceAtLeast(1e-6f)
+            val px = pocket.x + dx / l * r * 0.9f
+            val py = pocket.y + dy / l * r * 0.9f
+            assertFalse("袋口捕获圈内不可摆球", game.tryPlaceCue(px, py))
+        }
+        // 远离袋口的正常位置仍可摆放（沿用原有非法摆位反馈路径）
+        assertTrue(game.tryPlaceCue(game.table.centerX, game.table.centerY + 0.2f))
     }
 
     @Test

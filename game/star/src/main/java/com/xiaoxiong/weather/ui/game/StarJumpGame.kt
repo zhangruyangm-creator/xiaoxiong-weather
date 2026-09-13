@@ -141,12 +141,17 @@ internal class StarJumpGame {
         when (phase) {
             // 结算界面改窗口（旋转/分屏）：只更新尺寸，保留本局分数（对齐接雨雪）
             GamePhase.OVER -> Unit
-            // 对局中改尺寸会让平台像素与碰撞错位，整局回准备态（与跑酷一致）
+            // 对局中改尺寸会让平台像素与碰撞错位，整局回准备态（与跑酷一致）；
+            // 同时标记快照失效，避免停在 READY 被兜底落盘写回复活。
             GamePhase.RUNNING -> {
+                snapshotDiscarded = true
                 phase = GamePhase.READY
                 reset()
             }
-            else -> reset()
+            else -> {
+                snapshotDiscarded = true
+                reset()
+            }
         }
     }
 
@@ -377,7 +382,12 @@ internal class StarJumpGame {
 
     /** 把足以续玩的一局编码落盘；仅在对局进行中写入，READY/OVER 不写。 */
     fun saveSnapshot(prefs: SharedPreferences) {
-        if (phase != GamePhase.RUNNING || snapshotDiscarded) return
+        // 已放弃/改窗口重开：兜底落盘也不得把陈旧档写回复活
+        if (snapshotDiscarded) {
+            GameSnapshot.clear(prefs, STAR_SNAPSHOT_KEY)
+            return
+        }
+        if (phase != GamePhase.RUNNING) return
         val meta =
             SnapshotCodec.encode(
                 phase.ordinal,

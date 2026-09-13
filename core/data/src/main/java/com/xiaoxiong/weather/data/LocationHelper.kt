@@ -82,7 +82,16 @@ class LocationHelper(
             reuseLastLocation()?.let { return@withContext it }
             try {
                 val location = resolveCurrentCoordinates()
-                val city = refineCityPlaceName(provisionalCity(location))
+                // 逆地理只影响地名：失败也要保留新坐标，不能退回旧位置的 last location
+                val provisional = provisionalCity(location)
+                val city =
+                    try {
+                        refineCityPlaceName(provisional)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        provisional
+                    }
                 rememberLastLocation(city)
                 city
             } catch (e: CancellationException) {

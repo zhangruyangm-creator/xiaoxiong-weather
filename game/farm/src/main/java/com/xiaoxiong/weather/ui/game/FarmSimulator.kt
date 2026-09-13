@@ -455,11 +455,17 @@ object FarmSimulator {
         )
     }
 
-    /** 开启新一季：重置金币/田地/解锁，保留图鉴与累计记录，获得永久生长加成。 */
-    fun startNewSeason(state: FarmState): FarmEffect {
+    /**
+     * 开启新一季：重置金币/田地/解锁，保留图鉴与累计记录，获得永久生长加成。
+     * [now] 由调用方注入（默认墙钟），便于测试与复用同一时间基准。
+     */
+    fun startNewSeason(
+        state: FarmState,
+        now: Long = System.currentTimeMillis(),
+    ): FarmEffect {
         if (!state.seasonReady) return FarmEffect()
         state.coins = 80
-        state.plots = List(FARM_PLOT_COUNT) { FarmPlotState(lastTickMs = System.currentTimeMillis()) }
+        state.plots = List(FARM_PLOT_COUNT) { FarmPlotState(lastTickMs = now) }
         state.unlocked = setOf("radish", "cabbage", "wheat", "tomato")
         state.harvestedTotal = 0
         state.seasonCollected = emptySet()

@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.sin
@@ -43,6 +44,31 @@ internal fun positiveModulo(
 }
 
 /**
+ * 云底辉光笔刷缓存：以原点为中心缓存，半径不变时复用；
+ * 亮度包络 [env] 通过 drawCircle 的 alpha 施加，不再每帧重建带 alpha 的 Brush。
+ */
+private class StormGlowBrushCache {
+    private var radius = Float.NaN
+    private var brush: Brush? = null
+
+    fun get(radius: Float): Brush {
+        val cached = brush
+        if (cached != null && this.radius == radius) return cached
+        return Brush
+            .radialGradient(
+                colors = listOf(Color(0xFFFFF59D).copy(alpha = 0.55f), Color(0x00FFF59D)),
+                center = Offset.Zero,
+                radius = radius,
+            ).also {
+                brush = it
+                this.radius = radius
+            }
+    }
+}
+
+private val stormGlowBrushCache = StormGlowBrushCache()
+
+/**
  * 雷暴闪电：按「事件」触发（每约 3.6s 一次、持续约 0.55s，含 2–3 次子闪），
  * 每次用更早的种子生成**分叉折线**，并叠加全屏环境闪光与云底辉光。
  * 跑酷/摘星/迷宫共用；不用状态，全部由 [time] 推导，确定性。
@@ -52,7 +78,10 @@ fun DrawScope.drawStormLightning(
     s: Float,
     width: Float,
     height: Float,
+    /** 减弱动画：跳过闪电与环境闪光，只保留静态天空底色。 */
+    reduceMotion: Boolean = false,
 ) {
+    if (reduceMotion) return
     val cycle = 3.6f
     val idx = floor(time / cycle).toInt()
     val t = time - idx * cycle
@@ -65,19 +94,17 @@ fun DrawScope.drawStormLightning(
     drawRect(Color(0xFFE8F0FF).copy(alpha = 0.11f * env))
     drawRect(Color(0xFFFFFDE7).copy(alpha = 0.055f * env))
 
-    // 云底辉光
+    // 云底辉光（缓存笔刷以原点为中心，平移到云底中心；亮度用 drawCircle alpha 施加）
     val glowCenter = Offset(width * baseX, height * 0.03f)
     val glowRadius = width * 0.46f
-    drawCircle(
-        brush =
-            Brush.radialGradient(
-                colors = listOf(Color(0xFFFFF59D).copy(alpha = 0.55f * env), Color(0x00FFF59D)),
-                center = glowCenter,
-                radius = glowRadius,
-            ),
-        radius = glowRadius,
-        center = glowCenter,
-    )
+    translate(glowCenter.x, glowCenter.y) {
+        drawCircle(
+            brush = stormGlowBrushCache.get(glowRadius),
+            radius = glowRadius,
+            center = Offset.Zero,
+            alpha = env,
+        )
+    }
 
     // 主干
     drawBoltChain(
@@ -152,7 +179,10 @@ fun DrawScope.drawFreezingRain(
     height: Float,
     yOff: Float = 0f,
     splash: Boolean = true,
+    /** 减弱动画：跳过冻雨粒子。 */
+    reduceMotion: Boolean = false,
 ) {
+    if (reduceMotion) return
     drawRainLayered(
         fgCount = 30,
         bgCount = 14,
@@ -190,7 +220,10 @@ fun DrawScope.drawHailPellets(
     height: Float,
     yOff: Float = 0f,
     count: Int = 52,
+    /** 减弱动画：跳过冰雹粒子。 */
+    reduceMotion: Boolean = false,
 ) {
+    if (reduceMotion) return
     for (i in 0 until count) {
         val h = hash01(i, 17)
         if (hash01(i, 43) > 0.55f + 0.45f * h) continue
@@ -232,7 +265,10 @@ fun DrawScope.drawRainLayered(
     bgColor: Color = Color(0xFFD5E8FA),
     splash: Boolean = true,
     ripples: Boolean = true,
+    /** 减弱动画：跳过雨丝粒子（静态天空底色仍保留）。 */
+    reduceMotion: Boolean = false,
 ) {
+    if (reduceMotion) return
     val a = alpha.coerceIn(0f, 1f)
     val wind = 6.0f * scale * (0.62f + 0.30f * sin(time * 0.19f) + 0.14f * sin(time * 0.53f + 1.1f)).coerceIn(0.2f, 1.1f)
     val lull = 0.68f + 0.32f * (0.5f + 0.5f * sin(time * 0.11f + 2.3f))

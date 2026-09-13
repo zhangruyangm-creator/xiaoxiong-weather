@@ -239,6 +239,33 @@ class WeatherViewModelHistoryRangeTest {
         }
 
     @Test
+    fun fetchHistoryRange_beforeCityReady_replaysAfterSelectCity() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val fetcher =
+                RecordingFetcher(
+                    historyRangeBlock = { _, s, e -> summary(s, e) },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            // 模拟进程重建：历史页在城市加载完成前发起区间查询，此时无城市可查
+            vm.fetchHistoryRange(start, end)
+            advanceUntilIdle()
+            assertEquals(0, fetcher.historyRangeCallCount)
+
+            // 冷启动/选城完成城市就绪：挂起的查询自动补发
+            vm.selectCity(city)
+            advanceUntilIdle()
+
+            assertEquals(1, fetcher.historyRangeCallCount)
+            assertEquals(
+                start.toString(),
+                vm.uiState.value.historyRange
+                    ?.startDate,
+            )
+        }
+
+    @Test
     fun clearHistoryRange_resetsState() =
         runTest {
             val city = WeatherFixtures.city("济南")

@@ -427,7 +427,11 @@ private fun WeatherScreenContent(
                 topBar = {
                     WeatherTopBar(
                         viewModel = viewModel,
-                        state = state,
+                        selectedCity = state.selectedCity,
+                        lastUpdatedText = state.lastUpdatedText,
+                        isOffline = state.isOffline,
+                        usingCurrentLocation = state.usingCurrentLocation,
+                        hasWeather = state.weather != null,
                         onLocate = {
                             val needPermission = viewModel.requestLocate()
                             if (needPermission) {
@@ -456,7 +460,8 @@ private fun WeatherScreenContent(
                                 onClick = {
                                     scope.launch { pagerState.animateScrollToPage(index) }
                                 },
-                                icon = { Icon(tab.icon, contentDescription = tab.title) },
+                                // 图标语义置空：label 已提供朗读文本，避免重复播报
+                                icon = { Icon(tab.icon, contentDescription = null) },
                                 label = { Text(tab.title) },
                             )
                         }

@@ -137,6 +137,11 @@ object PoolPhysics {
                 ball.potted = true
                 ball.onTable = false
                 ball.stop()
+                // 与 escape net 一致：标记最近袋口，供游戏层与渲染层使用
+                ball.pocketIndex = table.pockets.indices.minByOrNull { i ->
+                    val p = table.pockets[i]
+                    hypot(ball.x - p.x, ball.y - p.y)
+                } ?: -1
                 stats.potted++
                 listener?.onPocket(ball)
             }
@@ -506,6 +511,30 @@ object PoolPhysics {
         return Triple(t, qx / d, qy / d)
     }
 
+    /**
+     * 球半径扫掠库边的最早命中距离：把球心沿单位方向 ([vx], [vy]) 从 ([x], [y]) 扫掠 [maxDistance]，
+     * 返回第一次与任意库边（含袋口钳口）接触的 (distance, normalX, normalY)；无命中返回 null。
+     *
+     * 供瞄准预测与物理内核共用，避免零半径射线在袋口钳口处把擦边误判成进袋。
+     */
+    internal fun firstRailHit(
+        x: Float,
+        y: Float,
+        vx: Float,
+        vy: Float,
+        radius: Float,
+        table: PoolTable,
+        maxDistance: Float,
+    ): Triple<Float, Float, Float>? {
+        val probe = PoolBall(0, PoolBallKind.CUE, x, y, vx, vy, radius = radius)
+        var best: Triple<Float, Float, Float>? = null
+        for (rail in table.rails) {
+            val hit = sweptCircleSegment(probe, rail, maxDistance) ?: continue
+            if (best == null || hit.first < best.first) best = hit
+        }
+        return best
+    }
+
     // ---------------------------------------------------------------------
     // 冲量解算
     // ---------------------------------------------------------------------
@@ -648,6 +677,38 @@ object PoolPhysics {
             pocket.radius * 0.85f
         }
 
+    /** 瞄准预测的袋口保守系数：只对贴近袋口中心的路径提示进袋，擦边路径交给真实物理判定。 */
+    private const val POCKET_PREDICTION_MARGIN = 0.82f
+
+    /** 库边/钳口擦碰后二次判定的最远反射推进距离（米）。 */
+    private const val POCKET_RESCUE_DISTANCE = 0.35f
+
+    /** 触发二次判定的「命中点贴近袋口」范围（球半径倍数）。 */
+    private const val POCKET_RESCUE_RANGE = 6f
+
+    /**
+     * 自由球摆位合法性：球心在台面内（整球）、不与其他在台球重叠、不在袋口捕获圈内（留少量余量）。
+     * 玩家 [PoolGame.tryPlaceCue] 与 AI [PoolAi.placeCueBall] 共用，保证口径一致。
+     */
+    internal fun isLegalCuePlacement(
+        balls: List<PoolBall>,
+        table: PoolTable,
+        cue: PoolBall,
+        x: Float,
+        y: Float,
+    ): Boolean {
+        if (!table.contains(x, y, margin = -cue.radius)) return false
+        for (b in balls) {
+            if (!b.onTable || b === cue) continue
+            if (hypot(b.x - x, b.y - y) < b.radius + cue.radius + 1e-3f) return false
+        }
+        val pocketMargin = cue.radius * 0.2f
+        for (p in table.pockets) {
+            if (hypot(x - p.x, y - p.y) <= pocketCaptureRadius(p, cue.radius) + pocketMargin) return false
+        }
+        return true
+    }
+
     // ---------------------------------------------------------------------
     // 供渲染/AI 的预测
     // ---------------------------------------------------------------------
@@ -725,7 +786,8 @@ object PoolPhysics {
             val proj = px * dirX + py * dirY
             if (proj < 0f) continue
             val perp = abs(px * dirY - py * dirX)
-            if (perp > capture) continue
+            // 保守系数：只有接近袋口中心的路径才提示进袋，擦边不再谎报
+            if (perp > capture * POCKET_PREDICTION_MARGIN) continue
             val t = proj - sqrt(max(0f, capture * capture - perp * perp))
             if (t in 0f..bestT) {
                 bestT = t
@@ -752,12 +814,43 @@ object PoolPhysics {
             }
         }
 
-        val railT = raycastRail(originX, originY, dirX, dirY, table, maxDistance)
-        val railDistance = railT?.let { (it - radius).coerceAtLeast(0f) }
+        // 库边约束同时考虑：中心零半径射线命中 与 球半径扫掠命中（含钳口端点）。
+        // 取两者较小值，避免球心贴库/擦钳口时辅助线端点越过真实停点导致谎报进袋。
+        val centerRailT = raycastRail(originX, originY, dirX, dirY, table, maxDistance)
+        val sweptHit = firstRailHit(originX, originY, dirX, dirY, radius, table, maxDistance)
+        val sweptRailT = sweptHit?.first
+        val railDistance =
+            when {
+                sweptRailT != null -> minOf(sweptRailT, centerRailT ?: Float.MAX_VALUE)
+                centerRailT != null -> (centerRailT - radius).coerceAtLeast(0f)
+                else -> null
+            }
         if (railDistance != null && railDistance < bestT) {
-            bestT = railDistance
-            pocket = null
-            blocker = null
+            // 钳口/库端的浅擦碰常常是「蹭口进袋」：沿反射方向做一次短程二次判定；
+            // 只有命中点已贴近某袋口才启用，主库中段命中仍按碰库处理。
+            val rescue =
+                sweptHit?.let {
+                    rescuePocketAfterRail(
+                        originX + dirX * railDistance,
+                        originY + dirY * railDistance,
+                        dirX,
+                        dirY,
+                        radius,
+                        table,
+                        it.second,
+                        it.third,
+                    )
+                }
+            if (rescue != null) {
+                bestT = railDistance + rescue.distance
+                pocket = rescue.pocket
+                pocketIndex = rescue.pocketIndex
+                blocker = null
+            } else {
+                bestT = railDistance
+                pocket = null
+                blocker = null
+            }
         }
 
         return ObjectPath(
@@ -780,6 +873,57 @@ object PoolPhysics {
         val blocker: PoolBall?,
         val railDistance: Float?,
     )
+
+    /** 擦库后的二次判定结果：沿反射方向再走 [distance] 进入 [pocket] 捕获圈。 */
+    private data class PocketRescue(
+        val pocket: PoolPocket,
+        val pocketIndex: Int,
+        val distance: Float,
+    )
+
+    /**
+     * 球心在库边/钳口擦碰后，沿反射方向最多 [POCKET_RESCUE_DISTANCE] 仍可能蹭进袋口捕获圈。
+     * 仅在命中点已贴近某袋口（到捕获圈边缘 ≤ [POCKET_RESCUE_RANGE] 个球半径）时启用，
+     * 避免把主库中段的正常碰库误判成进袋。
+     */
+    private fun rescuePocketAfterRail(
+        hitX: Float,
+        hitY: Float,
+        dirX: Float,
+        dirY: Float,
+        radius: Float,
+        table: PoolTable,
+        nx: Float,
+        ny: Float,
+    ): PocketRescue? {
+        // 只有迎面撞向库边（法向分量为负）才谈得上反射；已平行滑过则不作二次判定
+        val vn = dirX * nx + dirY * ny
+        if (vn >= -1e-3f) return null
+        var nearestGap = Float.MAX_VALUE
+        for (p in table.pockets) {
+            val gap = hypot(hitX - p.x, hitY - p.y) - pocketCaptureRadius(p, radius)
+            if (gap < nearestGap) nearestGap = gap
+        }
+        if (nearestGap > radius * POCKET_RESCUE_RANGE) return null
+
+        val rdx = dirX - 2f * vn * nx
+        val rdy = dirY - 2f * vn * ny
+        var best: PocketRescue? = null
+        for ((index, p) in table.pockets.withIndex()) {
+            val capture = pocketCaptureRadius(p, radius)
+            val ex = p.x - hitX
+            val ey = p.y - hitY
+            val proj = ex * rdx + ey * rdy
+            if (proj < 0f) continue
+            val perp2 = ex * ex + ey * ey - proj * proj
+            if (perp2 > capture * capture) continue
+            val t = proj - sqrt(max(0f, capture * capture - perp2))
+            if (t in 0f..POCKET_RESCUE_DISTANCE && (best == null || t < best.distance)) {
+                best = PocketRescue(p, index, t)
+            }
+        }
+        return best
+    }
 
     /** 射线与库边线段的最近交点距离（用于瞄准线被库挡住的判断），无交点返回 null。 */
     fun raycastRail(

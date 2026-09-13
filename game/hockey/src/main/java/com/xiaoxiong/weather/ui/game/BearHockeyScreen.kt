@@ -46,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -92,6 +93,7 @@ private const val PREF_PADDLE = "hockey_paddle_scale"
 private const val PREF_PADDLE_BOTH = "hockey_paddle_scale_both"
 private const val PREF_PUCK = "hockey_puck_scale"
 private const val PREF_GOAL = "hockey_goal_scale"
+private const val PREF_RINK_THEME = "hockey_rink_theme"
 private const val PREF_SOUND = "hockey_sound"
 
 /** 发球倒数总时长（3 拍，每拍 0.5s）；超出部分显示「预备」。与 HockeyGame 的发球计时对应。 */
@@ -157,6 +159,7 @@ fun BearHockeyScreen(
                     prefs
                         .getFloat(PREF_GOAL, HockeyLogic.GOAL_SCALE_DEFAULT)
                         .coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
+                it.rinkTheme = RinkTheme.fromId(prefs.getString(PREF_RINK_THEME, RinkTheme.DEFAULT.id))
                 it.bestWins = prefs.getInt(PREF_BEST, 0)
             }
         }
@@ -165,12 +168,20 @@ fun BearHockeyScreen(
     var soundOn by remember { mutableStateOf(prefs.getBoolean(PREF_SOUND, true)) }
     // 系统「减弱动态效果」开启时静音（提示音与减动效偏好联动）
     val systemReduceMotion = LocalReduceMotion.current
+    // 同步进游戏：冻结装饰用 time（蜜罐滚动 / 发球脉冲 / 场外天气），物理 dt 不受影响
+    LaunchedEffect(systemReduceMotion) {
+        game.reduceMotion = systemReduceMotion
+    }
     var progress by remember { mutableStateOf(loadHockeyProgress(prefs)) }
     var pendingUnlocks by remember { mutableStateOf<List<HockeyAchievement>>(emptyList()) }
     // 短促提示音：惰性创建，退出时释放；创建 / 播放失败静默忽略
     val toneGen = remember { runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }.getOrNull() }
     DisposableEffect(Unit) {
-        onDispose { runCatching { toneGen?.release() } }
+        onDispose {
+            runCatching { toneGen?.release() }
+            // 退出即释放两张全屏静态层位图与精灵缓存，避免常驻
+            clearHockeyRenderCaches()
+        }
     }
     var frame by remember { mutableLongStateOf(0L) }
     val reportScene by rememberUpdatedState(sceneCode)
@@ -387,11 +398,19 @@ fun BearHockeyScreen(
                     tint = Color.White,
                 )
             }
+            // 平衡右侧按钮总宽（排行 40dp + 设置 48dp [+ 暂停 48dp]），
+            // 否则中间权重区中心比屏幕中心偏左。
+            Spacer(Modifier.width(40.dp))
+            if (game.phase != Phase.READY && game.phase != Phase.MATCH_OVER) {
+                Spacer(Modifier.width(48.dp))
+            }
             Row(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .semantics {
+                        // 合并子文本：否则 TalkBack 会把「你」「比分」「小熊」逐条朗读，
+                        // 与 contentDescription 重复
+                        .semantics(mergeDescendants = true) {
                             liveRegion = LiveRegionMode.Polite
                             contentDescription = scoreA11y
                         },
@@ -605,6 +624,7 @@ fun BearHockeyScreen(
             paddleScaleBoth = game.displayPaddleScaleBoth(),
             puckScale = game.displayPuckScale(),
             goalScale = game.displayGoalScale(),
+            rinkTheme = game.displayRinkTheme(),
             rulesLocked = game.rulesLocked,
             soundOn = soundOn,
             onOpenCareer = {
@@ -612,8 +632,8 @@ fun BearHockeyScreen(
                 showCareer = true
             },
             onDismiss = { showSettings = false },
-            onSave = { d, level, w, paddle, paddleBoth, puck, goal, sound ->
-                game.applySettings(d, level, w, paddle, paddleBoth, puck, goal)
+            onSave = { d, level, w, paddle, paddleBoth, puck, goal, theme, sound ->
+                game.applySettings(d, level, w, paddle, paddleBoth, puck, goal, theme)
                 soundOn = sound
                 prefs.edit {
                     putString(
@@ -634,6 +654,7 @@ fun BearHockeyScreen(
                     putBoolean(PREF_PADDLE_BOTH, paddleBoth)
                     putFloat(PREF_PUCK, puck)
                     putFloat(PREF_GOAL, goal)
+                    putString(PREF_RINK_THEME, theme.id)
                     putBoolean(PREF_SOUND, sound)
                 }
                 showSettings = false
@@ -675,11 +696,17 @@ fun BearHockeyScreen(
     }
 }
 
-/** 发球倒数横幅：只在自身作用域读 [HockeyGame.serveTimer]，把每帧重组限制在本子项内。 */
+/**
+ * 发球倒数横幅：用 [derivedStateOf] 把每帧变化的 [HockeyGame.serveTimer] 收敛成
+ * 倒数数字（1..3）与「预备 / 倒数」布尔，只在整数翻转时触发重组。
+ */
 @Composable
 private fun ServeBanner(game: HockeyGame) {
     // 倒数 3、2、1（每拍 0.5s）；之前的零头时间显示「预备」
-    val n = ceil(game.serveTimer / (SERVE_COUNTDOWN_SECONDS / 3f)).toInt().coerceIn(1, 3)
+    val countdown by remember {
+        derivedStateOf { ceil(game.serveTimer / (SERVE_COUNTDOWN_SECONDS / 3f)).toInt().coerceIn(1, 3) }
+    }
+    val ready by remember { derivedStateOf { game.serveTimer > SERVE_COUNTDOWN_SECONDS } }
     // 发球方向提示：失球方接发球（球飞向失球一侧）
     val hint =
         when (game.serveTowardPlayer) {
@@ -689,10 +716,10 @@ private fun ServeBanner(game: HockeyGame) {
         }
     CenterBanner(
         text =
-            if (game.serveTimer > SERVE_COUNTDOWN_SECONDS) {
+            if (ready) {
                 stringResource(R.string.bear_hockey_get_ready)
             } else {
-                "$n"
+                "$countdown"
             },
         hint = hint,
     )
@@ -756,11 +783,12 @@ private fun HockeySettingsDialog(
     paddleScaleBoth: Boolean,
     puckScale: Float,
     goalScale: Float,
+    rinkTheme: RinkTheme,
     rulesLocked: Boolean,
     soundOn: Boolean,
     onOpenCareer: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (Difficulty, Int, Int, Float, Boolean, Float, Float, Boolean) -> Unit,
+    onSave: (Difficulty, Int, Int, Float, Boolean, Float, Float, RinkTheme, Boolean) -> Unit,
 ) {
     var d by remember(difficulty) { mutableStateOf(difficulty) }
     var levelText by remember(customLevel) { mutableStateOf(customLevel.toString()) }
@@ -769,6 +797,7 @@ private fun HockeySettingsDialog(
     var scaleBoth by remember(paddleScaleBoth) { mutableStateOf(paddleScaleBoth) }
     var puck by remember(puckScale) { mutableStateOf(puckScale) }
     var goal by remember(goalScale) { mutableStateOf(goalScale) }
+    var theme by remember(rinkTheme) { mutableStateOf(rinkTheme) }
     var sound by remember(soundOn) { mutableStateOf(soundOn) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -910,6 +939,25 @@ private fun HockeySettingsDialog(
                     onChange = { goal = it },
                 )
                 Spacer(Modifier.height(14.dp))
+                Text(stringResource(R.string.bear_hockey_rink_theme), color = HockeyUi.textSecondary)
+                Spacer(Modifier.height(8.dp))
+                RinkTheme.entries.chunked(2).forEach { rowThemes ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        rowThemes.forEach { opt ->
+                            RinkThemeChip(
+                                theme = opt,
+                                selected = theme == opt,
+                                onClick = { theme = opt },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
+                Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -964,6 +1012,7 @@ private fun HockeySettingsDialog(
                                 scaleBoth,
                                 puck.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX),
                                 goal.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX),
+                                theme,
                                 sound,
                             )
                         },
@@ -1238,12 +1287,55 @@ private fun SizeSliderRow(
     }
 }
 
+/** 场地主题选项：主题名 + 摩擦手感说明，当前项高亮，附无障碍内容描述。 */
+@Composable
+private fun RinkThemeChip(
+    theme: RinkTheme,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val name = stringResource(theme.titleRes)
+    val desc = rinkThemeDesc(theme)
+    val a11y = stringResource(R.string.bear_hockey_rink_theme_a11y, name, desc)
+    HockeyFilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Column {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (selected) Color.White else HockeyUi.textSecondary,
+                )
+                Text(
+                    text = desc,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (selected) Color.White.copy(alpha = 0.80f) else HockeyUi.textSecondary.copy(alpha = 0.75f),
+                )
+            }
+        },
+        modifier = modifier.semantics { contentDescription = a11y },
+    )
+}
+
+/** 场地主题的摩擦手感说明（模型只带标题资源，说明文案留在 UI 层）。 */
+@Composable
+private fun rinkThemeDesc(theme: RinkTheme): String =
+    when (theme) {
+        RinkTheme.ICE -> stringResource(R.string.bear_hockey_rink_ice_desc)
+        RinkTheme.BEAR -> stringResource(R.string.bear_hockey_rink_bear_desc)
+        RinkTheme.WOOD -> stringResource(R.string.bear_hockey_rink_wood_desc)
+        RinkTheme.CONCRETE -> stringResource(R.string.bear_hockey_rink_concrete_desc)
+    }
+
 /** 冰球主题筛选胶囊：深色玻璃底 + 冰蓝选中态。 */
 @Composable
 private fun HockeyFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
     label: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     FilterChip(
         selected = selected,
@@ -1256,6 +1348,7 @@ private fun HockeyFilterChip(
                 selectedContainerColor = Color(0x5534B6E8),
                 selectedLabelColor = Color.White,
             ),
+        modifier = modifier,
     )
 }
 

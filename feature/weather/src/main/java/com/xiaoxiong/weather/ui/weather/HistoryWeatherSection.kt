@@ -48,6 +48,7 @@ import com.xiaoxiong.weather.util.weatherCodeDescription
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.util.Locale
 
 /**
  * 七日页底部的历史天气入口卡片：点击打开完整的历史天气页面。
@@ -185,9 +186,9 @@ internal fun HistoryDayCard(
         Spacer(modifier = Modifier.height(14.dp))
 
         val precip =
-            weather.precipSumMm?.let { "%.1f mm".format(it) } ?: "--"
+            weather.precipSumMm?.let { String.format(Locale.US, "%.1f mm", it) } ?: "--"
         val humidity = weather.humidityMeanPercent?.let { "$it%" } ?: "--"
-        val wind = weather.windMaxKmh?.let { "%.0f km/h".format(it) } ?: "--"
+        val wind = weather.windMaxKmh?.let { String.format(Locale.US, "%.0f km/h", it) } ?: "--"
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),

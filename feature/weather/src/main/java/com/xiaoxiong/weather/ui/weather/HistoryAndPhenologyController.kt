@@ -39,6 +39,23 @@ class HistoryAndPhenologyController(
     private val maxHistoryRangeCacheEntries = 30
     private val historyRangeCache = mutableMapOf<String, HistoryRangeSummary>()
 
+    /** 进程重建时历史页可能先于城市加载完成发起查询：先记下，城市就绪后补发。 */
+    private var pendingHistoryDay: LocalDate? = null
+    private var pendingHistoryRange: Pair<LocalDate, LocalDate>? = null
+
+    /** 城市就绪（冷启动完成/用户选城）后补发此前因无城市而挂起的查询。 */
+    fun retryPending() {
+        if (currentCity() == null) return
+        pendingHistoryDay?.let { date ->
+            pendingHistoryDay = null
+            fetchHistoryDay(date)
+        }
+        pendingHistoryRange?.let { (start, end) ->
+            pendingHistoryRange = null
+            fetchHistoryRange(start, end)
+        }
+    }
+
     /**
      * 进入「七日」页时按需补齐物候偏移：
      * 同城同年当日已拉过则直接用缓存，否则才联网（一天最多一次）；
@@ -86,7 +103,13 @@ class HistoryAndPhenologyController(
      * 网络/服务端错误置 historyNetworkFailed。
      */
     fun fetchHistoryDay(date: LocalDate) {
-        val city = currentCity() ?: return
+        val city = currentCity()
+        if (city == null) {
+            // 进程重建时历史页先于城市加载完成发起查询：城市就绪后由 retryPending 补发
+            pendingHistoryDay = date
+            return
+        }
+        pendingHistoryDay = null
         val cacheKey = "%.4f,%.4f|%s".format(city.latitude, city.longitude, date)
         historyCache[cacheKey]?.let { cached ->
             // 缓存命中即作废在途请求，避免旧请求晚到覆盖当前选择
@@ -143,6 +166,7 @@ class HistoryAndPhenologyController(
 
     fun clearHistoryDay() {
         historyJob?.cancel()
+        pendingHistoryDay = null
         updateState {
             it.copy(
                 historyWeather = null,
@@ -162,7 +186,13 @@ class HistoryAndPhenologyController(
         end: LocalDate,
     ) {
         if (end.isBefore(start)) return
-        val city = currentCity() ?: return
+        val city = currentCity()
+        if (city == null) {
+            // 进程重建时历史页先于城市加载完成发起查询：城市就绪后由 retryPending 补发
+            pendingHistoryRange = start to end
+            return
+        }
+        pendingHistoryRange = null
         val cacheKey =
             "%.4f,%.4f|%s|%s".format(city.latitude, city.longitude, start, end)
         historyRangeCache[cacheKey]?.let { cached ->
@@ -223,6 +253,7 @@ class HistoryAndPhenologyController(
 
     fun clearHistoryRange() {
         historyRangeJob?.cancel()
+        pendingHistoryRange = null
         updateState {
             it.copy(
                 historyRange = null,

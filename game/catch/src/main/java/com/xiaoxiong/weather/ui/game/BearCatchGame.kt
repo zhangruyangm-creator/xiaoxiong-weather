@@ -8,14 +8,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
+import androidx.core.content.edit
+import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchDifficulty
 import kotlin.math.max
 import kotlin.math.min
 
 /** 对局快照 KEY：紧凑文本，仅存对局进行中的状态。 */
 private const val CATCH_SNAPSHOT_KEY = "catch_snapshot_v1"
 
-/** 快照头字段数（详见 [BearCatchGame.saveSnapshot]）。 */
-private const val CATCH_HEADER_FIELDS = 19
+/** 快照头最少字段数（旧版无 difficulty 字段，详见 [BearCatchGame.saveSnapshot]）。 */
+private const val CATCH_HEADER_FIELDS_LEGACY = 19
+
+/** 快照头当前字段数（旧版 19 字段 + difficulty）。 */
+private const val CATCH_HEADER_FIELDS = 20
 
 /**
  * 安全水平夹取：窗口极窄（width < 2·r）时 [coerceIn] 区间非法会抛 IllegalArgumentException，
@@ -58,6 +63,9 @@ class BearCatchGame {
     /** 当前天气场景；由 Screen 在天气变化时刷新。 */
     var scene by mutableStateOf(BearCatchLogic.CatchScene.SUNNY)
 
+    /** 当前难度档位；由标题界面选择并持久化，快照保存 / 恢复（旧档缺省 STANDARD）。 */
+    var difficulty by mutableStateOf(CatchDifficulty.STANDARD)
+
     var size = IntSize.Zero
     var time = 0f
 
@@ -87,6 +95,13 @@ class BearCatchGame {
     /** 恢复出的快照尺寸：首次 resize 若与之一致则保留恢复状态，避免被整局回准备态。 */
     private var restoredDims: IntSize? = null
 
+    /** 死亡后累计时间（秒），用于死亡淡出；重开/重置归零。 */
+    var deadT = 0f
+        private set
+
+    /** 主动放弃/结束/改窗口重置后置位：抑制兜底落盘并把陈旧档清掉，避免僵尸续玩。 */
+    private var snapshotDiscarded = false
+
     val s get() = if (size.height > 0) size.height / 820f else 1f
     val catchY get() = size.height * 0.90f
     val catchR get() = size.height * 0.085f
@@ -112,10 +127,15 @@ class BearCatchGame {
             // 结算界面改窗口（旋转/分屏）：只更新尺寸，保留本局分数与心数
             GamePhase.OVER -> Unit
             GamePhase.RUNNING -> {
+                // 改窗口重开会放弃当前对局：标记快照失效，防止旧档被兜底落盘写回复活
+                snapshotDiscarded = true
                 phase = GamePhase.READY
                 reset()
             }
-            else -> reset()
+            else -> {
+                snapshotDiscarded = true
+                reset()
+            }
         }
     }
 
@@ -129,6 +149,7 @@ class BearCatchGame {
         inBurstWave = false
         spawnAccum = 0f
         time = 0f
+        deadT = 0f
         squashT = -1f
         shakeT = 0f
         invincibleT = 0f
@@ -140,6 +161,7 @@ class BearCatchGame {
     }
 
     fun start() {
+        snapshotDiscarded = false
         reset()
         phase = GamePhase.RUNNING
     }
@@ -152,6 +174,11 @@ class BearCatchGame {
      * 或一个粒子（首字段 2）；随机源 [rng] 不落盘，恢复后新 seed 不影响续玩。
      */
     fun saveSnapshot(prefs: SharedPreferences) {
+        // 已放弃/改窗口重开：兜底落盘也不得把陈旧档写回复活
+        if (snapshotDiscarded) {
+            GameSnapshot.clear(prefs, CATCH_SNAPSHOT_KEY)
+            return
+        }
         // 结算后清档：死亡回调可能因进程被冻结/回收而没来得及执行，
         // ON_STOP/onDispose 的兜底落盘也要保证已结束的对局不能被续上（与 jump/star 一致）。
         if (phase == GamePhase.OVER) {
@@ -184,6 +211,7 @@ class BearCatchGame {
                     // 保留 -1 占位以兼容旧版解析
                     -1f,
                     best,
+                    difficulty.ordinal,
                 )
             items.forEach { item ->
                 groups +=
@@ -228,12 +256,14 @@ class BearCatchGame {
 
     /** 清档：结算、暂停重开、退出时调用，避免陈旧续玩。 */
     fun clearSnapshot(prefs: SharedPreferences) {
+        snapshotDiscarded = true
         GameSnapshot.clear(prefs, CATCH_SNAPSHOT_KEY)
     }
 
     private fun applySnapshot(groups: List<FloatArray>): Boolean {
         val header = groups.firstOrNull() ?: return false
-        if (header.size < CATCH_HEADER_FIELDS) return false
+        // 旧档只有 19 个表头字段：difficulty 缺省沿用当前值（通常来自 prefs，未设置则 STANDARD）
+        if (header.size < CATCH_HEADER_FIELDS_LEGACY) return false
         if (GamePhase.entries.getOrNull(header[0].toInt()) != GamePhase.RUNNING) return false
         val newScene = BearCatchLogic.CatchScene.entries.getOrNull(header[13].toInt()) ?: return false
         // 先完整解析到临时容器，全部合法后再提交，避免坏档恢复出半个局面
@@ -297,11 +327,16 @@ class BearCatchGame {
         // 触摸点不恢复（即使旧档写了坐标也忽略）：否则恢复瞬间小熊会朝旧触点漂移
         touchX = null
         if (header[18].toInt() > best) best = header[18].toInt()
+        if (header.size >= CATCH_HEADER_FIELDS) {
+            difficulty =
+                CatchDifficulty.entries.getOrNull(header[19].toInt()) ?: CatchDifficulty.STANDARD
+        }
         items.clear()
         items.addAll(newItems)
         particles.clear()
         particles.addAll(newParticles)
         phase = GamePhase.RUNNING
+        snapshotDiscarded = false
         return true
     }
 
@@ -313,6 +348,8 @@ class BearCatchGame {
         onDeath: (Int) -> Unit,
         /** 护盾吸收伤害时触发（区别于 [onHit] 的真扣血）：供屏幕播放「格挡」表现。 */
         onBlocked: (BearCatchLogic.ItemKind) -> Unit = {},
+        /** 跨过 500 / 1000 / 2000 里程碑时回调一次（不阻塞操作）。 */
+        onMilestone: (Int) -> Unit = {},
     ) {
         if (size == IntSize.Zero) return
         time += dt
@@ -338,13 +375,26 @@ class BearCatchGame {
         if (invincibleT > 0f) invincibleT = max(0f, invincibleT - dt)
 
         if (phase == GamePhase.READY) return
-        if (phase == GamePhase.OVER) return
+        if (phase == GamePhase.OVER) {
+            // 结算期间累计死亡时间：即便整局 time 很大，淡出也从 0 开始
+            deadT += dt
+            return
+        }
 
         // 小熊跟随手指水平移动（截距式：取 touchX，无触摸时惯性衰减）
         val tx = touchX
         if (tx != null) {
             val target = safeClampX(tx, catchR, size.width - catchR)
             catchX += (target - catchX) * min(1f, dt * 18f)
+        }
+
+        var pendingMilestone: Int? = null
+
+        /** 加分并记录本次跨过的里程碑（一次跨多个取最高）。 */
+        fun addScore(gained: Int) {
+            val before = score
+            score += gained
+            BearCatchLogic.milestoneFor(before, score)?.let { pendingMilestone = it }
         }
 
         val ev =
@@ -362,6 +412,7 @@ class BearCatchGame {
                 spawnAccum = spawnAccum,
                 random = rng,
                 time = time,
+                difficulty = difficulty,
             )
         spawnAccum = ev.spawnAccum
         inBurstWave = ev.inBurstWave
@@ -372,7 +423,11 @@ class BearCatchGame {
             when (kind) {
                 BearCatchLogic.ItemKind.GIFT -> {
                     combo++
-                    score += BearCatchLogic.scoreOf(kind) * BearCatchLogic.comboScoreMultiplier(combo)
+                    // 与普通得分物同口径：双倍期间再吃礼物也翻倍（先算分再续时长）
+                    val mult =
+                        (if (doubleT > 0f) 2 else 1) *
+                            BearCatchLogic.comboScoreMultiplier(combo)
+                    addScore(BearCatchLogic.scoreOf(kind) * mult)
                     doubleT = BearCatchLogic.DOUBLE_TIME_SEC
                     squashT = 0f
                     burst(
@@ -401,7 +456,7 @@ class BearCatchGame {
                     val mult =
                         (if (doubleT > 0f) 2 else 1) *
                             BearCatchLogic.comboScoreMultiplier(combo)
-                    score += base * mult
+                    addScore(base * mult)
                     squashT = 0f
                     burst(
                         cx = catchX,
@@ -413,6 +468,7 @@ class BearCatchGame {
             }
             onCaught(kind)
         }
+        pendingMilestone?.let(onMilestone)
         // 命中处理：同帧最多只生效一次伤害/护盾消耗，
         // 避免「4 块乌云同帧砸中 → 只扣 1 层护盾/扣 1 心」的吞伤问题。
         // 优先级：闪电 > 冰雹 > 乌云（越致命越靠前；闪电无视护盾直接扣血）。
@@ -432,7 +488,7 @@ class BearCatchGame {
                     hearts -= BearCatchLogic.damageOf(effectiveHit)
                     combo = 0
                     shakeT = 0.30f
-                    invincibleT = 0.75f
+                    invincibleT = BearCatchLogic.HIT_INVINCIBLE_SEC
                     burst(
                         cx = catchX,
                         cy = catchY - catchR * 0.6f,
@@ -456,7 +512,7 @@ class BearCatchGame {
                     hearts -= BearCatchLogic.damageOf(effectiveHit)
                     combo = 0
                     shakeT = 0.22f
-                    invincibleT = 0.75f
+                    invincibleT = BearCatchLogic.HIT_INVINCIBLE_SEC
                     burst(
                         cx = catchX,
                         cy = catchY - catchR * 0.6f,
@@ -467,6 +523,7 @@ class BearCatchGame {
                 }
                 if (hearts <= 0) {
                     hearts = 0
+                    deadT = 0f
                     phase = GamePhase.OVER
                     onDeath(score)
                 }
@@ -515,8 +572,45 @@ class BearCatchGame {
         }
     }
 
+    /** 持久化当前难度档位（标题界面切换时调用）。 */
+    fun persistDifficulty(prefs: SharedPreferences) {
+        prefs.edit { putString(PREFS_DIFFICULTY_KEY, difficulty.id) }
+    }
+
+    /** 刷新并持久化最高分；未刷新返回 false（供结算调用）。 */
+    fun recordBestScore(
+        prefs: SharedPreferences,
+        score: Int,
+    ): Boolean {
+        if (score <= best) return false
+        best = score
+        prefs.edit { putInt(PREFS_BEST_SCORE_KEY, score) }
+        return true
+    }
+
     companion object {
         const val MAX_HEARTS = 3
+
+        /** 难度档位持久化键。 */
+        const val PREFS_DIFFICULTY_KEY = "catch_difficulty"
+
+        /** 最高分持久化键。 */
+        const val PREFS_BEST_SCORE_KEY = "catch_best_score"
+
+        /** 旧版最高分键：首次读取时迁移到 [PREFS_BEST_SCORE_KEY]。 */
+        const val PREFS_BEST_SCORE_LEGACY_KEY = "best_catch"
+
+        /** 读取最高分；旧键有值而新键没有时迁移，避免升级后丢纪录。 */
+        fun loadBestScore(prefs: SharedPreferences): Int {
+            val saved = prefs.getInt(PREFS_BEST_SCORE_KEY, -1)
+            if (saved >= 0) return saved
+            val legacy = prefs.getInt(PREFS_BEST_SCORE_LEGACY_KEY, 0)
+            if (legacy > 0) prefs.edit { putInt(PREFS_BEST_SCORE_KEY, legacy) }
+            return legacy
+        }
+
+        /** 读取难度档位；缺省 / 未知 id 回退 [CatchDifficulty.STANDARD]。 */
+        fun loadDifficulty(prefs: SharedPreferences): CatchDifficulty = CatchDifficulty.fromId(prefs.getString(PREFS_DIFFICULTY_KEY, null))
     }
 }
 

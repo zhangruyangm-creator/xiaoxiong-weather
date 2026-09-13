@@ -55,6 +55,7 @@
     <string name="daily_detail_wind">Max wind %1$s</string>
     <string name="daily_detail_moon">%1$s · ~%2$d%%</string>
     <string name="cd_moon_phase">Moon phase</string>
+    <string name="cd_moon_phase_label">%1$s, %2$s</string>
     <string name="daily_empty">No 7-day forecast</string>
     <string name="daily_expand">Expand</string>
     <string name="daily_section_sub">Tap a day for wind and sun times; bars align to the week</string>
@@ -182,6 +183,7 @@
     <string name="radar_fullscreen">Fullscreen</string>
     <string name="radar_hint_center">Red dot is the city · observed + ~1–2h nowcast</string>
     <string name="radar_nowcast_badge">Nowcast</string>
+    <string name="radar_open_failed">No browser available to open the fullscreen radar</string>
     <string name="radar_legend_extreme">Extreme</string>
     <string name="radar_legend_mid">Mod</string>
     <string name="radar_legend_note">Warmer colors usually mean stronger echoes (illustrative, not official).</string>
@@ -205,6 +207,7 @@
     <string name="radar_wind">Wind</string>
     <string name="search_city_hint">Beijing, Shanghai, bj, London…</string>
     <string name="search_city_label">Search city</string>
+    <string name="search_favorite_limit_reached">Favorite limit reached (max %1$d). Remove one before adding a new city.</string>
     <string name="search_hint_empty">Type a city, pinyin, or English — or pick a popular city</string>
     <string name="search_popular">Popular</string>
     <string name="search_recent">Recent</string>
@@ -396,7 +399,7 @@
     <string name="humidity_short">H %1$d%%</string>
     <string name="debug_apply">Apply</string>
     <string name="debug_clear_override">Clear override</string>
-    <string name="debug_editor_hint">Apply recalculates alerts and life indices. Clear override to restore live values. Entry: tap About 7 times, or search __debug__ / #熊调试.</string>
+    <string name="debug_editor_hint">Apply recalculates alerts and life indices. Clear override to restore live values. Entry: tap About 7 times, or search __debug__ or the Chinese debug passphrase.</string>
     <string name="debug_editor_title">Weather override</string>
     <string name="debug_field_aqi">European AQI</string>
     <string name="debug_field_daily_max">Highs from today (comma-separated)</string>

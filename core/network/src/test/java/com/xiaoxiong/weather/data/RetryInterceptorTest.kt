@@ -7,6 +7,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -37,6 +38,36 @@ class RetryInterceptorTest {
     @After
     fun tearDown() {
         server.shutdown()
+    }
+
+    @Test
+    fun http425_isRetriedThenSucceeds() {
+        server.dispatcher =
+            object : Dispatcher() {
+                private var attempts = 0
+
+                override fun dispatch(request: RecordedRequest): MockResponse {
+                    attempts++
+                    return if (attempts == 1) {
+                        MockResponse().setResponseCode(425).setBody("too early")
+                    } else {
+                        MockResponse().setResponseCode(200).setBody("ok")
+                    }
+                }
+            }
+        val retryingClient =
+            OkHttpClient
+                .Builder()
+                .addInterceptor(RetryInterceptor(maxRetries = 1, baseDelayMs = 10))
+                .build()
+
+        val response = retryingClient.newCall(Request.Builder().url(server.url("/early")).build()).execute()
+        try {
+            assertEquals(200, response.code)
+            assertEquals(2, server.requestCount)
+        } finally {
+            response.close()
+        }
     }
 
     @Test

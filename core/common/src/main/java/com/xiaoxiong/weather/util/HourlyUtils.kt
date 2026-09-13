@@ -7,6 +7,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 import kotlin.math.abs
 
 /** 无日出日落数据时的昼夜兜底判定：6:00–17:59 为白天，18:00 起为夜间。 */
@@ -38,18 +39,40 @@ fun isSameHour(
 fun indexOfCurrentHour(
     times: List<String>,
     currentTime: String,
+): Int = indexOfCurrentHourIn(times, { it }, currentTime)
+
+/**
+ * 单遍定位当前小时：与 [indexOfCurrentHour] 行为一致（先整点精确匹配，否则取最近小时）。
+ * 窗口函数直接用它对原始列表做一次索引，避免 `items.map(timeOf)` 的临时列表分配。
+ */
+private fun <T> indexOfCurrentHourIn(
+    items: List<T>,
+    timeOf: (T) -> String,
+    currentTime: String,
 ): Int {
-    if (times.isEmpty()) return -1
+    if (items.isEmpty()) return -1
 
     val key = hourKey(currentTime)
-    val exact = times.indexOfFirst { hourKey(it) == key }
-    if (exact >= 0) return exact
-
-    val current = parseFlexibleDateTime(currentTime) ?: return 0
-    return times.indices.minByOrNull { index ->
-        val t = parseFlexibleDateTime(times[index]) ?: return@minByOrNull Long.MAX_VALUE
-        abs(ChronoUnit.MINUTES.between(t, current))
-    } ?: 0
+    var current: LocalDateTime? = null
+    var currentReady = false
+    var bestIndex = 0
+    var bestMinutes = Long.MAX_VALUE
+    items.forEachIndexed { index, item ->
+        val raw = timeOf(item)
+        if (hourKey(raw) == key) return index
+        if (!currentReady) {
+            currentReady = true
+            current = parseFlexibleDateTime(currentTime)
+        }
+        val now = current ?: return 0
+        val parsed = parseFlexibleDateTime(raw) ?: return@forEachIndexed
+        val minutes = abs(ChronoUnit.MINUTES.between(parsed, now))
+        if (minutes < bestMinutes) {
+            bestMinutes = minutes
+            bestIndex = index
+        }
+    }
+    return bestIndex
 }
 
 /** 从当前小时起向未来取 [count] 条（含当前），用于降雨提醒/穿衣建议窗口。 */
@@ -60,7 +83,7 @@ fun <T> upcomingFromCurrent(
     count: Int = 12,
 ): List<T> {
     if (items.isEmpty()) return emptyList()
-    val idx = indexOfCurrentHour(items.map(timeOf), currentTime).coerceAtLeast(0)
+    val idx = indexOfCurrentHourIn(items, timeOf, currentTime).coerceAtLeast(0)
     return items.drop(idx).take(count)
 }
 
@@ -72,7 +95,7 @@ fun <T> recentHoursUpToCurrent(
     count: Int = 12,
 ): List<T> {
     if (items.isEmpty() || count <= 0) return emptyList()
-    val idx = indexOfCurrentHour(items.map(timeOf), currentTime).coerceAtLeast(0)
+    val idx = indexOfCurrentHourIn(items, timeOf, currentTime).coerceAtLeast(0)
     val from = (idx - count + 1).coerceAtLeast(0)
     return items.subList(from, idx + 1)
 }
@@ -90,12 +113,15 @@ fun <T> precipFallenTodayMm(
     if (items.isEmpty()) return 0.0
     val current = parseFlexibleDateTime(currentTime) ?: return 0.0
     val day = current.toLocalDate()
-    val idx = indexOfCurrentHour(items.map(timeOf), currentTime)
+    val idx = indexOfCurrentHourIn(items, timeOf, currentTime)
     if (idx < 0) return 0.0
-    return items.take(idx + 1).sumOf { item ->
-        val t = parseFlexibleDateTime(timeOf(item)) ?: return@sumOf 0.0
-        if (t.toLocalDate() == day) precipOf(item) ?: 0.0 else 0.0
+    var total = 0.0
+    for (i in 0..idx) {
+        val item = items[i]
+        val t = parseFlexibleDateTime(timeOf(item)) ?: continue
+        if (t.toLocalDate() == day) total += precipOf(item) ?: 0.0
     }
+    return total
 }
 
 fun hoursBetween(
@@ -133,8 +159,25 @@ fun parseFlexibleDateTime(value: String): LocalDateTime? {
     }
 }
 
-/** 小时标签：`2026-08-16T08:00` / `2026-08-16 08:00` → `08:00`。 */
-fun formatHourLabel(isoTime: String): String = isoTime.substringAfter('T').substringAfter(' ').take(5)
+/** 小时标签：`2026-08-16T08:00` / `2026-08-16 08:00` → `08:00`；纯日期原样返回。 */
+fun formatHourLabel(isoTime: String): String {
+    val timePart =
+        when {
+            'T' in isoTime -> isoTime.substringAfter('T')
+            ' ' in isoTime -> isoTime.substringAfter(' ')
+            // 纯日期没有时刻可展示：原样返回，避免旧逻辑截成 "2026-"
+            else -> return isoTime
+        }
+    val hour = timePart.take(2).toIntOrNull()
+    val minute = timePart.drop(3).take(2).toIntOrNull()
+    return if (hour != null && minute != null) clockLabel(hour, minute) else timePart.take(5)
+}
+
+/** 时刻标签统一 Locale.US，避免阿拉伯语等区域把数字格式化为本地数字形。 */
+private fun clockLabel(
+    hour: Int,
+    minute: Int,
+): String = String.format(Locale.US, "%02d:%02d", hour, minute)
 
 /**
  * 小时明细用：今天/明天/具体日期 + 时刻（相对 [referenceIsoTime] 的日期）。
@@ -150,7 +193,7 @@ fun formatHourDetailLabel(
     val dt =
         parseFlexibleDateTime(isoTime)
             ?: return formatHourLabel(isoTime)
-    val hour = "%02d:%02d".format(dt.hour, dt.minute)
+    val hour = clockLabel(dt.hour, dt.minute)
     val refDate =
         parseFlexibleDateTime(referenceIsoTime)?.toLocalDate()
             ?: LocalDate.now()

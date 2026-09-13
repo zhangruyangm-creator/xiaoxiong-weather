@@ -4,6 +4,7 @@ import com.xiaoxiong.weather.data.remote.MetNorwayResponse
 import com.xiaoxiong.weather.data.remote.MetNorwayTimeseriesEntry
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
 import com.xiaoxiong.weather.util.WeatherCodes
+import com.xiaoxiong.weather.util.isDaytimeHour
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
@@ -148,7 +149,8 @@ class MetNorwayFetcher(
                     precipitationRateMmPerHour = currentPoint.precipitationRateMmPerHour,
                     cloudCoverPercent = currentPoint.cloudCoverPercent,
                     pressureHpa = currentPoint.pressureHpa,
-                    isDay = localHour in DAY_START_HOUR..DAY_END_HOUR,
+                    // 与 SunPath/HourlyUtils 同一口径：6:00–17:59 为白天（此前 ..18 含 18 点）
+                    isDay = isDaytimeHour(localHour),
                 ),
             hourly = hourly,
             daily = daily,
@@ -185,8 +187,6 @@ class MetNorwayFetcher(
         internal const val MPS_TO_KMH = 3.6
         private const val HOURLY_WINDOW_HOURS = 28
         private const val DAILY_WINDOW_DAYS = 7
-        private const val DAY_START_HOUR = 6
-        private const val DAY_END_HOUR = 18
     }
 }
 

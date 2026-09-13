@@ -5,7 +5,6 @@
     <string name="bear_maze_abandon_keep">保留进度并退出</string>
     <string name="bear_maze_abandon_text">退出后进度会保留，下次进入可从第 %1$d 波继续。要放弃进度并从第 1 波重新开始吗？</string>
     <string name="bear_maze_abandon_title">无尽第 %1$d 波进行中</string>
-    <string name="bear_maze_campaign_label">战役关卡（共 %1$d 关，后段随机生成）</string>
     <string name="bear_maze_clear">通关啦！</string>
     <string name="bear_maze_clear_hints">本局使用提示 %1$d 次</string>
     <string name="bear_maze_clear_moves">共用了 %1$d 步</string>
@@ -20,7 +19,6 @@
     <string name="bear_maze_endless_wave">无尽 · 第%1$d波</string>
     <string name="bear_maze_failed">挑战失败</string>
     <string name="bear_maze_failed_detail">到达第 %1$d 波 · %2$d/%3$d 步</string>
-    <string name="bear_maze_hud">蜜 %1$d/%2$d · 钥匙 %3$d · 步数 %4$d/%5$d</string>
     <string name="bear_maze_chip_honey">蜜 %1$d/%2$d</string>
     <string name="bear_maze_chip_keys">钥匙 %1$d</string>
     <string name="bear_maze_chip_moves">步数 %1$d/%2$d</string>

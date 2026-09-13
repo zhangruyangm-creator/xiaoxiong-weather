@@ -1,8 +1,10 @@
 package com.xiaoxiong.weather.worker
 
+import android.app.NotificationManager
 import com.xiaoxiong.weather.data.AlertKind
 import com.xiaoxiong.weather.data.AlertSeverity
 import com.xiaoxiong.weather.data.WeatherAlertGenerator
+import com.xiaoxiong.weather.data.WeatherSnapshot
 
 /**
  * 除临近雨雪外，即使证据只到 WATCH 也值得后台提醒的严重天气类型。
@@ -49,3 +51,21 @@ internal fun severeNotificationSignature(
     cityName: String,
     spec: WeatherAlertGenerator.Spec,
 ): String = "$cityName|${spec.kind}|${spec.titleRes}"
+
+/** 从快照生成通知候选（纯数据计算）：fresh 命中与联网刷新两条分支共用，避免跳过预警评估。 */
+internal fun notificationSpecs(snapshot: WeatherSnapshot): List<WeatherAlertGenerator.Spec> =
+    WeatherAlertGenerator.specs(
+        snapshot.current,
+        snapshot.hourly,
+        snapshot.daily,
+        snapshot.airQuality,
+    )
+
+/**
+ * 系统层面是否允许展示通知（纯逻辑便于单测）：系统通知开关 + 渠道未被关闭。
+ * 渠道不存在（null）视为允许，随后 [WeatherRefreshWorker] 会创建默认渠道。
+ */
+internal fun canDisplaySystemNotifications(
+    systemNotificationsEnabled: Boolean,
+    channelImportance: Int?,
+): Boolean = systemNotificationsEnabled && channelImportance != NotificationManager.IMPORTANCE_NONE

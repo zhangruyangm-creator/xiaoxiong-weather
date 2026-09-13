@@ -3,10 +3,12 @@ package com.xiaoxiong.weather.ui.game
 import android.graphics.Paint
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -26,6 +29,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -72,6 +78,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.LocalReduceMotion
+import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchDifficulty
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchScene
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.ItemKind
 import kotlin.math.cos
@@ -163,12 +171,20 @@ fun BearCatchScreen(
     val view = LocalView.current
     val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
-    val lb = rememberLeaderboardState(prefs, "leaderboard_catch", "best_catch")
+    val lb =
+        rememberLeaderboardState(
+            prefs,
+            "leaderboard_catch",
+            BearCatchGame.PREFS_BEST_SCORE_KEY,
+        )
     val characterState = rememberBearCharacterState()
     var showCharacterPicker by remember { mutableStateOf(false) }
     val game =
         remember {
-            BearCatchGame().also { it.best = prefs.getInt("best_catch", 0) }
+            BearCatchGame().also {
+                it.best = BearCatchGame.loadBestScore(prefs)
+                it.difficulty = BearCatchGame.loadDifficulty(prefs)
+            }
         }
     // 进程重建（如旋转/被系统回收后重进）时恢复局中快照；坏档/无档保持标题
     LaunchedEffect(Unit) {
@@ -212,6 +228,8 @@ fun BearCatchScreen(
         game.scene = catchSceneFromWeather(catchWeather, sceneCode)
     }
     val bearSprites = rememberBearSprites(characterState.selected)
+    // 减弱动画：跳过雨雪/雷电/风暴粒子，只保留静态天空
+    val reduceMotion = LocalReduceMotion.current
     var frame by remember { mutableLongStateOf(0L) }
 
     // 帧循环：切后台不推进、dt 钳制由共享层处理。
@@ -282,14 +300,24 @@ fun BearCatchScreen(
                             ),
                         )
                     },
+                    onMilestone = { milestone ->
+                        // 里程碑只飘一次大字，不阻塞操作
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        texts.add(
+                            CatchFloatText(
+                                text = context.getString(R.string.bear_catch_milestone, milestone),
+                                x = game.catchX,
+                                y = game.catchY - game.catchR * 2.4f,
+                                life = 1.2f,
+                                color = Color(0xFFFFC107),
+                            ),
+                        )
+                    },
                     onDeath = { score ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                         // 死亡即清档：不能只等 LaunchedEffect，进程被回收会漏掉清档而重复续玩
                         game.clearSnapshot(prefs)
-                        if (score > game.best) {
-                            game.best = score
-                            prefs.edit { putInt("best_catch", score) }
-                        }
+                        game.recordBestScore(prefs, score)
                         if (score > 0) {
                             lb.lastRank =
                                 lb.store.submit(
@@ -323,7 +351,10 @@ fun BearCatchScreen(
                 .fillMaxSize()
                 .onSizeChanged { sz ->
                     // 暂停中改尺寸（分屏/折叠）保留对局，避免菜单分数与实际进度不一致
+                    val wasRunning = game.phase == GamePhase.RUNNING
                     game.resize(IntSize(sz.width, sz.height), preserveRunning = pause.paused)
+                    // 改窗口导致对局回准备态：立即清掉旧档，停在 READY 被杀也不会僵尸续玩
+                    if (wasRunning && game.phase != GamePhase.RUNNING) game.clearSnapshot(prefs)
                 },
     ) {
         Canvas(
@@ -370,6 +401,7 @@ fun BearCatchScreen(
                     isDay = isDay ?: true,
                     sprites = bearSprites,
                     texts = texts,
+                    reduceMotion = reduceMotion,
                 )
             }
         }
@@ -401,6 +433,8 @@ fun BearCatchScreen(
                     lb.entries = emptyList()
                     lb.resetLastRank()
                     game.best = 0
+                    // 旧版最高分键一并清掉，避免下次读取时又被迁移回来
+                    prefs.edit { remove(BearCatchGame.PREFS_BEST_SCORE_LEGACY_KEY) }
                 },
                 onDismiss = { lb.show = false },
             )
@@ -431,7 +465,37 @@ fun BearCatchScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = stringResource(R.string.bear_catch_difficulty_label),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            CatchDifficulty.entries.forEach { difficulty ->
+                                CatchDifficultyChip(
+                                    difficulty = difficulty,
+                                    selected = game.difficulty == difficulty,
+                                    onClick = {
+                                        game.difficulty = difficulty
+                                        game.persistDifficulty(prefs)
+                                    },
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text =
+                                stringResource(R.string.bear_game_best_label) +
+                                    " ${game.best}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
                         Button(onClick = {
                             lb.resetLastRank()
                             game.start()
@@ -551,6 +615,11 @@ private fun CatchHud(
     onLeaderboard: () -> Unit,
     onCharacter: () -> Unit,
 ) {
+    // 派生整数秒/布尔翻转：doubleT/shieldCooldownT 每帧变化，但只在显示值变化时重组 HUD，
+    // 避免整个顶栏跟着帧循环 60fps 重组（数值口径与原先 toInt()+1 一致）。
+    val doubleSeconds by remember { derivedStateOf { if (game.doubleT > 0f) game.doubleT.toInt() + 1 else 0 } }
+    val shieldSeconds by remember { derivedStateOf { if (game.shieldCooldownT > 0f) game.shieldCooldownT.toInt() + 1 else 0 } }
+    val blink by remember { derivedStateOf { game.invincibleT > 0f && ((game.invincibleT * 10f) % 1f < 0.5f) } }
     Row(
         modifier =
             Modifier
@@ -573,9 +642,9 @@ private fun CatchHud(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // 双倍得分倒计时
-                if (game.doubleT > 0f) {
+                if (doubleSeconds > 0) {
                     Text(
-                        text = stringResource(R.string.bear_catch_double_time, game.doubleT.toInt() + 1),
+                        text = stringResource(R.string.bear_catch_double_time, doubleSeconds),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFFFD54F),
@@ -601,7 +670,6 @@ private fun CatchHud(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                val blink = game.invincibleT > 0f && ((game.invincibleT * 10f) % 1f < 0.5f)
                 Row(
                     modifier = Modifier.then(if (blink) Modifier else Modifier),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -632,27 +700,27 @@ private fun CatchHud(
                         contentDescription =
                             when {
                                 game.hasShield -> stringResource(R.string.cd_catch_shield_ready)
-                                game.shieldCooldownT > 0f ->
+                                shieldSeconds > 0 ->
                                     stringResource(
                                         R.string.cd_catch_shield_cooldown,
-                                        game.shieldCooldownT.toInt() + 1,
+                                        shieldSeconds,
                                     )
                                 else -> stringResource(R.string.cd_catch_shield_none)
                             },
                         tint =
                             when {
                                 game.hasShield -> Color(0xFF80DEEA)
-                                game.shieldCooldownT > 0f -> Color.White.copy(alpha = 0.30f)
+                                shieldSeconds > 0 -> Color.White.copy(alpha = 0.30f)
                                 else -> Color.White.copy(alpha = 0.20f)
                             },
                         modifier = Modifier.size(14.dp),
                     )
-                    if (!game.hasShield && game.shieldCooldownT > 0f) {
+                    if (!game.hasShield && shieldSeconds > 0) {
                         Text(
                             text =
                                 stringResource(
                                     R.string.bear_catch_shield_cooldown,
-                                    game.shieldCooldownT.toInt() + 1,
+                                    shieldSeconds,
                                 ),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White.copy(alpha = 0.55f),
@@ -685,6 +753,29 @@ private fun CatchHud(
     }
 }
 
+/** 难度档位选择胶囊：当前档高亮，点击后立即写入 prefs。 */
+@Composable
+private fun CatchDifficultyChip(
+    difficulty: CatchDifficulty,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(stringResource(difficultyLabelRes(difficulty))) },
+        colors = FilterChipDefaults.filterChipColors(),
+    )
+}
+
+@StringRes
+private fun difficultyLabelRes(difficulty: CatchDifficulty): Int =
+    when (difficulty) {
+        CatchDifficulty.CASUAL -> R.string.bear_catch_difficulty_casual
+        CatchDifficulty.STANDARD -> R.string.bear_catch_difficulty_standard
+        CatchDifficulty.CHALLENGE -> R.string.bear_catch_difficulty_challenge
+    }
+
 // ---------------- 世界绘制 ----------------
 
 private fun DrawScope.drawCatchWorld(
@@ -692,6 +783,8 @@ private fun DrawScope.drawCatchWorld(
     isDay: Boolean,
     sprites: BearSprites,
     texts: List<CatchFloatText>,
+    /** 减弱动画：跳过天气氛围粒子，只保留静态天空底色。 */
+    reduceMotion: Boolean = false,
 ) {
     val w = size.width
     val h = size.height
@@ -704,7 +797,7 @@ private fun DrawScope.drawCatchWorld(
     drawCatchBgClouds(game)
 
     // 天气氛围粒子（作为背景层，与跑酷/摘星/迷宫共用渲染）
-    drawCatchWeatherBackdrop(scene, game.time, s, w, h)
+    drawCatchWeatherBackdrop(scene, game.time, s, w, h, reduceMotion)
 
     // 掉落物
     for (it in game.items) {
@@ -824,7 +917,10 @@ private fun DrawScope.drawCatchWeatherBackdrop(
     s: Float,
     w: Float,
     h: Float,
+    reduceMotion: Boolean,
 ) {
+    // 减弱动画：雨/雪/风线/闪电全部为高频粒子，直接跳过，保留上方静态天空
+    if (reduceMotion) return
     when (scene) {
         CatchScene.RAIN_LIGHT -> {
             drawRainLayered(
@@ -1057,7 +1153,8 @@ private fun DrawScope.drawCatchBear(
     val dead = game.phase == GamePhase.OVER
     // 无敌闪烁
     val invBlink = game.invincibleT > 0f && ((game.invincibleT * 12f) % 1f < 0.5f)
-    val alphaBase = if (dead) (1f - (game.time * 2f).coerceIn(0f, 1f)) else 1f
+    // 死亡淡出用 deadT（死亡后从 0 开始累计）：整局 time 很大时也能正常淡出
+    val alphaBase = if (dead) (1f - (game.deadT * 2f).coerceIn(0f, 1f)) else 1f
     val alpha = (if (invBlink) alphaBase * 0.45f else alphaBase).coerceIn(0f, 1f)
 
     // 移动倾斜：跟随手指方向轻微侧倾

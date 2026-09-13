@@ -4,9 +4,11 @@ import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.LocationHelper
 import com.xiaoxiong.weather.data.LocationSession
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -39,7 +41,9 @@ class LocationWeatherCoordinator(
                 try {
                     val location = locationHelper.resolveCurrentCoordinates()
                     if (locateId != requestId.get()) return@launch
-                    val quick = locationHelper.provisionalCity(location)
+                    // provisionalCity 内部读 SharedPreferences：移出主线程，避免定位成功后掉帧
+                    val quick = withContext(Dispatchers.IO) { locationHelper.provisionalCity(location) }
+                    if (locateId != requestId.get()) return@launch
                     onResolved(quick)
 
                     var refined = locationHelper.refineCityPlaceName(quick)

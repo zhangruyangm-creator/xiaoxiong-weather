@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.weather
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -67,6 +68,7 @@ import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 internal fun LiveRadarPane(
@@ -89,6 +91,7 @@ internal fun LiveRadarPane(
     var currentBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     var imageLoading by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
+    val loadPolicy = remember { RadarTimelineLoadPolicy() }
     var prefetchStarted by remember(city.id, city.latitude, city.longitude) { mutableStateOf(false) }
     var everPlayed by remember(city.id, city.latitude, city.longitude) { mutableStateOf(false) }
     val context = LocalContext.current
@@ -104,8 +107,12 @@ internal fun LiveRadarPane(
     // 帧缓存按 URL 复用（RadarMapRepository 内 LRU 自动淘汰），切城/重进都无需清空：
     // 清空会把刚预取好的帧扔掉，重进页面又得重下，白白浪费流量
 
-    // 切城 / 刷新：底图与帧列表并行；先出最新一帧再后台预取其余
+    // 切城 / 刷新：底图与帧列表并行；先出最新一帧再后台预取其余。
+    // 10 分钟内的重新进入直接复用时间轴缓存（图片仍走仓库 LRU），
+    // 不再次请求 RainViewer、也不重播扫描；用户手动刷新只对触发它的那次加载绕过缓存
     LaunchedEffect(city.id, city.latitude, city.longitude, refreshKey) {
+        loadPolicy.onCity("${city.id}|${city.latitude}|${city.longitude}")
+        val bypassCache = loadPolicy.consumeBypassCache()
         loading = true
         errorRes = null
         playing = false
@@ -121,7 +128,18 @@ internal fun LiveRadarPane(
                     }
                 val framesJob =
                     async {
-                        repository.fetchRadarFrames(city.latitude, city.longitude, zoom)
+                        val cached =
+                            if (bypassCache) {
+                                null
+                            } else {
+                                RadarTimelineCache.shared.get(city.latitude, city.longitude, zoom)
+                            }
+                        cached
+                            ?: repository
+                                .fetchRadarFrames(city.latitude, city.longitude, zoom)
+                                .also {
+                                    RadarTimelineCache.shared.put(city.latitude, city.longitude, zoom, it)
+                                }
                     }
                 basemap = basemapJob.await()
                 val list = framesJob.await()
@@ -151,6 +169,7 @@ internal fun LiveRadarPane(
     }
 
     fun reload() {
+        loadPolicy.requestManualRefresh()
         refreshKey += 1
     }
 
@@ -418,7 +437,12 @@ internal fun LiveRadarPane(
         TextButton(
             onClick = {
                 val url = RadarMapRepository.windyRadarUrl(city.latitude, city.longitude)
-                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                // 无浏览器/无 Activity 处理的设备上 startActivity 会抛
+                // ActivityNotFoundException，这里降级为非阻塞提示
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+                    .onFailure {
+                        Toast.makeText(context, R.string.radar_open_failed, Toast.LENGTH_SHORT).show()
+                    }
             },
         ) {
             Icon(
@@ -437,7 +461,7 @@ internal fun LiveRadarPane(
     )
 }
 
-internal val RadarTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+internal val RadarTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
 
 private fun zoneOf(timezoneId: String?): ZoneId = runCatching { timezoneId?.let { ZoneId.of(it) } }.getOrNull() ?: ZoneId.systemDefault()
 
@@ -449,3 +473,93 @@ internal fun formatRadarTime(
         .ofEpochSecond(epochSec)
         .atZone(zoneOf(timezoneId))
         .format(RadarTimeFormatter)
+
+/**
+ * 雷达时间轴 TTL 缓存的手动刷新策略：
+ * 手动刷新只对触发它的那一次加载生效（消费即归零），换城时未消费的标记作废。
+ * 这样换城后的重新加载会重新走 TTL 缓存，不会因为 refreshKey 长期驻留而永久绕过缓存。
+ */
+internal class RadarTimelineLoadPolicy {
+    private var cityKey: String? = null
+    private var manualRefreshPending = false
+
+    fun onCity(cityKey: String) {
+        if (this.cityKey != cityKey) {
+            this.cityKey = cityKey
+            manualRefreshPending = false
+        }
+    }
+
+    fun requestManualRefresh() {
+        manualRefreshPending = true
+    }
+
+    /** 本次加载是否应绕过 TTL 缓存；一次性标记，读取后归零。 */
+    fun consumeBypassCache(): Boolean {
+        val bypass = manualRefreshPending
+        manualRefreshPending = false
+        return bypass
+    }
+}
+
+/**
+ * 雷达时间轴短 TTL 缓存（进程内单例）：
+ * 重新进入今天页 / 关闭浮层后直接复用既有帧，不再每次请求 RainViewer 并重播扫描；
+ * 帧图片本身仍由 [RadarMapRepository] 的 LRU 负责。用户手动刷新绕过缓存。
+ */
+internal class RadarTimelineCache(
+    private val ttlMs: Long = DEFAULT_TTL_MS,
+    private val nowMs: () -> Long = System::currentTimeMillis,
+) {
+    private data class Entry(
+        val frames: List<RadarFrame>,
+        val fetchedAtMs: Long,
+    )
+
+    private val lock = Any()
+
+    /** accessOrder=true：最近使用的城市优先保留，来回切城不丢 */
+    private val entries =
+        object : LinkedHashMap<String, Entry>(8, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Entry>?): Boolean = size > MAX_ENTRIES
+        }
+
+    fun get(
+        latitude: Double,
+        longitude: Double,
+        zoom: Int,
+    ): List<RadarFrame>? =
+        synchronized(lock) {
+            val key = key(latitude, longitude, zoom)
+            val entry = entries[key] ?: return null
+            if (nowMs() - entry.fetchedAtMs > ttlMs) {
+                entries.remove(key)
+                return null
+            }
+            entry.frames
+        }
+
+    fun put(
+        latitude: Double,
+        longitude: Double,
+        zoom: Int,
+        frames: List<RadarFrame>,
+    ) {
+        synchronized(lock) {
+            entries[key(latitude, longitude, zoom)] = Entry(frames, nowMs())
+        }
+    }
+
+    private fun key(
+        latitude: Double,
+        longitude: Double,
+        zoom: Int,
+    ): String = String.format(Locale.US, "%.4f,%.4f|%d", latitude, longitude, zoom)
+
+    companion object {
+        /** 短临时间轴新鲜度与重进体验的折中：10 分钟内直接复用。 */
+        const val DEFAULT_TTL_MS = 10 * 60 * 1000L
+        private const val MAX_ENTRIES = 4
+        val shared = RadarTimelineCache()
+    }
+}

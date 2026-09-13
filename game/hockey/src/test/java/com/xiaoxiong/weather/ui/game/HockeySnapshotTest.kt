@@ -271,6 +271,104 @@ class HockeySnapshotTest {
         assertEquals(Difficulty.HARD, restored.matchDifficulty)
     }
 
+    /**
+     * 局中改设置 → 被杀 → 恢复 → 下一局：暂存（pending）必须随快照保留，
+     * 否则恢复后被 header 旧值覆盖、pending 丢失，设置永不生效。
+     */
+    @Test
+    fun saveRestore_keepsPendingRulesForNextMatch() {
+        val prefs = TestPrefs()
+        val source = startedGame()
+        assertTrue("对局进行中改设置应暂存", source.rulesLocked)
+        source.applySettings(
+            difficulty = Difficulty.MASTER,
+            customLevel = 8,
+            winScore = 9,
+            paddleScale = 1.4f,
+            paddleScaleBoth = false,
+            puckScale = 0.8f,
+            goalScale = 1.3f,
+        )
+        assertTrue(source.hasPendingRules)
+        source.saveSnapshot(prefs)
+
+        val restored = HockeyGame()
+        restored.resize(400f, 800f, 20f, 40f)
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertTrue("恢复后暂存设置必须仍在", restored.hasPendingRules)
+        assertEquals(9, restored.displayWinScore())
+        assertEquals(1.4f, restored.displayPaddleScale(), 1e-4f)
+        assertFalse(restored.displayPaddleScaleBoth())
+        assertEquals(0.8f, restored.displayPuckScale(), 1e-4f)
+        assertEquals(1.3f, restored.displayGoalScale(), 1e-4f)
+
+        // 再来一局：套用暂存值
+        restored.startMatch()
+        assertEquals(9, restored.winScore)
+        assertEquals(1.4f, restored.paddleScale, 1e-4f)
+        assertFalse(restored.paddleScaleBoth)
+        assertEquals(0.8f, restored.puckScale, 1e-4f)
+        assertEquals(1.3f, restored.goalScale, 1e-4f)
+        assertFalse(restored.hasPendingRules)
+    }
+
+    /** 旧档没有 pending 拖尾字段：恢复后不得凭空产生暂存设置（保持旧行为）。 */
+    @Test
+    fun restore_legacySnapshot_hasNoPendingRules() {
+        val prefs = TestPrefs()
+        prefs.edit().putString(snapshotKey, legacySnapshotPayload()).apply()
+
+        val restored = HockeyGame()
+        restored.resize(400f, 800f, 20f, 40f)
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertFalse(restored.hasPendingRules)
+    }
+
+    /** 场地主题（当前 + 局中暂存）随快照往返；暂存主题在下一局生效。 */
+    @Test
+    fun saveRestore_keepsRinkThemeAndPending() {
+        val prefs = TestPrefs()
+        val source = startedGame()
+        source.rinkTheme = RinkTheme.BEAR
+        source.applySettings(
+            difficulty = Difficulty.HARD,
+            customLevel = 9,
+            winScore = 7,
+            paddleScale = 1.3f,
+            paddleScaleBoth = true,
+            puckScale = 0.75f,
+            goalScale = 1.2f,
+            rinkTheme = RinkTheme.CONCRETE,
+        )
+        assertTrue(source.rulesLocked)
+        source.saveSnapshot(prefs)
+
+        val restored = HockeyGame()
+        restored.resize(400f, 800f, 20f, 40f)
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals("当前主题随快照保留", RinkTheme.BEAR, restored.rinkTheme)
+        assertEquals("局中暂存主题随快照保留", RinkTheme.CONCRETE, restored.displayRinkTheme())
+
+        restored.startMatch()
+        assertEquals(RinkTheme.CONCRETE, restored.rinkTheme)
+        assertEquals(RinkTheme.CONCRETE, restored.displayRinkTheme())
+        assertFalse(restored.hasPendingRules)
+    }
+
+    /** 旧档没有主题拖尾字段：回退默认 ICE、无暂存主题。 */
+    @Test
+    fun restore_legacySnapshot_defaultsRinkThemeIce() {
+        val prefs = TestPrefs()
+        prefs.edit().putString(snapshotKey, legacySnapshotPayload()).apply()
+
+        val restored = HockeyGame()
+        restored.resize(400f, 800f, 20f, 40f)
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals(RinkTheme.ICE, restored.rinkTheme)
+        assertEquals(RinkTheme.ICE, restored.displayRinkTheme())
+        assertFalse(restored.hasPendingRules)
+    }
+
     @Test
     fun clear_afterMatchOver_thenRestoreFalse() {
         val prefs = TestPrefs()

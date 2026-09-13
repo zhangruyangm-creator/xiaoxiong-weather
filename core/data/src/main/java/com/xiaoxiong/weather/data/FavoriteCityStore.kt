@@ -10,7 +10,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
-private val Context.favoriteDataStore by preferencesDataStore("weather_favorites")
+private val Context.favoriteDataStore by preferencesDataStore(
+    name = "weather_favorites",
+    corruptionHandler = corruptionHandlerLogging("weather_favorites"),
+)
 
 class FavoriteCityStore(
     private val context: Context,
@@ -41,12 +44,14 @@ class FavoriteCityStore(
                     .toMutableList()
 
             val exists = current.any { sameCity(it.toCity(), city) }
-            if (exists) {
-                current.removeAll { sameCity(it.toCity(), city) }
-            } else {
-                current.add(0, FavoriteCityDto.from(city))
+            when {
+                exists -> current.removeAll { sameCity(it.toCity(), city) }
+                canAddFavorite(current.size, isAlreadyFavorite = false) ->
+                    current.add(0, FavoriteCityDto.from(city))
+                // 达到上限：拒绝新增，而不是静默丢弃最旧收藏
+                else -> return@edit
             }
-            prefs[key] = json.encodeToString(serializer, current.take(12))
+            prefs[key] = json.encodeToString(serializer, current)
         }
     }
 
@@ -67,8 +72,19 @@ class FavoriteCityStore(
         kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
             kotlin.math.abs(a.longitude - b.longitude) < 0.01
 
+    companion object {
+        /** 收藏城市上限：达到后拒绝新增，避免静默丢弃旧收藏。 */
+        const val MAX_FAVORITES = 12
+
+        /** 是否允许新增收藏；取消已有收藏（[isAlreadyFavorite]）始终允许。 */
+        internal fun canAddFavorite(
+            currentCount: Int,
+            isAlreadyFavorite: Boolean,
+        ): Boolean = isAlreadyFavorite || currentCount < MAX_FAVORITES
+    }
+
     @kotlinx.serialization.Serializable
-    private data class FavoriteCityDto(
+    internal data class FavoriteCityDto(
         val id: Long,
         val name: String,
         val latitude: Double,
@@ -76,8 +92,9 @@ class FavoriteCityStore(
         val country: String? = null,
         val admin1: String? = null,
         val admin2: String? = null,
+        val timezone: String? = null,
     ) {
-        fun toCity() = City(id, name, latitude, longitude, country, admin1, admin2, false)
+        fun toCity() = City(id, name, latitude, longitude, country, admin1, admin2, false, timezone)
 
         companion object {
             fun from(city: City) =
@@ -89,6 +106,7 @@ class FavoriteCityStore(
                     country = city.country,
                     admin1 = city.admin1,
                     admin2 = city.admin2,
+                    timezone = city.timezone,
                 )
         }
     }

@@ -12,7 +12,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private val Context.appSettingsDataStore by preferencesDataStore("app_settings_v1")
+private val Context.appSettingsDataStore by preferencesDataStore(
+    name = "app_settings_v1",
+    corruptionHandler = corruptionHandlerLogging("app_settings_v1"),
+)
 
 enum class ThemeMode {
     SYSTEM,

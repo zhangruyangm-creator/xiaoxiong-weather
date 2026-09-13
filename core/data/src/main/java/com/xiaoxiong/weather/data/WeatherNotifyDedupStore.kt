@@ -1,18 +1,30 @@
 package com.xiaoxiong.weather.data
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.abs
 
-private val Context.weatherNotifyDedupDataStore by preferencesDataStore("weather_notify_dedup")
+private val Context.weatherNotifyDedupDataStore by preferencesDataStore(
+    name = "weather_notify_dedup",
+    corruptionHandler = corruptionHandlerLogging("weather_notify_dedup"),
+)
 
 /** 恶劣天气/临近降水提醒的静默窗口；到期可再提醒。 */
 private const val NOTIFY_SILENCE_WINDOW_MS = 6 * 60 * 60 * 1000L
+
+private const val TEMP_DELTA_C = 2.0
+
+private val SEVERE_CODES = setOf(65, 67, 75, 82, 86, 95, 96, 99)
 
 /**
  * 后台刷新通知去重：避免 WorkManager 周期触发时反复推送同一条通知。
@@ -20,63 +32,66 @@ private const val NOTIFY_SILENCE_WINDOW_MS = 6 * 60 * 60 * 1000L
  * 用 DataStore 而非 SharedPreferences，与 App 其余持久化保持一致；
  * Worker 在 doWork 协程内调用，挂起开销可接受。
  */
-class WeatherNotifyDedupStore(
-    private val context: Context,
+class WeatherNotifyDedupStore internal constructor(
+    private val store: DataStore<Preferences>,
 ) {
-    private val store = context.weatherNotifyDedupDataStore
+    constructor(context: Context) : this(context.weatherNotifyDedupDataStore)
+
+    /** 进程内串行化「判定 → 展示 → 写记忆」整段，消除拆分后的 TOCTOU 并发窗口。 */
+    private val dedupGate = NotifyDedupGate()
 
     /**
-     * 判定是否要推送「天气变化」通知，并在同一笔 DataStore edit 内原子落盘本轮状态。
-     * 此前是 shouldNotify（读）→ 推送 → rememberNotified（写）三步，并发重叠时可能重复推送；
-     * 现在判定与记录在同一次 edit 里，且仅在判定为「要推」时才改写状态（语义与旧实现一致）。
+     * 「天气变化」通知的原子流程：锁内判定，仅当 [post] 展示成功才写记忆。
+     * 系统不允许展示通知时调用方不应进入本方法（渠道关闭期间的提醒不写记忆）。
+     * [post] 只做通知展示（NotificationManager IPC），不得做网络/PM 操作。
+     *
+     * @return 是否实际展示
      */
-    suspend fun shouldNotifyAndRemember(
+    suspend fun notifyWeatherChangeIfDue(
         cityName: String,
         weatherCode: Int?,
         temperatureC: Double?,
-    ): Boolean {
-        var should = false
-        // 判定与落盘在同一个 updateData 事务内：并发重叠时不会出现
-        // 「A 判定要推 → B 判定要推 → A/B 各推一条」的重复推送窗口
-        store.updateData { prefs ->
-            val lastCity = prefs[KEY_CITY]
-            val lastCode = prefs[KEY_CODE]
-            val lastTemp = prefs[KEY_TEMP]
-            val lastAt = prefs[KEY_AT] ?: 0L
-            val now = System.currentTimeMillis()
-
-            val firstEver = lastAt == 0L || lastCity == null
-            val cityChanged = cityName != lastCity
-            // 天气码缺失（接口坏包等）时不算「变化」，避免对内容为 -- 的快照重复推送
-            val codeChanged = weatherCode != null && weatherCode != lastCode
-            val tempChanged =
-                temperatureC != null &&
-                    lastTemp != null &&
-                    abs(temperatureC - lastTemp) >= TEMP_DELTA_C
-            // 恶劣天气超过静默窗口可再提醒一次；普通天气只在码/气温变化时提醒
-            val severeReminder = weatherCode in SEVERE_CODES && now - lastAt >= NOTIFY_SILENCE_WINDOW_MS
-            should = firstEver || cityChanged || codeChanged || tempChanged || severeReminder
-
-            // 仅在判定为「要推」时才改写状态（语义与旧实现一致）
-            if (!should) return@updateData prefs
-            prefs.toMutablePreferences().apply {
-                this[KEY_CITY] = cityName
-                this[KEY_CODE] = weatherCode ?: Int.MIN_VALUE
-                if (temperatureC != null) {
-                    this[KEY_TEMP] = temperatureC
-                } else {
-                    // 温度缺失时清掉旧值，避免下一轮用过期温度误判「变化」
-                    this -= KEY_TEMP
-                }
-                this[KEY_AT] = now
-            }
+        post: suspend () -> Boolean,
+    ): Boolean =
+        dedupGate.run {
+            if (!shouldNotifyLocked(cityName, weatherCode, temperatureC)) return@run false
+            if (!post()) return@run false
+            rememberNotifiedLocked(cityName, weatherCode, temperatureC)
+            true
         }
-        return should
-    }
+
+    /**
+     * 批量严重预警的原子流程：锁内过滤静默签名后交给 [post] 展示；
+     * 仅对展示成功的签名写记忆，全部展示失败则不写任何记忆，
+     * 调用方可继续走通用天气变化通知兜底（不会静默 6 小时）。
+     * 展示成功后同步通用去重基线，避免同一轮再重复推一条通用通知。
+     *
+     * [post] 只做通知展示，不得做网络/PM 操作。
+     *
+     * @return 实际展示成功的签名（为空表示本轮未展示任何预警）
+     */
+    suspend fun notifyAlertsIfDue(
+        cityName: String,
+        weatherCode: Int?,
+        temperatureC: Double?,
+        signatures: List<String>,
+        post: suspend (List<String>) -> List<String>,
+    ): List<String> =
+        dedupGate.run {
+            if (signatures.isEmpty()) return@run emptyList()
+            val pending = filterAlertsLocked(signatures)
+            if (pending.isEmpty()) return@run emptyList()
+            val posted = post(pending)
+            if (posted.isEmpty()) return@run emptyList()
+            rememberNotifiedAlertsLocked(posted)
+            // 同步通用去重基线：严重预警已推送后，通用分支不再立刻重复推一条
+            rememberNotifiedLocked(cityName, weatherCode, temperatureC)
+            posted
+        }
 
     /**
      * 临近降水提醒按「城市+类型+文案」去重，签名不变时 6 小时内只发一次。
-     * 判定与落盘在同一事务内原子进行（同 [shouldNotifyAndRemember]）。
+     * 判定与落盘在同一事务内原子进行，天然无 TOCTOU。
      */
     suspend fun shouldNotifySoonAndRemember(
         cityName: String,
@@ -97,32 +112,65 @@ class WeatherNotifyDedupStore(
         return should
     }
 
-    /**
-     * 批量严重预警去重：一次原子事务内判定并记录本批签名，返回本轮应推送的签名。
-     *
-     * 与 [shouldNotifySoonAndRemember] 的单签名槽不同：每个签名独立记录时间戳。
-     * 同一轮的多条严重预警（如高温 + 大雾）不会互相覆盖，也不会在下一轮被误判为
-     * 「新预警」重复推送；返回空列表表示本批全部处于静默窗口内。
-     */
-    suspend fun shouldNotifyAlertsAndRemember(signatures: List<String>): List<String> {
-        if (signatures.isEmpty()) return emptyList()
-        var pending: List<String> = emptyList()
+    /** 「天气变化」只读判定，必须在 [dedupGate] 内调用。 */
+    private suspend fun shouldNotifyLocked(
+        cityName: String,
+        weatherCode: Int?,
+        temperatureC: Double?,
+    ): Boolean {
+        val prefs = store.data.first()
+        return shouldNotifyWeatherChange(
+            cityName = cityName,
+            weatherCode = weatherCode,
+            temperatureC = temperatureC,
+            lastCity = prefs[KEY_CITY],
+            lastCode = prefs[KEY_CODE],
+            lastTemp = prefs[KEY_TEMP],
+            lastAt = prefs[KEY_AT] ?: 0L,
+            now = System.currentTimeMillis(),
+        )
+    }
+
+    /** 通用通知状态落盘，必须在 [dedupGate] 内调用。 */
+    private suspend fun rememberNotifiedLocked(
+        cityName: String,
+        weatherCode: Int?,
+        temperatureC: Double?,
+    ) {
+        store.updateData { prefs ->
+            val now = System.currentTimeMillis()
+            prefs.toMutablePreferences().apply {
+                this[KEY_CITY] = cityName
+                this[KEY_CODE] = weatherCode ?: Int.MIN_VALUE
+                if (temperatureC != null) {
+                    this[KEY_TEMP] = temperatureC
+                } else {
+                    // 温度缺失时清掉旧值，避免下一轮用过期温度误判「变化」
+                    this -= KEY_TEMP
+                }
+                this[KEY_AT] = now
+            }
+        }
+    }
+
+    /** 批量严重预警判定（只读），必须在 [dedupGate] 内调用。 */
+    private suspend fun filterAlertsLocked(signatures: List<String>): List<String> {
+        val now = System.currentTimeMillis()
+        val remembered = SevereAlertNotifyMemory.parse(store.data.first()[KEY_ALERT_AT], now)
+        return filterAlertSignaturesToNotify(signatures, remembered, now)
+    }
+
+    /** 严重预警签名落盘，必须在 [dedupGate] 内调用。 */
+    private suspend fun rememberNotifiedAlertsLocked(signatures: List<String>) {
         store.updateData { prefs ->
             val now = System.currentTimeMillis()
             val remembered = SevereAlertNotifyMemory.parse(prefs[KEY_ALERT_AT], now)
-            pending =
-                signatures.filter { signature ->
-                    val lastAt = remembered[signature]
-                    lastAt == null || now - lastAt >= NOTIFY_SILENCE_WINDOW_MS
-                }
-            if (pending.isEmpty()) return@updateData prefs
             val merged = remembered.toMutableMap()
-            pending.forEach { merged[it] = now }
+            signatures.forEach { merged[it] = now }
             prefs.toMutablePreferences().apply {
                 this[KEY_ALERT_AT] = SevereAlertNotifyMemory.encode(merged)
             }
         }
-        return pending
     }
 
     companion object {
@@ -133,11 +181,63 @@ class WeatherNotifyDedupStore(
         private val KEY_SOON_SIG = stringPreferencesKey("soon_sig")
         private val KEY_SOON_AT = longPreferencesKey("soon_at")
         private val KEY_ALERT_AT = stringSetPreferencesKey("alert_sigs")
-
-        private const val TEMP_DELTA_C = 2.0
-        private val SEVERE_CODES = setOf(65, 67, 75, 82, 86, 95, 96, 99)
     }
 }
+
+/**
+ * 进程内通知去重门闩：把「判定 → 展示 → 写记忆」整段串行化。
+ *
+ * 为保证「系统拦截通知时不写记忆」而把原子 updateData 拆成只读判定 + 成功后落盘，
+ * 同时也重新引入了 check-then-act 并发窗口：两个并发调用可能同时判定通过、各推一条。
+ * 此锁保证同一时刻只有一个调用在推进流程，后到者在锁内重新判定时已被先到者写下的
+ * 记忆挡住，不会重复推送。
+ *
+ * 锁内只允许通知展示（NotificationManager IPC）；[Mutex.withLock] 在取消/异常时
+ * 必定释放锁，不得在锁内做网络/PM 等长耗时操作。
+ */
+internal class NotifyDedupGate {
+    private val mutex = Mutex()
+
+    suspend fun <T> run(block: suspend () -> T): T = mutex.withLock { block() }
+}
+
+/**
+ * 「天气变化」通知判定（纯逻辑）：首轮、换城、天气码或气温变化、恶劣天气过静默窗口时提醒。
+ * 与旧实现的判定语义一致，拆出后调用方可先看系统是否允许展示再决定是否落盘。
+ */
+internal fun shouldNotifyWeatherChange(
+    cityName: String,
+    weatherCode: Int?,
+    temperatureC: Double?,
+    lastCity: String?,
+    lastCode: Int?,
+    lastTemp: Double?,
+    lastAt: Long,
+    now: Long,
+): Boolean {
+    val firstEver = lastAt == 0L || lastCity == null
+    val cityChanged = cityName != lastCity
+    // 天气码缺失（接口坏包等）时不算「变化」，避免对内容为 -- 的快照重复推送
+    val codeChanged = weatherCode != null && weatherCode != lastCode
+    val tempChanged =
+        temperatureC != null &&
+            lastTemp != null &&
+            abs(temperatureC - lastTemp) >= TEMP_DELTA_C
+    // 恶劣天气超过静默窗口可再提醒一次；普通天气只在码/气温变化时提醒
+    val severeReminder = weatherCode in SEVERE_CODES && now - lastAt >= NOTIFY_SILENCE_WINDOW_MS
+    return firstEver || cityChanged || codeChanged || tempChanged || severeReminder
+}
+
+/** 严重预警去重判定（纯逻辑）：保留不在静默窗口内的签名；at > now（时钟回拨）同样静默。 */
+internal fun filterAlertSignaturesToNotify(
+    signatures: List<String>,
+    remembered: Map<String, Long>,
+    now: Long,
+): List<String> =
+    signatures.filter { signature ->
+        val lastAt = remembered[signature]
+        lastAt == null || now - lastAt >= NOTIFY_SILENCE_WINDOW_MS
+    }
 
 /**
  * 严重预警签名记忆的编解码：DataStore 中每项为 `签名\t时间戳`。

@@ -17,6 +17,12 @@ object GrowingDegreeDays {
     /** 数据太少时（< 此天数）没有足够依据推算偏移，返回 null。 */
     const val MIN_DAYS = 30
 
+    /**
+     * 偏移天数上限（±30 天）：近期积温增速偏低时 diff / rate 会被放大到 ±70 天，
+     * 远超真实物候年际波动（通常 ±2 周），钳制避免时令卡给出耸动结论。
+     */
+    const val MAX_SHIFT_DAYS = 30
+
     /** 单日有效积温 = max(0, 日均温 - 基准)。 */
     fun dailyGdd(
         meanTempC: Double,
@@ -55,7 +61,8 @@ object GrowingDegreeDays {
         val diff = normal.last() - thisYear.last()
         val recentRate = (thisYear.last() - thisYear[n - 8]) / 7.0
         if (recentRate <= 0.05) return null
-        return (diff / recentRate).roundToInt()
+        // 增速偏低时换算结果会被放大，钳制到 ±MAX_SHIFT_DAYS 内
+        return (diff / recentRate).roundToInt().coerceIn(-MAX_SHIFT_DAYS, MAX_SHIFT_DAYS)
     }
 
     /**

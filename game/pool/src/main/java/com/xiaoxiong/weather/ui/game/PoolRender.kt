@@ -18,9 +18,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -92,6 +94,9 @@ private val ghostRing = Color.White.copy(alpha = 0.78f)
 private val ghostInner = Color(0xFFFFF59D).copy(alpha = 0.55f)
 private val placeRing = Color(0xFFFFE082)
 
+/** 瞄准警示色：首碰非法或白球将落袋时的辅助线与幽灵球描边。 */
+private val aimWarnColor = Color(0xFFE57373)
+
 private val weatherRainTint = Color(0xFF29364A).copy(alpha = 0.10f)
 private val weatherStormTint = Color(0xFF151B26).copy(alpha = 0.22f)
 private val weatherSnowTint = Color(0xFFB9C7D6).copy(alpha = 0.09f)
@@ -128,6 +133,9 @@ private object PoolRenderCache {
     /** 弧线瞄准暗示曲线。 */
     val curveHint = Path()
 
+    /** 袋口「口外半平面」裁剪多边形（逐袋口重置复用）。 */
+    val pocketClip = Path()
+
     /** 号码文字画笔，逐球只改 alpha/textSize。 */
     val numberPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -136,6 +144,126 @@ private object PoolRenderCache {
             color = android.graphics.Color.rgb(0x20, 0x1A, 0x14)
         }
 }
+
+// ---------------------------------------------------------------------
+// 热路径笔刷缓存：渐变统一以 Offset.Zero 为参考点缓存，绘制时 translate 到目标位置，
+// 避免每帧为每颗球新建 Brush 与颜色 list。
+// ---------------------------------------------------------------------
+
+/** 固定容量的小型 LRU 笔刷缓存（仅主线程绘制，无需加锁）。 */
+private class BrushCache(
+    private val capacity: Int,
+) {
+    private val entries = LinkedHashMap<Long, Brush>()
+
+    operator fun get(key: Long): Brush? {
+        val cached = entries[key] ?: return null
+        entries.remove(key)
+        entries[key] = cached
+        return cached
+    }
+
+    operator fun set(
+        key: Long,
+        brush: Brush,
+    ) {
+        entries[key] = brush
+        if (entries.size > capacity) {
+            val oldest = entries.entries.iterator()
+            if (oldest.hasNext()) {
+                oldest.next()
+                oldest.remove()
+            }
+        }
+    }
+}
+
+/** (颜色, 半径) 缓存键。 */
+private fun brushKey(
+    radius: Float,
+    colorArgb: Int,
+): Long = (colorArgb.toLong() shl 32) or (radius.toRawBits().toLong() and 0xFFFFFFFFL)
+
+/** 仅按半径缓存（颜色固定的渐变）。 */
+private fun radiusKey(radius: Float): Long = radius.toRawBits().toLong()
+
+private val sphereBaseBrushes = BrushCache(capacity = 16)
+private val sphereShadeBrushes = BrushCache(capacity = 4)
+private val sphereRimBrushes = BrushCache(capacity = 8)
+private val sphereAmbientBrushes = BrushCache(capacity = 8)
+private val sphereHighlightBrushes = BrushCache(capacity = 4)
+
+/** 球杆木质线性渐变缓存：局部坐标下沿杆长，绘制时旋转平移。 */
+private class CueStickBrushCache {
+    private var length = Float.NaN
+    private var brush: Brush? = null
+
+    fun get(length: Float): Brush {
+        val cached = brush
+        if (cached != null && this.length == length) return cached
+        return Brush
+            .linearGradient(
+                colors = listOf(cueWoodLight, cueWoodMid, cueWoodDark),
+                start = Offset.Zero,
+                end = Offset(length, 0f),
+            ).also {
+                brush = it
+                this.length = length
+            }
+    }
+}
+
+private val cueStickBrushes = CueStickBrushCache()
+
+/** 场景整屏渐变 / 太阳光晕缓存（style、昼夜或画布尺寸不变时复用）。 */
+private class SceneBrushCache {
+    private var style: WeatherSceneStyle? = null
+    private var isDay = false
+    private var overlay: Brush? = null
+    private var glowW = Float.NaN
+    private var glowH = Float.NaN
+    private var glow: Brush? = null
+
+    fun overlay(
+        style: WeatherSceneStyle,
+        isDay: Boolean,
+    ): Brush? {
+        val grad = style.gradient
+        if (grad.isEmpty()) return null
+        val cached = overlay
+        if (cached != null && this.style == style && this.isDay == isDay) return cached
+        val a = if (isDay) 0.10f else 0.16f
+        val colors = grad.map { it.copy(alpha = a) } + Color.Transparent
+        return Brush
+            .verticalGradient(colors)
+            .also {
+                overlay = it
+                this.style = style
+                this.isDay = isDay
+            }
+    }
+
+    fun sunGlow(
+        w: Float,
+        h: Float,
+    ): Brush {
+        val cached = glow
+        if (cached != null && glowW == w && glowH == h) return cached
+        val radius = w * 0.55f
+        return Brush
+            .radialGradient(
+                colors = listOf(Color(0xFFFFE082).copy(alpha = 0.20f), Color.Transparent),
+                center = Offset(w * 0.88f, h * 0.05f),
+                radius = radius,
+            ).also {
+                glow = it
+                glowW = w
+                glowH = h
+            }
+    }
+}
+
+private val sceneBrushes = SceneBrushCache()
 
 // ---------------------------------------------------------------------
 // 静态台面层烘焙缓存
@@ -154,6 +282,10 @@ private class PoolTableLayer(
     val viewScale: Float,
     val offsetX: Float,
     val offsetY: Float,
+    val tableLeft: Float,
+    val tableTop: Float,
+    val tableWidth: Float,
+    val tableHeight: Float,
     val style: WeatherSceneStyle,
     val isDay: Boolean,
     val clothTheme: Int,
@@ -178,6 +310,10 @@ private object PoolTableLayerCache {
         if (scale <= 0f) return null
         val ox = game.viewOffsetX
         val oy = game.viewOffsetY
+        val tableLeft = game.table.left
+        val tableTop = game.table.top
+        val tableWidth = game.table.width
+        val tableHeight = game.table.height
 
         val hit =
             entries.firstOrNull {
@@ -186,6 +322,10 @@ private object PoolTableLayerCache {
                     it.viewScale == scale &&
                     it.offsetX == ox &&
                     it.offsetY == oy &&
+                    it.tableLeft == tableLeft &&
+                    it.tableTop == tableTop &&
+                    it.tableWidth == tableWidth &&
+                    it.tableHeight == tableHeight &&
                     it.style == style &&
                     it.isDay == isDay &&
                     it.clothTheme == game.clothTheme
@@ -195,12 +335,16 @@ private object PoolTableLayerCache {
             entries.add(hit)
             return hit
         }
-        // 连续拖动 resize 时避免每像素重建整屏位图：尺寸相近且主题一致时复用并按需拉伸绘制
+        // 连续拖动 resize 时避免每像素重建整屏位图：尺寸相近且几何/主题一致时复用并按需拉伸绘制
         val near =
             entries.lastOrNull {
                 it.style == style &&
                     it.isDay == isDay &&
                     it.clothTheme == game.clothTheme &&
+                    it.tableLeft == tableLeft &&
+                    it.tableTop == tableTop &&
+                    it.tableWidth == tableWidth &&
+                    it.tableHeight == tableHeight &&
                     abs(it.width - w) <= RESIZE_TOLERANCE_PX &&
                     abs(it.height - h) <= RESIZE_TOLERANCE_PX
             }
@@ -212,12 +356,24 @@ private object PoolTableLayerCache {
             drawPoolTableStatic(game, style, isDay)
         }
         if (entries.size >= MAX_ENTRIES) entries.removeAt(0)
-        entries.add(PoolTableLayer(bitmap, w, h, scale, ox, oy, style, isDay, game.clothTheme))
+        entries.add(
+            PoolTableLayer(bitmap, w, h, scale, ox, oy, tableLeft, tableTop, tableWidth, tableHeight, style, isDay, game.clothTheme),
+        )
         return entries.last()
     }
 
     /** 拖动窗口时允许复用的尺寸误差（px）。 */
     private const val RESIZE_TOLERANCE_PX = 24
+
+    /** 释放缓存的全屏 Bitmap（退出对局时调用，二次进入会按需重建）。 */
+    fun clear() {
+        entries.clear()
+    }
+}
+
+/** 释放静态台面层缓存：退出对局后避免两张全屏 Bitmap 常驻内存。 */
+internal fun clearPoolTableLayerCache() {
+    PoolTableLayerCache.clear()
 }
 
 // ---------------------------------------------------------------------
@@ -232,6 +388,8 @@ internal fun DrawScope.drawPoolWeather(
     hail: Boolean,
     style: WeatherSceneStyle,
     isDay: Boolean,
+    /** 减弱动画：跳过粒子/闪电，仅保留静态底色与光晕。 */
+    reduceMotion: Boolean = false,
 ) {
     if (size.width <= 0f || size.height <= 0f) return
     val w = size.width
@@ -239,23 +397,14 @@ internal fun DrawScope.drawPoolWeather(
     val time = game.time
 
     // 场景底色：整屏铺但极淡，给台外一点氛围，不抢台面
-    val grad = style.gradient
-    if (grad.isNotEmpty()) {
-        val a = if (isDay) 0.10f else 0.16f
-        val colors =
-            grad.map { it.copy(alpha = a) } +
-                listOf(Color.Transparent)
-        drawRect(
-            Brush.verticalGradient(colors),
-            topLeft = Offset.Zero,
-            size = Size(w, h),
-        )
+    sceneBrushes.overlay(style, isDay)?.let {
+        drawRect(it, topLeft = Offset.Zero, size = Size(w, h))
     }
 
     // 冻雨 / 冰雹优先识别
     if (freezingRain) {
         drawRect(weatherFreezingTint)
-        drawFreezingRain(time, 1f, w, h, splash = false)
+        drawFreezingRain(time, 1f, w, h, splash = false, reduceMotion = reduceMotion)
         return
     }
     if (hail) {
@@ -270,32 +419,33 @@ internal fun DrawScope.drawPoolWeather(
             lenMul = 1.05f,
             alpha = 0.42f,
             splash = false,
+            reduceMotion = reduceMotion,
         )
-        drawHailPellets(time, 1f, w, h, count = 52)
-        drawStormLightning(time, 1f, w, h)
+        drawHailPellets(time, 1f, w, h, count = 52, reduceMotion = reduceMotion)
+        drawStormLightning(time, 1f, w, h, reduceMotion = reduceMotion)
         return
     }
 
     when (weather) {
         FarmWeather.RAINY -> {
             drawRect(weatherRainTint)
-            drawPoolRain(time, w, h, rain)
+            drawPoolRain(time, w, h, rain, reduceMotion)
         }
         FarmWeather.STORMY -> {
             drawRect(weatherStormTint)
-            drawPoolRain(time, w, h, RainStrength.HEAVY)
-            drawStormLightning(time, 1f, w, h)
+            drawPoolRain(time, w, h, RainStrength.HEAVY, reduceMotion)
+            drawStormLightning(time, 1f, w, h, reduceMotion = reduceMotion)
         }
         FarmWeather.SNOWY -> {
             drawRect(weatherSnowTint)
-            drawPoolSnow(time, w, h)
+            if (!reduceMotion) drawPoolSnow(time, w, h)
         }
         FarmWeather.FOGGY -> {
             drawRect(weatherFogTint)
-            drawPoolFog(time, w, h)
+            if (!reduceMotion) drawPoolFog(time, w, h)
         }
         FarmWeather.SUNNY -> drawPoolSunGlow(w, h, isDay)
-        FarmWeather.CLOUDY -> drawPoolClouds(time, w, h, isDay)
+        FarmWeather.CLOUDY -> if (!reduceMotion) drawPoolClouds(time, w, h, isDay)
     }
 }
 
@@ -304,6 +454,7 @@ private fun DrawScope.drawPoolRain(
     w: Float,
     h: Float,
     rain: RainStrength,
+    reduceMotion: Boolean,
 ) {
     val (fg, bg, alpha) =
         when (rain) {
@@ -322,6 +473,7 @@ private fun DrawScope.drawPoolRain(
         lenMul = 1.05f,
         alpha = alpha,
         splash = false,
+        reduceMotion = reduceMotion,
     )
 }
 
@@ -363,17 +515,11 @@ private fun DrawScope.drawPoolSunGlow(
     isDay: Boolean,
 ) {
     if (!isDay) return
-    val cx = w * 0.88f
-    val cy = h * 0.05f
     val radius = w * 0.55f
     drawCircle(
-        Brush.radialGradient(
-            colors = listOf(Color(0xFFFFE082).copy(alpha = 0.20f), Color.Transparent),
-            center = Offset(cx, cy),
-            radius = radius,
-        ),
+        sceneBrushes.sunGlow(w, h),
         radius = radius,
-        center = Offset(cx, cy),
+        center = Offset(w * 0.88f, h * 0.05f),
     )
 }
 
@@ -620,17 +766,43 @@ private fun DrawScope.drawPoolTableStatic(
     drawCircle(Color.White.copy(alpha = 0.32f), ballR * 0.20f, Offset(cx, footY))
     drawCircle(Color.White.copy(alpha = 0.18f), ballR * 0.10f, Offset(cx, cy))
 
-    // 袋口（盖在木框/台呢交界上）
+    // 袋口（盖在木框/台呢交界上）：黑洞按口线裁切成真实切口，只保留袋外半平面；
+    // 木框收边/高光/内阴影/网线在同一裁剪内，口线处不再出现横跨洞口的描边。
     for (pocket in table.pockets) {
-        drawPocket(
-            game.toCanvasX(pocket.x),
-            game.toCanvasY(pocket.y),
-            max(pocket.radius * scale * 1.05f, ballR * 1.9f),
+        val px = game.toCanvasX(pocket.x)
+        val py = game.toCanvasY(pocket.y)
+        // 黑洞填充半径覆盖整个口宽（角袋 1.15×捕获半径 ≥ 鼻点距 3.2 ballR），木缘沿用原视觉基准半径
+        val fillR = max(pocket.radius * scale * 1.15f, ballR * 1.9f)
+        val rimR = max(pocket.radius * scale * 1.05f, ballR * 1.9f)
+        val mouth = pocketMouth(pocket, table)
+        val clip =
+            pocketClipPath(
+                game.toCanvasX(mouth.noseAX),
+                game.toCanvasY(mouth.noseAY),
+                game.toCanvasX(mouth.noseBX),
+                game.toCanvasY(mouth.noseBY),
+                mouth.outwardX,
+                mouth.outwardY,
+                fillR * 3f,
+            )
+        clipPath(clip) {
+            drawPocket(px, py, fillR, rimR, ballR, atan2(mouth.outwardY, mouth.outwardX))
+        }
+    }
+
+    // 库边 facing（钳口）：把 12 段短斜边用库边色画在洞口上，连通「库边断开→斜口→洞」
+    for (rail in table.rails) {
+        if (!isPocketJaw(rail, table)) continue
+        drawPocketJaw(
+            game.toCanvasX(rail.x1),
+            game.toCanvasY(rail.y1),
+            game.toCanvasX(rail.x2),
+            game.toCanvasY(rail.y2),
             ballR,
         )
     }
 
-    // 库边菱形标记：上下短库各 3 个、左右长库各 7 个（与真实台一致）
+    // 库边菱形标记：上下短库各 3 个；左右长库每段 3 个（中袋 k==4 处无标记，与真实台一致）
     val dm = ballR * 0.40f
     for (k in 1..3) {
         val fx = l + (r - l) * k / 4f
@@ -638,6 +810,7 @@ private fun DrawScope.drawPoolTableStatic(
         drawDiamond(fx, b + frame * 0.5f, dm)
     }
     for (k in 1..7) {
+        if (k == 4) continue
         val fy = t + (b - t) * k / 8f
         drawDiamond(l - frame * 0.5f, fy, dm)
         drawDiamond(r + frame * 0.5f, fy, dm)
@@ -697,37 +870,79 @@ private fun DrawScope.drawMiter(
     )
 }
 
+/**
+ * 袋口「口外半平面」裁剪多边形（canvas 坐标）：以两鼻点连线为界，向袋外方向
+ * 与口线两端各外扩 [reach]，保证袋口圆/木缘外弧/网线只在袋外一侧可见。
+ */
+private fun pocketClipPath(
+    noseAX: Float,
+    noseAY: Float,
+    noseBX: Float,
+    noseBY: Float,
+    outX: Float,
+    outY: Float,
+    reach: Float,
+): Path {
+    val dx = noseBX - noseAX
+    val dy = noseBY - noseAY
+    val len = hypot(dx, dy).coerceAtLeast(1e-6f)
+    val ux = dx / len
+    val uy = dy / len
+    val path = PoolRenderCache.pocketClip
+    path.reset()
+    val aX = noseAX - ux * reach
+    val aY = noseAY - uy * reach
+    val bX = noseBX + ux * reach
+    val bY = noseBY + uy * reach
+    path.moveTo(aX, aY)
+    path.lineTo(bX, bY)
+    path.lineTo(bX + outX * reach, bY + outY * reach)
+    path.lineTo(aX + outX * reach, aY + outY * reach)
+    path.close()
+    return path
+}
+
+/**
+ * 单个袋口：木框收边 + 黑洞 + 网线 + 内阴影 + 内沿受光。
+ * 调用方按 [PocketMouth] 做口外半平面裁剪，因此所有圆形元素在口线处被切断，
+ * 不会再出现「贴一枚圆币」的整圈轮廓。
+ *
+ * [holeR] 为黑洞填充半径（完全覆盖口宽），[rimR] 为木缘视觉基准半径（沿用原比例），
+ * [outAngle] 为袋外方向角（弧度），让黑洞最深点与内阴影偏向袋外一侧。
+ */
 private fun DrawScope.drawPocket(
     px: Float,
     py: Float,
     holeR: Float,
+    rimR: Float,
     ballR: Float,
+    outAngle: Float,
 ) {
-    // 木框收边
-    drawCircle(honeyWoodDark.copy(alpha = 0.95f), holeR * 1.26f, Offset(px, py))
-    drawCircle(pocketRim.copy(alpha = 0.85f), holeR * 1.26f, Offset(px, py), style = Stroke(width = ballR * 0.14f))
-    drawCircle(woodEdge.copy(alpha = 0.6f), holeR * 1.36f, Offset(px, py), style = Stroke(width = ballR * 0.10f))
+    // 木框收边：只留口外一侧的外弧（口线处被 clip 切断）
+    drawCircle(honeyWoodDark.copy(alpha = 0.95f), rimR * 1.26f, Offset(px, py))
+    drawCircle(pocketRim.copy(alpha = 0.85f), rimR * 1.26f, Offset(px, py), style = Stroke(width = ballR * 0.14f))
+    drawCircle(woodEdge.copy(alpha = 0.6f), rimR * 1.36f, Offset(px, py), style = Stroke(width = ballR * 0.10f))
     // 洞口外阴影：让袋口整体下沉
     drawCircle(
         Brush.radialGradient(
             colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.28f)),
             center = Offset(px, py),
-            radius = holeR * 1.30f,
+            radius = rimR * 1.30f,
         ),
-        radius = holeR * 1.30f,
+        radius = rimR * 1.30f,
         center = Offset(px, py),
     )
-    // 洞（更深：中心偏左上，边到纯黑）
+    // 洞：径向渐变最深点沿袋外方向偏移，边到纯黑
     drawCircle(
         Brush.radialGradient(
             colors = listOf(pocketInk, pocketDeep, Color.Black),
-            center = Offset(px - holeR * 0.12f, py - holeR * 0.12f),
+            center = Offset(px + cos(outAngle) * holeR * 0.14f, py + sin(outAngle) * holeR * 0.14f),
             radius = holeR * 1.20f,
         ),
         radius = holeR,
         center = Offset(px, py),
     )
-    // 袋网：从内壁向心的细网线 + 网底阴影
+    // 袋网：从内壁向心的细网线 + 网底阴影（随黑洞一起被口线裁剪）
     for (i in 0 until 10) {
         val a = i * (2f * PI.toFloat() / 10f)
         val rx = cos(a)
@@ -740,25 +955,64 @@ private fun DrawScope.drawPocket(
         )
     }
     drawCircle(Color.Black.copy(alpha = 0.50f), holeR * 0.32f, Offset(px, py + holeR * 0.10f))
-    // 内阴影（下半圈更暗）
+    val outDeg = outAngle * 180f / PI.toFloat()
+    // 内阴影：袋外一侧的外弧下半圈更暗，强调洞壁下沉
     drawArc(
         color = Color.Black.copy(alpha = 0.55f),
-        startAngle = 20f,
+        startAngle = outDeg - 70f,
         sweepAngle = 140f,
         useCenter = false,
         topLeft = Offset(px - holeR, py - holeR),
         size = Size(holeR * 2f, holeR * 2f),
         style = Stroke(width = ballR * 0.22f),
     )
-    // 上缘布料/皮革反光
+    // 洞口内沿受光：袋外一侧内壁极淡的一圈反光，增强下沉感
+    drawArc(
+        color = Color.White.copy(alpha = 0.07f),
+        startAngle = outDeg - 55f,
+        sweepAngle = 110f,
+        useCenter = false,
+        topLeft = Offset(px - holeR * 0.94f, py - holeR * 0.94f),
+        size = Size(holeR * 1.88f, holeR * 1.88f),
+        style = Stroke(width = ballR * 0.10f),
+    )
+    // 口线内侧的布料/皮革反光：让「切口」边缘更清晰
     drawArc(
         color = Color.White.copy(alpha = 0.10f),
-        startAngle = 200f,
+        startAngle = outDeg + 110f,
         sweepAngle = 140f,
         useCenter = false,
         topLeft = Offset(px - holeR, py - holeR),
         size = Size(holeR * 2f, holeR * 2f),
         style = Stroke(width = ballR * 0.12f),
+    )
+}
+
+/**
+ * 钳口 facing：与库边同色的粗圆头短线，从库端鼻点沿钳口线段向袋外延伸，
+ * 把「库边断开」与黑洞之间的斜面补上，连成一体。
+ */
+private fun DrawScope.drawPocketJaw(
+    ax: Float,
+    ay: Float,
+    bx: Float,
+    by: Float,
+    ballR: Float,
+) {
+    drawLine(
+        cushionShade.copy(alpha = 0.92f),
+        Offset(ax, ay),
+        Offset(bx, by),
+        strokeWidth = ballR * 0.62f,
+        cap = StrokeCap.Round,
+    )
+    // 库端鼻点处的细微高光，与库鼻高光一致
+    drawLine(
+        Color.White.copy(alpha = 0.09f),
+        Offset(ax, ay),
+        Offset(bx, by),
+        strokeWidth = ballR * 0.18f,
+        cap = StrokeCap.Round,
     )
 }
 
@@ -938,16 +1192,18 @@ private fun DrawScope.drawSphereBase(
     base: Color,
     alpha: Float,
 ) {
-    drawCircle(
-        Brush.radialGradient(
-            colors = listOf(lighten(base, 0.42f), base, darken(base, 0.55f)),
-            center = Offset(cx - r * 0.34f, cy - r * 0.36f),
-            radius = r * 1.52f,
-        ),
-        radius = r,
-        center = Offset(cx, cy),
-        alpha = alpha,
-    )
+    val key = brushKey(r, base.toArgb())
+    val brush =
+        sphereBaseBrushes[key]
+            ?: Brush
+                .radialGradient(
+                    colors = listOf(lighten(base, 0.42f), base, darken(base, 0.55f)),
+                    center = Offset(-r * 0.34f, -r * 0.36f),
+                    radius = r * 1.52f,
+                ).also { sphereBaseBrushes[key] = it }
+    translate(cx, cy) {
+        drawCircle(brush, radius = r, center = Offset.Zero, alpha = alpha)
+    }
 }
 
 private fun DrawScope.drawSphereGloss(
@@ -957,53 +1213,55 @@ private fun DrawScope.drawSphereGloss(
     alpha: Float,
     rimLight: Color,
 ) {
-    // 边缘暗化 + 环境反光
-    drawCircle(
-        Brush.radialGradient(
-            colors = listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.34f)),
-            center = Offset(cx - r * 0.30f, cy - r * 0.32f),
-            radius = r * 1.45f,
-        ),
-        radius = r,
-        center = Offset(cx, cy),
-        alpha = alpha,
-    )
-    // 菲涅尔边缘环境光：贴边一圈柔和反光，让球体轮廓更立体
-    drawCircle(
-        Brush.radialGradient(
-            0.60f to Color.Transparent,
-            0.84f to rimLight.copy(alpha = 0.10f),
-            1.00f to rimLight.copy(alpha = 0.30f),
-            center = Offset(cx, cy),
-            radius = r,
-        ),
-        radius = r,
-        center = Offset(cx, cy),
-        alpha = alpha,
-    )
-    drawCircle(
-        Brush.radialGradient(
-            colors = listOf(rimLight.copy(alpha = 0.22f), Color.Transparent),
-            center = Offset(cx + r * 0.26f, cy + r * 0.34f),
-            radius = r * 0.95f,
-        ),
-        radius = r,
-        center = Offset(cx, cy),
-        alpha = alpha,
-    )
-    // 主高光：柔和光斑衰减 + 高亮小核
-    drawCircle(
-        Brush.radialGradient(
-            colors = listOf(Color.White.copy(alpha = 0.55f), Color.Transparent),
-            center = Offset(cx - r * 0.34f, cy - r * 0.37f),
-            radius = r * 0.44f,
-        ),
-        radius = r * 0.44f,
-        center = Offset(cx - r * 0.34f, cy - r * 0.37f),
-        alpha = alpha,
-    )
-    drawCircle(Color.White.copy(alpha = 0.82f * alpha), r * 0.15f, Offset(cx - r * 0.34f, cy - r * 0.37f))
-    drawCircle(Color.White.copy(alpha = 0.28f * alpha), r * 0.075f, Offset(cx - r * 0.12f, cy - r * 0.20f))
+    val rimKey = brushKey(r, rimLight.toArgb())
+    val shadeKey = radiusKey(r)
+    val shade =
+        sphereShadeBrushes[shadeKey]
+            ?: Brush
+                .radialGradient(
+                    colors = listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.34f)),
+                    center = Offset(-r * 0.30f, -r * 0.32f),
+                    radius = r * 1.45f,
+                ).also { sphereShadeBrushes[shadeKey] = it }
+    val fresnel =
+        sphereRimBrushes[rimKey]
+            ?: Brush
+                .radialGradient(
+                    0.60f to Color.Transparent,
+                    0.84f to rimLight.copy(alpha = 0.10f),
+                    1.00f to rimLight.copy(alpha = 0.30f),
+                    center = Offset.Zero,
+                    radius = r,
+                ).also { sphereRimBrushes[rimKey] = it }
+    val ambient =
+        sphereAmbientBrushes[rimKey]
+            ?: Brush
+                .radialGradient(
+                    colors = listOf(rimLight.copy(alpha = 0.22f), Color.Transparent),
+                    center = Offset(r * 0.26f, r * 0.34f),
+                    radius = r * 0.95f,
+                ).also { sphereAmbientBrushes[rimKey] = it }
+    val highlight =
+        sphereHighlightBrushes[shadeKey]
+            ?: Brush
+                .radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.55f), Color.Transparent),
+                    center = Offset(-r * 0.34f, -r * 0.37f),
+                    radius = r * 0.44f,
+                ).also { sphereHighlightBrushes[shadeKey] = it }
+    val highlightCenter = Offset(-r * 0.34f, -r * 0.37f)
+
+    translate(cx, cy) {
+        // 边缘暗化 + 环境反光
+        drawCircle(shade, radius = r, center = Offset.Zero, alpha = alpha)
+        // 菲涅尔边缘环境光：贴边一圈柔和反光，让球体轮廓更立体
+        drawCircle(fresnel, radius = r, center = Offset.Zero, alpha = alpha)
+        drawCircle(ambient, radius = r, center = Offset.Zero, alpha = alpha)
+        // 主高光：柔和光斑衰减 + 高亮小核
+        drawCircle(highlight, radius = r * 0.44f, center = highlightCenter, alpha = alpha)
+        drawCircle(Color.White.copy(alpha = 0.82f * alpha), r * 0.15f, highlightCenter)
+        drawCircle(Color.White.copy(alpha = 0.28f * alpha), r * 0.075f, Offset(-r * 0.12f, -r * 0.20f))
+    }
 }
 
 private fun DrawScope.drawStripeBand(
@@ -1185,21 +1443,21 @@ private fun DrawScope.drawCueStick(
     val tipW = ballR * 0.15f
     val buttW = ballR * 0.42f
 
+    // 局部坐标构建杆身（x 沿皮头→杆尾），笔刷按杆长缓存后用 translate/rotate 落到世界坐标
     val path = PoolRenderCache.shape
     path.reset()
-    path.moveTo(tipX + perpX * tipW, tipY + perpY * tipW)
-    path.lineTo(buttX + perpX * buttW, buttY + perpY * buttW)
-    path.lineTo(buttX - perpX * buttW, buttY - perpY * buttW)
-    path.lineTo(tipX - perpX * tipW, tipY - perpY * tipW)
+    path.moveTo(0f, tipW)
+    path.lineTo(stickLen, buttW)
+    path.lineTo(stickLen, -buttW)
+    path.lineTo(0f, -tipW)
     path.close()
-    drawPath(
-        path,
-        Brush.linearGradient(
-            colors = listOf(cueWoodLight, cueWoodMid, cueWoodDark),
-            start = Offset(tipX, tipY),
-            end = Offset(buttX, buttY),
-        ),
-    )
+    val stickDeg = atan2(backY, backX) * 180f / PI.toFloat()
+    withTransform({
+        translate(tipX, tipY)
+        rotate(degrees = stickDeg, pivot = Offset.Zero)
+    }) {
+        drawPath(path, cueStickBrushes.get(stickLen))
+    }
     // 前节白箍
     val ferruleX = tipX + backX * ballR * 1.6f
     val ferruleY = tipY + backY * ballR * 1.6f
@@ -1266,12 +1524,20 @@ private fun DrawScope.drawAimAssist(
         val ghostX = game.toCanvasX(fc.x)
         val ghostY = game.toCanvasY(fc.y)
         val target = fc.target
+        // 首碰是否合法：非法时幽灵球 / 引导线 / 目标线统一切警示色
+        val legalContact = PoolRules.isLegalFirstContact(game.match, game.balls, target)
+        val ghostStroke = if (legalContact) ghostRing else aimWarnColor
+        val ghostInnerStroke = if (legalContact) ghostInner else aimWarnColor.copy(alpha = 0.55f)
+        val cueGuideColor = if (legalContact) aimLineColor else aimWarnColor
+        val targetGuideColor = if (legalContact) targetLineColor else aimWarnColor
+        val potArrowColor = if (legalContact) potLineColor else aimWarnColor
+        val breakArrowColor = if (legalContact) cueBreakColor else aimWarnColor
 
         if (full) {
             drawGuideLine(
                 Offset(cx, cy),
                 Offset(ghostX, ghostY),
-                aimLineColor,
+                cueGuideColor,
                 ballR * 0.10f,
                 ballR * 0.60f,
                 ballR * 0.48f,
@@ -1280,9 +1546,9 @@ private fun DrawScope.drawAimAssist(
 
         // 幽灵球：外发光 + 高亮描边，命中点更醒目
         drawCircle(ghostFill, ballR, Offset(ghostX, ghostY))
-        drawCircle(ghostRing.copy(alpha = 0.20f), ballR * 1.16f, Offset(ghostX, ghostY), style = Stroke(ballR * 0.18f))
-        drawCircle(ghostRing, ballR, Offset(ghostX, ghostY), style = Stroke(ballR * 0.14f))
-        drawCircle(ghostInner, ballR * 0.55f, Offset(ghostX, ghostY), style = Stroke(ballR * 0.06f))
+        drawCircle(ghostStroke.copy(alpha = 0.20f), ballR * 1.16f, Offset(ghostX, ghostY), style = Stroke(ballR * 0.18f))
+        drawCircle(ghostStroke, ballR, Offset(ghostX, ghostY), style = Stroke(ballR * 0.14f))
+        drawCircle(ghostInnerStroke, ballR * 0.55f, Offset(ghostX, ghostY), style = Stroke(ballR * 0.06f))
 
         // 目标球路径：预测到袋口 / 其它球 / 库边（与物理同一套捕获判定，画到哪就打到哪）
         val tvx = target.x - fc.x
@@ -1311,7 +1577,7 @@ private fun DrawScope.drawAimAssist(
                 drawArrowLine(
                     Offset(startX, startY),
                     Offset(pathEndX, pathEndY),
-                    potLineColor,
+                    potArrowColor,
                     ballR * 0.12f,
                     ballR * 0.90f,
                 )
@@ -1324,7 +1590,7 @@ private fun DrawScope.drawAimAssist(
                 drawGuideLine(
                     Offset(startX, startY),
                     Offset(pathEndX, pathEndY),
-                    targetLineColor,
+                    targetGuideColor,
                     ballR * 0.10f,
                     ballR * 0.60f,
                     ballR * 0.48f,
@@ -1339,7 +1605,7 @@ private fun DrawScope.drawAimAssist(
                         drawArrowLine(
                             Offset(pathEndX, pathEndY),
                             Offset(pathEndX + bx / bl * ballR * 7f, pathEndY + by / bl * ballR * 7f),
-                            cueBreakColor,
+                            breakArrowColor,
                             ballR * 0.10f,
                             ballR * 0.70f,
                         )
@@ -1369,14 +1635,35 @@ private fun DrawScope.drawAimAssist(
             if (full) {
                 // 白球分离线（切线方向，符号取白球碰后实际切线速度方向）
                 val (sepX, sepY) = cueSeparationDirection(ux, uy, cue.x, cue.y, fc.x, fc.y)
+                // 沿白球分离方向预测白球路径：终点是袋口则预警「这一杆白球会落袋」
+                val cuePath =
+                    PoolPhysics.predictObjectPath(
+                        game.balls,
+                        table,
+                        fc.x,
+                        fc.y,
+                        sepX,
+                        sepY,
+                        cue.radius,
+                        cue,
+                    )
+                val scratchPocket = cuePath.pocket
+                val sepColor = if (scratchPocket != null || !legalContact) aimWarnColor else cueBreakColor
                 drawGuideLine(
                     Offset(ghostX, ghostY),
                     Offset(ghostX + sepX * ballR * 6f, ghostY + sepY * ballR * 6f),
-                    cueBreakColor,
+                    sepColor,
                     ballR * 0.10f,
                     ballR * 0.55f,
                     ballR * 0.45f,
                 )
+                if (scratchPocket != null) {
+                    val holeR = max(scratchPocket.radius * scale * 1.15f, ballR * 1.9f)
+                    val holeX = game.toCanvasX(scratchPocket.x)
+                    val holeY = game.toCanvasY(scratchPocket.y)
+                    drawCircle(aimWarnColor.copy(alpha = 0.20f), holeR, Offset(holeX, holeY))
+                    drawCircle(aimWarnColor, holeR, Offset(holeX, holeY), style = Stroke(ballR * 0.16f))
+                }
             }
         }
         return

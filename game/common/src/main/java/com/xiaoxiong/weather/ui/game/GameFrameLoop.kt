@@ -106,16 +106,51 @@ private const val PAUSED_POLL_MS = 100L
  * 农场需要「渲染帧循环」与「自动存档」解耦：存档按固定间隔、不依赖帧率，
  * 避免低帧率时存档滞后、高帧率时频繁写盘。定时器独立运行，不阻塞渲染。
  * 回调内部已做异常兜底，定时器不会因回调抛异常而中断。
+ *
+ *  - [intervalMs]/[onInterval] 用 rememberUpdatedState 捕获最新值，重组换新参数/回调不会读过期闭包；
+ *  - 低于 [Lifecycle.State.STARTED]（切后台）不再注册定时、只低频轮询，避免后台仍定时写盘；
+ *  - 后台恢复后立即补一次回调（幂等调用方安全），不用等满一个间隔才有下一次。
  */
 @Composable
 fun GameRepeatingInterval(
     intervalMs: Long,
     onInterval: () -> Unit,
 ) {
-    LaunchedEffect(Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentIntervalMs = rememberUpdatedState(intervalMs)
+    val currentOnInterval = rememberUpdatedState(onInterval)
+
+    LaunchedEffect(lifecycleOwner) {
+        var wasStarted = false
         while (isActive) {
-            delay(intervalMs)
-            runCatching { onInterval() }
+            val started = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            if (!started) {
+                wasStarted = false
+                delay(PAUSED_POLL_MS)
+                continue
+            }
+            if (shouldFireOnResume(started = started, wasStarted = wasStarted)) {
+                // 后台恢复：立即补一次（农场 save 幂等），省去再等满一个间隔
+                runCatching { currentOnInterval.value() }
+            }
+            wasStarted = true
+            delay(intervalDelayMs(currentIntervalMs.value))
+            // 等待期间若切到后台：本轮不触发，回到循环顶部转入后台轮询
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                runCatching { currentOnInterval.value() }
+            }
         }
     }
 }
+
+/**
+ * 后台→前台恢复时是否立即补一次回调：仅「刚恢复」的第一轮为 true，
+ * 持续前台不会重复补发。纯逻辑便于 JVM 单测。
+ */
+internal fun shouldFireOnResume(
+    started: Boolean,
+    wasStarted: Boolean,
+): Boolean = started && !wasStarted
+
+/** 定时器间隔下限：非正数会让 `delay(0)` 忙循环。 */
+internal fun intervalDelayMs(intervalMs: Long): Long = intervalMs.coerceAtLeast(1L)

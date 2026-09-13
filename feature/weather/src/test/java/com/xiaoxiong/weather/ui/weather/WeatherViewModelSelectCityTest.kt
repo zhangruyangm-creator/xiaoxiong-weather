@@ -161,6 +161,61 @@ class WeatherViewModelSelectCityTest {
         }
 
     @Test
+    fun republishBaseWeather_suspendedThenCitySwitch_doesNotOverwriteNewCity() =
+        runTest {
+            val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)
+            val cityB = WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
+            val debugStore = FakeDebugWeatherSource()
+            val vm =
+                createTestViewModel(
+                    RecordingFetcher(
+                        weatherBlock = { city -> snapshotFor(city, temp = if (city.name == "济南") 15.0 else 25.0) },
+                    ),
+                    debugWeatherStore = debugStore,
+                ).vm
+
+            vm.selectCity(cityA)
+            advanceUntilIdle()
+            assertEquals(
+                15.0,
+                vm.uiState.value.weather
+                    ?.current
+                    ?.temperatureC,
+            )
+
+            // 调试回灌（republishBaseWeather）在读调试状态时挂起；
+            // 这里 exit 时本就处于退出态，只触发一次回灌，不额外触发状态流
+            val gate = CompletableDeferred<Unit>()
+            debugStore.getOnceGates += gate
+            vm.exitDebugMode()
+            advanceUntilIdle()
+
+            // 挂起窗口内换城：B 的网络结果先完成发布
+            vm.selectCity(cityB)
+            advanceUntilIdle()
+            assertEquals(
+                "青岛",
+                vm.uiState.value.selectedCity
+                    ?.name,
+            )
+            assertEquals(
+                25.0,
+                vm.uiState.value.weather
+                    ?.current
+                    ?.temperatureC,
+            )
+
+            // 放行旧 base 的回灌续体：恢复后复核失败，不得把界面盖回济南旧快照
+            gate.complete(Unit)
+            advanceUntilIdle()
+
+            val state = vm.uiState.value
+            assertEquals("青岛", state.selectedCity?.name)
+            assertEquals("青岛", state.weather?.city?.name)
+            assertEquals(25.0, state.weather?.current?.temperatureC)
+        }
+
+    @Test
     fun selectCity_cancelsPendingLocateAndDropsStaleFetch() =
         runTest {
             val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)
@@ -492,6 +547,34 @@ class WeatherViewModelSelectCityTest {
             vm.selectCity(cityB)
             advanceUntilIdle()
             assertNull(vm.uiState.value.phenologyShiftDays)
+        }
+
+    @Test
+    fun fetchHistoryDay_beforeCityReady_replaysAfterSelectCity() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val date = LocalDate.now().minusDays(2)
+            val fetcher =
+                RecordingFetcher(
+                    historyBlock = { _, _ -> testHistoryWeather(date, tempMax = 30.0) },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            // 模拟进程重建：历史页在城市加载完成前发起查询，此时无城市可查
+            vm.fetchHistoryDay(date)
+            advanceUntilIdle()
+            assertEquals(0, fetcher.historyCallCount)
+
+            // 冷启动/选城完成城市就绪：挂起的查询自动补发
+            vm.selectCity(city)
+            advanceUntilIdle()
+
+            assertEquals(1, fetcher.historyCallCount)
+            assertEquals(
+                30.0,
+                vm.uiState.value.historyWeather
+                    ?.tempMaxC,
+            )
         }
 
     @Test

@@ -27,6 +27,28 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # flavor 化后 profile 必须放在 src/<flavor><BuildType>/generated/baselineProfiles/，
+      # 放在 src/release/ 不会参与合并（曾导致 Release 无 App 级 profile 且无人发现）。
+      # full/lite 依赖不同（lite 无游戏模块），profile 本就应当不同，不做字节一致断言；
+      # 只校验各自存在且包含足量行/自有 app 类，防止空文件或占位文件混过 CI。
+      - name: Verify flavor baseline profiles present
+        run: |
+          for profile in \
+            app/src/fullRelease/generated/baselineProfiles/baseline-prof.txt \
+            app/src/liteRelease/generated/baselineProfiles/baseline-prof.txt
+          do
+            [ -f "$profile" ] || { echo "missing baseline profile: $profile"; exit 1; }
+            lines=$(wc -l < "$profile" | tr -d ' ')
+            if [ "$lines" -lt 100 ]; then
+              echo "baseline profile too small: $profile ($lines lines)"; exit 1
+            fi
+            app_entries=$(grep -c 'com/xiaoxiong' "$profile" || true)
+            if [ "$app_entries" -lt 200 ]; then
+              echo "baseline profile too few app classes: $profile ($app_entries entries)"; exit 1
+            fi
+            echo "baseline profile OK: $profile ($lines lines, $app_entries app entries)"
+          done
+
       - name: ktlint
         run: ./gradlew lintKotlin
 
@@ -46,6 +68,10 @@ jobs:
 
       - name: Build release (full, R8 + shrinkResources)
         run: ./gradlew :app:assembleFullRelease
+
+      # lite 版依赖裁剪（零游戏依赖）容易在无人构建时被破坏，CI 与 full 同环境构建
+      - name: Build release (lite, R8 + shrinkResources)
+        run: ./gradlew :app:assembleLiteRelease
 
       - name: Verify game ServiceLoader registrations survive R8
         run: |

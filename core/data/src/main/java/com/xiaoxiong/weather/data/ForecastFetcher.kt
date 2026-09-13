@@ -37,6 +37,11 @@ class ForecastFetcher(
      * 主源近期故障标记的 TTL：命中期间跳过主源直接走备用/MET，见 [PrimarySourceHealth]。
      */
     primaryFailureTtlMs: Long = PrimarySourceHealth.DEFAULT_FAILURE_TTL_MS,
+    /**
+     * 当前设置温度单位（预警文案用）。默认读进程级注入的 provider；
+     * 未注入时保持摄氏，保证单测与未装配场景行为不变。
+     */
+    private val temperatureUnitProvider: suspend () -> TemperatureUnit = { installedTemperatureUnitProvider() },
 ) {
     private val metNorway: MetNorwayFetcher? =
         metNorwayBase?.let { MetNorwayFetcher(client, json, it) }
@@ -63,6 +68,7 @@ class ForecastFetcher(
 
                 val forecast = forecastDeferred.await()
                 val airQuality = airDeferred.await()
+                val temperatureUnit = temperatureUnitProvider()
                 val alerts =
                     WeatherAlertGenerator.generate(
                         resources = resources,
@@ -70,6 +76,7 @@ class ForecastFetcher(
                         hourly = forecast.hourly,
                         daily = forecast.daily,
                         airQuality = airQuality,
+                        temperatureUnit = temperatureUnit,
                     )
                 val advice =
                     WeatherAdviceGenerator.generate(
@@ -146,12 +153,12 @@ class ForecastFetcher(
     private fun isMetNorwayFallbackWorthy(e: Exception): Boolean = isTransientSourceFailure(e)
 
     /**
-     * 是否属于「换源有意义」的瞬时故障：5xx 服务端故障、429 限流、408 超时、
+     * 是否属于「换源有意义」的瞬时故障：5xx 服务端故障、429 限流、408 超时、425 过早、
      * 网络不可达、数据格式异常。其余 4xx 是请求本身问题，换源也不会成功。
      */
     private fun isTransientSourceFailure(e: Exception): Boolean =
         when (e) {
-            is AppError.Http -> e.code in 500..599 || e.code == 429 || e.code == 408
+            is AppError.Http -> e.code in 500..599 || e.code == 429 || e.code == 408 || e.code == 425
             is AppError.NetworkUnavailable -> true
             is AppError.DataFormat -> true
             else -> e is java.io.IOException
@@ -375,6 +382,17 @@ class ForecastFetcher(
         }
 
     companion object {
+        /**
+         * 进程级温度单位 provider：App 装配层/DebugWeatherStore 在拿到 Context 后注入设置读取，
+         * 使前台快照里的预警文案跟随「设置 → 温度单位」。默认摄氏。
+         */
+        @Volatile
+        private var installedTemperatureUnitProvider: suspend () -> TemperatureUnit = { TemperatureUnit.CELSIUS }
+
+        fun installTemperatureUnitProvider(provider: suspend () -> TemperatureUnit) {
+            installedTemperatureUnitProvider = provider
+        }
+
         /**
          * 主预报站的备用入口。当前 Open-Meteo 免费 API 无官方镜像，保持为空；
          * 将来接入可验证的第二入口（如自建代理 / 其它兼容源）后在此配置，

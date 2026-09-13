@@ -440,6 +440,32 @@ object PoolRules {
             .minByOrNull { it.number }
 
     /**
+     * 预测首碰球是否为当前击球方的合法目标（瞄准辅助提示用，只读纯函数）。
+     *  - 八球：开放台任意非 8；确定花色后为本方花色；清台后必须 8；
+     *  - 九球：必须是最低号球；
+     *  - 练习/挑战：不判非法（永远合法，白球除外）。
+     */
+    fun isLegalFirstContact(
+        state: PoolMatchState,
+        balls: List<PoolBall>,
+        contactBall: PoolBall?,
+    ): Boolean {
+        if (contactBall == null || contactBall.kind == PoolBallKind.CUE) return false
+        return when (state.mode) {
+            PoolMode.PRACTICE, PoolMode.CHALLENGE -> true
+            PoolMode.NINE_BALL -> contactBall.number == lowestBall(balls)?.number
+            PoolMode.EIGHT_BALL -> {
+                if (state.openTable) {
+                    contactBall.kind != PoolBallKind.EIGHT
+                } else {
+                    val targetKind = targetKindFor(state, remaining(balls))
+                    targetKind == null || contactBall.kind == targetKind
+                }
+            }
+        }
+    }
+
+    /**
      * 当前击球方应优先击打的「目标球」。
      *  - 九球：最低号球；
      *  - 练习：无固定目标（返回 null）；

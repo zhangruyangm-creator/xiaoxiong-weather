@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,8 +47,13 @@ fun BearMazeScreen(
         remember {
             MazeGame().also { it.loadProgress(prefs) }
         }
-    // 本地日（用于每日迷宫与完成记录）
-    val today = remember { LocalDate.now().toEpochDay() }
+    // 本地日（用于每日迷宫与完成记录）；跨零点回到前台（ON_RESUME）时刷新
+    var today by remember { mutableLongStateOf(LocalDate.now().toEpochDay()) }
+    // 每日最佳用 today 做 key：跨天后自动重新读取新一天的记录
+    var dailyBest by remember(today) { mutableIntStateOf(prefs.getInt("maze_daily_$today", -1)) }
+    // 事件特效宿主（粒子/庆祝）。提到 Screen 层是为了让帧循环能在特效结束后暂停；
+    // observe() 会按 grid 身份感知换关并清空上一局粒子。
+    val fx = remember { MazeFxHost() }
     // 可续会话摘要：进入先回选关，只有点「继续」才 restoreSession
     var savedSession by remember { mutableStateOf<SavedSessionInfo?>(null) }
     // 进入 / 回到选关时探测存档；选关阶段的 saveSession 不再清档，只有主动开新局才放弃
@@ -57,12 +63,20 @@ fun BearMazeScreen(
         }
     }
     // 组合销毁（切屏/旋转重建）时把局中对局落盘，供下次恢复；
-    // 按 Home 等切入后台（ON_STOP）时也落盘一次，避免进程被系统回收丢档
+    // 按 Home 等切入后台（ON_STOP）时也落盘一次，避免进程被系统回收丢档；
+    // 回到前台（ON_RESUME）时刷新「今天」，跨零点后选关页展示新每日图与新纪录
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP) game.saveSession(prefs)
+                when (event) {
+                    Lifecycle.Event.ON_STOP -> game.saveSession(prefs)
+                    Lifecycle.Event.ON_RESUME -> {
+                        val now = LocalDate.now().toEpochDay()
+                        if (now != today) today = now
+                    }
+                    else -> Unit
+                }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
@@ -78,7 +92,6 @@ fun BearMazeScreen(
     // 存在可续会话（战役/无尽/每日）时，开始新局前的放弃确认
     var showOverwriteDialog by remember { mutableStateOf(false) }
     var pendingStart by remember { mutableStateOf<(() -> Unit)?>(null) }
-    val dailyBest = prefs.getInt("maze_daily_$today", -1)
 
     // 有存档时先确认再开新局；确认后丢弃旧会话
     fun guardedStart(action: () -> Unit) {
@@ -98,7 +111,12 @@ fun BearMazeScreen(
     // SELECT 阶段 time 空转 60fps 耗电（与 jump/catch 的 paused 语义一致）。
     GameFrameLoop(
         paused = {
-            showAbandonDialog || showCharacterPicker || game.phase == MazePhase.SELECT || pause.paused
+            showAbandonDialog ||
+                showCharacterPicker ||
+                game.phase == MazePhase.SELECT ||
+                pause.paused ||
+                // CLEAR 且庆祝/粒子都已结束：画面静止，停帧省电（isIdle 会等待首帧观测庆祝）
+                (game.phase == MazePhase.CLEAR && fx.isIdle(game))
         },
     ) { dt, now ->
         val before = game.phase
@@ -113,7 +131,11 @@ fun BearMazeScreen(
                 if (game.daily) {
                     val key = "maze_daily_${game.dailyDate}"
                     val prev = prefs.getInt(key, -1)
-                    if (prev < 0 || game.moves < prev) prefs.edit { putInt(key, game.moves) }
+                    if (prev < 0 || game.moves < prev) {
+                        prefs.edit { putInt(key, game.moves) }
+                        // 只更新今天对应的展示状态；旧日期的会话不污染今日最佳
+                        if (game.dailyDate == today) dailyBest = game.moves
+                    }
                 }
             } else {
                 // 按落地事件类型区分触感（落地只响一次，按键本身不再响）
@@ -170,6 +192,7 @@ fun BearMazeScreen(
                     game = game,
                     sprites = sprites,
                     frame = frame,
+                    fx = fx,
                     weather = mazeWeather,
                     rainStrength = mazeRain,
                     freezingRain = mazeFreezingRain,

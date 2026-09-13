@@ -40,6 +40,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -120,8 +122,19 @@ enum class HourlyMetric(
     fun labelRes(unit: TemperatureUnit): Int = if (unit == TemperatureUnit.FAHRENHEIT) labelFahrenheitRes else labelCelsiusRes
 }
 
+/**
+ * 选中时刻在新小时列表中的下标：按时间重定位，滚窗/静默刷新后不漂移；
+ * 该时刻已滚出窗口时返回 null（替代旧的下标越界兜底清除）。
+ */
+internal fun remapSelectedIndex(
+    selectedTime: String?,
+    times: List<String>,
+): Int? = selectedTime?.let { time -> times.indexOf(time).takeIf { it >= 0 } }
+
 private val SelectedLineColor = Color(0xFFFFC107)
-private val SelectedLabelColorInt = "#F9A825".toColorInt()
+
+// 懒初始化：避免 JVM 单测加载本文件时触发 android.graphics.Color 的 "not mocked"
+private val SelectedLabelColorInt: Int by lazy { "#F9A825".toColorInt() }
 
 @Composable
 fun HourlyChartSection(
@@ -131,20 +144,22 @@ fun HourlyChartSection(
     cityId: Long,
     onDragStateChange: (Boolean) -> Unit = {},
 ) {
-    var metric by remember { mutableStateOf(HourlyMetric.TEMPERATURE) }
-    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    // 指标/展开态/选中时刻跨旋转保留；选中按时间而不是下标记录，
+    // 整点滚窗后按时间重新定位，选中点不随时间窗口漂移
+    var metric by rememberSaveable { mutableStateOf(HourlyMetric.TEMPERATURE) }
+    var selectedTime by rememberSaveable { mutableStateOf<String?>(null) }
+    var detailsExpanded by rememberSaveable { mutableStateOf(false) }
     // 仅在换城或切换指标时清掉选中标记：静默刷新生成的新列表不清，
-    // 否则用户选中的时刻会被周期性刷新悄悄重置
+    // 否则用户选中的时刻会被周期性刷新悄悄重置。
+    // 已处理的键也保存，避免旋转重建时把刚恢复的选中点误清。
+    var selectionResetKey by rememberSaveable { mutableStateOf("$cityId|${metric.name}") }
     LaunchedEffect(cityId, metric) {
-        selectedIndex = null
+        val key = "$cityId|${metric.name}"
+        if (selectionResetKey != key) {
+            selectionResetKey = key
+            selectedTime = null
+        }
     }
-    // 整点滚窗后旧下标越界时兜底清除，避免选中态残留
-    LaunchedEffect(hourly.size) {
-        val selected = selectedIndex
-        if (selected != null && selected >= hourly.size) selectedIndex = null
-    }
-    // 小时明细默认折叠，避免页面一进来就是 24 行列表
-    var detailsExpanded by remember { mutableStateOf(false) }
     val tempUnit = LocalTemperatureUnit.current
 
     val times = remember(hourly) { hourly.map { it.time } }
@@ -152,6 +167,9 @@ fun HourlyChartSection(
         remember(times, currentTime) {
             indexOfCurrentHour(times, currentTime)
         }
+    // 按时间重定位：静默刷新/滚窗后选中点不漂移；该时刻滚出窗口则为 null
+    val selectedIndex = remember(selectedTime, times) { remapSelectedIndex(selectedTime, times) }
+    val latestTimes by rememberUpdatedState(times)
 
     val values =
         remember(hourly, metric, tempUnit) {
@@ -165,6 +183,11 @@ fun HourlyChartSection(
                     HourlyMetric.WIND -> item.windSpeedKmh
                 }
             }
+        }
+    // 拖动时每帧都要画选中值标签：预派生字符串，避免每帧 String.format
+    val valueLabels =
+        remember(values, metric, tempUnit) {
+            values.map { it?.let { value -> formatMetricValue(metric, value, tempUnit) } }
         }
 
     val showSelectedMarker =
@@ -289,7 +312,7 @@ fun HourlyChartSection(
 
                         fun selectAt(x: Float) {
                             val nearest = nearestIndex(x) ?: return
-                            selectedIndex = nearest
+                            selectedTime = latestTimes.getOrNull(nearest)
                         }
 
                         awaitEachGesture {
@@ -449,7 +472,7 @@ fun HourlyChartSection(
                                 drawCircle(color = color, radius = 8.5f, center = Offset(x, y))
                                 drawCircle(color = Color.White, radius = 3.5f, center = Offset(x, y))
 
-                                val label = formatMetricValue(metric, value, tempUnit)
+                                val label = valueLabels.getOrNull(index) ?: return
                                 valuePaint.color = labelColorInt
                                 val textWidth = valuePaint.measureText(label)
                                 val padH = 10f
@@ -542,14 +565,14 @@ fun HourlyChartSection(
             )
             if (currentIndex in values.indices) {
                 Text(
-                    text = values[currentIndex]?.let { formatMetricValue(metric, it, tempUnit) }.orEmpty(),
+                    text = valueLabels.getOrNull(currentIndex).orEmpty(),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = nowColor,
                 )
             }
-            val selIdx = selectedIndex
-            if (showSelectedMarker && selIdx != null) {
+            val selIdx = selectedIndex.takeIf { showSelectedMarker }
+            if (selIdx != null) {
                 Spacer(modifier = Modifier.width(6.dp))
                 LegendDot(color = SelectedLineColor)
                 Text(
@@ -562,7 +585,7 @@ fun HourlyChartSection(
                     color = labelColor,
                 )
                 Text(
-                    text = values[selIdx]?.let { formatMetricValue(metric, it, tempUnit) }.orEmpty(),
+                    text = valueLabels.getOrNull(selIdx).orEmpty(),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = SelectedLineColor,
@@ -583,7 +606,7 @@ fun HourlyChartSection(
             Column {
                 Spacer(modifier = Modifier.height(6.dp))
                 // 稳定实例：拖动折线时 CompactHourlyList 重组，各行靠稳定参数跳过
-                val onSelectHour = remember { { index: Int -> selectedIndex = index } }
+                val onSelectHour = remember { { index: Int -> selectedTime = latestTimes.getOrNull(index) } }
                 CompactHourlyList(
                     hourly = hourly,
                     currentTime = currentTime,

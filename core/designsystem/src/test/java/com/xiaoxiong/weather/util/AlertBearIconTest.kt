@@ -126,6 +126,48 @@ class AlertBearIconTest {
     }
 
     @Test
+    fun rainSoon_umbrellaBoundaries_followWeatherCodesIntensity() {
+        // 各档边界与 WeatherCodes.rainIntensity 完全一致（此前 16 落在 heavy 档会与 ≥16 暴雨打架）
+        assertEquals(
+            R.drawable.ic_launcher_bear_rainy,
+            AlertBearIcon.rainSoonUmbrellaRes(WeatherCodes.PRECIP_LIGHT_MAX_MM_H),
+        )
+        assertEquals(
+            R.drawable.ic_launcher_bear_moderate_rain,
+            AlertBearIcon.rainSoonUmbrellaRes(WeatherCodes.PRECIP_LIGHT_MAX_MM_H + 0.01),
+        )
+        assertEquals(
+            R.drawable.ic_launcher_bear_moderate_rain,
+            AlertBearIcon.rainSoonUmbrellaRes(WeatherCodes.PRECIP_HEAVY_MM_H),
+        )
+        assertEquals(
+            R.drawable.ic_launcher_bear_heavy_rain,
+            AlertBearIcon.rainSoonUmbrellaRes(WeatherCodes.PRECIP_HEAVY_MM_H + 0.01),
+        )
+        assertEquals(
+            R.drawable.ic_launcher_bear_heavy_rain,
+            AlertBearIcon.rainSoonUmbrellaRes(WeatherCodes.PRECIP_TORRENTIAL_MM_H - 0.01),
+        )
+        assertEquals(
+            R.drawable.ic_launcher_bear_violent_rain,
+            AlertBearIcon.rainSoonUmbrellaRes(WeatherCodes.PRECIP_TORRENTIAL_MM_H),
+        )
+        assertEquals(
+            R.drawable.ic_launcher_bear_violent_rain,
+            AlertBearIcon.rainSoonUmbrellaRes(WeatherCodes.PRECIP_VIOLENT_MM_H),
+        )
+        assertEquals(
+            R.drawable.ic_launcher_bear_extreme_rain,
+            AlertBearIcon.rainSoonUmbrellaRes(WeatherCodes.PRECIP_VIOLENT_MM_H + 0.01),
+        )
+        // 无降水/极弱降水仍是普通雨伞
+        assertEquals(
+            R.drawable.ic_launcher_bear_rainy,
+            AlertBearIcon.rainSoonUmbrellaRes(0.0),
+        )
+    }
+
+    @Test
     fun dedicatedAndReuse_coverAllKinds() {
         val dedicated =
             setOf(

@@ -8,16 +8,27 @@ import com.xiaoxiong.weather.di.AppContainer
 import com.xiaoxiong.weather.util.CrashReporting
 import com.xiaoxiong.weather.util.PerformanceMonitor
 import com.xiaoxiong.weather.util.WeatherLauncherIcon
+import com.xiaoxiong.weather.util.runCatchingCancellable
+import com.xiaoxiong.weather.widget.TemperatureUnitChangeDetector
+import com.xiaoxiong.weather.widget.WeatherWidgetUpdater
 import com.xiaoxiong.weather.worker.WeatherRefreshWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 class WeatherApp : Application() {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val postConsentInitialized = AtomicBoolean(false)
+
+    /** 前台天气发布触发的延迟合并任务；立即 flush（onStop）时会取消它。 */
+    private var launcherIconFlushJob: Job? = null
+
+    /** 温度单位变化触发的桌面小组件合并刷新任务。 */
+    private var widgetUnitRefreshJob: Job? = null
 
     /** 进程启动时刻（elapsedRealtime），用于计算冷启动耗时 */
     private val processStartMs = SystemClock.elapsedRealtime()
@@ -35,10 +46,31 @@ class WeatherApp : Application() {
 
         container = AppContainer(this)
 
-        // 启动后台准备：PackageManager 对账 + ServiceLoader 扫描都不该占用首帧主线程
+        // 主线程 schedule 只短锁排队；真正的 PackageManager 切换交给 appScope，
+        // 且做合并 + 延迟（见 scheduleLauncherIconFlush）：同一轮缓存发布 + 网络发布
+        // 只切一次，避免前台加载路径立即做 PM 全量切换造成图标闪烁/OEM 杀进程
+        WeatherLauncherIcon.flushScheduler = { scheduleLauncherIconFlush() }
+
+        // 启动后台准备：游戏入口预载与 PackageManager 对账并行，互不等待
+        // （游戏入口优先可读，冷启动早期输口令/连点标题不会因对账耗时无响应）
+        appScope.launch {
+            runCatching { container.preloadGameEntries() }
+                .onFailure { CrashReporting.record(it) }
+        }
         appScope.launch {
             runCatching { WeatherLauncherIcon.reconcile(this@WeatherApp) }
-            runCatching { container.preloadGameEntries() }
+                .onFailure { CrashReporting.record(it) }
+        }
+
+        // 温度单位切换后重绘桌面小组件：设置流首次发射是初值，跳过；
+        // 短时间连续切换由 scheduleWidgetRefreshForUnitChange 合并
+        appScope.launch {
+            val unitChanges = TemperatureUnitChangeDetector()
+            container.settingsStore.settings.collect { settings ->
+                if (unitChanges.onUnit(settings.temperatureUnit)) {
+                    scheduleWidgetRefreshForUnitChange()
+                }
+            }
         }
 
         // 记录冷启动耗时（Application.onCreate 完成时）
@@ -73,27 +105,72 @@ class WeatherApp : Application() {
     }
 
     /**
-     * Activity 退后台时调用：排队中的桌面图标切换放到 appScope 执行。
+     * 前台天气发布触发的合并 + 延迟切换：1.5s 窗口内的多次 schedule 只 flush 一次，
+     * 且不在天气加载的主线程调用路径上直接做 PackageManager 全量切换。
+     * [flushLauncherIconPending]（onStop）会取消延迟任务并立即执行。
+     */
+    private fun scheduleLauncherIconFlush() {
+        launcherIconFlushJob?.cancel()
+        launcherIconFlushJob =
+            appScope.launch {
+                delay(LAUNCHER_ICON_FLUSH_DELAY_MS)
+                runCatching { WeatherLauncherIcon.flushPending(this@WeatherApp) }
+                    .onFailure { CrashReporting.record(it) }
+            }
+    }
+
+    /**
+     * 温度单位变化触发的合并刷新：短时间内的连续切换取消上一个待执行任务，
+     * 只对最终单位刷新一次桌面小组件。
+     */
+    private fun scheduleWidgetRefreshForUnitChange() {
+        widgetUnitRefreshJob?.cancel()
+        widgetUnitRefreshJob =
+            appScope.launch {
+                delay(WIDGET_UNIT_REFRESH_DEBOUNCE_MS)
+                runCatchingCancellable { WeatherWidgetUpdater.updateAll(this@WeatherApp) }
+                    .onFailure { CrashReporting.record(it) }
+            }
+    }
+
+    /**
+     * Activity 退后台时调用：取消延迟合并任务，并立即执行排队中的桌面图标切换。
      * `flushPending` 内含 PackageManager IPC 与 prefs 写盘，不在主线程做。
      */
     fun flushLauncherIconPending() {
+        launcherIconFlushJob?.cancel()
+        launcherIconFlushJob = null
         appScope.launch {
             runCatching { WeatherLauncherIcon.flushPending(this@WeatherApp) }
+                .onFailure { CrashReporting.record(it) }
         }
     }
 
     /** 隐私同意后触发（老用户冷启动走 onCreate 分支）；进程内幂等。 */
     fun initializeAfterConsent() {
         if (!postConsentInitialized.compareAndSet(false, true)) return
-        CrashReporting.init(this)
         appScope.launch {
-            // 各步骤独立容错：目录/设置初始化失败不能拖累周期任务入队
+            // 各步骤独立容错：崩溃上报/目录初始化失败不能拖累周期任务入队
+            runCatching { CrashReporting.init(this@WeatherApp) }
             runCatching { ChinaCityCatalog.init(this@WeatherApp) }
-            val settings = runCatching { container.settingsStore.getOnce() }.getOrNull()
+                .onFailure { CrashReporting.record(it) }
+            val settings =
+                runCatching { container.settingsStore.getOnce() }
+                    .onFailure { CrashReporting.record(it) }
+                    .getOrNull()
             val hours =
                 settings?.backgroundRefreshInterval?.hours
                     ?: WeatherRefreshPolicy.BACKGROUND_HOURS
             runCatching { WeatherRefreshWorker.enqueue(this@WeatherApp, intervalHours = hours) }
+                .onFailure { CrashReporting.record(it) }
         }
+    }
+
+    private companion object {
+        /** 前台 schedule 的合并窗口：同一轮天气发布只切一次图标。 */
+        const val LAUNCHER_ICON_FLUSH_DELAY_MS = 1_500L
+
+        /** 温度单位切换的合并窗口：连续切换只刷新一次小组件。 */
+        const val WIDGET_UNIT_REFRESH_DEBOUNCE_MS = 600L
     }
 }

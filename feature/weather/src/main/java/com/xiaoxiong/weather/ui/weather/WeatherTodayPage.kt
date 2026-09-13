@@ -78,6 +78,7 @@ import com.xiaoxiong.weather.util.parseFlexibleDateTime
 import com.xiaoxiong.weather.util.uvLabelText
 import com.xiaoxiong.weather.util.weatherCodeDescription
 import com.xiaoxiong.weather.util.windDirectionText
+import java.time.ZoneId
 import java.util.Locale
 
 @Composable
@@ -124,7 +125,7 @@ fun TodayPage(
                 TodayCardId.LIFE_INDICES -> LifeIndicesSection(weather.lifeIndices)
                 TodayCardId.AIR_QUALITY ->
                     weather.airQuality?.let { aq ->
-                        AirQualityCard(aq, weather.daily.firstOrNull())
+                        AirQualityCard(aq, weather.daily.firstOrNull(), weather.current.isDay)
                     }
                 TodayCardId.RADAR ->
                     RadarCloudMapSection(
@@ -245,9 +246,10 @@ private fun AlertCard(
 ) {
     val colors =
         when (alert.severity) {
-            AlertSeverity.WARNING -> AccentCoral to Color.White
+            // 白字在珊瑚/青绿底上仅 2.31/3.00:1：统一用深色文字，等级仍由底色区分
+            AlertSeverity.WARNING -> AccentCoral to Color(0xFF3E2723)
             AlertSeverity.WATCH -> Color(0xFFFFB74D) to Color(0xFF3E2723)
-            AlertSeverity.INFO -> Leaf to Color.White
+            AlertSeverity.INFO -> Leaf to Color(0xFF0B2E2A)
         }
     Box(
         modifier =
@@ -274,7 +276,8 @@ private fun AlertCard(
                             alert.severity,
                         ),
                     ),
-                contentDescription = alert.title,
+                // 插画旁即为同一标题文本：读屏会重复朗读，插画本身不再提供语义
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
@@ -313,7 +316,8 @@ private fun AlertCard(
                             } else {
                                 Icons.Filled.ExpandMore
                             },
-                        contentDescription = trailingLabel,
+                        // 右侧已有同文案的 trailingLabel 文本，图标不再重复朗读
+                        contentDescription = null,
                         tint = colors.second.copy(alpha = 0.9f),
                         modifier = Modifier.size(20.dp),
                     )
@@ -523,6 +527,7 @@ internal fun MetricGrid(
 internal fun AirQualityCard(
     airQuality: AirQuality,
     today: DailyWeather?,
+    isDay: Boolean? = null,
 ) {
     SoftCard(modifier = Modifier.fillMaxWidth()) {
         SectionHeader(
@@ -545,7 +550,8 @@ internal fun AirQualityCard(
                 },
         )
         Spacer(modifier = Modifier.height(12.dp))
-        val uv = airQuality.uvIndex ?: today?.uvIndexMax
+        // 与预警/生活指数统一口径：当日最大优先、夜间为 null（夜间不再显示当前低值 UV）
+        val uv = WeatherCodes.uvForDaytime(isDay, airQuality, today)
         QualityBar(
             label = stringResource(R.string.aq_uv, uvLabelText(uv)),
             valueText = uv?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
@@ -618,12 +624,17 @@ internal fun SunAndExtrasCard(snapshot: WeatherSnapshot) {
     val today = snapshot.daily.firstOrNull()
     val sunriseLabel = today?.sunrise?.let { formatHourLabel(it) } ?: "--"
     val sunsetLabel = today?.sunset?.let { formatHourLabel(it) } ?: "--"
+    // DST 跳变日放进真实时区计算，日出日落不再被均摊
+    val zoneId =
+        remember(snapshot.timezone) {
+            runCatching { snapshot.timezone?.let { ZoneId.of(it) } }.getOrNull()
+        }
     val phase =
-        remember(snapshot.current.time, today?.sunrise, today?.sunset) {
+        remember(snapshot.current.time, today?.sunrise, today?.sunset, zoneId) {
             val now = parseFlexibleDateTime(snapshot.current.time.orEmpty())
             val rise = today?.sunrise?.let { parseFlexibleDateTime(it) }
             val set = today?.sunset?.let { parseFlexibleDateTime(it) }
-            if (now != null && rise != null && set != null) sunPathPhase(now, rise, set) else null
+            if (now != null && rise != null && set != null) sunPathPhase(now, rise, set, zoneId) else null
         }
     SoftCard(modifier = Modifier.fillMaxWidth()) {
         SectionHeader(

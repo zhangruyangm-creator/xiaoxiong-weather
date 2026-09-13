@@ -73,6 +73,7 @@
     <string name="bear_pool_diff_novice">Novice</string>
     <string name="bear_pool_practice_done">Practice complete</string>
     <string name="bear_pool_practice_stats">%1$d shots · %2$d points</string>
+    <string name="bear_pool_shots_label">%1$d shots</string>
     <string name="bear_pool_pots_value">%1$d potted this match</string>
     <string name="bear_pool_achievements">Achievements</string>
     <string name="bear_pool_unlock_title">Achievement unlocked!</string>

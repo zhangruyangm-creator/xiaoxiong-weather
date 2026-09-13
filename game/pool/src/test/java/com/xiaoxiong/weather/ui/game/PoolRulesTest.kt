@@ -412,4 +412,77 @@ class PoolRulesTest {
         assertEquals(PLAYER, cleared.frameWinner)
         assertEquals(PoolMessage.PRACTICE_CLEAR, cleared.message)
     }
+
+    // ---------------------------------------------------------------------
+    // 首碰合法性（瞄准辅助提示）
+    // ---------------------------------------------------------------------
+
+    private fun contactBall(
+        id: Int,
+        kind: PoolBallKind,
+    ) = PoolBall(id, kind, 0.6f, 1.2f)
+
+    @Test
+    fun isLegalFirstContact_openTable_eightIsIllegal_anyOtherBallLegal() {
+        val state = PoolMatchState(openTable = true, turn = PLAYER)
+        val solid = contactBall(1, SOLID)
+        val stripe = contactBall(9, STRIPE)
+        val eight = contactBall(8, EIGHT)
+        val balls = listOf(solid, stripe, eight)
+        assertTrue(PoolRules.isLegalFirstContact(state, balls, solid))
+        assertTrue(PoolRules.isLegalFirstContact(state, balls, stripe))
+        assertFalse(PoolRules.isLegalFirstContact(state, balls, eight))
+    }
+
+    @Test
+    fun isLegalFirstContact_ownGroup_onlyOwnGroupLegal() {
+        val state = PoolMatchState(openTable = false, playerGroup = SOLIDS, aiGroup = STRIPES, turn = PLAYER)
+        val solid = contactBall(1, SOLID)
+        val stripe = contactBall(9, STRIPE)
+        val balls = listOf(solid, stripe)
+        assertTrue(PoolRules.isLegalFirstContact(state, balls, solid))
+        assertFalse(PoolRules.isLegalFirstContact(state, balls, stripe))
+    }
+
+    @Test
+    fun isLegalFirstContact_groupCleared_onlyEightLegal() {
+        val state = PoolMatchState(openTable = false, playerGroup = SOLIDS, aiGroup = STRIPES, turn = PLAYER)
+        val eight = contactBall(8, EIGHT)
+        val stripe = contactBall(9, STRIPE)
+        // 台面无全色 → 清台，必须首碰 8
+        val balls = listOf(eight, stripe)
+        assertTrue(PoolRules.isLegalFirstContact(state, balls, eight))
+        assertFalse(PoolRules.isLegalFirstContact(state, balls, stripe))
+    }
+
+    @Test
+    fun isLegalFirstContact_nineBall_onlyLowestNumberLegal() {
+        val state = PoolMatchState(turn = PLAYER, mode = PoolMode.NINE_BALL)
+        val one = contactBall(1, SOLID)
+        val two = contactBall(2, SOLID)
+        val nine = contactBall(9, STRIPE)
+        val balls = listOf(one, two, nine)
+        assertTrue(PoolRules.isLegalFirstContact(state, balls, one))
+        assertFalse(PoolRules.isLegalFirstContact(state, balls, two))
+        assertFalse(PoolRules.isLegalFirstContact(state, balls, nine))
+    }
+
+    @Test
+    fun isLegalFirstContact_practiceAndChallenge_neverFoul() {
+        val eight = contactBall(8, EIGHT)
+        val stripe = contactBall(9, STRIPE)
+        val balls = listOf(eight, stripe)
+        assertTrue(PoolRules.isLegalFirstContact(PoolMatchState(turn = PLAYER, mode = PoolMode.PRACTICE), balls, eight))
+        assertTrue(PoolRules.isLegalFirstContact(PoolMatchState(turn = PLAYER, mode = PoolMode.CHALLENGE), balls, stripe))
+    }
+
+    @Test
+    fun isLegalFirstContact_cueOrNull_isIllegal() {
+        val state = PoolMatchState(openTable = true, turn = PLAYER)
+        val cue = PoolBall(0, PoolBallKind.CUE, 0.6f, 0.8f)
+        val solid = contactBall(1, SOLID)
+        val balls = listOf(cue, solid)
+        assertFalse(PoolRules.isLegalFirstContact(state, balls, null))
+        assertFalse(PoolRules.isLegalFirstContact(state, balls, cue))
+    }
 }

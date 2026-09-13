@@ -201,6 +201,8 @@ class LifeIndexGeneratorTest {
                 DailyWeather(date = "2026-08-11", uvIndexMax = 8.0),
             ),
         )
+        // 昼夜未知（无 is_day 数据）同样不取数，避免误报高 UV
+        assertNull(LifeIndexGenerator.uvForIndex(null, air, today))
     }
 
     @Test

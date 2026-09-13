@@ -60,7 +60,7 @@ internal fun DrawScope.drawMazeTileOverlay(
         MazeTile.ICE -> drawIceTile(style, r, c, x, y, cell)
         MazeTile.HONEY -> drawHoneyTile(game, r, c, cx, cy, cell, reduceMotion)
         MazeTile.KEY -> drawKeyTile(game, r, c, cx, cy, cell, reduceMotion)
-        MazeTile.LOCK -> drawLockTile(game, r, c, cx, cy, cell)
+        MazeTile.LOCK -> drawLockTile(game, r, c, cx, cy, cell, reduceMotion)
         MazeTile.PORTAL -> drawPortalTile(game, style, tile.portalId, cx, cy, cell, reduceMotion)
         MazeTile.EXIT -> drawExitTile(game, cx, cy, cell, reduceMotion)
         MazeTile.START -> drawStartTile(game, style, r, c, cx, cy, cell, reduceMotion)
@@ -241,6 +241,7 @@ private fun DrawScope.drawLockTile(
     cx: Float,
     cy: Float,
     cell: Float,
+    reduceMotion: Boolean,
 ) {
     // 木门
     val doorW = cell * 0.72f
@@ -301,8 +302,8 @@ private fun DrawScope.drawLockTile(
             style = mazeStroke(max(1f, cell * 0.022f)),
         )
     }
-    // 未开锁的轻微晃动（这里用时间让锁片微颤，提示“需要钥匙”）
-    val wobble = sin(game.time * 5f + r + c) * cell * 0.008f
+    // 未开锁的轻微晃动（这里用时间让锁片微颤，提示“需要钥匙”）；减弱动画时冻结
+    val wobble = if (reduceMotion) 0f else sin(game.time * 5f + r + c) * cell * 0.008f
     drawCircle(Color.White.copy(alpha = 0.25f), cell * 0.03f, Offset(cx - cell * 0.06f + wobble, cy - cell * 0.10f))
 }
 
@@ -389,7 +390,8 @@ private fun DrawScope.drawExitTile(
     cell: Float,
     reduceMotion: Boolean,
 ) {
-    val progress = doorOpenProgress(game.time, game.lastHoneyAt)
+    // 减弱动画：开门相位冻结为全开静态，不播 1s 滑门
+    val progress = if (reduceMotion) 1f else doorOpenProgress(game.time, game.lastHoneyAt)
     val pillarW = cell * 0.14f
     val pillarH = cell * 0.80f
     val top = cy - cell * 0.42f

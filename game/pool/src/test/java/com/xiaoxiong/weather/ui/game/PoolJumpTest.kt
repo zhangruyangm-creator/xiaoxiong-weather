@@ -116,6 +116,23 @@ class PoolJumpTest {
     }
 
     @Test
+    fun airborneBall_flyingOffTable_marksNearestPocketIndex() {
+        val ball =
+            PoolBall(1, SOLID, table.centerX, table.top + 0.5f).apply {
+                z = 0.15f
+                vz = 3f
+                vy = -5f
+            }
+        var steps = 0
+        while (steps < 2000 && ball.onTable) {
+            PoolPhysics.step(listOf(ball), table)
+            steps++
+        }
+        assertTrue(ball.potted)
+        assertTrue("跳球飞出应标记最近袋口: ${ball.pocketIndex}", ball.pocketIndex >= 0)
+    }
+
+    @Test
     fun stop_clearsVerticalMotion() {
         val ball = PoolBall(0, CUE, table.centerX, table.centerY)
         ball.z = 0.2f

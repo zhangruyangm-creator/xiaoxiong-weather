@@ -10,6 +10,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -143,7 +144,24 @@ class WeatherViewModelColdStartTest {
                 vm.uiState.value.selectedCity
                     ?.name,
             )
+            // 本地化后整条展示名只能是 "Beijing"，不能带出中文 admin/country
+            assertEquals(
+                "Beijing",
+                vm.uiState.value.selectedCity
+                    ?.displayName,
+            )
         }
+
+    @Test
+    fun localizedFallbackCity_clearsChineseAdminFields() {
+        val localized = localizedFallbackCity(fallbackBeijing(), "Beijing")
+
+        assertEquals("Beijing", localized.name)
+        assertEquals("Beijing", localized.displayName)
+        assertNull(localized.admin1)
+        assertNull(localized.admin2)
+        assertNull(localized.country)
+    }
 
     @Test
     fun restoreFallbackCity_userPickedWhileReading_keepsUserChoice() =

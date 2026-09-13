@@ -52,8 +52,35 @@ class WeatherAdviceGeneratorTest {
         assertNull(WeatherAdviceGenerator.uvTipRes(WeatherCodes.UV_WATCH))
         assertNull(WeatherAdviceGenerator.uvTipRes(5.9))
         assertNull(WeatherAdviceGenerator.uvTipRes(9.0, isDay = false))
+        // 昼夜未知（无 is_day 数据）同样不提示
+        assertNull(WeatherAdviceGenerator.uvTipRes(9.0, isDay = null))
         assertEquals(R.string.advice_wind_strong, WeatherAdviceGenerator.windTipRes(WeatherCodes.WIND_WATCH_KMH))
         assertNull(WeatherAdviceGenerator.windTipRes(WeatherCodes.WIND_WATCH_KMH - 0.1))
+    }
+
+    @Test
+    fun clothingAdvice_usesSameEffectiveFeelsAsLifeIndex() {
+        // 12°C + 90% 湿度且无体感温度：生活指数按湿冷等效体感 9°C（cold 档），
+        // 建议也必须跟随等效体感，不能再用原始 12°C（cool 档）产生同屏矛盾
+        val current =
+            CurrentWeather(
+                time = "2026-08-02T12:00",
+                temperatureC = 12.0,
+                humidityPercent = 90,
+            )
+        val effective =
+            LifeIndexGenerator.effectiveClothingFeels(
+                12.0,
+                90,
+                isApparentTemperature = false,
+            )
+        assertEquals(9.0, effective!!, 1e-9)
+        assertEquals(
+            WeatherAdviceGenerator.clothingRes(effective),
+            WeatherAdviceGenerator.clothingResFor(current),
+        )
+        assertEquals(R.string.advice_clothing_cold, WeatherAdviceGenerator.clothingResFor(current))
+        assertEquals(R.string.advice_clothing_cool, WeatherAdviceGenerator.clothingRes(12.0))
     }
 
     @Test

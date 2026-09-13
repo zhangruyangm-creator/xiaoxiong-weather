@@ -145,10 +145,42 @@ class DebugWeatherStoreTest {
         assertTrue(shown.alerts.any { it.kind == AlertKind.HEAT_WAVE })
     }
 
+    @Test
+    fun apply_heatAlert_usesRequestedTemperatureUnit() {
+        val resources = mockResources()
+        Mockito
+            .`when`(resources.getString(Mockito.eq(R.string.alert_heat_msg), Mockito.any()))
+            .thenAnswer { invocation ->
+                val arg = invocation.arguments.getOrNull(1)
+                val text = if (arg is Array<*>) arg.joinToString(",") { it.toString() } else arg.toString()
+                "heat:$text"
+            }
+        val base =
+            WeatherSnapshot(
+                city = WeatherFixtures.city("青岛"),
+                current = WeatherFixtures.current(weatherCode = 0, temperatureC = 30.0, apparentTemperatureC = 38.0),
+                hourly = emptyList(),
+                daily = emptyList(),
+                alerts = emptyList(),
+            )
+        val shown =
+            DebugWeatherStore.apply(
+                base,
+                DebugWeatherOverride(temperatureC = 38.0),
+                resources,
+                TemperatureUnit.FAHRENHEIT,
+            )
+        val heat = shown.alerts.first { it.kind == AlertKind.HEAT }
+        // 38°C → 100°F；单位由调用方传入，不再烤死摄氏
+        assertEquals("heat:100°F", heat.message)
+    }
+
     private fun mockResources(): Resources {
         val resources = Mockito.mock(Resources::class.java)
         Mockito.`when`(resources.getString(Mockito.anyInt())).thenReturn("x")
         Mockito.`when`(resources.getString(Mockito.anyInt(), Mockito.any())).thenReturn("x")
+        // 连续高温两个占位（%1$d + %2$s）
+        Mockito.`when`(resources.getString(Mockito.anyInt(), Mockito.any(), Mockito.any())).thenReturn("x")
         // 避免未 stub 的 format 字符串崩掉
         Mockito.`when`(resources.getString(R.string.alert_raining_title)).thenReturn("rain")
         Mockito.`when`(resources.getString(R.string.alert_raining_msg)).thenReturn("raining")

@@ -207,6 +207,41 @@ class JumpSnapshotTest {
         assertEquals(before, game.score())
     }
 
+    @Test
+    fun resizeResettingRunningGame_invalidatesSnapshot() {
+        val prefs = FakePrefs()
+        val game = BearGame()
+        game.resize(IntSize(1080, 1920))
+        game.start()
+        game.saveSnapshot(prefs)
+        assertTrue(prefs.contains(key))
+
+        // 改窗口导致整局回准备态：旧档必须失效，停在 READY 被兜底落盘也不能复活
+        game.resize(IntSize(800, 1600))
+        assertEquals(GamePhase.READY, game.phase)
+        game.saveSnapshot(prefs)
+
+        assertFalse("改窗口重开后旧档应被清掉", prefs.contains(key))
+        assertFalse(BearGame().restoreSnapshot(prefs))
+    }
+
+    @Test
+    fun resizeWhilePaused_preservesSnapshotValidity() {
+        val prefs = FakePrefs()
+        val game = BearGame()
+        game.resize(IntSize(1080, 1920))
+        game.start()
+        game.saveSnapshot(prefs)
+
+        // 暂停中改窗口保留对局：快照仍应可写可恢复，不能被误清
+        game.resize(IntSize(800, 1600), preserveRunning = true)
+        assertEquals(GamePhase.RUNNING, game.phase)
+        game.saveSnapshot(prefs)
+
+        assertTrue(prefs.contains(key))
+        assertTrue(BearGame().restoreSnapshot(prefs))
+    }
+
     /** 把快照第一行（meta）的 phase 字段改写为指定档位，模拟旧档/异常档。 */
     private fun rewritePhase(
         prefs: FakePrefs,

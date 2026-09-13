@@ -66,6 +66,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
@@ -320,9 +321,11 @@ private fun shareBearArtwork(snapshot: WeatherSnapshot): BearArtwork {
     val today = snapshot.daily.firstOrNull()
     val rise = today?.sunrise?.let { parseFlexibleDateTime(it) }
     val set = today?.sunset?.let { parseFlexibleDateTime(it) }
+    // DST 跳变日按真实时区换算，日出日落弧与钟点插画口径一致
+    val zoneId = runCatching { snapshot.timezone?.let { ZoneId.of(it) } }.getOrNull()
     val phase =
         if (now != null && rise != null && set != null) {
-            sunPathPhase(now, rise, set)
+            sunPathPhase(now, rise, set, zoneId)
         } else {
             null
         }

@@ -54,6 +54,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.LocalReduceMotion
 import kotlin.random.Random
 
 @Composable
@@ -103,6 +104,8 @@ fun BearStarJumpScreen(
         game.scene = jumpSceneFromWeather(jumpWeather, sceneCode)
     }
     val bearSprites = rememberBearSprites(characterState.selected)
+    // 减弱动画：跳过雨雪/雷电粒子，只保留静态天空
+    val reduceMotion = LocalReduceMotion.current
     var frame by remember { mutableLongStateOf(0L) }
     // 主动退出视为放弃本局：清档后再导航，onDispose 的兜底落盘不会复活它。
     val exitGame: () -> Unit = {
@@ -175,12 +178,15 @@ fun BearStarJumpScreen(
                 .fillMaxSize()
                 .onSizeChanged { sz ->
                     // 暂停中改尺寸（分屏/折叠）保留对局，避免菜单分数与实际进度不一致
+                    val wasRunning = game.phase == GamePhase.RUNNING
                     game.setDims(
                         sz.width.toFloat(),
                         sz.height.toFloat(),
                         density,
                         preserveRunning = pause.paused,
                     )
+                    // 改窗口导致对局回准备态：立即清掉旧档，停在 READY 被杀也不会僵尸续玩
+                    if (wasRunning && game.phase != GamePhase.RUNNING) game.clearSnapshot(prefs)
                 },
     ) {
         Canvas(
@@ -221,7 +227,7 @@ fun BearStarJumpScreen(
                     (Random.nextFloat() - 0.5f) * shake * 2f,
                 )
             }) {
-                drawJumpWorld(game, bearSprites)
+                drawJumpWorld(game, bearSprites, reduceMotion = reduceMotion)
             }
         }
 

@@ -23,10 +23,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,14 +62,16 @@ fun AppScreenBackground(
             scheme.surfaceVariant.copy(alpha = 0.55f)
         }
     val bottomTarget = scheme.background
-    val top by animateColorAsState(topTarget, tween(1200), label = "bgTop")
-    val mid by animateColorAsState(midTarget, tween(1200), label = "bgMid")
-    val bottom by animateColorAsState(bottomTarget, tween(1200), label = "bgBottom")
+    // 颜色在 draw 阶段读取：动画期间只触发重绘，不逐帧重组重建整屏内容；
+    // Brush 在 draw 内按需创建，绘制开销远小于重组开销
+    val top = animateColorAsState(topTarget, tween(1200), label = "bgTop")
+    val mid = animateColorAsState(midTarget, tween(1200), label = "bgMid")
+    val bottom = animateColorAsState(bottomTarget, tween(1200), label = "bgBottom")
     Box(
         modifier =
-            modifier.background(
-                Brush.verticalGradient(listOf(top, mid, bottom)),
-            ),
+            modifier.drawBehind {
+                drawRect(Brush.verticalGradient(listOf(top.value, mid.value, bottom.value)))
+            },
     ) {
         content()
     }

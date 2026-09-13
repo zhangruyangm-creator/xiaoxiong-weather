@@ -432,6 +432,8 @@ private fun DailyMoonChip(
             (moon.illumination * 100.0).roundToInt().coerceIn(0, 100),
         )
     val cd = stringResource(R.string.cd_moon_phase)
+    // 逗号随 locale：中文全角、英文半角，不再硬编码
+    val cdLabel = stringResource(R.string.cd_moon_phase_label, cd, label)
     Row(
         modifier =
             modifier
@@ -439,7 +441,7 @@ private fun DailyMoonChip(
                 .background(Color.White.copy(alpha = 0.16f))
                 .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 10.dp, vertical = 7.dp)
-                .semantics { contentDescription = "$cd，$label" },
+                .semantics { contentDescription = cdLabel },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {

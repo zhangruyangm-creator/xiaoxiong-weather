@@ -78,8 +78,12 @@ internal object StarJumpLogic {
      * 死亡线以下（`p.y - cameraY > h + bs`）不可踩；跳过已破碎平台；
      * 水平上需 `|dx(环绕修正)| < p.w/2 + bs·0.24`。
      *
+     * 一帧内可能同时跨越多个平台：取所有命中中 y 最小（最高）的那个，
+     * 因为下落时先到达更高的台面；生产列表按 y 递减生成（越靠后越高），
+     * 若按列表顺序取首个会错误落到更低的平台。
+     *
      * @param newFeetY 本帧积分后的脚线 y（= 本帧 bearY + bs/2）
-     * @return 第一个命中的平台（自顶向下遍历）对应 [Contact]。
+     * @return 命中中最高的平台对应 [Contact]。
      */
     fun resolveContact(
         bearX: Float,
@@ -94,6 +98,7 @@ internal object StarJumpLogic {
     ): Contact {
         if (bearVY <= 0f) return Contact(false, null, newFeetY - bearSize(s) / 2f, 0f)
         val bs = bearSize(s)
+        var highest: Platform? = null
         for (p in platforms) {
             if (p.broken) continue
             if (p.y - cameraY > h + bs) continue
@@ -102,14 +107,14 @@ internal object StarJumpLogic {
                 if (dx > w / 2f) dx -= w + bs
                 if (dx < -w / 2f) dx += w + bs
                 if (abs(dx) < p.w / 2f + bs * 0.24f) {
-                    val landY = p.y - bs / 2f
-                    val vy =
-                        if (p.type == PlatType.SPRING) springV(s) else bounceV(s)
-                    return Contact(true, p, landY, vy)
+                    if (highest == null || p.y < highest.y) highest = p
                 }
             }
         }
-        return Contact(false, null, newFeetY - bs / 2f, 0f)
+        val hit = highest ?: return Contact(false, null, newFeetY - bs / 2f, 0f)
+        val landY = hit.y - bs / 2f
+        val vy = if (hit.type == PlatType.SPRING) springV(s) else bounceV(s)
+        return Contact(true, hit, landY, vy)
     }
 
     /** 单颗星星是否被熊吃到（环绕修正后的圆心距离 < 半径）。 */

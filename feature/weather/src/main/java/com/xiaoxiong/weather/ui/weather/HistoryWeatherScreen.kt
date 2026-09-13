@@ -44,6 +44,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +56,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -66,6 +69,7 @@ import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.util.formatDateLabel
 import com.xiaoxiong.weather.util.formatTemperature
+import com.xiaoxiong.weather.util.weatherCodeDescription
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -120,6 +124,34 @@ fun HistoryWeatherScreen(
     fun confirmEnd(date: LocalDate) {
         rangeEnd = date.toString()
         showEndPicker = false
+    }
+
+    // 进程重建后 rememberSaveable 恢复了已选日期/查询键，但 ViewModel 是全新的（无数据/无 loading）：
+    // 仅在「有键、无数据、非 loading、非 failed」时自动补一次查询，避免界面停在「未查询」态。
+    // 自动补查是「首次组合一次性」的：之后切 Tab / 换城清空数据都不再静默重发请求。
+    val restoreReplay = remember { HistoryRestoreReplayOnce() }
+    LaunchedEffect(mode) {
+        if (!restoreReplay.tryConsume()) return@LaunchedEffect
+        when (mode) {
+            HistoryQueryMode.DAY ->
+                pendingHistoryDayRestore(
+                    pickedDay = pickedDay,
+                    hasWeather = historyWeather != null,
+                    isLoading = isHistoryLoading,
+                    failed = historyFailed,
+                    networkFailed = historyNetworkFailed,
+                )?.let(onPickDate)
+            HistoryQueryMode.RANGE ->
+                pendingHistoryRangeRestore(
+                    start = rangeStart,
+                    end = rangeEnd,
+                    queriedKey = rangeQueriedKey,
+                    hasSummary = historyRange != null,
+                    isLoading = isHistoryRangeLoading,
+                    failed = historyRangeFailed,
+                    networkFailed = historyRangeNetworkFailed,
+                )?.let { (start, end) -> onFetchRange(start, end) }
+        }
     }
 
     BackHandler(onBack = onBack)
@@ -432,7 +464,7 @@ private fun RangeQueryContent(
                     title = stringResource(R.string.history_range_max_precip),
                     icon = Icons.Filled.WaterDrop,
                     extreme = summary.wettest,
-                    valueOf = { "%.1f mm".format(it) },
+                    valueOf = { String.format(Locale.US, "%.1f mm", it) },
                     accent = Color(0xFF4FC3F7),
                 )
             }
@@ -688,6 +720,7 @@ private fun HistoryDayRow(
     tempUnit: TemperatureUnit,
 ) {
     val precip = day.precipSumMm?.let { String.format(Locale.US, "%.1f", it) } ?: "--"
+    val iconDescription = weatherCodeDescription(day.weatherCode)
     Row(
         modifier =
             Modifier
@@ -705,7 +738,10 @@ private fun HistoryDayRow(
         WeatherIcon(
             code = day.weatherCode,
             isDay = true,
-            modifier = Modifier.size(22.dp),
+            modifier =
+                Modifier
+                    .size(22.dp)
+                    .semantics { contentDescription = iconDescription },
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(
@@ -812,3 +848,52 @@ internal fun monthKey(
 
 /** 逐日明细按月份（ISO 日期的前 7 位）分组，供按月展开复用，避免每次重组过滤。 */
 internal fun historyDaysByMonth(days: List<HistoryWeather>): Map<String, List<HistoryWeather>> = days.groupBy { it.date.take(7) }
+
+/**
+ * 自动补查一次性闸门：进程恢复后的首次组合消费一次，之后切 Tab / 换城清空数据
+ * 都不会再触发静默补查（旧日期在新城市上自动查询既无必要也容易打扰）。
+ */
+internal class HistoryRestoreReplayOnce {
+    private var consumed = false
+
+    /** 首次调用返回 true 并置位；后续调用一律返回 false。 */
+    fun tryConsume(): Boolean {
+        if (consumed) return false
+        consumed = true
+        return true
+    }
+}
+
+/**
+ * 进程重建后是否要自动补查单日：有已选日期、当前无数据、非加载中且未失败时返回该日期。
+ * 失败（无数据/网络错误）不自动重试，仍交由用户点重试，避免错误循环。
+ */
+internal fun pendingHistoryDayRestore(
+    pickedDay: String?,
+    hasWeather: Boolean,
+    isLoading: Boolean,
+    failed: Boolean,
+    networkFailed: Boolean,
+): LocalDate? {
+    if (hasWeather || isLoading || failed || networkFailed) return null
+    return pickedDay?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+}
+
+/**
+ * 进程重建后是否要自动补查区间：所选区间与已查询键一致、当前无数据、非加载中且未失败时返回区间。
+ */
+internal fun pendingHistoryRangeRestore(
+    start: String?,
+    end: String?,
+    queriedKey: String?,
+    hasSummary: Boolean,
+    isLoading: Boolean,
+    failed: Boolean,
+    networkFailed: Boolean,
+): Pair<LocalDate, LocalDate>? {
+    if (hasSummary || isLoading || failed || networkFailed) return null
+    val startDate = start?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return null
+    val endDate = end?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return null
+    if (queriedKey != "$startDate|$endDate") return null
+    return startDate to endDate
+}

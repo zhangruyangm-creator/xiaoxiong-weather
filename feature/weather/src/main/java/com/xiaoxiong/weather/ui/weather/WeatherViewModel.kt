@@ -32,6 +32,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
 data class WeatherUiState(
@@ -177,10 +178,14 @@ class WeatherViewModel(
             currentSelectedCity = { _uiState.value.selectedCity },
             hasWeather = { _uiState.value.weather != null },
             str = { id -> getApplication<Application>().str(id) },
-            // 回退城市的展示名走本地化字符串：英文用户冷启动看到的是 "Beijing" 而非硬编码中文
+            // 回退城市的展示名走本地化字符串：英文用户冷启动看到的是 "Beijing" 而非硬编码中文；
+            // admin/country 一并清空，避免 displayName 拼出 "Beijing, 北京, 中国"
             fallbackCity = {
                 val app = getApplication<Application>()
-                fallbackBeijing().copy(name = app.getString(R.string.cold_start_fallback_city))
+                localizedFallbackCity(
+                    fallbackBeijing(),
+                    app.getString(R.string.cold_start_fallback_city),
+                )
             },
         )
 
@@ -303,6 +308,8 @@ class WeatherViewModel(
             // 换城即作废旧城市快照，避免退出调试模式时把上一城市天气回灌
             _baseWeather.value = null
         }
+        // 进程重建后历史页可能先于城市就绪发起查询：城市确定后补发
+        historyController.retryPending()
         viewModelScope.launch {
             selectedCityStore.save(city, useLocation)
         }
@@ -518,30 +525,45 @@ class WeatherViewModel(
         // 快照属于旧城市时不回灌（如换城后新城市尚未成功拉取）
         val selectedCity = _uiState.value.selectedCity ?: return
         if (!roughlySameCity(base.city, selectedCity)) return
-        val shown = presentWeather(base)
-        // DataStore 读取放到 update lambda 外：避免挂起点卡在 CAS 重试循环内、阻塞主线程状态更新
-        val debugEnabled = debugWeatherStore.getOnce().enabled
+        val presented = presentWeather(base)
+        // presentWeather 会挂起读 DataStore：恢复后在同一同步段复核快照与城市，
+        // 期间换城或新一轮刷新已发布时直接丢弃，旧快照不得回灌覆盖新数据。
+        if (_baseWeather.value !== base) return
+        val currentCity = _uiState.value.selectedCity ?: return
+        if (!roughlySameCity(base.city, currentCity)) return
         _uiState.update {
             it.copy(
-                weather = shown,
-                debugEnabled = debugEnabled,
+                weather = presented.snapshot,
+                debugEnabled = presented.debugEnabled,
             )
         }
     }
 
-    private suspend fun presentWeather(base: WeatherSnapshot): WeatherSnapshot {
+    /** 发布用展示态：快照 + 本次读取到的调试开关，供调用方一次写回。 */
+    private data class PresentedWeather(
+        val snapshot: WeatherSnapshot,
+        val debugEnabled: Boolean,
+    )
+
+    /**
+     * 只在入口读取一次调试状态并返回全部所需信息：调用方恢复后即可在同一同步段完成
+     * 校验与写回，发布路径不再有第二个挂起点，晚到的旧快照也就没有可乘之机。
+     */
+    private suspend fun presentWeather(base: WeatherSnapshot): PresentedWeather {
         val debug = debugWeatherStore.getOnce()
-        return if (debug.enabled) {
-            withContext(Dispatchers.Default) {
-                DebugWeatherStore.apply(
-                    base,
-                    debug.override,
-                    getApplication<Application>().resources,
-                )
+        val shown =
+            if (debug.enabled) {
+                withContext(Dispatchers.Default) {
+                    DebugWeatherStore.apply(
+                        base,
+                        debug.override,
+                        getApplication<Application>().resources,
+                    )
+                }
+            } else {
+                base
             }
-        } else {
-            base
-        }
+        return PresentedWeather(shown, debug.enabled)
     }
 
     private fun publishWeather(
@@ -561,13 +583,17 @@ class WeatherViewModel(
         val publishSeq = weatherPublishSeq.incrementAndGet()
         _baseWeather.value = snapshot
         viewModelScope.launch {
-            val shown = presentWeather(snapshot)
+            val presented = presentWeather(snapshot)
+            // 挂起恢复后在同一同步段完成全部校验与写回：presentWeather 只读一次 DataStore，
+            // 返回后不再有第二个挂起点，因此序号/城市校验与 _uiState.update、图标/小组件副作用
+            // 之间不会被其它发布穿插。
             // 续体再校验一次，否则快速切城时旧快照会盖回新城市
             if (requestId != weatherRequestId.get()) return@launch
             // 同 requestId 下缓存发布可能晚于网络发布返回：较旧快照不得反向覆盖新数据
             if (publishSeq != weatherPublishSeq.get()) return@launch
-            // DataStore 读取放到 update lambda 外：避免挂起点卡在 CAS 重试循环内、阻塞主线程状态更新
-            val debugEnabled = debugWeatherStore.getOnce().enabled
+            // 发布目标已不是当前选中城市（切城取消不到本协程）时直接丢弃
+            if (!roughlySameCity(_uiState.value.selectedCity, selectedCity)) return@launch
+            val shown = presented.snapshot
             if (updateIcon) {
                 presentationEffects.scheduleLauncherIcon(
                     getApplication(),
@@ -608,7 +634,7 @@ class WeatherViewModel(
                     isOffline = isOffline,
                     lastUpdatedText = lastUpdatedText,
                     errorMessage = errorMessage,
-                    debugEnabled = debugEnabled,
+                    debugEnabled = presented.debugEnabled,
                 )
             }
             if (refreshWidgets) {
@@ -626,7 +652,7 @@ class WeatherViewModel(
             kotlin.math.abs(a.longitude - b.longitude) < 0.01
     }
 
-    private fun nowText(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    private fun nowText(): String = LocalDateTime.now().format(NowTimeFormatter)
 
     /**
      * 读本地天气缓存。缓存只是「应急展示」用的，读失败不应影响主流程：
@@ -645,7 +671,7 @@ class WeatherViewModel(
     private fun formatCacheTime(epochMs: Long): String =
         LocalDateTime
             .ofInstant(Instant.ofEpochMilli(epochMs), ZoneId.systemDefault())
-            .format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+            .format(CacheTimeFormatter)
 
     private fun str(
         @StringRes id: Int,
@@ -657,3 +683,9 @@ class WeatherViewModel(
         @StringRes fallback: Int,
     ): String = e.userFacingMessage(getApplication(), fallback)
 }
+
+/** 顶栏更新时间文本（HH:mm:ss）。 */
+private val NowTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.US)
+
+/** 缓存时间戳展示（MM-dd HH:mm）。 */
+private val CacheTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm", Locale.US)

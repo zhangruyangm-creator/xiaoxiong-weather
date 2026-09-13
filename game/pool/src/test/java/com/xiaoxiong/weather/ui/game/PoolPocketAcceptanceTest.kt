@@ -7,6 +7,7 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
+import kotlin.random.Random
 
 /**
  * 袋口接受度回归：按「幽灵球」瞄准（辅助线给出的方向）出杆，直球与切球都应稳定落袋。
@@ -105,5 +106,83 @@ class PoolPocketAcceptanceTest {
             assertNotNull("pocket $index should be predicted as pot", path.pocket)
             assertTrue("pocket $index predicted to same pocket", table.pockets[path.pocketIndex] == pocket)
         }
+    }
+
+    /**
+     * 反向一致性：幽灵球瞄准袋心、真实物理能进的直球，预测必须提示 pocket（不得显示为碰库）。
+     *
+     * 覆盖 6 个袋口 × 距离网格 × 入射角网格：浅擦库边（含 ≤18° 平行滚入）是历史误判高发区，
+     * 由钳口/库端擦碰后的反射二次判定修复。
+     */
+    @Test
+    fun physicallyPottedGhostBallShots_arePredictedAsPocket() {
+        val radius = PoolConfig.BALL_RADIUS
+        var physicallyPotted = 0
+        var samples = 0
+        for ((index, pocket) in table.pockets.withIndex()) {
+            val towardCenter = atan2(table.centerY - pocket.y, table.centerX - pocket.x)
+            for (offDeg in -20..20 step 5) {
+                for (dist in listOf(0.25f, 0.4f, 0.6f)) {
+                    val around = towardCenter + PoolMath.radians(offDeg.toFloat())
+                    val ox = pocket.x + cos(around) * dist
+                    val oy = pocket.y + sin(around) * dist
+                    if (!table.contains(ox, oy, margin = -radius)) continue
+                    samples++
+                    val aim = atan2(pocket.y - oy, pocket.x - ox)
+                    val dx = cos(aim)
+                    val dy = sin(aim)
+                    val path = PoolPhysics.predictObjectPath(listOf(), table, ox, oy, dx, dy, radius, exclude = null)
+                    val ball = PoolBall(1, PoolBallKind.SOLID, ox, oy)
+                    ball.vx = dx * 2.5f
+                    ball.vy = dy * 2.5f
+                    PoolPhysics.simulateUntilSettled(listOf(ball), table, maxSeconds = 6f)
+                    if (!ball.potted) continue
+                    physicallyPotted++
+                    assertTrue(
+                        "physical pot must be predicted as pocket: pocket=$index dist=$dist offDeg=$offDeg",
+                        path.pocket != null,
+                    )
+                }
+            }
+        }
+        println("Pocket reverse regression: physicallyPotted=$physicallyPotted/$samples")
+        assertTrue("physically potted samples=$physicallyPotted/$samples", physicallyPotted >= 100)
+    }
+
+    /**
+     * 一致性回归：凡是 [PoolPhysics.predictObjectPath] 提示 `pocket != null` 的路径，
+     * 按同一方向真实推演必须落袋。擦边路径已由保守系数 + 球半径扫掠库边过滤，不再谎报。
+     */
+    @Test
+    fun predictedPocketPaths_actuallyPotInRealPhysics() {
+        val radius = PoolConfig.BALL_RADIUS
+        val rng = Random(20240913L)
+        var predicted = 0
+        var checked = 0
+        while (checked < 200) {
+            checked++
+            val pocket = table.pockets[checked % table.pockets.size]
+            val towardCenter = atan2(table.centerY - pocket.y, table.centerX - pocket.x)
+            val around = towardCenter + (rng.nextFloat() - 0.5f) * 0.6f
+            val distance = 0.25f + rng.nextFloat() * 0.55f
+            val ox = pocket.x + cos(around) * distance
+            val oy = pocket.y + sin(around) * distance
+            if (!table.contains(ox, oy, margin = -radius)) continue
+            val aim = atan2(pocket.y - oy, pocket.x - ox) + (rng.nextFloat() - 0.5f) * 0.05f
+            val dx = cos(aim)
+            val dy = sin(aim)
+            val path = PoolPhysics.predictObjectPath(listOf(), table, ox, oy, dx, dy, radius, exclude = null)
+            if (path.pocket == null) continue
+            predicted++
+            val ball = PoolBall(1, PoolBallKind.SOLID, ox, oy)
+            ball.vx = dx * PoolConfig.shotSpeedMps(1f)
+            ball.vy = dy * PoolConfig.shotSpeedMps(1f)
+            PoolPhysics.simulateUntilSettled(listOf(ball), table, maxSeconds = 6f)
+            assertTrue(
+                "predicted pocket ${path.pocketIndex} at origin=($ox,$oy) aim=$aim must pot",
+                ball.potted,
+            )
+        }
+        assertTrue("sample should contain predicted pockets: $predicted", predicted >= 20)
     }
 }

@@ -118,14 +118,32 @@ class StarJumpLogicTest {
     }
 
     @Test
-    fun resolveContact_touchesFirstHitTopDown() {
-        // 两个平台 y 都在脚线穿越范围，应命中位置更高的那个（y 更小 = 更靠上）
-        val upper = platform(PlatType.NORMAL, y = -300f)
+    fun resolveContact_sameFrameCrossing_picksHighestPlatformInProductionOrder() {
+        // 生产列表按 y 递减生成（越靠前越低）：同帧跨越两台时应取更高的（y 更小）
         val lower = platform(PlatType.NORMAL, y = -270f)
+        val upper = platform(PlatType.NORMAL, y = -300f)
         val c =
-            contact(bearX = 0f, bearY = -240f, prevY = -330f, bearVY = 500f, platforms = listOf(upper, lower))
+            contact(bearX = 0f, bearY = -240f, prevY = -330f, bearVY = 500f, platforms = listOf(lower, upper))
         assertTrue(c.hit)
         assertEquals(upper, c.platform)
+    }
+
+    @Test
+    fun resolveContact_crossesThreePlatforms_picksHighest() {
+        // 脚线一帧跨越三台：必须命中最高台，不能落到中间/最低台
+        val lowest = platform(PlatType.NORMAL, y = -240f)
+        val middle = platform(PlatType.NORMAL, y = -270f)
+        val highest = platform(PlatType.NORMAL, y = -300f)
+        val c =
+            contact(
+                bearX = 0f,
+                bearY = -240f,
+                prevY = -330f,
+                bearVY = 500f,
+                platforms = listOf(lowest, middle, highest),
+            )
+        assertTrue(c.hit)
+        assertEquals(highest, c.platform)
     }
 
     // ── 星星收集 ───────────────────────────────────────────────

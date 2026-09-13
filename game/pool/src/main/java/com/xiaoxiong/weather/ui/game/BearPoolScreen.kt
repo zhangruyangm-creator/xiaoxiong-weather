@@ -115,7 +115,7 @@ private const val PREF_STAT_BEST_PRACTICE = "pool_best_practice"
 private const val PREF_STAT_ACH_SEEN = "pool_ach_seen"
 private const val PREF_POOL_SOUND = "pool_sound"
 private const val PREF_POOL_REDUCE_MOTION = "pool_reduce_motion"
-private const val PREF_POOL_REPLAY = "pool_last_replay_v1"
+private const val PREF_POOL_REPLAY = "pool_last_replay_v2"
 
 // 关卡 / 每日挑战进度 key（前缀 + id / date）
 private const val PREF_LEVEL_CLEARED = "pool_level_cleared_"
@@ -478,7 +478,11 @@ fun BearPoolScreen(
     // 短促提示音：惰性创建，退出时释放；创建 / 播放失败静默忽略
     val toneGen = remember { runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }.getOrNull() }
     DisposableEffect(Unit) {
-        onDispose { runCatching { toneGen?.release() } }
+        onDispose {
+            runCatching { toneGen?.release() }
+            // 退出对局时释放静态台面层的两张全屏 Bitmap；二次进入按需重建
+            clearPoolTableLayerCache()
+        }
     }
 
     val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
@@ -621,12 +625,12 @@ fun BearPoolScreen(
                             timestamp = System.currentTimeMillis(),
                             city = reportCity,
                             weather = leaderboardWeatherOf(context, reportScene),
-                            label = "杆数 $shots",
+                            label = context.getString(R.string.bear_pool_shots_label, shots),
                         ),
                     )
                 }
                 lastChallengeResult =
-                    ChallengeResult(challenge.nameZh, challenge.par, shots, score, newRecord, daily = true)
+                    ChallengeResult(challengeDisplayName(challenge), challenge.par, shots, score, newRecord, daily = true)
             } else {
                 val bestKey = bestLevelKey(challenge.id)
                 val prev = prefs.getInt(bestKey, Int.MAX_VALUE)
@@ -636,7 +640,7 @@ fun BearPoolScreen(
                 clearedLevels = clearedLevels + challenge.id
                 bestLevels = bestLevels + (challenge.id to min(prev, shots))
                 lastChallengeResult =
-                    ChallengeResult(challenge.nameZh, challenge.par, shots, score, newRecord, daily = false)
+                    ChallengeResult(challengeDisplayName(challenge), challenge.par, shots, score, newRecord, daily = false)
             }
             return
         }
@@ -647,7 +651,7 @@ fun BearPoolScreen(
         val score = if (practice) game.practiceScore() else game.match.playerFrames
         val label =
             if (practice) {
-                "杆数 ${game.shots}"
+                context.getString(R.string.bear_pool_shots_label, game.shots)
             } else {
                 "${game.match.playerFrames} : ${game.match.aiFrames}"
             }
@@ -823,7 +827,7 @@ fun BearPoolScreen(
         ) {
             frame // 每帧触发重绘
             val day = isDay ?: true
-            drawPoolWeather(game, weather, rain, freezingRain, hail, style, day)
+            drawPoolWeather(game, weather, rain, freezingRain, hail, style, day, reduceMotion)
             drawPoolTable(game, style, day)
             drawPoolBalls(game, style, day)
             drawPoolAim(game, game.aids)

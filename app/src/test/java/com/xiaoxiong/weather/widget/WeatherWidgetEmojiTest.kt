@@ -28,7 +28,9 @@ class WeatherWidgetEmojiTest {
     fun isWidgetDaytime_parsesHourBoundaries() {
         assertFalse(isWidgetDaytime("2026-08-02T05:59"))
         assertTrue(isWidgetDaytime("2026-08-02T06:00"))
-        assertTrue(isWidgetDaytime("2026-08-02T18:59"))
+        assertTrue(isWidgetDaytime("2026-08-02T17:59"))
+        // 18 点起与 HourlyUtils.isDaytimeHour 口径一致，不再算白天
+        assertFalse(isWidgetDaytime("2026-08-02T18:59"))
         assertFalse(isWidgetDaytime("2026-08-02T19:00"))
         assertFalse(isWidgetDaytime("2026-08-02 03:00"))
         assertTrue(isWidgetDaytime("2026-08-02 12:00"))

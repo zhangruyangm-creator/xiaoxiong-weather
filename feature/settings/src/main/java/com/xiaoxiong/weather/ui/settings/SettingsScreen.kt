@@ -1,6 +1,16 @@
 package com.xiaoxiong.weather.ui.settings
 
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,8 +47,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +60,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.AppFontScale
@@ -82,6 +99,39 @@ fun SettingsScreen(
     )
     val context = LocalContext.current
     var aboutTapCount by remember { mutableIntStateOf(0) }
+
+    // Android 13+ 通知开关必须先拿到 POST_NOTIFICATIONS；授权状态以系统为准，
+    // 用户从系统设置返回时在 ON_RESUME 重新读取
+    val notificationPermissionRequired = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    var notificationPermissionGranted by remember(context) {
+        mutableStateOf(isNotificationPermissionGranted(context, notificationPermissionRequired))
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    notificationPermissionGranted =
+                        isNotificationPermissionGranted(context, notificationPermissionRequired)
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            notificationPermissionGranted = granted
+            val action =
+                notificationPermissionResultAction(
+                    permissionGranted = granted,
+                    canAskAgain = canRequestNotificationPermission(context, notificationPermissionRequired),
+                )
+            when (action) {
+                NotificationToggleAction.SET_ENABLED -> scope.launch { settingsStore.setNotificationsEnabled(true) }
+                NotificationToggleAction.OPEN_SYSTEM_SETTINGS -> openAppNotificationSettings(context)
+                else -> Unit
+            }
+        }
 
     BackHandler(onBack = onBack)
 
@@ -127,10 +177,32 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         SettingsSwitchRow(
                             title = stringResource(R.string.settings_notifications_toggle),
-                            subtitle = stringResource(R.string.settings_notifications_toggle_sub),
-                            checked = settings.notificationsEnabled,
-                            onCheckedChange = {
-                                scope.launch { settingsStore.setNotificationsEnabled(it) }
+                            subtitle =
+                                if (notificationPermissionRequired && !notificationPermissionGranted) {
+                                    stringResource(R.string.settings_notifications_toggle_sub_permission)
+                                } else {
+                                    stringResource(R.string.settings_notifications_toggle_sub)
+                                },
+                            // 开关反映系统真实授权：无权限时即使 DataStore 为开也显示为关
+                            checked = settings.notificationsEnabled && notificationPermissionGranted,
+                            onCheckedChange = { turningOn ->
+                                val action =
+                                    notificationToggleAction(
+                                        turningOn = turningOn,
+                                        permissionRequired = notificationPermissionRequired,
+                                        permissionGranted = notificationPermissionGranted,
+                                    )
+                                when (action) {
+                                    NotificationToggleAction.SET_ENABLED ->
+                                        scope.launch { settingsStore.setNotificationsEnabled(true) }
+                                    NotificationToggleAction.SET_DISABLED ->
+                                        scope.launch { settingsStore.setNotificationsEnabled(false) }
+                                    NotificationToggleAction.REQUEST_PERMISSION ->
+                                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    NotificationToggleAction.OPEN_SYSTEM_SETTINGS ->
+                                        openAppNotificationSettings(context)
+                                    NotificationToggleAction.NONE -> Unit
+                                }
                             },
                         )
                     }
@@ -462,4 +534,44 @@ private fun SettingsChoiceRow(
             Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
     }
+}
+
+private fun isNotificationPermissionGranted(
+    context: Context,
+    permissionRequired: Boolean,
+): Boolean =
+    !permissionRequired ||
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+
+/** 系统是否仍会弹出授权框（被永久拒绝后 shouldShowRationale 为 false）。 */
+private fun canRequestNotificationPermission(
+    context: Context,
+    permissionRequired: Boolean,
+): Boolean {
+    if (!permissionRequired) return false
+    val activity = context.findActivity() ?: return true
+    return ActivityCompat.shouldShowRequestPermissionRationale(
+        activity,
+        Manifest.permission.POST_NOTIFICATIONS,
+    )
+}
+
+private fun Context.findActivity(): Activity? {
+    var current: Context = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
+}
+
+private fun openAppNotificationSettings(context: Context) {
+    val intent =
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }

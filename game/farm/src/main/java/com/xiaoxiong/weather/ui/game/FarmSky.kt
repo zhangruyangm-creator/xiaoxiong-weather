@@ -47,13 +47,16 @@ internal fun DrawScope.drawFarmAtmosphere(
     weather: FarmWeather,
     time: Float,
     phase: FarmSkyPhase,
+    /** 减弱动画：跳过雨雪/雷闪/飘云/萤火虫等动态氛围，保留天空底色与静态日月。 */
+    reduceMotion: Boolean = false,
 ) {
     // 夜晚/黄昏的天空装饰（星星、月亮/暮光、萤火虫），降水时云层遮挡星空
     if (phase != FarmSkyPhase.DAY) {
-        drawNightSky(weather, time, phase)
+        drawNightSky(weather, time, phase, reduceMotion)
     }
     when (weather) {
         FarmWeather.RAINY, FarmWeather.STORMY -> {
+            if (reduceMotion) return
             for (i in 0 until 50) {
                 val x = ((i * 97 + time * 90) % (size.width + 40)) - 20
                 val y = ((i * 53 + time * 240) % (size.height + 60)) - 30
@@ -69,6 +72,7 @@ internal fun DrawScope.drawFarmAtmosphere(
             }
         }
         FarmWeather.SNOWY -> {
+            if (reduceMotion) return
             for (i in 0 until 40) {
                 val x = ((i * 83 + time * 25) % (size.width + 20))
                 val y = ((i * 61 + time * 40) % (size.height + 20))
@@ -80,6 +84,7 @@ internal fun DrawScope.drawFarmAtmosphere(
                 val sun = Offset(size.width * 0.88f, 70f)
                 drawSoftGlow(sun.x, sun.y, 90f, Color(0xFFFFE082))
                 drawCircle(Color(0xFFFFE082), 26f, sun)
+                if (reduceMotion) return
                 for (i in 0 until 10) {
                     val a = (Math.PI * 2 * i / 10 + time * 0.3).toFloat()
                     drawLine(
@@ -101,6 +106,7 @@ internal fun DrawScope.drawFarmAtmosphere(
             drawRect(fogColor.copy(alpha = 0.18f))
         }
         FarmWeather.CLOUDY -> {
+            if (reduceMotion) return
             val cloudColor =
                 when (phase) {
                     FarmSkyPhase.DAY -> Color.White
@@ -122,10 +128,11 @@ internal fun DrawScope.drawNightSky(
     weather: FarmWeather,
     time: Float,
     phase: FarmSkyPhase,
+    reduceMotion: Boolean = false,
 ) {
     // 晴/多云才有星空；雨、雪、雷暴、雾视为云层遮挡
     val starVisible = weather == FarmWeather.SUNNY || weather == FarmWeather.CLOUDY
-    if (phase == FarmSkyPhase.NIGHT && starVisible) {
+    if (phase == FarmSkyPhase.NIGHT && starVisible && !reduceMotion) {
         val cell = 72f
         val cols = (size.width / cell).toInt() + 2
         val rows = (size.height * 0.55f / cell).toInt() + 2
@@ -172,7 +179,7 @@ internal fun DrawScope.drawNightSky(
     }
 
     // 萤火虫：晴朗夜色里缓慢飘动 + 呼吸光
-    if (phase == FarmSkyPhase.NIGHT && clearSky) {
+    if (phase == FarmSkyPhase.NIGHT && clearSky && !reduceMotion) {
         for (i in 0 until 10) {
             val seed = i * 29
             val baseX = (seed * 47 % (size.width * 0.92f).toInt()) + size.width * 0.04f

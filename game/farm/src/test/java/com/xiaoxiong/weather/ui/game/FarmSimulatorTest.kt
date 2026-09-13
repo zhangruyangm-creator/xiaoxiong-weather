@@ -320,6 +320,18 @@ class FarmSimulatorTest {
     }
 
     @Test
+    fun startNewSeason_usesInjectedClockForFreshPlots() {
+        val ids = FARM_CROPS.map { it.id }
+        val state = FarmState(seasonCollected = ids.take(12).toSet(), completedSeasons = 0)
+
+        val effect = FarmSimulator.startNewSeason(state, now = 1_234_567L)
+
+        assertEquals(R.string.bear_farm_new_season_started, effect.toastRes)
+        assertEquals(FARM_PLOT_COUNT, state.plots.size)
+        assertTrue("新一季田地时间基准应使用注入时钟", state.plots.all { it.lastTickMs == 1_234_567L })
+    }
+
+    @Test
     fun seasonGoal_growsWithSeasonsAndCaps() {
         assertEquals(12, FarmState(completedSeasons = 0).seasonGoal)
         assertEquals(16, FarmState(completedSeasons = 1).seasonGoal)

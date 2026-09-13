@@ -8,14 +8,20 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,11 +29,16 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.LocalReduceMotion
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 /** 提示高亮持续时间（毫秒）。 */
@@ -43,6 +54,7 @@ internal fun MazePlayField(
     game: MazeGame,
     sprites: BearSprites,
     frame: State<Long>,
+    fx: MazeFxHost,
     weather: FarmWeather,
     rainStrength: RainStrength,
     freezingRain: Boolean,
@@ -57,8 +69,20 @@ internal fun MazePlayField(
     val style = remember(game.level.theme) { mazeThemeStyle(game.level.theme) }
     val skyBrush = remember(style) { Brush.verticalGradient(skyGradient(style.skyTop, style.skyBottom)) }
     val baseLayer = remember(game.level) { MazeBaseLayerCache() }
-    val fx = remember(game.level) { MazeFxHost() }
     val reduceMotion = LocalReduceMotion.current
+    // 系统栏 inset 以 px 传入绘制层：棋盘预留区与顶栏/D-pad 的实际占位一致
+    val density = LocalDensity.current
+    val statusBarTopPx = WindowInsets.statusBars.getTop(density).toFloat()
+    val navigationBarBottomPx = WindowInsets.navigationBars.getBottom(density).toFloat()
+    // moving/canUndo 由每帧变化的 moveT 派生：收敛为布尔翻转，避免滑行期间每帧重组
+    val moving by remember { derivedStateOf { game.moving } }
+    val canUndo by remember {
+        derivedStateOf {
+            // 撤销历史是非 State 的 ArrayDeque；历史变化必伴随 moves 变化，显式读取以驱动失效
+            game.moves
+            game.canUndo
+        }
+    }
     var swipeAcc by remember { mutableStateOf(Offset.Zero) }
     // 提示：高亮下一步方向，1.5s 后自动消失；无解 / 状态空间过大时短暂提示文案
     var hintDir by remember { mutableStateOf<MazeDir?>(null) }
@@ -70,6 +94,24 @@ internal fun MazePlayField(
         hintDir = null
         showNoHint = false
         showHintUnavailable = false
+    }
+
+    fun showHint(result: MazeHint) {
+        when (result) {
+            is MazeHint.Direction -> hintDir = result.dir
+            MazeHint.NoSolution -> showNoHint = true
+            MazeHint.TooLarge -> showHintUnavailable = true
+        }
+    }
+
+    // 提示求解放到后台线程：忙碌期间禁用按钮，避免连点重复 BFS
+    val scope = rememberCoroutineScope()
+    val hintSession = remember(game.level) { MazeHintSession() }
+    var hintJob by remember { mutableStateOf<Job?>(null) }
+    // 换关：取消在途求解并复位忙碌/缓存，旧 BFS 的结果不会残留到新关卡
+    LaunchedEffect(game.level) {
+        hintJob?.cancel()
+        hintJob = null
     }
     LaunchedEffect(hintDir) {
         if (hintDir != null) {
@@ -153,8 +195,18 @@ internal fun MazePlayField(
         ) {
             // 在 draw lambda 内读 frame：只使绘制阶段失效，不触发 MazePlayField 重组
             frame.value
-            drawMazeWorld(game, sprites, style, baseLayer, fx, hintDir, reduceMotion)
-            drawMazeWeather(game, weather, rainStrength, freezingRain, hail)
+            drawMazeWorld(
+                game,
+                sprites,
+                style,
+                baseLayer,
+                fx,
+                hintDir,
+                reduceMotion,
+                statusBarTopPx,
+                navigationBarBottomPx,
+            )
+            drawMazeWeather(game, weather, rainStrength, freezingRain, hail, reduceMotion)
         }
 
         MazeHudTopBar(
@@ -162,21 +214,52 @@ internal fun MazePlayField(
             theme = game.level.theme,
             style = style,
             game = game,
+            moving = moving,
+            canUndo = canUndo,
+            hintBusy = hintSession.busy,
             onClose = onExitSelect,
             onUndo = {
                 clearHintUi()
                 game.undo()
             },
             onHint = {
-                clearHintUi()
-                when (val result = game.hint()) {
-                    is MazeHint.Direction -> hintDir = result.dir
-                    MazeHint.NoSolution -> showNoHint = true
-                    MazeHint.TooLarge -> showHintUnavailable = true
+                if (!hintSession.busy) {
+                    clearHintUi()
+                    val request = game.hintRequest()
+                    if (request != null) {
+                        val cached = hintSession.cachedFor(request)
+                        if (cached != null) {
+                            // 同一局面重复点击：复用上次结果，不重复跑 BFS、不重复计数
+                            showHint(cached)
+                        } else {
+                            val token = hintSession.begin(request)
+                            hintJob =
+                                scope.launch {
+                                    try {
+                                        val outcome =
+                                            withContext(Dispatchers.Default) {
+                                                mazeSolve(request.map, request.bearR, request.bearC, request.keys)
+                                            }
+                                        // 回主线程写回；局面已变化时 applyHint 返回 null 直接丢弃
+                                        val hint = game.applyHint(request, outcome)
+                                        if (hint != null && hintSession.complete(token, hint)) {
+                                            showHint(hint)
+                                        }
+                                    } finally {
+                                        hintSession.finish(token)
+                                    }
+                                }
+                        }
+                    }
                 }
             },
             onRestart = {
                 clearHintUi()
+                // 重开可能复用同一关卡对象（remember/LaunchedEffect 不会重启）：
+                // 这里显式取消在途求解并复位忙碌，避免旧 BFS 阻塞新一局的提示按钮
+                hintJob?.cancel()
+                hintJob = null
+                hintSession.cancel()
                 onRestart()
             },
             onPause = onPause,
@@ -205,17 +288,18 @@ internal fun MazePlayField(
             )
         }
 
-        // 方向键（提示时高亮下一步方向；移动中禁用避免连点）
+        // 方向键（提示时高亮下一步方向；移动中禁用避免连点）；导航栏 inset 与顶栏对称
         Column(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
                     .padding(bottom = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             MazeDPad(
                 style = style,
-                enabled = game.phase == MazePhase.PLAYING && !game.moving && !game.cleared,
+                enabled = game.phase == MazePhase.PLAYING && !moving && !game.cleared,
                 highlightDir = hintDir,
                 onMove = move,
             )

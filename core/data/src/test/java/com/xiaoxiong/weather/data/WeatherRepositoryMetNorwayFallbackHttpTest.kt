@@ -119,6 +119,17 @@ class WeatherRepositoryMetNorwayFallbackHttpTest {
         }
 
     @Test
+    fun forecast425_fallsBackToMetNorway() =
+        runBlocking {
+            mainServer.dispatcher = mainDispatcher(forecast = MockResponse().setResponseCode(425).setBody("too early"))
+            metServer.enqueue(MockResponse().setResponseCode(200).setBody(metJson()))
+
+            repository.fetchWeather(city)
+
+            assertEquals(1, metServer.requestCount)
+        }
+
+    @Test
     fun forecast4xx_doesNotFallBack() =
         runBlocking {
             mainServer.dispatcher = mainDispatcher(forecast = MockResponse().setResponseCode(404).setBody("nope"))

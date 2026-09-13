@@ -22,6 +22,20 @@ object WeatherAdviceGenerator {
             else -> R.string.advice_clothing_freezing
         }
 
+    /**
+     * 穿衣建议的体感口径：与生活指数共用 [LifeIndexGenerator.effectiveClothingFeels]，
+     * 缺体感温度且高湿时按湿冷下调 3°C，避免同屏建议与生活指数穿衣结论矛盾。
+     */
+    @StringRes
+    internal fun clothingResFor(current: CurrentWeather): Int =
+        clothingRes(
+            LifeIndexGenerator.effectiveClothingFeels(
+                feelsC = current.apparentTemperatureC ?: current.temperatureC,
+                humidityPercent = current.humidityPercent,
+                isApparentTemperature = current.apparentTemperatureC != null,
+            ),
+        )
+
     @StringRes
     fun rainTipRes(
         weatherCode: Int?,
@@ -43,7 +57,8 @@ object WeatherAdviceGenerator {
         uv: Double?,
         isDay: Boolean? = true,
     ): Int? {
-        if (isDay == false) return null
+        // 夜间或昼夜未知（无 is_day 数据）都不提示 UV
+        if (isDay != true) return null
         return when {
             uv == null -> null
             uv >= WeatherCodes.UV_VERY_HIGH -> R.string.advice_uv_strong
@@ -67,7 +82,6 @@ object WeatherAdviceGenerator {
         daily: List<DailyWeather>,
         airQuality: AirQuality?,
     ): String {
-        val feels = current.apparentTemperatureC ?: current.temperatureC
         val upcoming = upcomingFromCurrent(hourly, { it.time }, current.time, count = 12)
         // 「未来有雨」不含当前小时，避免已在下雨仍提示即将降雨
         val upcomingPrecip =
@@ -80,7 +94,7 @@ object WeatherAdviceGenerator {
 
         val parts =
             listOfNotNull(
-                resources.getString(clothingRes(feels)),
+                resources.getString(clothingResFor(current)),
                 rainTipRes(
                     current.weatherCode,
                     WeatherCodes.intensityPrecipMmPerHour(current),

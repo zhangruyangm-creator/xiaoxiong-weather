@@ -153,6 +153,35 @@ class HourlyUtilsTest {
     }
 
     @Test
+    fun formatHourLabel_pureDate_returnedAsIs() {
+        // 纯日期没有时刻：旧逻辑会截成 "2026-"，现在原样返回
+        assertEquals("2026-08-02", formatHourLabel("2026-08-02"))
+    }
+
+    @Test
+    fun formatHourLabel_boundariesAndShortInputs() {
+        assertEquals("00:00", formatHourLabel("2026-08-02T00:00"))
+        assertEquals("23:59", formatHourLabel("2026-08-02T23:59"))
+        // 带秒/时区偏移：仍取墙钟时刻
+        assertEquals("14:35", formatHourLabel("2026-08-02T14:35:30+08:00"))
+        // 数据异常（无分钟）时退回截断结果，不抛异常
+        assertEquals("14", formatHourLabel("2026-08-02T14"))
+    }
+
+    @Test
+    fun formatHourLabel_usesUsLocaleForDigits() {
+        val original = java.util.Locale.getDefault()
+        try {
+            // 阿拉伯语区域默认会输出本地数字形；统一 Locale.US 后必须仍是 ASCII 数字
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("ar-EG"))
+            assertEquals("14:35", formatHourLabel("2026-08-02T14:35"))
+            assertEquals("今天 09:00", formatHourDetailLabel("2026-08-02T09:00", "2026-08-02T07:30", "今天", "明天") { m, d -> "$m$d" })
+        } finally {
+            java.util.Locale.setDefault(original)
+        }
+    }
+
+    @Test
     fun formatHourDetailLabel_todayTomorrowOrDate() {
         val ref = "2026-08-05T07:30"
         val date = { m: Int, d: Int -> "${m}月${d}日" }
@@ -167,6 +196,27 @@ class HourlyUtilsTest {
         assertEquals(
             "8月7日 12:00",
             formatHourDetailLabel("2026-08-07T12:00", ref, "今天", "明天", date),
+        )
+    }
+
+    @Test
+    fun formatHourDetailLabel_unparseable_fallsBackToLabelNotBrokenPrefix() {
+        assertEquals(
+            "garbage",
+            formatHourDetailLabel("garbage", "2026-08-05T07:30", "今天", "明天") { m, d -> "$m/$d" },
+        )
+    }
+
+    @Test
+    fun upcomingFromCurrent_acceptsListAndKeepsBehaviorWithManyItems() {
+        data class Item(
+            val time: String,
+        )
+        val items = (0..30).map { Item("2026-08-02T%02d:00".format(it % 24)) }
+        val upcoming = upcomingFromCurrent(items, { it.time }, "2026-08-02T12:00", count = 3)
+        assertEquals(
+            listOf("2026-08-02T12:00", "2026-08-02T13:00", "2026-08-02T14:00"),
+            upcoming.map { it.time },
         )
     }
 }

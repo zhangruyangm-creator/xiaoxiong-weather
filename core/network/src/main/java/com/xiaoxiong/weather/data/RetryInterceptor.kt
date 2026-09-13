@@ -7,7 +7,7 @@ import java.io.IOException
 import kotlin.random.Random
 
 /**
- * 对幂等 GET 做有限次重试：网络异常或 5xx / 429。
+ * 对幂等 GET 做有限次重试：网络异常或 5xx / 429 / 408 / 425。
  */
 class RetryInterceptor(
     private val maxRetries: Int = 2,
@@ -60,7 +60,7 @@ class RetryInterceptor(
         }
     }
 
-    private fun shouldRetry(code: Int): Boolean = code == 429 || code in 500..599
+    private fun shouldRetry(code: Int): Boolean = code == 429 || code == 408 || code == 425 || code in 500..599
 
     companion object {
         private const val SLEEP_SLICE_MS = 100L

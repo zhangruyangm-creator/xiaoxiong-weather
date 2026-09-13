@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.ui.game
 import android.content.SharedPreferences
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
+import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchDifficulty
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchScene
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.ItemKind
 import org.junit.Assert.assertEquals
@@ -39,6 +40,7 @@ class CatchSnapshotTest {
         source.catchX = 123f
         source.touchX = 150f
         source.best = 999
+        source.difficulty = CatchDifficulty.CHALLENGE
         source.items +=
             BearCatchLogic
                 .Item(
@@ -83,6 +85,7 @@ class CatchSnapshotTest {
         // 触摸点不落盘：恢复后必须为空，避免小熊朝旧触点漂移
         assertNull(restored.touchX)
         assertEquals(999, restored.best)
+        assertEquals("快照应保存难度档位", CatchDifficulty.CHALLENGE, restored.difficulty)
 
         assertEquals(1, restored.items.size)
         val item = restored.items.first()
@@ -119,6 +122,57 @@ class CatchSnapshotTest {
         val shortHeader = FakePrefs()
         shortHeader.edit().putString(snapshotKey, "0,1,2,3").apply()
         assertFalse(BearCatchGame().restoreSnapshot(shortHeader))
+    }
+
+    @Test
+    fun restore_legacyHeaderWithoutDifficulty_defaultsToStandard() {
+        val prefs = FakePrefs()
+        // 旧版 19 字段表头（无 difficulty）：RUNNING(1)、scene=STORM(6)
+        prefs
+            .edit()
+            .putString(
+                snapshotKey,
+                "1,120,2,3,4.5,1,7,0.5,1.25,33,1,0.2,0.05,6,400,800,123,-1,999",
+            ).apply()
+        val restored = BearCatchGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals(GamePhase.RUNNING, restored.phase)
+        assertEquals(120, restored.score)
+        assertEquals(CatchScene.STORM, restored.scene)
+        assertEquals(CatchDifficulty.STANDARD, restored.difficulty)
+    }
+
+    @Test
+    fun difficulty_persistsAndReloadsThroughPrefs() {
+        val prefs = FakePrefs()
+        val game = BearCatchGame()
+        game.difficulty = CatchDifficulty.CHALLENGE
+        game.persistDifficulty(prefs)
+        assertEquals(CatchDifficulty.CHALLENGE, BearCatchGame.loadDifficulty(prefs))
+
+        // 未知 / 缺省 id 回退 STANDARD（兼容旧档）
+        prefs.edit().putString(BearCatchGame.PREFS_DIFFICULTY_KEY, "nonsense").apply()
+        assertEquals(CatchDifficulty.STANDARD, BearCatchGame.loadDifficulty(prefs))
+        assertEquals(CatchDifficulty.STANDARD, BearCatchGame().difficulty)
+    }
+
+    @Test
+    fun bestScore_migratesFromLegacyKeyAndRecords() {
+        val prefs = FakePrefs()
+        prefs.edit().putInt(BearCatchGame.PREFS_BEST_SCORE_LEGACY_KEY, 321).apply()
+        assertEquals("旧键应迁移读出", 321, BearCatchGame.loadBestScore(prefs))
+        assertEquals(
+            "读取旧值后应回写新键",
+            321,
+            prefs.getInt(BearCatchGame.PREFS_BEST_SCORE_KEY, 0),
+        )
+
+        val game = BearCatchGame()
+        game.best = 400
+        assertFalse("更低分不应刷新", game.recordBestScore(prefs, 321))
+        assertTrue("更高分应刷新", game.recordBestScore(prefs, 500))
+        assertEquals(500, prefs.getInt(BearCatchGame.PREFS_BEST_SCORE_KEY, 0))
+        assertEquals(500, BearCatchGame.loadBestScore(prefs))
     }
 
     @Test
@@ -172,6 +226,24 @@ class CatchSnapshotTest {
         restored.resize(IntSize(500, 900))
         assertEquals(GamePhase.READY, restored.phase)
         assertEquals(0, restored.score)
+    }
+
+    @Test
+    fun resizeResettingRunningGame_invalidatesSnapshot() {
+        val prefs = FakePrefs()
+        val game = BearCatchGame()
+        game.resize(IntSize(400, 800))
+        game.start()
+        game.saveSnapshot(prefs)
+        assertTrue(prefs.contains(snapshotKey))
+
+        // 改窗口导致整局回准备态：旧档必须失效，停在 READY 被兜底落盘也不能复活
+        game.resize(IntSize(500, 900))
+        assertEquals(GamePhase.READY, game.phase)
+        game.saveSnapshot(prefs)
+
+        assertFalse("改窗口重开后旧档应被清掉", prefs.contains(snapshotKey))
+        assertFalse(BearCatchGame().restoreSnapshot(prefs))
     }
 
     @Test

@@ -34,8 +34,20 @@ object PoolAi {
     /** 安全球最多评估的目标球数（每球 3 个偏移角）。 */
     private const val SAFETY_MAX_TARGETS = 5
 
+    /** 安全球单次规划最多推演的候选数（给后续补验干净进球留预算）。 */
+    private const val SAFETY_MAX_SIMS = 6
+
+    /** 补验失败候选时留给安全球兜底的推演步数（约一杆轻推的量）。 */
+    private const val SAFETY_FALLBACK_RESERVE = 240
+
     /** 安全球固定使用的力度（推演与实际出杆一致）。 */
     private const val SAFETY_POWER = 0.32f
+
+    /**
+     * 验证失败后的降力度尝试系数：原力度会跟袋或打薄时，更轻的推杆
+     * 往往仍能把目标球送进袋，同时白球不易跟袋。
+     */
+    private val SOFTER_POWER_FACTORS = floatArrayOf(0.8f, 0.62f, 0.45f)
 
     enum class Difficulty(
         val aimErrorDeg: Float,
@@ -48,7 +60,7 @@ object PoolAi {
         val positionCandidates: Int,
     ) {
         NOVICE(
-            aimErrorDeg = 7.5f,
+            aimErrorDeg = 3.2f,
             powerError = 0.20f,
             candidates = 4,
             verifyShots = 0,
@@ -56,7 +68,7 @@ object PoolAi {
             positionCandidates = 0,
         ),
         EASY(
-            aimErrorDeg = 5.0f,
+            aimErrorDeg = 2.2f,
             powerError = 0.14f,
             candidates = 6,
             verifyShots = 0,
@@ -64,7 +76,7 @@ object PoolAi {
             positionCandidates = 0,
         ),
         NORMAL(
-            aimErrorDeg = 2.4f,
+            aimErrorDeg = 1.35f,
             powerError = 0.08f,
             candidates = 10,
             verifyShots = 2,
@@ -72,7 +84,7 @@ object PoolAi {
             positionCandidates = 0,
         ),
         HARD(
-            aimErrorDeg = 1.0f,
+            aimErrorDeg = 0.5f,
             powerError = 0.045f,
             candidates = 12,
             verifyShots = 4,
@@ -80,7 +92,7 @@ object PoolAi {
             positionCandidates = 3,
         ),
         MASTER(
-            aimErrorDeg = 0.35f,
+            aimErrorDeg = 0.15f,
             powerError = 0.02f,
             candidates = 16,
             verifyShots = 6,
@@ -113,14 +125,75 @@ object PoolAi {
     )
 
     /** 一次物理推演的结果（用克隆球桌，不影响真实棋局）。 */
-    private data class SimResult(
+    internal data class SimResult(
         val targetPotted: Boolean,
         val cueScratched: Boolean,
         val cueX: Float,
         val cueY: Float,
         val firstContactId: Int?,
         val balls: List<PoolBall>,
+        /** 推演未跑完（步数上限或预算截断），结果不可当作「已完整验证」。 */
+        val truncated: Boolean = false,
+        /** 因阶段配额/总预算耗尽而截断：调用方应停止该阶段而不是把结果当失败。 */
+        val budgetExhausted: Boolean = false,
+        /** 首碰之后有球碰库或有非白球落袋：满足规则里的「接触后碰库/落袋」要求。 */
+        val railAfterContact: Boolean = false,
     )
+
+    /** AI 推演阶段：各自领取独立配额，避免一个阶段吃光整次规划的步数。 */
+    internal enum class SimStage { VERIFY, KICK, SAFETY }
+
+    /**
+     * 单次 [plan] 共用的确定性物理推演步数预算：每推进一步消耗 1。
+     *
+     * 总预算按阶段拆成 verify / kick / safety 三段配额（默认 70% / 20% / 10%），
+     * 后面的阶段只能使用前面阶段没用完的份额，因此单个阶段不会吃光整次规划；
+     * 阶段配额耗尽时 [simulate] 返回 `truncated`，[plan] 据此停止该阶段而不是把
+     * 「未验证」当成「没进球」，保证主线程最坏耗时可控。
+     */
+    internal class SimBudget(
+        val maxSteps: Int,
+        verifyQuota: Int = maxSteps * 7 / 10,
+        kickQuota: Int = maxSteps * 2 / 10,
+    ) {
+        private val verifyLimit = verifyQuota.coerceIn(0, maxSteps)
+        private val kickLimit = (verifyLimit + kickQuota.coerceIn(0, maxSteps - verifyLimit)).coerceIn(0, maxSteps)
+        private val safetyLimit = maxSteps
+
+        var used: Int = 0
+            private set
+        var verifyUsed: Int = 0
+            private set
+        var kickUsed: Int = 0
+            private set
+        var safetyUsed: Int = 0
+            private set
+
+        /** 总预算是否耗尽。 */
+        val exhausted: Boolean get() = used >= maxSteps
+
+        /** 指定阶段是否还有可用步数（阶段配额或总预算任一耗尽）。 */
+        fun exhausted(stage: SimStage): Boolean = used >= limit(stage)
+
+        /** 申请 1 步推演额度；阶段配额或总预算耗尽返回 false。 */
+        fun tryConsume(stage: SimStage): Boolean {
+            if (used >= limit(stage)) return false
+            used++
+            when (stage) {
+                SimStage.VERIFY -> verifyUsed++
+                SimStage.KICK -> kickUsed++
+                SimStage.SAFETY -> safetyUsed++
+            }
+            return true
+        }
+
+        private fun limit(stage: SimStage): Int =
+            when (stage) {
+                SimStage.VERIFY -> verifyLimit
+                SimStage.KICK -> kickLimit
+                SimStage.SAFETY -> safetyLimit
+            }
+    }
 
     /**
      * 为当前击球方规划一杆。
@@ -133,11 +206,29 @@ object PoolAi {
         state: PoolMatchState,
         difficulty: Difficulty,
         rng: Random,
+    ): ShotPlan? = plan(balls, table, state, difficulty, rng, SimBudget(simulationBudget(difficulty)))
+
+    /** 带显式 [budget] 的规划入口（测试可观测累计推演步数）。 */
+    internal fun plan(
+        balls: List<PoolBall>,
+        table: PoolTable,
+        state: PoolMatchState,
+        difficulty: Difficulty,
+        rng: Random,
+        budget: SimBudget,
     ): ShotPlan? {
         val cue = balls.firstOrNull { it.kind == PoolBallKind.CUE && it.onTable } ?: return null
+        // 先抽定瞄准/力度误差：后续推演按「实际要打的这一杆」（含误差）验证，
+        // 保证「推演干净」等于「实打干净」，避免验证后再加误差把干净杆推成落袋。
+        val aimErrRad = Math.toRadians(difficulty.aimErrorDeg.toDouble()).toFloat() * (rng.nextFloat() * 2f - 1f)
+        val powerErr = difficulty.powerError * (rng.nextFloat() * 2f - 1f)
+
+        fun execAngle(c: Candidate): Float = c.angle + aimErrRad
+
+        fun execPower(p: Float): Float = (p + powerErr).coerceIn(0.12f, 1f)
         val targets = eligibleTargets(balls, state)
         if (targets.isEmpty()) {
-            return safetyPlan(cue, balls, table, state, difficulty, rng)
+            return safetyPlan(cue, balls, table, state, difficulty, rng, budget)?.plan
         }
 
         val candidates = ArrayList<Candidate>()
@@ -149,8 +240,8 @@ object PoolAi {
 
         if (candidates.isEmpty()) {
             // 直接进攻路径全被挡：尝试一库解球（翻袋/踢球）并推演验证，失败则打安全球
-            kickPlan(balls, table, state, cue, rng)?.let { return it }
-            return safetyPlan(cue, balls, table, state, difficulty, rng)
+            kickPlan(balls, table, state, cue, rng, budget)?.let { return it }
+            return safetyPlan(cue, balls, table, state, difficulty, rng, budget)?.plan
         }
 
         candidates.sortByDescending { it.score }
@@ -160,16 +251,30 @@ object PoolAi {
         var planned: Candidate? = null
         var plannedValue = -Float.MAX_VALUE
         var positionChecked = 0
+        var chosenPower = 0f
+        val simResults = LinkedHashMap<Candidate, SimResult>()
+        var verificationAttempted = false
         if (difficulty.verifyShots > 0) {
             for (c in shortlist.take(difficulty.verifyShots)) {
+                if (budget.exhausted(SimStage.VERIFY)) break
                 val simPower = estimatePower(c.cueDistance, c.ballToPocket, c.cutAngle)
-                val res = simulate(balls, table, c.angle, simPower, c.target.id)
+                val res = simulate(balls, table, execAngle(c), execPower(simPower), c.target.id, budget, SimStage.VERIFY, c.spinX, c.spinY)
+                // 预算耗尽后的结果是「未验证」：停止验证，不能当成「没进球」继续空跑
+                if (res.budgetExhausted) break
+                verificationAttempted = true
+                simResults[c] = res
                 if (!res.targetPotted || res.cueScratched) continue
-                if (verified == null) verified = c
+                if (verified == null) {
+                    verified = c
+                    chosenPower = simPower
+                }
                 // 两杆走位（仅 HARD/MASTER）：把白球停点 + 剩余台面作为下一杆局面，
                 // 复用 evaluateCandidate 评估「下一杆最佳可打性」，当前杆总分 = 进球分 + 权重 × 走位分。
-                // 只对前 N 个已验证候选推演下一杆局面，控制成本。
-                if (difficulty.positionCandidates > 0 && positionChecked < difficulty.positionCandidates) {
+                // 只对前 N 个已验证候选推演下一杆局面，控制成本；预算耗尽则不再走位评估。
+                if (difficulty.positionCandidates > 0 &&
+                    positionChecked < difficulty.positionCandidates &&
+                    !budget.exhausted
+                ) {
                     positionChecked++
                     val pos = nextShotQuality(res.balls, table, state)
                     val value = c.score + difficulty.positionPlay * pos
@@ -180,13 +285,99 @@ object PoolAi {
                 }
             }
         }
-        val chosen = planned ?: verified ?: shortlist.first()
-        val aimErrRad = Math.toRadians(difficulty.aimErrorDeg.toDouble()).toFloat() * (rng.nextFloat() * 2f - 1f)
-        val powerErr = difficulty.powerError * (rng.nextFloat() * 2f - 1f)
-        val power = estimatePower(chosen.cueDistance, chosen.ballToPocket, chosen.cutAngle)
+        val chosen =
+            planned ?: verified ?: run {
+                if (!verificationAttempted) {
+                    // 没跑过推演（如预算为 0）：保留原有「几何最优」行为
+                    shortlist.first()
+                } else {
+                    // 验证过但没有任何「进球且不落袋」的候选：不再退回未验证的几何最优。
+                    // 先用剩余额度补验短名单剩余候选（原力度优先，其次降力度），
+                    // 补验期间给安全球兜底留出保留额度；仍无干净进球时，
+                    // 先尝试经推演过滤的安全球，再从候选缓存里挑「不落袋 / 风险最低」的一杆。
+                    for (c in shortlist) {
+                        if (verified != null || budget.reserveReached()) break
+                        if (simResults.containsKey(c)) continue
+                        val basePower = estimatePower(c.cueDistance, c.ballToPocket, c.cutAngle)
+                        val res =
+                            simulate(
+                                balls,
+                                table,
+                                execAngle(c),
+                                execPower(basePower),
+                                c.target.id,
+                                budget,
+                                SimStage.SAFETY,
+                                c.spinX,
+                                c.spinY,
+                            )
+                        if (res.budgetExhausted) break
+                        simResults[c] = res
+                        if (res.targetPotted && !res.cueScratched) {
+                            verified = c
+                            chosenPower = basePower
+                        }
+                    }
+                    if (verified == null) {
+                        for (c in shortlist) {
+                            if (verified != null || budget.reserveReached()) break
+                            val basePower = estimatePower(c.cueDistance, c.ballToPocket, c.cutAngle)
+                            for (factor in SOFTER_POWER_FACTORS) {
+                                if (budget.reserveReached()) break
+                                val softPower = (basePower * factor).coerceAtLeast(0.15f)
+                                val res =
+                                    simulate(
+                                        balls,
+                                        table,
+                                        execAngle(c),
+                                        execPower(softPower),
+                                        c.target.id,
+                                        budget,
+                                        SimStage.SAFETY,
+                                        c.spinX,
+                                        c.spinY,
+                                    )
+                                if (res.budgetExhausted) break
+                                if (res.targetPotted && !res.cueScratched) {
+                                    verified = c
+                                    chosenPower = softPower
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    val clean = verified
+                    if (clean != null) {
+                        clean
+                    } else {
+                        val safety = safetyPlan(cue, balls, table, state, difficulty, rng, budget)
+                        val safest = safestCandidate(candidates, simResults, balls, table, budget, aimErrRad, powerErr)
+                        val safestSim = safest?.let { simResults[it] }
+                        val safestSafe =
+                            safest != null &&
+                                (
+                                    safestSim == null ||
+                                        (!safestSim.cueScratched && (safestSim.targetPotted || safestSim.railAfterContact))
+                                )
+                        when {
+                            safestSafe -> safest
+                            // 候选已确认白球落袋时，宁可用未经确认的低力度安全球，也不主动落袋
+                            safety != null -> return safety.plan
+                            safest != null -> safest
+                            else -> shortlist.first()
+                        }
+                    }
+                }
+            }
+        val power =
+            if (chosenPower > 0f) {
+                chosenPower
+            } else {
+                estimatePower(chosen.cueDistance, chosen.ballToPocket, chosen.cutAngle)
+            }
         return ShotPlan(
             angle = chosen.angle + aimErrRad,
-            power = (power + powerErr).coerceIn(0.12f, 1f),
+            power = execPower(power),
             spinX = chosen.spinX,
             spinY = chosen.spinY,
             targetBallId = chosen.target.id,
@@ -243,10 +434,10 @@ object PoolAi {
         if (!pathClear(balls, ball.x, ball.y, pocket.x, pocket.y, ball.radius * 2f, null, ball)) return null
 
         val cueDistance = aimLen
-        val ballToPocket = bl
-        val pocketFactor = if (pocket.corner) 1f else 0.92f
+        // 距离价值按「目标球到袋口捕获圈边缘」计算：中袋/角袋捕获半径已同量级，不再额外惩罚中袋
+        val ballToPocket = (bl - PoolPhysics.pocketCaptureRadius(pocket, ball.radius)).coerceAtLeast(0f)
         val cutFactor = 1f - (cut / 1.35f) * 0.7f
-        val score = pocketFactor * cutFactor / (1f + cueDistance * 1.6f + ballToPocket * 1.1f)
+        val score = cutFactor / (1f + cueDistance * 1.6f + ballToPocket * 1.1f)
         val spinY = if (cueDistance < 0.25f) 0.25f else 0f
         return Candidate(ball, pocketIndex, atan2(aimY, aimX), cut, cueDistance, ballToPocket, score, 0f, spinY)
     }
@@ -276,20 +467,48 @@ object PoolAi {
         return true
     }
 
-    /** 用真实物理内核克隆整桌推演一杆，返回落袋/走位/首碰等信息。 */
-    private fun simulate(
+    /**
+     * 用真实物理内核克隆整桌推演一杆，返回落袋/走位/首碰等信息；
+     * [budget]/[stage] 额度耗尽或达到 [SIM_MAX_STEPS] 仍未静止时，结果标记为
+     * [SimResult.truncated]（未验证），调用方必须与「未进球」区分。
+     *
+     * [spinX]/[spinY] 与实际出杆 [PoolGame.applyShotToCue] 一致（含偏杆 squirt），
+     * 保证「推演不落袋」等于「实打不落袋」。
+     */
+    internal fun simulate(
         balls: List<PoolBall>,
         table: PoolTable,
         angle: Float,
         power: Float,
         targetId: Int,
+        budget: SimBudget? = null,
+        stage: SimStage = SimStage.VERIFY,
+        spinX: Float = 0f,
+        spinY: Float = 0f,
     ): SimResult {
         val clones = balls.map { cloneBall(it) }
         val cloneCue = clones.firstOrNull { it.kind == PoolBallKind.CUE } ?: return SimResult(false, false, 0f, 0f, null, balls)
         val speed = simulationSpeed(power)
-        cloneCue.vx = cos(angle) * speed
-        cloneCue.vy = sin(angle) * speed
+        // 侧旋「偏杆」：与 PoolGame.applyShotToCue 相同的出杆方向修正
+        val squirt = (-spinX) * PoolMath.radians(0.85f) * (0.35f + 0.65f * power)
+        val dir = angle + squirt
+        cloneCue.vx = cos(dir) * speed
+        cloneCue.vy = sin(dir) * speed
+        val r = cloneCue.radius
+        when {
+            spinY > 0f -> {
+                cloneCue.wx = -cloneCue.vy / r * spinY
+                cloneCue.wy = cloneCue.vx / r * spinY
+            }
+            spinY < 0f -> {
+                val k = -spinY
+                cloneCue.wx = cloneCue.vy / r * k
+                cloneCue.wy = -cloneCue.vx / r * k
+            }
+        }
+        cloneCue.wz = spinX * (12f * power + 4f)
         var firstContactId: Int? = null
+        var railAfterContact = false
         val listener =
             object : PoolPhysics.Listener {
                 override fun onBallBall(
@@ -300,12 +519,28 @@ object PoolAi {
                         firstContactId = if (a.kind == PoolBallKind.CUE) b.id else a.id
                     }
                 }
+
+                override fun onRail(ball: PoolBall) {
+                    if (firstContactId != null) railAfterContact = true
+                }
+
+                override fun onPocket(ball: PoolBall) {
+                    if (firstContactId != null && ball.kind != PoolBallKind.CUE) railAfterContact = true
+                }
             }
         var steps = 0
+        var truncated = false
+        var budgetExhausted = false
         while (steps < SIM_MAX_STEPS && !PoolPhysics.settled(clones)) {
+            if (budget != null && !budget.tryConsume(stage)) {
+                truncated = true
+                budgetExhausted = true
+                break
+            }
             PoolPhysics.step(clones, table, SIM_DT, listener)
             steps++
         }
+        if (!truncated && steps >= SIM_MAX_STEPS && !PoolPhysics.settled(clones)) truncated = true
         val targetClone = clones.firstOrNull { it.id == targetId }
         return SimResult(
             targetPotted = targetClone != null && targetClone.potted,
@@ -314,6 +549,9 @@ object PoolAi {
             cueY = cloneCue.y,
             firstContactId = firstContactId,
             balls = clones,
+            truncated = truncated,
+            budgetExhausted = budgetExhausted,
+            railAfterContact = railAfterContact,
         )
     }
 
@@ -324,16 +562,30 @@ object PoolAi {
     internal fun simulationSpeed(power: Float): Float = PoolConfig.shotSpeedMps(power)
 
     /**
+     * 单次 [plan] 的确定性推演预算（主线程约 20ms 内的最坏步数），
+     * 所有 [simulate] 共享同一个 [SimBudget]，耗尽后停止后续验证/走位候选。
+     *
+     * NORMAL 及以上统一到与 MASTER 相同的上限：验证失败后的兜底要补验更多候选、
+     * 尝试更轻的力度才能找到「进球且不落袋」的线路，否则只能退回安全球而错过干净机会。
+     */
+    private fun simulationBudget(difficulty: Difficulty): Int =
+        when (difficulty) {
+            Difficulty.NOVICE -> 360
+            Difficulty.EASY -> 600
+            Difficulty.NORMAL -> 1500
+            Difficulty.HARD -> 1500
+            Difficulty.MASTER -> 1500
+        }
+
+    /**
      * 单次 [plan] 的最坏物理推演步数（主线程预算，供测试回归）。
      *
-     * 取「有候选手动验证」与「全部被挡 → 解球 + 安全球」两条路径的较大者：
-     * 后者 = [KICK_MAX_SHOTS] × [SIM_MAX_STEPS] + [SAFETY_MAX_TARGETS] × 3 × [SIM_MAX_STEPS]。
+     * 所有推演共用确定性 [SimBudget]，因此最坏步数就是该难度的总预算。
      */
-    fun worstCaseSimulationSteps(difficulty: Difficulty): Int {
-        val verify = difficulty.verifyShots * SIM_MAX_STEPS
-        val blocked = (KICK_MAX_SHOTS + SAFETY_MAX_TARGETS * 3) * SIM_MAX_STEPS
-        return maxOf(verify, blocked)
-    }
+    fun worstCaseSimulationSteps(difficulty: Difficulty): Int = simulationBudget(difficulty)
+
+    /** 推演预算是否已触及留给安全球兜底的保留额度（[SAFETY_FALLBACK_RESERVE]）。 */
+    private fun SimBudget.reserveReached(): Boolean = used + SAFETY_FALLBACK_RESERVE >= maxSteps
 
     private fun cloneBall(b: PoolBall): PoolBall =
         PoolBall(b.id, b.kind, b.x, b.y, b.vx, b.vy, b.wx, b.wy, b.wz, b.radius).also {
@@ -391,9 +643,19 @@ object PoolAi {
         return nextShotQuality(balls, table, state.copy(turn = state.opponent()))
     }
 
+    /** 安全球结果：方案 + 是否经物理推演确认「首碰合法且白球不落袋」。 */
+    private data class SafetyOutcome(
+        val plan: ShotPlan,
+        val noScratchVerified: Boolean,
+    )
+
     /**
      * 无进攻机会时的安全球：对每个合法目标生成若干瞄点，低力度推演，
      * 选「对手下一杆机会最小」的一杆；低难度退化为轻推最近目标。
+     *
+     * 推演过的候选会过滤掉白球落袋与首碰错球；当找不到任何通过推演的方案时，
+     * 退化为最近目标轻推，并用 [SafetyOutcome.noScratchVerified] 标记「未经确认」，
+     * 由 [plan] 决定是否改用其它不落袋的候选。
      */
     private fun safetyPlan(
         cue: PoolBall,
@@ -402,7 +664,8 @@ object PoolAi {
         state: PoolMatchState,
         difficulty: Difficulty,
         rng: Random,
-    ): ShotPlan? {
+        budget: SimBudget,
+    ): SafetyOutcome? {
         val targets =
             eligibleTargets(balls, state).ifEmpty {
                 balls.filter { it.onTable && it.kind != PoolBallKind.CUE }
@@ -410,15 +673,23 @@ object PoolAi {
         if (targets.isEmpty()) return null
 
         var best = nearestLightPush(cue, targets)
+        var verifiedNoScratch = false
         if (difficulty.verifyShots > 0 || difficulty.positionPlay > 0f) {
             var bestOpp = Float.MAX_VALUE
             var found = false
+            var sims = 0
             for (t in targets.take(SAFETY_MAX_TARGETS)) {
+                if (budget.exhausted(SimStage.SAFETY) || sims >= SAFETY_MAX_SIMS) break
                 val base = atan2(t.y - cue.y, t.x - cue.x)
                 for (off in floatArrayOf(0f, -0.045f, 0.045f)) {
+                    if (budget.exhausted(SimStage.SAFETY) || sims >= SAFETY_MAX_SIMS) break
+                    sims++
                     val angle = base + off
-                    val res = simulate(balls, table, angle, SAFETY_POWER, t.id)
+                    val res = simulate(balls, table, angle, SAFETY_POWER, t.id, budget, SimStage.SAFETY)
+                    if (res.budgetExhausted) break
                     if (res.cueScratched || res.firstContactId != t.id) continue
+                    // 低力度轻推容易「碰球后无库无袋」：不满足规则要求的安全球不采用
+                    if (!res.railAfterContact && !res.targetPotted) continue
                     val opp = opponentOpportunity(res.balls, table, state)
                     if (opp < bestOpp) {
                         bestOpp = opp
@@ -427,18 +698,85 @@ object PoolAi {
                     }
                 }
             }
+            verifiedNoScratch = found
             if (!found) best = nearestLightPush(cue, targets)
         }
         val jitter = (rng.nextFloat() - 0.5f) * 0.03f
-        return ShotPlan(
-            angle = best.first + jitter,
-            power = SAFETY_POWER,
-            spinX = 0f,
-            spinY = 0f,
-            targetBallId = best.second.id,
-            pocketIndex = -1,
-            safety = true,
+        return SafetyOutcome(
+            plan =
+                ShotPlan(
+                    angle = best.first + jitter,
+                    power = SAFETY_POWER,
+                    spinX = 0f,
+                    spinY = 0f,
+                    targetBallId = best.second.id,
+                    pocketIndex = -1,
+                    safety = true,
+                ),
+            noScratchVerified = verifiedNoScratch,
         )
+    }
+
+    /**
+     * 验证失败后的兜底选杆：先用验证阶段剩余配额补推演候选（缓存结果），
+     * 再按「不落白球」优先排序——进球且不落袋 > 未进球且不落袋 > 未推演 > 已确认落袋；
+     * 同为不落袋时，白球终点离袋口越远越安全。
+     */
+    private fun safestCandidate(
+        candidates: List<Candidate>,
+        simResults: MutableMap<Candidate, SimResult>,
+        balls: List<PoolBall>,
+        table: PoolTable,
+        budget: SimBudget,
+        aimErrRad: Float,
+        powerErr: Float,
+    ): Candidate? {
+        for (c in candidates) {
+            if (simResults.containsKey(c)) continue
+            if (budget.exhausted(SimStage.VERIFY)) break
+            val angle = c.angle + aimErrRad
+            val power = (estimatePower(c.cueDistance, c.ballToPocket, c.cutAngle) + powerErr).coerceIn(0.12f, 1f)
+            val res = simulate(balls, table, angle, power, c.target.id, budget, SimStage.VERIFY, c.spinX, c.spinY)
+            if (res.budgetExhausted) break
+            simResults[c] = res
+        }
+        var best: Candidate? = null
+        var bestRank = -Float.MAX_VALUE
+        for (c in candidates) {
+            val rank = cueScratchRank(simResults[c], table)
+            if (rank > bestRank) {
+                bestRank = rank
+                best = c
+            }
+        }
+        return best
+    }
+
+    /** 候选的「白球不落袋」排序分（越大越安全）：已确认落袋最低，未推演次之。 */
+    private fun cueScratchRank(
+        sim: SimResult?,
+        table: PoolTable,
+    ): Float =
+        when {
+            sim == null -> 0f
+            sim.cueScratched -> -1f
+            sim.targetPotted -> 2f + cuePocketClearance(sim, table)
+            // 接触后无库无袋会判「未碰库」犯规，排在正常得分的落袋线之后
+            sim.railAfterContact -> 1f + cuePocketClearance(sim, table)
+            else -> 0.5f + cuePocketClearance(sim, table)
+        }
+
+    /** 推演后白球停点到最近袋口捕获圈边缘的距离（越大越远离落袋风险）。 */
+    private fun cuePocketClearance(
+        sim: SimResult,
+        table: PoolTable,
+    ): Float {
+        var min = Float.MAX_VALUE
+        for (p in table.pockets) {
+            val d = hypot(sim.cueX - p.x, sim.cueY - p.y) - PoolPhysics.pocketCaptureRadius(p, PoolConfig.BALL_RADIUS)
+            if (d < min) min = d
+        }
+        return min.coerceAtLeast(0f)
     }
 
     private fun nearestLightPush(
@@ -450,28 +788,26 @@ object PoolAi {
     }
 
     /**
-     * 解斯诺克：直接路径全被挡时，用台边镜像点生成一库解球候选并物理推演，
-     * 仅当能真正打进目标球才采用（否则退回安全球）。
+     * 解斯诺克：直接路径全被挡时，用 6 段主库（排除袋口钳口）的镜像点生成一库解球候选并物理推演，
+     * 仅当能真正打进目标球才采用（否则退回安全球）。候选按「库 → 目标」轮转，
+     * 避免第一个目标吃光 [KICK_MAX_SHOTS] 预算而漏掉后续目标。
      */
-    private fun kickPlan(
+    internal fun kickPlan(
         balls: List<PoolBall>,
         table: PoolTable,
         state: PoolMatchState,
         cue: PoolBall,
         rng: Random,
+        budget: SimBudget,
     ): ShotPlan? {
         val targets = eligibleTargets(balls, state)
         if (targets.isEmpty()) return null
-        val kicks = ArrayList<Pair<Float, PoolBall>>()
-        for (t in targets) {
-            for (rail in table.rails) {
-                val angle = oneCushionAngle(cue, t, rail) ?: continue
-                kicks += angle to t
-            }
-        }
-        for ((angle, t) in kicks.take(KICK_MAX_SHOTS)) {
+        for ((angle, t) in kickCandidates(table, targets, cue).take(KICK_MAX_SHOTS)) {
+            if (budget.exhausted(SimStage.KICK)) break
             val power = estimatePower(hypot(t.x - cue.x, t.y - cue.y), 0.35f, 0.4f)
-            val res = simulate(balls, table, angle, power, t.id)
+            val res = simulate(balls, table, angle, power, t.id, budget, SimStage.KICK)
+            // 预算耗尽后的结果是「未验证」：停止解球而不是当作解球失败继续空跑
+            if (res.budgetExhausted) break
             if (res.cueScratched || !res.targetPotted || res.firstContactId != t.id) continue
             return ShotPlan(
                 angle = angle + (rng.nextFloat() - 0.5f) * 0.02f,
@@ -484,6 +820,37 @@ object PoolAi {
         }
         return null
     }
+
+    /**
+     * 一库解球候选：只对 6 段主库（台面四边整段，排除 12 段袋口钳口）生成，
+     * 顺序为「库 → 目标」轮转，保证多目标时每个目标都能分到候选名额。
+     */
+    internal fun kickCandidates(
+        table: PoolTable,
+        targets: List<PoolBall>,
+        cue: PoolBall,
+    ): List<Pair<Float, PoolBall>> {
+        val kicks = ArrayList<Pair<Float, PoolBall>>()
+        for (rail in mainRails(table)) {
+            for (t in targets) {
+                val angle = oneCushionAngle(cue, t, rail) ?: continue
+                kicks += angle to t
+            }
+        }
+        return kicks
+    }
+
+    /** 台面四边的整段主库（排除袋口钳口斜边）。 */
+    private fun mainRails(table: PoolTable): List<PoolRail> =
+        table.rails.filter { rail ->
+            val verticalOnBoundary =
+                abs(rail.x1 - rail.x2) < 1e-6f &&
+                    (abs(rail.x1 - table.left) < 1e-4f || abs(rail.x1 - table.right) < 1e-4f)
+            val horizontalOnBoundary =
+                abs(rail.y1 - rail.y2) < 1e-6f &&
+                    (abs(rail.y1 - table.top) < 1e-4f || abs(rail.y1 - table.bottom) < 1e-4f)
+            verticalOnBoundary || horizontalOnBoundary
+        }
 
     /** 白球到目标球的一库镜像瞄角（反射点需落在该库段内），无解返回 null。 */
     private fun oneCushionAngle(
@@ -529,7 +896,9 @@ object PoolAi {
 
     /**
      * 自由球时 AI 摆白球：对每个「目标球 × 袋口」的直球摆位做实际质量评估
-     * （切角 / 路径净空 / 距离），取最佳位置；全被挡或非法时退回台面中心附近。
+     * （切角 / 路径净空 / 距离），取最佳位置；全被挡或非法时在台面内搜索合法空位。
+     * 合法性与玩家 [PoolGame.tryPlaceCue] 共用 [PoolPhysics.isLegalCuePlacement]，
+     * 不会把白球放进袋口捕获圈或与其它球重叠。
      */
     fun placeCueBall(
         balls: List<PoolBall>,
@@ -548,15 +917,34 @@ object PoolAi {
                 if (l < 1e-4f) continue
                 val px = ball.x + dx / l * (ball.radius * 2f + 0.12f)
                 val py = ball.y + dy / l * (ball.radius * 2f + 0.12f)
-                if (!table.contains(px, py, margin = -cue.radius)) continue
-                if (!freeSpot(balls, cue, px, py)) continue
+                if (!PoolPhysics.isLegalCuePlacement(balls, table, cue, px, py)) continue
                 val score = placementQuality(balls, table, state, cue, px, py)
                 candidates += Triple(px, py, score)
             }
         }
         val best = candidates.maxByOrNull { it.third }
         if (best != null) return best.first to best.second
-        return table.centerX to table.centerY
+        return findLegalCueSpot(balls, table, cue) ?: (table.centerX to table.centerY)
+    }
+
+    /** 兜底：按 [PoolPhysics.isLegalCuePlacement] 在台面内扫描第一个合法摆位。 */
+    private fun findLegalCueSpot(
+        balls: List<PoolBall>,
+        table: PoolTable,
+        cue: PoolBall,
+    ): Pair<Float, Float>? {
+        val margin = cue.radius * 1.5f
+        val step = cue.radius * 2.5f
+        var y = table.top + margin
+        while (y <= table.bottom - margin) {
+            var x = table.left + margin
+            while (x <= table.right - margin) {
+                if (PoolPhysics.isLegalCuePlacement(balls, table, cue, x, y)) return x to y
+                x += step
+            }
+            y += step
+        }
+        return null
     }
 
     /**
@@ -574,18 +962,5 @@ object PoolAi {
         val probe = PoolBall(cue.id, PoolBallKind.CUE, x, y, radius = cue.radius)
         val probeBalls = balls.map { if (it === cue) probe else it }
         return shotQualityFrom(probe, probeBalls, table, state)
-    }
-
-    private fun freeSpot(
-        balls: List<PoolBall>,
-        cue: PoolBall,
-        x: Float,
-        y: Float,
-    ): Boolean {
-        for (b in balls) {
-            if (!b.onTable || b === cue) continue
-            if (hypot(b.x - x, b.y - y) < b.radius + cue.radius + 1e-3f) return false
-        }
-        return true
     }
 }

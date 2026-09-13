@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.BackoffPolicy
@@ -19,12 +20,17 @@ import androidx.work.WorkerParameters
 import com.xiaoxiong.weather.MainActivity
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.AppError
+import com.xiaoxiong.weather.data.SelectedCityStore
 import com.xiaoxiong.weather.data.WeatherAlertGenerator
 import com.xiaoxiong.weather.data.WeatherRefreshPolicy
+import com.xiaoxiong.weather.data.WeatherSnapshot
+import com.xiaoxiong.weather.data.isSameSelection
+import com.xiaoxiong.weather.di.AppContainer
 import com.xiaoxiong.weather.di.appContainer
 import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.WeatherLauncherIcon
 import com.xiaoxiong.weather.util.formatTemperature
+import com.xiaoxiong.weather.util.runCatchingCancellable
 import com.xiaoxiong.weather.widget.WeatherWidgetUpdater
 import java.util.concurrent.TimeUnit
 
@@ -39,11 +45,10 @@ class WeatherRefreshWorker(
             val selection = store.getOnce() ?: return Result.success()
             val locationHelper = container.locationHelper
             val cacheStore = container.weatherCacheStore
-            val dedup = container.notifyDedupStore
 
             val city =
                 if (selection.useLocation && locationHelper.hasLocationPermission()) {
-                    runCatching { locationHelper.resolveCurrentCityReuseLast() }.getOrDefault(selection.city)
+                    runCatchingCancellable { locationHelper.resolveCurrentCityReuseLast() }.getOrDefault(selection.city)
                 } else {
                     selection.city
                 }
@@ -53,7 +58,7 @@ class WeatherRefreshWorker(
             if (cached != null &&
                 now - cached.savedAtEpochMs < WeatherRefreshPolicy.BACKGROUND_FRESH_MS
             ) {
-                // 前台刚刷过：跳过联网，仍刷新小组件与桌面图标（flush 排队中的 alias）
+                // 前台刚刷过：只跳过联网/写缓存，仍刷新小组件、桌面图标并评估推送预警
                 WeatherWidgetUpdater.updateAll(applicationContext)
                 val current = cached.snapshot.current
                 WeatherLauncherIcon.applyForWeatherCode(
@@ -62,15 +67,17 @@ class WeatherRefreshWorker(
                     WeatherCodes.intensityPrecipMmPerHour(current),
                     current.isDay,
                 )
+                notifyForSnapshot(container, selection, cached.snapshot)
                 return Result.success()
             }
 
             val snapshot = container.weatherRepository.fetchWeather(city)
             // 后台刷新结果写入缓存，前台打开时可直接用到最新数据；
-            // 落盘失败不能丢掉已到手的数据，后续小组件/图标/通知继续执行
-            runCatching { cacheStore.save(snapshot) }
+            // 落盘失败不能丢掉已到手的数据，后续小组件/图标/通知继续执行。
+            // runCatchingCancellable：系统取消 Worker 时不能让取消被吞成普通失败
+            runCatchingCancellable { cacheStore.save(snapshot) }
             if (selection.useLocation) {
-                runCatching { store.saveIfUnchanged(selection, city, useLocation = true) }
+                runCatchingCancellable { store.saveIfUnchanged(selection, city, useLocation = true) }
             }
 
             val current = snapshot.current
@@ -84,64 +91,7 @@ class WeatherRefreshWorker(
                 current.isDay,
             )
 
-            val settings = container.settingsStore.getOnce()
-            if (settings.notificationsEnabled) {
-                // 候选=所有 WARNING + 关键 kind 的 WATCH + 临近雨雪（沿用旧行为）；
-                // 高温/寒潮/雾/沙尘/大风/UV/积水等严重预警不再被整类漏掉
-                val specs =
-                    WeatherAlertGenerator.specs(snapshot.current, snapshot.hourly, snapshot.daily, snapshot.airQuality)
-                val severeSpecs = selectSevereNotificationSpecs(specs)
-                val newSignatures =
-                    if (severeSpecs.isEmpty()) {
-                        emptyList()
-                    } else {
-                        dedup.shouldNotifyAlertsAndRemember(
-                            severeSpecs.map { severeNotificationSignature(city.name, it) },
-                        )
-                    }
-                when {
-                    newSignatures.isNotEmpty() -> {
-                        val specBySignature =
-                            severeSpecs.associateBy { severeNotificationSignature(city.name, it) }
-                        newSignatures.forEach { signature ->
-                            val spec = specBySignature[signature] ?: return@forEach
-                            showNotification(
-                                title = "${city.name} · ${applicationContext.getString(spec.titleRes)}",
-                                text = alertMessage(spec),
-                                notifyId = SEVERE_NOTIFICATION_ID_BASE + spec.kind.ordinal,
-                            )
-                        }
-                        // 同步通用去重基线：严重预警已推送后，通用分支不再立刻重复推一条
-                        dedup.shouldNotifyAndRemember(
-                            city.name,
-                            current.weatherCode,
-                            current.temperatureC,
-                        )
-                    }
-                    dedup.shouldNotifyAndRemember(
-                        city.name,
-                        current.weatherCode,
-                        current.temperatureC,
-                    ) -> {
-                        val displayCode = WeatherCodes.displayCode(current.weatherCode, precipRate)
-                        val title = "${city.name} ${formatTemperature(current.temperatureC, settings.temperatureUnit)}"
-                        val text =
-                            applicationContext.getString(
-                                R.string.notify_body,
-                                WeatherCodes.emoji(displayCode),
-                                WeatherCodes.description(
-                                    applicationContext,
-                                    displayCode,
-                                    precipRate,
-                                ),
-                                current.humidityPercent?.toString() ?: "--",
-                                com.xiaoxiong.weather.util
-                                    .formatVisibility(current.visibilityMeters),
-                            )
-                        showNotification(title, text)
-                    }
-                }
-            }
+            notifyForSnapshot(container, selection, snapshot)
             Result.success()
         } catch (e: kotlinx.coroutines.CancellationException) {
             // 系统取消时必须透传，让 Worker 正常结束而不是被当作"网络失败"重试
@@ -159,11 +109,95 @@ class WeatherRefreshWorker(
         }
     }
 
+    /**
+     * fresh 命中与联网刷新共用的预警评估 + 推送：
+     * 系统拦截通知时只做判定、不写去重记忆，保证渠道恢复后仍能补报。
+     */
+    private suspend fun notifyForSnapshot(
+        container: AppContainer,
+        fetchedSelection: SelectedCityStore.PersistedSelection,
+        snapshot: WeatherSnapshot,
+    ) {
+        val settings = container.settingsStore.getOnce()
+        if (!settings.notificationsEnabled) return
+        val channelImportance =
+            applicationContext
+                .getSystemService(NotificationManager::class.java)
+                .getNotificationChannel(CHANNEL_ID)
+                ?.importance
+        val systemEnabled = NotificationManagerCompat.from(applicationContext).areNotificationsEnabled()
+        if (!canDisplaySystemNotifications(systemEnabled, channelImportance)) return
+        // 抓取/评估期间用户可能已切城：当前选择与抓取到的城市不一致就不推
+        // （定位模式会把选中城市更新为新坐标，因此以快照城市对比，避免把定位更新误判成切城）
+        val fetchedCitySelection =
+            SelectedCityStore.PersistedSelection(snapshot.city, fetchedSelection.useLocation)
+        if (!isSameSelection(fetchedCitySelection, container.selectedCityStore.getOnce())) return
+
+        val dedup = container.notifyDedupStore
+        val city = snapshot.city
+        val current = snapshot.current
+        // 候选=所有 WARNING + 关键 kind 的 WATCH + 临近雨雪（沿用旧行为）；
+        // 高温/寒潮/雾/沙尘/大风/UV/积水等严重预警不再被整类漏掉。
+        // 通知文案按当前设置单位重算（快照里的 message 可能是旧单位）：与前台快照解析同一套规格
+        val severeSpecs =
+            selectSevereNotificationSpecs(
+                WeatherAlertGenerator.specs(
+                    snapshot.current,
+                    snapshot.hourly,
+                    snapshot.daily,
+                    snapshot.airQuality,
+                    settings.temperatureUnit,
+                ),
+            )
+        // 判定 → 展示 → 写记忆在 store 内串行：并发 Worker 不会重复推送；
+        // 全部展示失败时不写任何记忆，继续走下面的通用天气变化通知兜底
+        val postedSignatures =
+            dedup.notifyAlertsIfDue(
+                cityName = city.name,
+                weatherCode = current.weatherCode,
+                temperatureC = current.temperatureC,
+                signatures = severeSpecs.map { severeNotificationSignature(city.name, it) },
+            ) { pendingSignatures ->
+                val specBySignature = severeSpecs.associateBy { severeNotificationSignature(city.name, it) }
+                pendingSignatures.filter { signature ->
+                    val spec = specBySignature[signature] ?: return@filter false
+                    showNotification(
+                        title = "${city.name} · ${applicationContext.getString(spec.titleRes)}",
+                        text = alertMessage(spec),
+                        notifyId = SEVERE_NOTIFICATION_ID_BASE + spec.kind.ordinal,
+                    )
+                }
+            }
+        // 严重预警已真实展示：通用分支不再立刻重复推一条
+        if (postedSignatures.isNotEmpty()) return
+
+        dedup.notifyWeatherChangeIfDue(city.name, current.weatherCode, current.temperatureC) {
+            val precipRate = WeatherCodes.intensityPrecipMmPerHour(current)
+            val displayCode = WeatherCodes.displayCode(current.weatherCode, precipRate)
+            val title = "${city.name} ${formatTemperature(current.temperatureC, settings.temperatureUnit)}"
+            val text =
+                applicationContext.getString(
+                    R.string.notify_body,
+                    WeatherCodes.emoji(displayCode, current.isDay != false),
+                    WeatherCodes.description(
+                        applicationContext,
+                        displayCode,
+                        precipRate,
+                    ),
+                    current.humidityPercent?.toString() ?: "--",
+                    com.xiaoxiong.weather.util
+                        .formatVisibility(current.visibilityMeters),
+                )
+            showNotification(title, text)
+        }
+    }
+
     private fun alertMessage(spec: WeatherAlertGenerator.Spec): String =
-        if (spec.messageArg != null) {
-            applicationContext.getString(spec.messageRes, spec.messageArg)
-        } else {
-            applicationContext.getString(spec.messageRes)
+        when {
+            spec.messageArg == null -> applicationContext.getString(spec.messageRes)
+            spec.messageArg2 != null ->
+                applicationContext.getString(spec.messageRes, spec.messageArg, spec.messageArg2)
+            else -> applicationContext.getString(spec.messageRes, spec.messageArg)
         }
 
     @SuppressLint("MissingPermission")
@@ -171,7 +205,7 @@ class WeatherRefreshWorker(
         title: String,
         text: String,
         notifyId: Int = NOTIFICATION_ID,
-    ) {
+    ): Boolean {
         ensureChannel()
         // 显式指向 MainActivity：动态图标会禁用当前 activity-alias，解析 alias 的 launch intent 会失效
         val openApp =
@@ -200,10 +234,12 @@ class WeatherRefreshWorker(
                 .setAutoCancel(true)
                 .build()
 
-        // Android 13+ 未授权通知时静默失败即可
-        runCatching {
+        // Android 13+ 未授权通知时静默失败/抛异常都不影响后续预警，返回是否真正提交
+        return runCatching {
             NotificationManagerCompat.from(applicationContext).notify(notifyId, notification)
-        }
+        }.onFailure {
+            Log.w(TAG, "failed to post weather notification", it)
+        }.isSuccess
     }
 
     private fun ensureChannel() {
@@ -221,6 +257,8 @@ class WeatherRefreshWorker(
     }
 
     companion object {
+        private const val TAG = "WeatherRefreshWorker"
+
         const val UNIQUE_WORK = "weather_periodic_refresh_v3"
 
         /** 4xx 中属瞬态的码：408 超时、425 过早、429 限流 */

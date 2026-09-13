@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.weather.dailyVariantIndex
 import java.time.LocalDate
 import kotlin.math.sin
@@ -60,9 +61,15 @@ internal fun HomeBalcony(
         weather == FarmWeather.RAINY ||
             weather == FarmWeather.STORMY ||
             weather == FarmWeather.SNOWY
-    // 用共享帧循环：切后台/锁屏时自动停推，避免阳台粒子在后台空转
-    GameFrameLoop(key = needsFx) { dt, _ ->
-        if (needsFx) timeState.floatValue += dt
+    // 减弱动画：不画天气粒子，也不注册帧循环
+    val reduceMotion = LocalReduceMotion.current
+    val fxActive = needsFx && !reduceMotion
+    // 无天气特效时不注册帧循环，避免晴天/阴天长期空转唤醒 vsync；
+    // 共享帧循环本身切后台/锁屏时会自动停推。
+    if (fxActive) {
+        GameFrameLoop(key = fxActive) { dt, _ ->
+            timeState.floatValue += dt
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFF6E8))) {
@@ -80,7 +87,7 @@ internal fun HomeBalcony(
                     modifier = Modifier.fillMaxWidth(),
                     contentScale = ContentScale.FillWidth,
                 )
-                if (needsFx) {
+                if (fxActive) {
                     Canvas(modifier = Modifier.matchParentSize()) {
                         val time = timeState.floatValue.toDouble()
                         when (weather) {

@@ -58,6 +58,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
 import kotlin.math.abs
 import kotlin.math.max
@@ -233,12 +234,17 @@ class BearGame {
             when (phase) {
                 // 结算界面改窗口（旋转/分屏）：只更新尺寸，保留本局分数（对齐接雨雪）
                 GamePhase.OVER -> Unit
-                // 对局中改尺寸会让障碍像素与碰撞错位，直接整局回准备态
+                // 对局中改尺寸会让障碍像素与碰撞错位，直接整局回准备态；
+                // 同时标记快照失效，避免停在 READY 被兜底落盘写回复活。
                 GamePhase.RUNNING -> {
+                    snapshotDiscarded = true
                     phase = GamePhase.READY
                     reset()
                 }
-                else -> reset()
+                else -> {
+                    snapshotDiscarded = true
+                    reset()
+                }
             }
         }
         bearY = bearY.coerceIn(-size.height.toFloat(), floorY)
@@ -628,7 +634,12 @@ class BearGame {
 
     /** 把足以续玩的一局编码落盘；仅在对局进行中写入，READY/OVER 不写。 */
     fun saveSnapshot(prefs: SharedPreferences) {
-        if (phase != GamePhase.RUNNING || snapshotDiscarded) return
+        // 已放弃/改窗口重开：兜底落盘也不得把陈旧档写回复活
+        if (snapshotDiscarded) {
+            GameSnapshot.clear(prefs, JUMP_SNAPSHOT_KEY)
+            return
+        }
+        if (phase != GamePhase.RUNNING) return
         val meta =
             SnapshotCodec.encode(
                 phase.ordinal,
@@ -800,6 +811,8 @@ fun BearGameScreen(
         game.scene = runSceneFromWeather(gameWeather, sceneCode)
     }
     val bearSprites = rememberBearSprites(characterState.selected)
+    // 减弱动画：跳过雨雪/雷电粒子，只保留静态天空与世界
+    val reduceMotion = LocalReduceMotion.current
     var frame by remember { mutableLongStateOf(0L) }
     // 主动退出视为放弃本局：清档后再导航，onDispose 的兜底落盘不会复活它。
     val exitGame: () -> Unit = {
@@ -871,7 +884,10 @@ fun BearGameScreen(
                 .background(Brush.verticalGradient(style.gradient))
                 .onSizeChanged { sz ->
                     // 暂停中改尺寸（分屏/折叠）保留对局，避免菜单分数与实际进度不一致
+                    val wasRunning = game.phase == GamePhase.RUNNING
                     game.resize(IntSize(sz.width, sz.height), preserveRunning = pause.paused)
+                    // 改窗口导致对局回准备态：立即清掉旧档，停在 READY 被杀也不会僵尸续玩
+                    if (wasRunning && game.phase != GamePhase.RUNNING) game.clearSnapshot(prefs)
                 },
     ) {
         Canvas(
@@ -888,7 +904,13 @@ fun BearGameScreen(
         ) {
             frame // 每帧触发重绘
             if (game.size == IntSize.Zero) return@Canvas
-            drawWorld(game, style.contentColor, isDay = isDay ?: true, sprites = bearSprites)
+            drawWorld(
+                game,
+                style.contentColor,
+                isDay = isDay ?: true,
+                sprites = bearSprites,
+                reduceMotion = reduceMotion,
+            )
         }
 
         GameHud(

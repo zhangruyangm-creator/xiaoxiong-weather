@@ -3,8 +3,6 @@
     <string name="bear_farm_title">Bear Farm</string>
     <string name="bear_game_title">Bear Hop</string>
     <string name="bear_home_back">Back to living room</string>
-    <string name="bear_home_closet_hint">Pick your game bear, or peek outside from the balcony.</string>
-    <string name="bear_home_closet_title">Playable bear</string>
     <string name="bear_home_cuisine_arabic">Arabic / Middle Eastern</string>
     <string name="bear_home_cuisine_chinese">Chinese</string>
     <string name="bear_home_cuisine_korean">Korean</string>
@@ -189,7 +187,6 @@
     <string name="bear_home_now_doing">Now · %1$s</string>
     <string name="bear_home_hub_hint">Tap a room · or head out to the street</string>
     <string name="bear_home_living_hint">Need air? Step onto the balcony and look outside</string>
-    <string name="bear_home_living_ok">OK</string>
     <string name="bear_home_narration_almost_dawn">Almost dawn — maybe five more minutes in bed</string>
     <string name="bear_home_narration_morning_exercise">Out for morning exercise</string>
     <string name="bear_home_narration_morning_stroll">A little morning stroll</string>

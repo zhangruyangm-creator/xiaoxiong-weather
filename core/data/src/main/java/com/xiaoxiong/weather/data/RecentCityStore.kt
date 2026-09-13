@@ -10,7 +10,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
-private val Context.recentCityDataStore by preferencesDataStore("weather_recent_cities")
+private val Context.recentCityDataStore by preferencesDataStore(
+    name = "weather_recent_cities",
+    corruptionHandler = corruptionHandlerLogging("weather_recent_cities"),
+)
 
 class RecentCityStore(
     private val context: Context,
@@ -59,7 +62,7 @@ class RecentCityStore(
             kotlin.math.abs(a.longitude - b.longitude) < 0.01
 
     @Serializable
-    private data class RecentCityDto(
+    internal data class RecentCityDto(
         val id: Long,
         val name: String,
         val latitude: Double,
@@ -67,8 +70,9 @@ class RecentCityStore(
         val country: String? = null,
         val admin1: String? = null,
         val admin2: String? = null,
+        val timezone: String? = null,
     ) {
-        fun toCity() = City(id, name, latitude, longitude, country, admin1, admin2, false)
+        fun toCity() = City(id, name, latitude, longitude, country, admin1, admin2, false, timezone)
 
         companion object {
             fun from(city: City) =
@@ -80,6 +84,7 @@ class RecentCityStore(
                     country = city.country,
                     admin1 = city.admin1,
                     admin2 = city.admin2,
+                    timezone = city.timezone,
                 )
         }
     }

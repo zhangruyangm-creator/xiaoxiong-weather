@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.ui.game
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -129,5 +130,46 @@ class FarmSaveTest {
         val state = FarmState.fromSave(save, backfillUnlockedAsCollected = false)
 
         assertEquals(setOf("radish"), state.seasonCollected)
+    }
+
+    // ── 回档：瞬态 UI 清空 + 选中种子归位 ───────────────────────
+
+    @Test
+    fun seedIdAfterLoad_keepsValidSelectionOrFallsBackToUnlocked() {
+        // 仍在已解锁集合内：保留原选择
+        assertEquals("tomato", seedIdAfterLoad(setOf("radish", "tomato"), "tomato"))
+        // 已失效：回落到默认种子
+        assertEquals("radish", seedIdAfterLoad(setOf("radish", "tomato"), "bamboo"))
+        // 默认种子也没解锁：取任一已解锁作物
+        assertEquals("tomato", seedIdAfterLoad(setOf("tomato"), "bamboo"))
+        // 极端空集合：仍返回默认种子，避免空串
+        assertEquals(DEFAULT_SEED_ID, seedIdAfterLoad(emptySet(), "bamboo"))
+    }
+
+    @Test
+    fun loadFarmFromSave_clearsTransientUiAndFixesLockedSeed() {
+        val save =
+            FarmSave(
+                coins = 10,
+                unlockedCropIds = listOf("radish"),
+                plots = listOf(FarmPlotState(cropId = "radish", stage = 2)),
+            )
+
+        val loaded =
+            loadFarmFromSave(
+                save = save,
+                currentSelectedSeedId = "bamboo",
+                backfillUnlockedAsCollected = false,
+            )
+
+        assertNull("回档后 toast 应清空", loaded.ui.toast)
+        assertTrue("回档后飘字应清空", loaded.ui.floatingRewards.isEmpty())
+        assertNull("回档后解锁卡应清空", loaded.ui.unlockCard)
+        assertTrue("回档后解锁队列应清空", loaded.ui.unlockQueue.isEmpty())
+        assertEquals("失效种子应归位到已解锁作物", "radish", loaded.ui.selectedSeedId)
+        assertEquals(10, loaded.state.coins)
+        assertEquals(FARM_PLOT_COUNT, loaded.state.plots.size)
+        val firstPlot = loaded.state.plots.first()
+        assertEquals("radish", firstPlot.cropId)
     }
 }

@@ -127,6 +127,42 @@ class MazeUndoHintTest {
     }
 
     @Test
+    fun applyHint_incrementsUsageWhenSnapshotStillMatches() {
+        val game = startLevel1()
+        val request = game.hintRequest()
+        assertNotNull("正常对局应能抓取提示请求", request)
+        val outcome = mazeSolve(request!!.map, request.bearR, request.bearC, request.keys)
+        assertTrue(game.applyHint(request, outcome) is MazeHint.Direction)
+        assertEquals(1, game.hintsUsed)
+        // applyHint 自身不去重：内容相同的快照每次成功回写各计一次。
+        // UI 侧由 MazeHintSession.cachedFor 拦截同局面重复请求（见 MazeHintSessionTest），
+        // 因此正常操作路径下同一局面至多计一次。
+        assertTrue(game.applyHint(request, outcome) is MazeHint.Direction)
+        assertEquals(2, game.hintsUsed)
+    }
+
+    @Test
+    fun applyHint_discardsStaleSnapshotAfterMove() {
+        val game = startLevel1()
+        val request = game.hintRequest()
+        assertNotNull(request)
+        val outcome = mazeSolve(request!!.map, request.bearR, request.bearC, request.keys)
+        game.step(MazeDir.RIGHT)
+        assertNull("局面已变化，过期结果应丢弃", game.applyHint(request, outcome))
+        assertEquals("过期结果不应计数", 0, game.hintsUsed)
+    }
+
+    @Test
+    fun hintRequestMatches_onlyForSamePositionAndBoard() {
+        val game = startLevel1()
+        val request = game.hintRequest()
+        assertNotNull(request)
+        assertTrue("未移动时应命中缓存快照", game.hintRequestMatches(request!!))
+        game.step(MazeDir.RIGHT)
+        assertFalse("移动后缓存快照失效", game.hintRequestMatches(request))
+    }
+
+    @Test
     fun mazeSolveFromState_reportsMinMovesAndFirstDir() {
         // 一行直路：起点 → 蜂蜜 → 出口
         val map =

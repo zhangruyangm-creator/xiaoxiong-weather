@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.LocalReduceMotion
 
 /** 选关页顶部进度汇总：一次 remember 算出，避免重组/动画期间反复扫描 stars。 */
 private data class MazeSelectProgress(
@@ -100,23 +102,33 @@ internal fun MazeLevelSelect(
         }
     val maxStars = MAZE_CAMPAIGN_SIZE * 3
 
-    val transition = rememberInfiniteTransition(label = "maze-select")
-    // 动画值以 State 形式下传：只在 Canvas draw lambda / graphicsLayer 内读取，
-    // 动画期间不触发选关列表重组
-    val drift =
-        transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing)),
-            label = "clouds",
-        )
-    val pulse =
-        transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-            label = "nextPulse",
-        )
+    // 减弱动画：云漂移与下一关脉冲固定为静态值，不再启动无限动画
+    val reduceMotion = LocalReduceMotion.current
+    val drift: State<Float>
+    val pulse: State<Float>
+    if (reduceMotion) {
+        val fixed = remember { mutableFloatStateOf(0f) }
+        drift = fixed
+        pulse = fixed
+    } else {
+        val transition = rememberInfiniteTransition(label = "maze-select")
+        // 动画值以 State 形式下传：只在 Canvas draw lambda / graphicsLayer 内读取，
+        // 动画期间不触发选关列表重组
+        drift =
+            transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing)),
+                label = "clouds",
+            )
+        pulse =
+            transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+                label = "nextPulse",
+            )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         MazeSelectBackground(drift)

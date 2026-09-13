@@ -44,6 +44,7 @@
     <string name="settings_notifications_subtitle">Background refresh about every %1$d hours; notify on notable changes</string>
     <string name="settings_notifications_toggle">Weather change alerts</string>
     <string name="settings_notifications_toggle_sub">Cache and widget still update when off; no notifications</string>
+    <string name="settings_notifications_toggle_sub_permission">System notification permission is off. Turning on asks for it; if permanently denied, system settings will open.</string>
     <string name="settings_prefer_location">Prefer locate on launch</string>
     <string name="settings_prefer_location_sub">When off, restore the last viewed city first</string>
     <string name="settings_privacy_policy">Privacy policy</string>

@@ -203,8 +203,9 @@ class WeatherCodesTest {
         )
         // 夜间：不取任何口径，返回 null
         assertNull(WeatherCodes.uvForDaytime(false, currentUv, today))
-        // 昼夜未知：按白天口径
-        assertEquals(9.0, WeatherCodes.uvForDaytime(null, currentUv, today))
+        // 昼夜未知（无 is_day 数据）：同样不提示 UV，避免误报
+        assertNull(WeatherCodes.uvForDaytime(null, currentUv, today))
+        assertNull(WeatherCodes.uvForDaytime(null, AirQuality(), DailyWeather(date = "2026-08-11")))
     }
 
     @Test

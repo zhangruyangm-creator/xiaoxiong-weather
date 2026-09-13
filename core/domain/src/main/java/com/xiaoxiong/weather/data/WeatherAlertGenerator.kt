@@ -4,10 +4,12 @@ import android.content.res.Resources
 import androidx.annotation.StringRes
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.util.WeatherCodes
+import com.xiaoxiong.weather.util.celsiusToFahrenheit
 import com.xiaoxiong.weather.util.hoursBetween
 import com.xiaoxiong.weather.util.precipFallenTodayMm
 import com.xiaoxiong.weather.util.recentHoursUpToCurrent
 import com.xiaoxiong.weather.util.upcomingFromCurrent
+import java.util.Locale
 
 /**
  * Open-Meteo 暂无官方预警接口，这里基于实况/预报阈值生成智能提醒。
@@ -19,6 +21,8 @@ object WeatherAlertGenerator {
         @param:StringRes val titleRes: Int,
         @param:StringRes val messageRes: Int,
         val messageArg: Any? = null,
+        /** 第二个格式化参数（连续高温「天数 + 带单位门槛」两个占位）。 */
+        val messageArg2: String? = null,
         /** 写入 [WeatherAlert.precipMmPerHour]，供未来降雨伞色分档。 */
         val precipIconMm: Double? = null,
     )
@@ -28,6 +32,7 @@ object WeatherAlertGenerator {
         hourly: List<HourlyWeather>,
         daily: List<DailyWeather>,
         airQuality: AirQuality?,
+        temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
     ): List<Spec> {
         val alerts = mutableListOf<Spec>()
         // 取当前整点 + 未来 24 小时，用于「未来强降雨/降雪」预报窗口
@@ -340,7 +345,7 @@ object WeatherAlertGenerator {
                     AlertSeverity.WARNING,
                     R.string.alert_heat_title,
                     R.string.alert_heat_msg,
-                    temp,
+                    formatAlertTemperature(temp, temperatureUnit),
                 )
         } else if (temp != null && temp <= WeatherCodes.COLD_WARNING_APPARENT_C) {
             alerts +=
@@ -349,12 +354,12 @@ object WeatherAlertGenerator {
                     AlertSeverity.WARNING,
                     R.string.alert_cold_title,
                     R.string.alert_cold_msg,
-                    temp,
+                    formatAlertTemperature(temp, temperatureUnit),
                 )
         }
 
-        coldWaveSpec(current, hourly, daily)?.let { alerts += it }
-        heatWaveSpec(daily)?.let { alerts += it }
+        coldWaveSpec(current, hourly, daily, temperatureUnit)?.let { alerts += it }
+        heatWaveSpec(daily, temperatureUnit)?.let { alerts += it }
 
         // 大雾 / 浓雾 / 低能见度：能见度 <200m 为浓雾 WARNING；雾码或 <1000m 为提醒
         val visibility = current.visibilityMeters
@@ -505,15 +510,17 @@ object WeatherAlertGenerator {
         hourly: List<HourlyWeather>,
         daily: List<DailyWeather>,
         airQuality: AirQuality?,
+        temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
     ): List<WeatherAlert> =
-        specs(current, hourly, daily, airQuality).map { spec ->
+        specs(current, hourly, daily, airQuality, temperatureUnit).map { spec ->
             WeatherAlert(
                 title = resources.getString(spec.titleRes),
                 message =
-                    if (spec.messageArg != null) {
-                        resources.getString(spec.messageRes, spec.messageArg)
-                    } else {
-                        resources.getString(spec.messageRes)
+                    when {
+                        spec.messageArg == null -> resources.getString(spec.messageRes)
+                        spec.messageArg2 != null ->
+                            resources.getString(spec.messageRes, spec.messageArg, spec.messageArg2)
+                        else -> resources.getString(spec.messageRes, spec.messageArg)
                     },
                 severity = spec.severity,
                 kind = spec.kind,
@@ -522,10 +529,57 @@ object WeatherAlertGenerator {
         }
 
     /**
+     * 绝对温度 → 告警文案用的带单位文本（整度）：`38°C` / `100°F`。
+     * 字符串资源只保留 %1$s 占位，避免文案把 °C 写死。换算：×9/5+32。
+     */
+    internal fun formatAlertTemperature(
+        celsius: Double,
+        unit: TemperatureUnit,
+    ): String {
+        val value =
+            when (unit) {
+                TemperatureUnit.CELSIUS -> celsius
+                TemperatureUnit.FAHRENHEIT -> celsiusToFahrenheit(celsius)
+            }
+        return formatAlertValue(value, unit)
+    }
+
+    /**
+     * 温差 → 告警文案用的带单位文本：华氏只做 ×9/5，不 +32。
+     * 如 11°C 降温 → 20°F。
+     */
+    internal fun formatAlertTemperatureDelta(
+        celsiusDelta: Double,
+        unit: TemperatureUnit,
+    ): String {
+        val value =
+            when (unit) {
+                TemperatureUnit.CELSIUS -> celsiusDelta
+                TemperatureUnit.FAHRENHEIT -> celsiusDelta * 9.0 / 5.0
+            }
+        return formatAlertValue(value, unit)
+    }
+
+    private fun formatAlertValue(
+        value: Double,
+        unit: TemperatureUnit,
+    ): String {
+        val suffix =
+            when (unit) {
+                TemperatureUnit.CELSIUS -> "\u00B0C"
+                TemperatureUnit.FAHRENHEIT -> "\u00B0F"
+            }
+        return String.format(Locale.US, "%.0f%s", value, suffix)
+    }
+
+    /**
      * 连续多日高温：从今天起，日最高温连续 ≥35°C 的天数。
      * ≥3 天提醒；≥5 天，或 ≥3 天且天天 ≥37°C → 红色预警。
      */
-    internal fun heatWaveSpec(daily: List<DailyWeather>): Spec? {
+    internal fun heatWaveSpec(
+        daily: List<DailyWeather>,
+        temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
+    ): Spec? {
         val streak = consecutiveHotDaysFromStart(daily) ?: return null
         if (streak.days < WeatherCodes.HEAT_WAVE_WATCH_DAYS) return null
         val warning =
@@ -537,6 +591,8 @@ object WeatherAlertGenerator {
             if (warning) R.string.alert_heat_wave_warning_title else R.string.alert_heat_wave_title,
             if (warning) R.string.alert_heat_wave_warning_msg else R.string.alert_heat_wave_msg,
             streak.days,
+            // 文案里的 35°C 门槛随单位换算为 95°F，避免 °C 写死
+            messageArg2 = formatAlertTemperature(WeatherCodes.HEAT_WAVE_DAY_MAX_C, temperatureUnit),
         )
     }
 
@@ -569,10 +625,12 @@ object WeatherAlertGenerator {
         current: CurrentWeather,
         hourly: List<HourlyWeather>,
         daily: List<DailyWeather>,
+        temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
     ): Spec? {
         val assessment = coldWaveAssessment(current, hourly, daily) ?: return null
         if (assessment.dropC < WeatherCodes.COLD_WAVE_WATCH_DROP_C) return null
         val largeDrop = assessment.dropC >= WeatherCodes.COLD_WAVE_WARNING_DROP_C
+        val dropText = formatAlertTemperatureDelta(assessment.dropC, temperatureUnit)
         return if (assessment.wintry) {
             Spec(
                 AlertKind.COLD_WAVE,
@@ -587,7 +645,7 @@ object WeatherAlertGenerator {
                 } else {
                     R.string.alert_cold_wave_msg
                 },
-                assessment.dropC,
+                dropText,
             )
         } else {
             // 如 37→26：降幅大也只报剧烈降温 + 添衣小熊，不用雪天寒潮形象
@@ -596,7 +654,7 @@ object WeatherAlertGenerator {
                 if (largeDrop) AlertSeverity.WARNING else AlertSeverity.WATCH,
                 R.string.alert_cold_wave_title,
                 R.string.alert_cold_wave_msg,
-                assessment.dropC,
+                dropText,
             )
         }
     }

@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -31,6 +32,8 @@ internal class MazeBaseLayerCache {
         val height: Int,
         val level: MazeLevel,
         val style: MazeThemeStyle,
+        val topReservePx: Float,
+        val bottomReservePx: Float,
     )
 
     private val entries = ArrayList<Entry>(MAX_ENTRIES)
@@ -41,35 +44,64 @@ internal class MazeBaseLayerCache {
         size: Size,
         density: Density,
         layoutDirection: LayoutDirection,
+        topReservePx: Float,
+        bottomReservePx: Float,
     ): ImageBitmap? {
         if (game.rows <= 0 || game.cols <= 0) return null
-        val w = ceil(size.width).toInt()
-        val h = ceil(size.height).toInt()
+        // [size] 已由调用方量化到 4px 网格，这里再兜底量化一次保证幂等。
+        val w = quantizeBitmapPx(size.width)
+        val h = quantizeBitmapPx(size.height)
         if (w <= 0 || h <= 0) return null
         val level = game.level
         var i = entries.size - 1
         while (i >= 0) {
             val e = entries[i]
-            if (e.width == w && e.height == h && e.level === level && e.style == style) {
+            if (e.width == w &&
+                e.height == h &&
+                e.level === level &&
+                e.style == style &&
+                e.topReservePx == topReservePx &&
+                e.bottomReservePx == bottomReservePx
+            ) {
                 entries.removeAt(i)
                 entries.add(e)
                 return e.bitmap
             }
             i--
         }
-        val next = ImageBitmap(w, h)
-        // 用原始浮点 size 布局，保证与直接绘制坐标一致；bitmap 取 ceil 仅多出边缘空像素。
-        CanvasDrawScope().draw(density, layoutDirection, Canvas(next), size) {
-            drawMazeBaseLayer(game, style)
-        }
+        // 先淘汰最旧槽位再分配：峰值同时只驻留 2 张全屏位图（新 + 1 旧）。
         if (entries.size >= MAX_ENTRIES) entries.removeAt(0)
-        entries.add(Entry(next, w, h, level, style))
+        val next = runCatching { ImageBitmap(w, h) }.getOrNull() ?: return null
+        val baked =
+            runCatching {
+                CanvasDrawScope().draw(
+                    density,
+                    layoutDirection,
+                    Canvas(next),
+                    Size(w.toFloat(), h.toFloat()),
+                ) {
+                    drawMazeBaseLayer(game, style, topReservePx, bottomReservePx)
+                }
+            }.isSuccess
+        // 分配或烘焙失败返回 null，由调用方回退逐格绘制，不影响玩法。
+        if (!baked) return null
+        entries.add(Entry(next, w, h, level, style, topReservePx, bottomReservePx))
         return next
     }
 
     private companion object {
         const val MAX_ENTRIES = 2
     }
+}
+
+/**
+ * 位图尺寸量化到 4px 网格：分屏拖拽时画布尺寸的亚像素抖动不再触发反复重烘。
+ * 缓存键、静态层烘焙与动态层布局共用同一量化尺寸，保证两层像素对齐。
+ */
+internal fun quantizeBitmapPx(value: Float): Int {
+    val roundedUp = ceil(value).toInt()
+    if (roundedUp <= 0) return 0
+    return (roundedUp + 3) / 4 * 4
 }
 
 /** 对局世界：静态棋盘 + 动态叠加 + 特效粒子 + 小熊演出（天气覆盖层由调用方后绘）。 */
@@ -81,12 +113,24 @@ internal fun DrawScope.drawMazeWorld(
     fx: MazeFxHost,
     hintDir: MazeDir?,
     reduceMotion: Boolean,
+    statusBarTopPx: Float,
+    navigationBarBottomPx: Float,
 ) {
     if (size.width <= 0f || size.height <= 0f) return
     if (game.rows <= 0 || game.cols <= 0) return
     fx.observe(game, style)
-    val base = mazeBoardLayout(game.rows, game.cols, size)
-    if (base.cell <= 0.5f) return
+    // HUD / D-pad 的系统栏 inset 由宿主以 px 传入，再叠加固定 dp 预留
+    val topReserve = statusBarTopPx + MAZE_HUD_TOP_DP.dp.toPx()
+    val bottomReserve = navigationBarBottomPx + MAZE_HUD_BOTTOM_DP.dp.toPx()
+    // 静态层缓存键与动态层布局都用量化后的画布尺寸，避免分屏拖拽时的亚像素错位
+    val layoutSize =
+        Size(
+            quantizeBitmapPx(size.width).toFloat(),
+            quantizeBitmapPx(size.height).toFloat(),
+        )
+    if (layoutSize.width <= 0f || layoutSize.height <= 0f) return
+    val base = mazeBoardLayout(game.rows, game.cols, layoutSize, topReserve, bottomReserve)
+    if (base.cell <= 0f) return
     val time = game.time
 
     // 主题氛围微粒在棋盘背后，让场景先「活」起来
@@ -108,9 +152,11 @@ internal fun DrawScope.drawMazeWorld(
         baseLayer.bitmapFor(
             game,
             style,
-            size,
+            layoutSize,
             this,
             layoutDirection,
+            topReserve,
+            bottomReserve,
         )
     if (cached != null) {
         drawImage(
@@ -145,7 +191,7 @@ internal fun DrawScope.drawMazeWorld(
     drawPortalMotes(game, style, layout, reduceMotion)
     drawExitGlow(game, style, layout, reduceMotion)
     drawMazeHint(game, hintDir, layout, reduceMotion)
-    drawIceTrail(game, layout)
+    drawIceTrail(game, layout, reduceMotion)
     drawPortalGhost(fx, game, style, layout, reduceMotion)
     drawUnlockGhost(fx, game, layout, reduceMotion)
     // 减弱动画时不播事件粒子，只保留静态叠加与光晕
@@ -155,18 +201,24 @@ internal fun DrawScope.drawMazeWorld(
     drawMazeBear(game, sprites, style, layout, fx, reduceMotion)
 }
 
-/** 整局天气覆盖层：雨/雪/雷暴时叠加与当前天气一致的粒子与天色；雨点密度随雨势。 */
+/**
+ * 整局天气覆盖层：雨/雪/雷暴时叠加与当前天气一致的粒子与天色；雨点密度随雨势。
+ *
+ * [reduceMotion]（减弱动态效果）下只保留静态天色，粒子和闪电等动态天气
+ * 由共享特效层与本地分支跳过；[MazeGame.time] 仍照常推进，其它动画不受影响。
+ */
 internal fun DrawScope.drawMazeWeather(
     game: MazeGame,
     weather: FarmWeather,
     rainStrength: RainStrength,
     freezingRain: Boolean,
     hail: Boolean,
+    reduceMotion: Boolean,
 ) {
     // 冻雨/冰雹优先于普通雨/雷暴识别
     if (freezingRain) {
         drawRect(Color(0xFF5E7390).copy(alpha = 0.20f))
-        drawFreezingRain(game.time, 1f, size.width, size.height)
+        drawFreezingRain(game.time, 1f, size.width, size.height, reduceMotion = reduceMotion)
         return
     }
     if (hail) {
@@ -182,9 +234,10 @@ internal fun DrawScope.drawMazeWeather(
             lenMul = 1.1f,
             alpha = 0.55f,
             fgColor = Color(0xFFD8E6F8),
+            reduceMotion = reduceMotion,
         )
-        drawHailPellets(game.time, 1f, size.width, size.height, count = 44)
-        drawStormLightning(game.time, 1f, size.width, size.height)
+        drawHailPellets(game.time, 1f, size.width, size.height, count = 44, reduceMotion = reduceMotion)
+        drawStormLightning(game.time, 1f, size.width, size.height, reduceMotion = reduceMotion)
         return
     }
     when (weather) {
@@ -201,6 +254,7 @@ internal fun DrawScope.drawMazeWeather(
                         height = size.height,
                         scale = 1f,
                         alpha = 0.45f,
+                        reduceMotion = reduceMotion,
                     )
                 RainStrength.HEAVY ->
                     drawRainLayered(
@@ -212,6 +266,7 @@ internal fun DrawScope.drawMazeWeather(
                         scale = 1f,
                         lenMul = 1.15f,
                         alpha = 0.65f,
+                        reduceMotion = reduceMotion,
                     )
                 else ->
                     drawRainLayered(
@@ -222,6 +277,7 @@ internal fun DrawScope.drawMazeWeather(
                         height = size.height,
                         scale = 1f,
                         alpha = 0.55f,
+                        reduceMotion = reduceMotion,
                     )
             }
         }
@@ -237,11 +293,13 @@ internal fun DrawScope.drawMazeWeather(
                 scale = 1f,
                 lenMul = 1.25f,
                 alpha = 0.6f,
+                reduceMotion = reduceMotion,
             )
-            drawStormLightning(game.time, 1f, size.width, size.height)
+            drawStormLightning(game.time, 1f, size.width, size.height, reduceMotion = reduceMotion)
         }
         FarmWeather.SNOWY -> {
             drawRect(Color(0xFFB9C7D6).copy(alpha = 0.08f))
+            if (reduceMotion) return
             for (i in 0 until 34) {
                 val x = ((i * 83 + game.time * 26) % (size.width + 20))
                 val y = ((i * 61 + game.time * 48) % (size.height + 20))

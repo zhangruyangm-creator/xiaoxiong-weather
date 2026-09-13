@@ -73,6 +73,7 @@
     <string name="bear_pool_diff_novice">学徒</string>
     <string name="bear_pool_practice_done">练习结束</string>
     <string name="bear_pool_practice_stats">杆数 %1$d · 得分 %2$d</string>
+    <string name="bear_pool_shots_label">杆数 %1$d</string>
     <string name="bear_pool_pots_value">本场进球 %1$d</string>
     <string name="bear_pool_achievements">成就</string>
     <string name="bear_pool_unlock_title">解锁成就！</string>

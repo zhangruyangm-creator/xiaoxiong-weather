@@ -23,11 +23,11 @@
     <string name="cd_expand">展开</string>
     <string name="cd_favorite_add">收藏</string>
     <string name="cd_favorite_remove">取消收藏</string>
-    <string name="cd_hourly_chart">逐小时%1$s趋势图，最高 %2$s，最低 %3$s</string>
+    <string name="cd_hourly_chart">逐小时%1$s趋势图, 最高 %2$s, 最低 %3$s</string>
     <string name="cd_locate">定位</string>
     <string name="cd_pause">暂停</string>
     <string name="cd_play">播放</string>
-    <string name="cd_precip_chart">逐小时降水量柱状图，峰值 %1$s 毫米</string>
+    <string name="cd_precip_chart">逐小时降水量柱状图, 峰值 %1$s 毫米</string>
     <string name="cd_radar_echo">雷达回波</string>
     <string name="cd_radar_frame_time">雷达帧时间 %1$s</string>
     <string name="cd_refresh_cloud">刷新云图</string>
@@ -55,6 +55,7 @@
     <string name="daily_detail_wind">最大风速 %1$s</string>
     <string name="daily_detail_moon">%1$s · 约 %2$d%%</string>
     <string name="cd_moon_phase">月相</string>
+    <string name="cd_moon_phase_label">%1$s，%2$s</string>
     <string name="daily_empty">暂无七日预报数据</string>
     <string name="daily_expand">展开</string>
     <string name="daily_section_sub">点按展开风力与日出日落；温度条按整周对齐</string>
@@ -182,6 +183,7 @@
     <string name="radar_fullscreen">全屏</string>
     <string name="radar_hint_center">中心红点为当前城市 · 实况 + 未来约 1～2 小时短临</string>
     <string name="radar_nowcast_badge">短临</string>
+    <string name="radar_open_failed">未找到可打开雷达全屏的浏览器</string>
     <string name="radar_legend_extreme">很强</string>
     <string name="radar_legend_mid">中</string>
     <string name="radar_legend_note">色块越暖通常表示回波越强（示意，非官方色标）</string>
@@ -205,6 +207,7 @@
     <string name="radar_wind">风速风向</string>
     <string name="search_city_hint">北京、上海、bj、London…</string>
     <string name="search_city_label">搜索城市</string>
+    <string name="search_favorite_limit_reached">收藏已达上限（最多 %1$d 个），添加新城市前请先移除部分收藏</string>
     <string name="search_hint_empty">输入城市名、拼音或英文，也可点选热门城市</string>
     <string name="search_popular">热门城市</string>
     <string name="search_recent">最近搜索</string>

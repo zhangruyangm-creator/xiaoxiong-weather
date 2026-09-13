@@ -82,9 +82,69 @@ private val springBandColors =
 private val jumpGroundBrush =
     Brush.verticalGradient(listOf(Color(0xFF8BC34A), Color(0xFF558B2F)))
 
+/**
+ * 天空渐变缓存：颜色/天气压暗系数不变时复用；爬升期间颜色逐帧变化会自然重建，
+ * 悬停/下落/结算等静止帧则命中，避免每帧 new Brush + list。
+ */
+private class JumpSkyBrushCache {
+    private var top: Color = Color.Unspecified
+    private var bottom: Color = Color.Unspecified
+    private var dim = Float.NaN
+    private var brush: Brush? = null
+
+    fun get(
+        top: Color,
+        bottom: Color,
+        dim: Float,
+    ): Brush {
+        val cached = brush
+        if (cached != null && top == this.top && bottom == this.bottom && dim == this.dim) {
+            return cached
+        }
+        return Brush
+            .verticalGradient(
+                listOf(
+                    top.copy(red = top.red * dim, green = top.green * dim, blue = top.blue * dim),
+                    bottom.copy(red = bottom.red * dim, green = bottom.green * dim, blue = bottom.blue * dim),
+                ),
+            ).also {
+                brush = it
+                this.top = top
+                this.bottom = bottom
+                this.dim = dim
+            }
+    }
+}
+
+private val jumpSkyBrushCache = JumpSkyBrushCache()
+
+/** 太阳径向渐变：以原点为中心缓存，绘制时平移到太阳位置。 */
+private class JumpSunBrushCache {
+    private var radius = Float.NaN
+    private var brush: Brush? = null
+
+    fun get(radius: Float): Brush {
+        val cached = brush
+        if (cached != null && this.radius == radius) return cached
+        return Brush
+            .radialGradient(
+                listOf(Color(0xFFFFE082), Color(0xFFFFB300)),
+                center = Offset.Zero,
+                radius = radius,
+            ).also {
+                brush = it
+                this.radius = radius
+            }
+    }
+}
+
+private val jumpSunBrushCache = JumpSunBrushCache()
+
 internal fun DrawScope.drawJumpWorld(
     game: StarJumpGame,
     sprites: BearSprites,
+    /** 减弱动画：跳过雨雪/雷电粒子，只保留静态天空。 */
+    reduceMotion: Boolean = false,
 ) {
     val w = game.w
     val h = game.h
@@ -107,14 +167,7 @@ internal fun DrawScope.drawJumpWorld(
             JumpScene.CLOUDY -> 0.62f
             JumpScene.SUNNY -> 1f
         }
-    drawRect(
-        Brush.verticalGradient(
-            listOf(
-                skyTop.copy(red = skyTop.red * weatherDim, green = skyTop.green * weatherDim, blue = skyTop.blue * weatherDim),
-                skyBottom.copy(red = skyBottom.red * weatherDim, green = skyBottom.green * weatherDim, blue = skyBottom.blue * weatherDim),
-            ),
-        ),
-    )
+    drawRect(jumpSkyBrushCache.get(skyTop, skyBottom, weatherDim))
     // 底部柔光：模拟云海/地平线反射，任何高度都增强层次
     drawHorizonGlow(h * 0.88f, midColor(skyBottom, Color.White), h * 0.18f)
 
@@ -209,16 +262,14 @@ internal fun DrawScope.drawJumpWorld(
                 )
             }
         }
-        drawCircle(
-            Brush.radialGradient(
-                listOf(Color(0xFFFFE082), Color(0xFFFFB300)),
-                center = sunC,
+        translate(sunC.x, sunC.y) {
+            drawCircle(
+                jumpSunBrushCache.get(30f * s),
                 radius = 30f * s,
-            ),
-            radius = 30f * s,
-            center = sunC,
-            alpha = sunA,
-        )
+                center = Offset.Zero,
+                alpha = sunA,
+            )
+        }
     }
     val moonA = ((alt - 1.1f) / 0.6f).coerceIn(0f, 1f)
     if (moonA > 0.01f) {
@@ -266,7 +317,7 @@ internal fun DrawScope.drawJumpWorld(
     }
 
     // 雨/雪粒子（视差 + 随风漂）
-    drawJumpWeatherParticles(game, scene)
+    drawJumpWeatherParticles(game, scene, reduceMotion)
 
     // 地面（起点附近才可见）
     val groundTop = -cam
@@ -345,6 +396,7 @@ internal fun DrawScope.drawJumpWorld(
 private fun DrawScope.drawJumpWeatherParticles(
     game: StarJumpGame,
     scene: JumpScene,
+    reduceMotion: Boolean,
 ) {
     if (scene == JumpScene.SUNNY || scene == JumpScene.CLOUDY) return
     val w = game.w
@@ -364,6 +416,7 @@ private fun DrawScope.drawJumpWeatherParticles(
                 alpha = 0.52f,
                 yOff = -cam * 0.12f,
                 splash = false,
+                reduceMotion = reduceMotion,
             )
         }
         JumpScene.RAIN -> {
@@ -378,6 +431,7 @@ private fun DrawScope.drawJumpWeatherParticles(
                 alpha = 0.62f,
                 yOff = -cam * 0.12f,
                 splash = false,
+                reduceMotion = reduceMotion,
             )
         }
         JumpScene.RAIN_HEAVY -> {
@@ -392,6 +446,7 @@ private fun DrawScope.drawJumpWeatherParticles(
                 alpha = 0.74f,
                 yOff = -cam * 0.12f,
                 splash = false,
+                reduceMotion = reduceMotion,
             )
         }
         JumpScene.STORM -> {
@@ -406,11 +461,12 @@ private fun DrawScope.drawJumpWeatherParticles(
                 alpha = 0.7f,
                 yOff = -cam * 0.12f,
                 splash = false,
+                reduceMotion = reduceMotion,
             )
-            drawStormLightning(game.time, s, w, h)
+            drawStormLightning(game.time, s, w, h, reduceMotion = reduceMotion)
         }
         JumpScene.FREEZING_RAIN -> {
-            drawFreezingRain(game.time, s, w, h, yOff = -cam * 0.12f, splash = false)
+            drawFreezingRain(game.time, s, w, h, yOff = -cam * 0.12f, splash = false, reduceMotion = reduceMotion)
         }
         JumpScene.HAIL -> {
             drawRainLayered(
@@ -425,11 +481,13 @@ private fun DrawScope.drawJumpWeatherParticles(
                 yOff = -cam * 0.12f,
                 fgColor = Color(0xFFD8E6F8),
                 splash = false,
+                reduceMotion = reduceMotion,
             )
-            drawHailPellets(game.time, s, w, h, yOff = -cam * 0.12f, count = 40)
-            drawStormLightning(game.time, s, w, h)
+            drawHailPellets(game.time, s, w, h, yOff = -cam * 0.12f, count = 40, reduceMotion = reduceMotion)
+            drawStormLightning(game.time, s, w, h, reduceMotion = reduceMotion)
         }
         JumpScene.SNOW -> {
+            if (reduceMotion) return
             for (i in 0 until 34) {
                 val x = ((i * 83 + game.time * 22f + sin(game.time * 1.4f + i) * 12f) % (w + 30))
                 val y = ((i * 61 + game.time * 46f) % (h + 30)) - cam * 0.12f

@@ -199,6 +199,42 @@ class MetNorwayFetcherTest {
     }
 
     @Test
+    fun mapToSnapshot_daytimeBoundary_excludesEighteenOClock() {
+        // 旧逻辑 6..18 含 18 点；统一为 HourlyUtils.isDaytimeHour：6:00–17:59 白天，18:00 起夜间
+        assertTrue(snapshotAtUtc("2026-09-11T22:00:00Z").current.isDay == true) // 本地 06:00
+        assertFalse(snapshotAtUtc("2026-09-11T21:00:00Z").current.isDay == true) // 本地 05:00
+        assertTrue(snapshotAtUtc("2026-09-12T09:00:00Z").current.isDay == true) // 本地 17:00
+        assertFalse(snapshotAtUtc("2026-09-12T10:00:00Z").current.isDay == true) // 本地 18:00
+    }
+
+    private fun snapshotAtUtc(utc: String): WeatherSnapshot {
+        val body =
+            """
+            {
+              "properties": {
+                "timeseries": [
+                  {
+                    "time": "$utc",
+                    "data": {
+                      "instant": { "details": { "air_temperature": 20.0, "relative_humidity": 50.0 } },
+                      "next_1_hours": {
+                        "summary": { "symbol_code": "clearsky_day" },
+                        "details": { "precipitation_amount": 0.0 }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+        return fetcher.mapToSnapshot(
+            json.decodeFromString(MetNorwayResponse.serializer(), body),
+            city,
+            now = Instant.parse(utc),
+        )
+    }
+
+    @Test
     fun mapToSnapshot_emptyTimeseries_throwsDataFormat() {
         try {
             fetcher.mapToSnapshot(MetNorwayResponse(), city, Instant.now())

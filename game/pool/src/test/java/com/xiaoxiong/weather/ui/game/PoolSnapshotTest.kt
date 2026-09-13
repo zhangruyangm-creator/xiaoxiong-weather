@@ -12,12 +12,12 @@ import kotlin.math.atan2
  * [PoolGame] 对局快照的 JVM 单测：进行中对局 save→restore 后状态一致；
  * 空档 / 坏档 / 清档返回 false 且不崩；挑战 / 教学恢复后关联对象不为 null。
  *
- * 注意：这是「续玩快照」，与 `BearPoolScreen` 的 `pool_last_replay_v1` 回放是两件事，
+ * 注意：这是「续玩快照」，与 `BearPoolScreen` 的 `pool_last_replay_v2` 回放是两件事，
  * 两者 key 不同、互不覆盖。
  */
 class PoolSnapshotTest {
     private val key = POOL_SNAPSHOT_KEY
-    private val replayKey = "pool_last_replay_v1"
+    private val replayKey = "pool_last_replay_v2"
 
     private fun newGame(): PoolGame =
         PoolGame().apply {
@@ -105,6 +105,69 @@ class PoolSnapshotTest {
         val game = newGame()
         assertFalse("坏档不应崩溃，返回 false", game.restoreSnapshot(prefs))
         assertFalse("坏档应被清掉", prefs.contains(key))
+    }
+
+    @Test
+    fun restoreSnapshot_oldGeometryVersion_rejectedAndCleared() {
+        // 1.9.0 起袋口/台面几何改变（pocketIndex 4/5 含义不同），旧 v1 档必须拒绝
+        val prefs = FakePrefs()
+        val source = newGame()
+        source.startMatch(PoolSide.PLAYER, seed = 9L)
+        source.saveSnapshot(prefs)
+        val payload = prefs.getString(key, null)
+        assertNotNull(payload)
+        assertTrue("新档应为 v2: $payload", payload!!.startsWith("v=2"))
+        prefs.edit().putString(key, payload.replaceFirst("v=2", "v=1")).apply()
+
+        val restored = newGame()
+        assertFalse("旧版本 payload 不应被恢复", restored.restoreSnapshot(prefs))
+        assertFalse("旧档应被清掉", prefs.contains(key))
+    }
+
+    @Test
+    fun restoreSnapshot_onlyLegacyV1Key_returnsFalseAndPurges() {
+        // v1 payload 写在「旧 key」上（真实旧档位置）：不得恢复，且旧 key 必须被清理
+        val prefs = FakePrefs()
+        val source = newGame()
+        source.startMatch(PoolSide.PLAYER, seed = 9L)
+        source.saveSnapshot(prefs)
+        val v2 = prefs.getString(key, null)
+        assertNotNull(v2)
+        prefs
+            .edit()
+            .remove(key)
+            .putString(POOL_LEGACY_SNAPSHOT_KEY, v2!!.replaceFirst("v=2", "v=1"))
+            .putString(POOL_LEGACY_REPLAY_KEY, "sentinel-legacy-replay")
+            .apply()
+
+        val restored = newGame()
+        assertFalse("旧 key 上的 v1 档不得恢复", restored.restoreSnapshot(prefs))
+        assertEquals("坏档后应保持 READY", PoolGame.Phase.READY, restored.phase)
+        assertFalse("旧快照 key 应被清理", prefs.contains(POOL_LEGACY_SNAPSHOT_KEY))
+        assertFalse("旧回放 key 应被清理", prefs.contains(POOL_LEGACY_REPLAY_KEY))
+    }
+
+    @Test
+    fun saveAndClearSnapshot_purgeLegacyKeys() {
+        val prefs = FakePrefs()
+        prefs
+            .edit()
+            .putString(POOL_LEGACY_SNAPSHOT_KEY, "v=1\nphase=AIMING")
+            .putString(POOL_LEGACY_REPLAY_KEY, "sentinel-legacy-replay")
+            .putString(replayKey, "keep-me")
+            .apply()
+
+        val game = newGame()
+        game.startMatch(PoolSide.PLAYER, seed = 12L)
+        game.saveSnapshot(prefs)
+        assertFalse("保存 v2 时应清掉旧快照 key", prefs.contains(POOL_LEGACY_SNAPSHOT_KEY))
+        assertFalse("保存 v2 时应清掉旧回放 key", prefs.contains(POOL_LEGACY_REPLAY_KEY))
+
+        game.clearSnapshot(prefs)
+        assertFalse(prefs.contains(key))
+        assertFalse(prefs.contains(POOL_LEGACY_SNAPSHOT_KEY))
+        assertFalse(prefs.contains(POOL_LEGACY_REPLAY_KEY))
+        assertEquals("v2 回放不属于对局快照，不应误删", "keep-me", prefs.getString(replayKey, null))
     }
 
     @Test

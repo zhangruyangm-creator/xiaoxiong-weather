@@ -47,6 +47,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -426,7 +430,11 @@ private fun HotZone(
         modifier =
             modifier
                 .padding(6.dp)
-                .clickable(onClick = onClick),
+                .clickable(onClickLabel = label, onClick = onClick)
+                .semantics {
+                    contentDescription = label
+                    role = Role.Button
+                },
         contentAlignment = Alignment.BottomCenter,
     ) {
         // 轻标签：低对比、无厚白底，避免盖住插画

@@ -10,7 +10,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
 
-private val Context.phenologyDataStore by preferencesDataStore("phenology_cache_v1")
+private val Context.phenologyDataStore by preferencesDataStore(
+    name = "phenology_cache_v1",
+    corruptionHandler = corruptionHandlerLogging("phenology_cache_v1"),
+)
 
 /**
  * 物候偏移结果的按日缓存。

@@ -50,6 +50,22 @@ class HockeyLogicTest {
         assertEquals(t.bottom - big, yBig, 0.01f)
     }
 
+    /** 门线解围允许压低 AI，但中心最多到 top+r/2：避免半个挡板穿出球门框。 */
+    @Test
+    fun clampPaddle_goalLineHugLimitsCenterToHalfRadius() {
+        val t = table()
+        val (_, ay) =
+            HockeyLogic.clampPaddle(
+                t,
+                t.midX,
+                t.top - 50f,
+                isPlayer = false,
+                paddleR = t.paddleR,
+                aiGoalLineHug = true,
+            )
+        assertEquals(t.top + t.paddleR * 0.5f, ay, 0.01f)
+    }
+
     @Test
     fun wallBounce_leftReflects() {
         val t = table()

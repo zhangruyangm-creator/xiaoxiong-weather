@@ -44,7 +44,6 @@
     <string name="bear_farm_shop">种子店</string>
     <string name="bear_farm_shop_cat_all">全部</string>
     <string name="bear_farm_shop_crop_meta">约%1$s时 · 售%2$d</string>
-    <string name="bear_farm_shop_hint">累计收获 %1$d 次可逐步解锁；也可花金币直接解锁</string>
     <string name="bear_farm_shop_meta">累计收获 %1$d 次 · 已解锁 %2$d/%3$d</string>
     <string name="bear_farm_shop_owned">已解锁</string>
     <string name="bear_farm_seed_cost">%1$d币</string>

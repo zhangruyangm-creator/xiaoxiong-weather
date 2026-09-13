@@ -14,8 +14,12 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
-/** 进行中对局快照的 prefs key（区别于回放用的 `pool_last_replay_v1`）。 */
-internal const val POOL_SNAPSHOT_KEY = "pool_snapshot_v1"
+/** 进行中对局快照的 prefs key（区别于回放用的 `pool_last_replay_v2`）。 */
+internal const val POOL_SNAPSHOT_KEY = "pool_snapshot_v2"
+
+/** 旧版本（1.9.0 前）的快照 / 回放 key：载入与清档时显式清理，避免孤儿数据。 */
+internal const val POOL_LEGACY_SNAPSHOT_KEY = "pool_snapshot_v1"
+internal const val POOL_LEGACY_REPLAY_KEY = "pool_last_replay_v1"
 
 /**
  * 小熊台球运行时：把「固定步长物理内核 + 八球规则 + AI + 输入/瞄准/杆法 + 计分」收口。
@@ -518,17 +522,16 @@ class PoolGame {
         power = ((hypot(dx, dy) - 0.06f) / 0.64f).coerceIn(0f, 1f)
     }
 
-    /** 自由球时把白球放到台面坐标（要求不与其他球重叠、在台内）。 */
+    /**
+     * 自由球时把白球放到台面坐标：台内、不与其他球重叠、不在袋口捕获圈内。
+     * 合法点判定与 AI [PoolAi.placeCueBall] 共用 [PoolPhysics.isLegalCuePlacement]。
+     */
     fun tryPlaceCue(
         tx: Float,
         ty: Float,
     ): Boolean {
         val cue = cueBall() ?: return false
-        if (!table.contains(tx, ty, margin = -cue.radius)) return false
-        for (b in balls) {
-            if (!b.onTable || b === cue) continue
-            if (hypot(b.x - tx, b.y - ty) < b.radius + cue.radius + 1e-3f) return false
-        }
+        if (!PoolPhysics.isLegalCuePlacement(balls, table, cue, tx, ty)) return false
         cue.x = tx
         cue.y = ty
         cue.onTable = true
@@ -1042,6 +1045,7 @@ class PoolGame {
     fun saveSnapshot(prefs: SharedPreferences) {
         // 回放不是「进行中对局」：保留回放前的续玩快照，不用回放中的球局覆盖它
         if (replaying) return
+        clearLegacySnapshotKeys(prefs)
         if (phase != Phase.AIMING && phase != Phase.SHOOTING && phase != Phase.FRAME_OVER) {
             clearSnapshot(prefs)
             return
@@ -1052,10 +1056,11 @@ class PoolGame {
 
     /**
      * 恢复当前对局快照；无快照 / 解析失败 / 当前已非初始 [Phase.READY] 返回 false。
-     * 坏档会被清掉且不抛异常，调用方保持 READY 即可。
+     * 坏档会被清掉且不抛异常，调用方保持 READY 即可。载入时一并清理旧版本 key。
      */
     fun restoreSnapshot(prefs: SharedPreferences): Boolean {
         if (phase != Phase.READY) return false
+        clearLegacySnapshotKeys(prefs)
         val raw = GameSnapshot.load(prefs, POOL_SNAPSHOT_KEY) ?: return false
         val snapshot = runCatching { PoolSnapshotCodec.decode(raw) }.getOrNull()
         if (snapshot == null) {
@@ -1065,9 +1070,16 @@ class PoolGame {
         return runCatching { applySnapshot(snapshot) }.isSuccess
     }
 
-    /** 清掉对局快照（重开 / 对局结束 / 主动退出）。 */
+    /** 清掉对局快照（重开 / 对局结束 / 主动退出），并清理旧版本遗留 key。 */
     fun clearSnapshot(prefs: SharedPreferences) {
         GameSnapshot.clear(prefs, POOL_SNAPSHOT_KEY)
+        clearLegacySnapshotKeys(prefs)
+    }
+
+    /** 清掉 1.9.0 前遗留的快照 / 回放 key，避免旧格式孤儿数据常驻。 */
+    private fun clearLegacySnapshotKeys(prefs: SharedPreferences) {
+        GameSnapshot.clear(prefs, POOL_LEGACY_SNAPSHOT_KEY)
+        GameSnapshot.clear(prefs, POOL_LEGACY_REPLAY_KEY)
     }
 
     private fun captureSnapshot(): PoolSnapshot =
@@ -1419,9 +1431,12 @@ private inline fun <reified T : Enum<T>> enumOrNull(name: String?): T? =
  * 字段：`v` 版本；`phase`/`mode`/`match`/`flags`/`aim`/`frame`/`stats`/`challenge`/
  * `challengeDate`/`lesson`/`raceTo`/`best`/`shotCount`；`ball` 每球一行；`track` 一杆采集中间态；
  * `hist` 击球历史每行一条。
+ *
+ * 版本历史：v1 = 1.9.0 前的旧袋口/台面几何（中袋位置与 `pocketIndex` 含义已变），
+ * 升 v2 后旧 payload 一律拒绝，避免续玩时球落入错误袋口。
  */
 private object PoolSnapshotCodec {
-    private const val VERSION = 1
+    private const val VERSION = 2
 
     fun encode(snapshot: PoolSnapshot): String {
         val lines = ArrayList<String>()

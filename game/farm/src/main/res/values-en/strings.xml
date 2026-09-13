@@ -44,7 +44,6 @@
     <string name="bear_farm_shop">Shop</string>
     <string name="bear_farm_shop_cat_all">All</string>
     <string name="bear_farm_shop_crop_meta">~%1$s h · sells %2$d</string>
-    <string name="bear_farm_shop_hint">Harvested %1$d times. Unlock by progress or coins.</string>
     <string name="bear_farm_shop_meta">Harvested %1$d times · Unlocked %2$d/%3$d</string>
     <string name="bear_farm_shop_owned">Unlocked</string>
     <string name="bear_farm_shop_title">Seed Shop</string>

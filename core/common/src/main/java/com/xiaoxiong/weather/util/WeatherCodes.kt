@@ -448,14 +448,15 @@ object WeatherCodes {
 
     /**
      * 统一紫外线取数口径：白天以当日最大 UV 为准（早晚用当前低值会误报「无需防晒」），
-     * 当日最大缺失时回退当前实测值；夜间无日晒返回 null，调用方不应再提示或预警。
+     * 当日最大缺失时回退当前实测值；夜间或昼夜未知（无 is_day 数据）返回 null，
+     * 调用方不应再提示、预警或生成 UV 指数。
      */
     fun uvForDaytime(
         isDay: Boolean?,
         airQuality: AirQuality?,
         today: DailyWeather?,
     ): Double? =
-        if (isDay == false) {
+        if (isDay != true) {
             null
         } else {
             today?.uvIndexMax ?: airQuality?.uvIndex

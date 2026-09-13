@@ -79,17 +79,19 @@ object AlertBearIcon {
     }
 
     /**
-     * 未来降雨伞色：蓝 → 青绿 → 黄 → 红 → 黑（&gt;32 mm/小时，与桌面当前天气图标口径一致）。
+     * 未来降雨伞色：蓝 → 青绿 → 黄 → 红 → 黑。
+     * 分档统一走 [WeatherCodes.rainIntensity]（&gt;32 猛烈、16–32 暴雨、4–16 大雨），
+     * 与桌面当前天气图标口径一致，消除此前 >16 与 ≥16 边界打架。
      */
     @DrawableRes
-    fun rainSoonUmbrellaRes(peakMmPerHour: Double?): Int {
-        val mm = peakMmPerHour ?: 0.0
-        return when {
-            mm > WeatherCodes.PRECIP_VIOLENT_MM_H -> R.drawable.ic_launcher_bear_extreme_rain
-            mm > 16.0 -> R.drawable.ic_launcher_bear_violent_rain
-            mm > 4.0 -> R.drawable.ic_launcher_bear_heavy_rain
-            mm > 1.0 -> R.drawable.ic_launcher_bear_moderate_rain
-            else -> R.drawable.ic_launcher_bear_rainy
+    fun rainSoonUmbrellaRes(peakMmPerHour: Double?): Int =
+        when (WeatherCodes.rainIntensity(peakMmPerHour)) {
+            WeatherCodes.RainIntensity.VIOLENT -> R.drawable.ic_launcher_bear_extreme_rain
+            WeatherCodes.RainIntensity.TORRENTIAL -> R.drawable.ic_launcher_bear_violent_rain
+            WeatherCodes.RainIntensity.HEAVY -> R.drawable.ic_launcher_bear_heavy_rain
+            WeatherCodes.RainIntensity.MODERATE -> R.drawable.ic_launcher_bear_moderate_rain
+            WeatherCodes.RainIntensity.LIGHT,
+            WeatherCodes.RainIntensity.NONE,
+            -> R.drawable.ic_launcher_bear_rainy
         }
-    }
 }

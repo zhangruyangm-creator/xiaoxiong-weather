@@ -1,6 +1,8 @@
 package com.xiaoxiong.weather.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WeatherLauncherIconReconcileTest {
@@ -39,5 +41,13 @@ class WeatherLauncherIconReconcileTest {
             sunny,
             reconcileTarget(stored = rainy, enabled = listOf(sunny, foggy)),
         )
+    }
+
+    @Test
+    fun shouldClearPending_onlyWhenMatchesAppliedStyle() {
+        assertTrue(shouldClearPending("Rainy", rainy))
+        assertFalse(shouldClearPending("Sunny", rainy))
+        assertFalse(shouldClearPending(null, rainy))
+        assertFalse(shouldClearPending("Unknown", rainy))
     }
 }

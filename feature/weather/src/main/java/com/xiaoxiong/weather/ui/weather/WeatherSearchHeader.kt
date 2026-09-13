@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
+import com.xiaoxiong.weather.data.FavoriteCityStore
+import java.util.Locale
 import kotlin.math.abs
 
 @Composable
@@ -136,6 +138,19 @@ fun SearchHeader(
                 selectedCity = selectedCity,
                 onSelectCity = onSelectCity,
             )
+            // 达到上限后新增会被拒绝（收藏旧项不再被静默丢弃），这里给出可见提示
+            if (favorites.size >= FavoriteCityStore.MAX_FAVORITES) {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.search_favorite_limit_reached,
+                            FavoriteCityStore.MAX_FAVORITES,
+                        ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
         }
 
         if (showDiscovery && recentForChips.isNotEmpty()) {
@@ -313,4 +328,4 @@ private fun isSameFavoriteCity(
         abs(favorite.longitude - selected.longitude) < 0.01
 }
 
-private fun approxKey(city: City): String = "${"%.2f".format(city.latitude)},${"%.2f".format(city.longitude)}"
+private fun approxKey(city: City): String = String.format(Locale.US, "%.2f,%.2f", city.latitude, city.longitude)

@@ -58,6 +58,24 @@ class GrowingDegreeDaysTest {
     }
 
     @Test
+    fun shiftDays_extremeDiff_isClampedToBounds() {
+        val n = 120
+        // 前期暴暖、近一周几乎停滞：diff/rate 会被放大到数千天，必须钳到 -30
+        val burstThenFlat = List(n - 7) { 30.0 } + List(7) { 5.4 }
+        assertEquals(
+            -GrowingDegreeDays.MAX_SHIFT_DAYS,
+            GrowingDegreeDays.shiftDays(burstThenFlat, List(n) { 0.0 }),
+        )
+
+        // 常年显著更暖、今年增速极低：正向偏移同样钳到 +30
+        val slowGrowth = List(n) { 5.08 }
+        assertEquals(
+            GrowingDegreeDays.MAX_SHIFT_DAYS,
+            GrowingDegreeDays.shiftDays(slowGrowth, List(n) { 30.0 }),
+        )
+    }
+
+    @Test
     fun averageByDayOfYear_averagesAcrossYearsAndMergesLeapDay() {
         val records =
             listOf(

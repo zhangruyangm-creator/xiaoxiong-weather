@@ -51,12 +51,14 @@ fun BearGameOverlay(
         activePassword = entry.password
     }
 
-    LaunchedEffect(query) {
+    // keys 含 enabledEntries：ServiceLoader 预载完成前输入口令/连点标题不会丢信号，
+    // 入口由空变有值时 effect 会重跑并用最新 query/requestPassword 重新匹配
+    LaunchedEffect(query, enabledEntries) {
         enabledEntries.firstOrNull { it.password == query.trim() }?.let(launchGame)
     }
 
     // 外部直接激活信号（如标题连点彩蛋）：nonce 变化即重新尝试，口令相同也生效
-    LaunchedEffect(requestPassword) {
+    LaunchedEffect(requestPassword, enabledEntries) {
         val nonce = requestPassword?.first
         val password = requestPassword?.second
         if (nonce != null && password != null) {

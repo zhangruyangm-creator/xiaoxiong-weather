@@ -35,6 +35,16 @@
     <string name="bear_hockey_paddle_scope_mine">Mine only</string>
     <string name="bear_hockey_puck_size">Puck size</string>
     <string name="bear_hockey_goal_size">Goal size</string>
+    <string name="bear_hockey_rink_theme">Rink theme</string>
+    <string name="bear_hockey_rink_ice">Ice rink</string>
+    <string name="bear_hockey_rink_ice_desc">Slipperiest — keeps speed longest</string>
+    <string name="bear_hockey_rink_bear">Bear canvas</string>
+    <string name="bear_hockey_rink_bear_desc">A touch draggy — paw-print canvas</string>
+    <string name="bear_hockey_rink_wood">Wooden table</string>
+    <string name="bear_hockey_rink_wood_desc">Medium drag — varnished wood</string>
+    <string name="bear_hockey_rink_concrete">Concrete</string>
+    <string name="bear_hockey_rink_concrete_desc">Grippiest — stops fastest</string>
+    <string name="bear_hockey_rink_theme_a11y">%1$s, %2$s</string>
     <string name="bear_hockey_size_value">×%1$.2f</string>
     <string name="bear_hockey_career_wins">Career wins %1$d</string>
     <string name="bear_leaderboard_rank_label">Rank %1$d</string>
@@ -43,7 +53,7 @@
     <string name="bear_hockey_serve_to_you">Serve flies into your half</string>
     <string name="bear_hockey_serve_to_rival">Serve flies into the rival\'s half</string>
     <string name="bear_hockey_serve_random">Serve direction is random</string>
-    <string name="bear_hockey_rules_locked">Match in progress — win score and size changes apply next match</string>
+    <string name="bear_hockey_rules_locked">Match in progress — win score, rink theme, and size changes apply next match</string>
     <string name="bear_hockey_sound">Sound</string>
     <string name="bear_hockey_career">Career / Achievements</string>
     <string name="bear_hockey_unlock_title">Achievement unlocked!</string>

@@ -5,6 +5,11 @@
     <string name="bear_game_restart">再来一局</string>
     <string name="bear_game_view_rank">查看排行榜</string>
     <string name="bear_catch_hint">左右拖动小熊接雨滴/雪花/硬币/花瓣，躲开乌云、冰雹和闪电\n接礼盒开启双倍，接泡泡获得护盾\n天气不同玩法也不同：雨天有横风要预判，雪天慢而舒缓，雷暴会有爆发波次</string>
+    <string name="bear_catch_difficulty_label">难度</string>
+    <string name="bear_catch_difficulty_casual">休闲</string>
+    <string name="bear_catch_difficulty_standard">标准</string>
+    <string name="bear_catch_difficulty_challenge">挑战</string>
+    <string name="bear_catch_milestone">里程碑 %1$d！</string>
     <string name="bear_catch_over">哎呀，淋湿了</string>
     <string name="bear_catch_start">开始接</string>
     <string name="bear_catch_title">小熊接雨雪</string>

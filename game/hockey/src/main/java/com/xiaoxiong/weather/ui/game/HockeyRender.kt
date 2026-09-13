@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -79,6 +80,36 @@ private val iceWarm = Color(0xFFFFF0CE)
 private val markBlue = Color(0xFF3D6C96)
 private val boardShade = Color(0x66031B2E)
 
+// 场地主题配色：静态层按主题烘焙，几何（库边 / 球门 / 开球点 / 中线）不变
+private val woodTableTop = Color(0xFFE8B76C)
+private val woodTableMid = Color(0xFFD69C4E)
+private val woodTableBottom = Color(0xFFBE7F33)
+private val woodPlankSeam = Color(0xFF6D4519)
+private val woodVarnish = Color(0xFFFFF3D0)
+private val woodMark = Color(0xFF4A2B0E)
+private val walnutLight = Color(0xFF8A5A2B)
+private val walnutMid = Color(0xFF5F3A1A)
+private val walnutDark = Color(0xFF3A2210)
+private val walnutBoardShade = Color(0x99512E10)
+
+private val concreteDayTop = Color(0xFFC3C7CA)
+private val concreteDayMid = Color(0xFFAFB4B8)
+private val concreteDayBottom = Color(0xFF989EA3)
+private val concreteNightTop = Color(0xFF8F9498)
+private val concreteNightMid = Color(0xFF7E8388)
+private val concreteNightBottom = Color(0xFF6C7176)
+private val concreteGroove = Color(0xFF5F666C)
+private val concreteCrack = Color(0xFF4A5055)
+private val concreteMark = Color(0xFF5A646B)
+private val concreteBoardShade = Color(0x66474E54)
+
+private val canvasCreamTop = Color(0xFFFFF7E6)
+private val canvasCreamMid = Color(0xFFF5EDDA)
+private val canvasIceBlue = Color(0xFFDCEBF4)
+private val canvasBlue = Color(0xFF7FA8C4)
+private val canvasStitch = Color(0xFF8FB6CF)
+private val canvasBoardShade = Color(0x556A93B0)
+
 private val playerGoal = Color(0xFFFFB74D)
 private val aiGoal = Color(0xFF4DD0E1)
 
@@ -143,6 +174,7 @@ private object HockeyRenderCache {
     val recessPath = Path()
     val shape = Path()
     val shard = Path()
+    val stitchPath = Path()
     val textPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textAlign = Paint.Align.CENTER
@@ -186,12 +218,10 @@ private fun strokeOf(width: Float): Stroke {
 // ---------------------------------------------------------------------
 
 /**
- * 冰面静态层（木框 / 冰面渐变与划痕 / 冰面标记 / 库边 / 球门洞与网）
- * 每帧不变，烘焙成一张整屏 [ImageBitmap]，每帧一次 drawImage。
- * 仅主线程绘制，无需加锁；最多保留 [HockeyTableLayerCache.MAX_ENTRIES] 张做 LRU。
+ * 静态层缓存键：画布位图尺寸 + 球桌几何 + 场景样式。纯数据（不含位图），
+ * 便于把「近似复用」条件抽成纯函数做单测。
  */
-private class HockeyTableLayer(
-    val bitmap: ImageBitmap,
+internal data class HockeyLayerKey(
     val width: Int,
     val height: Int,
     val tableLeft: Float,
@@ -199,14 +229,52 @@ private class HockeyTableLayer(
     val tableWidth: Float,
     val tableHeight: Float,
     val goalWidth: Float,
+    val theme: RinkTheme,
     val style: WeatherSceneStyle,
     val isDay: Boolean,
 )
 
+/**
+ * 场地静态层（桌框 / 主题地面 / 标记 / 库边 / 球门洞与网）：几何固定，
+ * 材质与配色由 [RinkTheme] 决定，切主题时按新键重新烘焙。
+ * 每帧不变，烘焙成一张整屏 [ImageBitmap]，每帧一次 drawImage。
+ * 仅主线程绘制，无需加锁；最多保留 [HockeyTableLayerCache.MAX_ENTRIES] 张做 LRU。
+ */
+private class HockeyTableLayer(
+    val bitmap: ImageBitmap,
+    val key: HockeyLayerKey,
+)
+
+/** 位图尺寸容差（窗口连续拖动时不逐像素重建）。 */
+private const val HOCKEY_LAYER_RESIZE_TOLERANCE_PX = 24
+
+/** 球桌几何容差（约 1px）：超出必须重建，否则错位球桌会随缓存残留整局。 */
+private const val HOCKEY_LAYER_GEOMETRY_TOLERANCE_PX = 1f
+
+/** 球门宽容差。 */
+private const val HOCKEY_LAYER_GOAL_TOLERANCE = 2f
+
+/**
+ * 静态层是否可近似复用：主题 / 样式 / 昼夜一致，位图尺寸在容差内，且**球桌几何一致**
+ * （left/top/width/height 各自容差约 1px）。任一不一致必须重建。
+ */
+internal fun hockeyLayerKeyReusable(
+    cached: HockeyLayerKey,
+    target: HockeyLayerKey,
+): Boolean =
+    cached.theme == target.theme &&
+        cached.style == target.style &&
+        cached.isDay == target.isDay &&
+        abs(cached.goalWidth - target.goalWidth) <= HOCKEY_LAYER_GOAL_TOLERANCE &&
+        abs(cached.tableLeft - target.tableLeft) <= HOCKEY_LAYER_GEOMETRY_TOLERANCE_PX &&
+        abs(cached.tableTop - target.tableTop) <= HOCKEY_LAYER_GEOMETRY_TOLERANCE_PX &&
+        abs(cached.tableWidth - target.tableWidth) <= HOCKEY_LAYER_GEOMETRY_TOLERANCE_PX &&
+        abs(cached.tableHeight - target.tableHeight) <= HOCKEY_LAYER_GEOMETRY_TOLERANCE_PX &&
+        abs(cached.width - target.width) <= HOCKEY_LAYER_RESIZE_TOLERANCE_PX &&
+        abs(cached.height - target.height) <= HOCKEY_LAYER_RESIZE_TOLERANCE_PX
+
 private object HockeyTableLayerCache {
     const val MAX_ENTRIES = 2
-    private const val RESIZE_TOLERANCE_PX = 24
-    private const val GOAL_TOLERANCE = 2f
     private val entries = ArrayList<HockeyTableLayer>(MAX_ENTRIES)
 
     fun bitmap(
@@ -222,20 +290,12 @@ private object HockeyTableLayerCache {
         val w = ceil(size.width).toInt()
         val h = ceil(size.height).toInt()
         if (w <= 0 || h <= 0) return null
+        val key = HockeyLayerKey(w, h, t.left, t.top, t.width, t.height, t.goalWidth, game.rinkTheme, style, isDay)
 
         var i = entries.size - 1
         while (i >= 0) {
             val e = entries[i]
-            if (e.width == w &&
-                e.height == h &&
-                e.tableLeft == t.left &&
-                e.tableTop == t.top &&
-                e.tableWidth == t.width &&
-                e.tableHeight == t.height &&
-                e.goalWidth == t.goalWidth &&
-                e.style == style &&
-                e.isDay == isDay
-            ) {
+            if (e.key == key) {
                 entries.removeAt(i)
                 entries.add(e)
                 return e
@@ -246,14 +306,7 @@ private object HockeyTableLayerCache {
         i = entries.size - 1
         while (i >= 0) {
             val e = entries[i]
-            if (e.style == style &&
-                e.isDay == isDay &&
-                abs(e.goalWidth - t.goalWidth) <= GOAL_TOLERANCE &&
-                abs(e.width - w) <= RESIZE_TOLERANCE_PX &&
-                abs(e.height - h) <= RESIZE_TOLERANCE_PX
-            ) {
-                return e
-            }
+            if (hockeyLayerKeyReusable(e.key, key)) return e
             i--
         }
 
@@ -263,21 +316,12 @@ private object HockeyTableLayerCache {
             drawHockeyTableStatic(game, style, isDay)
         }
         if (entries.size >= MAX_ENTRIES) entries.removeAt(0)
-        entries.add(
-            HockeyTableLayer(
-                bitmap = bitmap,
-                width = w,
-                height = h,
-                tableLeft = t.left,
-                tableTop = t.top,
-                tableWidth = t.width,
-                tableHeight = t.height,
-                goalWidth = t.goalWidth,
-                style = style,
-                isDay = isDay,
-            ),
-        )
+        entries.add(HockeyTableLayer(bitmap, key))
         return entries.last()
+    }
+
+    fun clear() {
+        entries.clear()
     }
 }
 
@@ -323,7 +367,8 @@ private object HockeySpriteCache {
                 1 -> paddleSun
                 else -> paddleAi
             }
-        val half = keyR * 1.42f
+        // 最外层投影椭圆右/下边缘到 1.48r：烘焙范围留到 1.55r，避免裁掉阴影
+        val half = keyR * 1.55f
         val side = ceil(half * 2f).toInt().coerceAtLeast(2)
         val bitmap = ImageBitmap(side, side)
         CanvasDrawScope().draw(density, layoutDirection, Canvas(bitmap), Size(side.toFloat(), side.toFloat())) {
@@ -363,6 +408,19 @@ private object HockeySpriteCache {
         entries.add(sprite)
         return sprite
     }
+
+    fun clear() {
+        entries.clear()
+    }
+}
+
+/**
+ * 释放全屏静态层与挡板/蜜罐精灵缓存：退出游戏时调用，避免 2 张全屏位图 + 精灵常驻；
+ * 二次进入会重新烘焙，不影响正确性。
+ */
+internal fun clearHockeyRenderCaches() {
+    HockeyTableLayerCache.clear()
+    HockeySpriteCache.clear()
 }
 
 // ---------------------------------------------------------------------
@@ -385,17 +443,17 @@ internal fun DrawScope.drawHockeyWorld(
     val t = game.table ?: return
     val time = game.time
 
-    drawHockeyAmbient(weather, rain, freezingRain, hail, isDay, time)
+    drawHockeyAmbient(weather, rain, freezingRain, hail, isDay, time, reduceMotion)
 
     val layer = HockeyTableLayerCache.bitmap(game, style, isDay, size, this, layoutDirection)
     if (layer != null) {
         val dstW = ceil(size.width).toInt()
         val dstH = ceil(size.height).toInt()
-        val same = layer.width == dstW && layer.height == dstH
+        val same = layer.key.width == dstW && layer.key.height == dstH
         drawImage(
             image = layer.bitmap,
             srcOffset = IntOffset.Zero,
-            srcSize = IntSize(layer.width, layer.height),
+            srcSize = IntSize(layer.key.width, layer.key.height),
             dstOffset = IntOffset.Zero,
             dstSize = IntSize(dstW, dstH),
             filterQuality = if (same) FilterQuality.None else FilterQuality.Low,
@@ -483,6 +541,7 @@ private fun DrawScope.drawHockeyTableStatic(
     isDay: Boolean,
 ) {
     val t = game.table ?: return
+    val theme = game.rinkTheme
     val l = t.left
     val tp = t.top
     val r = t.right
@@ -514,10 +573,11 @@ private fun DrawScope.drawHockeyTableStatic(
         CornerRadius(corner),
     )
 
-    // 木框：对角渐变
+    // 桌框：对角渐变（主题决定木色 / 帆布 / 灰调）
+    val frameEdge = rinkFrameEdge(theme)
     drawRoundRect(
         Brush.linearGradient(
-            colors = listOf(woodLight, woodMid, woodDark),
+            colors = rinkFrameColors(theme),
             start = Offset(fl, ft),
             end = Offset(fr, fb),
         ),
@@ -525,18 +585,8 @@ private fun DrawScope.drawHockeyTableStatic(
         Size(outerW, outerH),
         CornerRadius(corner),
     )
-    // 木纹：确定性细纹，仅烘焙一次
-    for (i in 0 until 14) {
-        val gx = fl + outerW * hockeyHash01(i * 5 + 31)
-        val sway = sin(i * 1.7f) * frame * 0.05f
-        drawLine(
-            if (i % 2 == 0) Color.Black.copy(alpha = 0.07f) else Color.White.copy(alpha = 0.05f),
-            Offset(gx, ft + frame * 0.10f),
-            Offset(gx + sway, fb - frame * 0.10f),
-            strokeWidth = 0.8f + hockeyHash01(i * 2 + 7),
-        )
-    }
-    // 木框内侧高光 + 外描边
+    drawRinkFrameTexture(theme, fl, ft, fb, outerW, outerH, frame)
+    // 桌框内侧高光 + 外描边
     drawRoundRect(
         Color.White.copy(alpha = if (dark) 0.05f else 0.13f),
         Offset(fl + frame * 0.14f, ft + frame * 0.14f),
@@ -545,105 +595,58 @@ private fun DrawScope.drawHockeyTableStatic(
         style = strokeOf(frame * 0.16f),
     )
     drawRoundRect(
-        woodEdge.copy(alpha = if (dark) 0.75f else 0.5f),
+        frameEdge.copy(alpha = if (dark) 0.75f else 0.5f),
         Offset(fl, ft),
         Size(outerW, outerH),
         CornerRadius(corner),
         style = strokeOf(short * 0.006f),
     )
     // 四角收边斜接
-    drawFrameMiter(fl, ft, l, tp, frame)
-    drawFrameMiter(fr, ft, r, tp, frame)
-    drawFrameMiter(fl, fb, l, b, frame)
-    drawFrameMiter(fr, fb, r, b, frame)
+    drawFrameMiter(fl, ft, l, tp, frame, frameEdge)
+    drawFrameMiter(fr, ft, r, tp, frame, frameEdge)
+    drawFrameMiter(fl, fb, l, b, frame, frameEdge)
+    drawFrameMiter(fr, fb, r, b, frame, frameEdge)
 
-    // 冰面
-    val iceTop = tintIce(if (isDay) iceDayTop else iceNightTop, style, isDay)
-    val iceMid = tintIce(if (isDay) iceDayMid else iceNightMid, style, isDay)
-    val iceBottom = tintIce(if (isDay) iceDayBottom else iceNightBottom, style, isDay)
-    val icePath = HockeyRenderCache.icePath
-    icePath.reset()
-    icePath.addRoundRect(RoundRect(l, tp, r, b, CornerRadius(iceCorner)))
-    clipPath(icePath) {
-        drawRect(
-            Brush.verticalGradient(listOf(iceTop, iceMid, iceBottom), startY = tp, endY = b),
-            Offset(l, tp),
-            Size(w, h),
-        )
-        // 顶侧灯带反光
-        drawCircle(
-            Brush.radialGradient(
-                colors = listOf(Color.White.copy(alpha = 0.14f), Color.Transparent),
-                center = Offset(l + w * 0.22f, tp + h * 0.10f),
-                radius = max(w, h) * 0.55f,
-            ),
-            radius = max(w, h) * 0.55f,
-            center = Offset(l + w * 0.22f, tp + h * 0.10f),
-        )
-        // 细化划痕
-        for (i in 0 until 120) {
-            val fx = hockeyHash01(i * 3 + 1)
-            val fy = hockeyHash01(i * 3 + 2)
-            val ang = hockeyHash01(i * 5 + 4) * PI.toFloat()
-            val len = short * (0.010f + hockeyHash01(i * 7 + 5) * 0.050f)
-            val dx = cos(ang) * len * 0.5f
-            val dy = sin(ang) * len * 0.5f
-            val px = l + fx * w
-            val py = tp + fy * h
-            drawLine(
-                if (i % 2 == 0) Color.White.copy(alpha = 0.05f) else Color(0xFF2E4B63).copy(alpha = 0.045f),
-                Offset(px - dx, py - dy),
-                Offset(px + dx, py + dy),
-                strokeWidth = 0.6f + hockeyHash01(i * 11 + 6) * 1.1f,
-            )
-        }
-        // 对角反光带
-        drawRect(
-            Brush.linearGradient(
-                colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.06f), Color.Transparent),
-                start = Offset(l, tp + h * 0.72f),
-                end = Offset(r, tp + h * 0.28f),
-            ),
-            Offset(l, tp),
-            Size(w, h),
-        )
-        // 暗角
-        drawRect(
-            Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.05f), Color.Black.copy(alpha = if (dark) 0.30f else 0.20f)),
-                center = Offset(midX, midY),
-                radius = max(w, h) * 0.72f,
-            ),
-            Offset(l, tp),
-            Size(w, h),
-        )
+    // 地面（按主题烘焙：冰面 / 木桌 / 水泥 / 画布）
+    val surfacePath = HockeyRenderCache.icePath
+    surfacePath.reset()
+    surfacePath.addRoundRect(RoundRect(l, tp, r, b, CornerRadius(iceCorner)))
+    clipPath(surfacePath) {
+        drawRinkSurface(theme, t, style, isDay, midX, midY, dark)
     }
 
-    drawIceMarkings(t, frame, iceCorner)
+    drawRinkMarkings(t, frame, iceCorner, theme)
 
-    // 库边（内阴影 + 库鼻高光）
+    // 库边（主题材质 + 内阴影 + 库鼻高光）
+    val shade = rinkBoardShade(theme)
     val board = short * 0.028f
+    rinkBoardRail(theme)?.let { rail ->
+        drawRect(rail, Offset(l, tp), Size(w, board))
+        drawRect(rail, Offset(l, b - board), Size(w, board))
+        drawRect(rail, Offset(l, tp), Size(board, h))
+        drawRect(rail, Offset(r - board, tp), Size(board, h))
+    }
     drawRect(
-        Brush.verticalGradient(listOf(boardShade, Color.Transparent), startY = tp, endY = tp + board),
+        Brush.verticalGradient(listOf(shade, Color.Transparent), startY = tp, endY = tp + board),
         Offset(l, tp),
         Size(w, board),
     )
     drawRect(
-        Brush.verticalGradient(listOf(Color.Transparent, boardShade), startY = b - board, endY = b),
+        Brush.verticalGradient(listOf(Color.Transparent, shade), startY = b - board, endY = b),
         Offset(l, b - board),
         Size(w, board),
     )
     drawRect(
-        Brush.horizontalGradient(listOf(boardShade, Color.Transparent), startX = l, endX = l + board),
+        Brush.horizontalGradient(listOf(shade, Color.Transparent), startX = l, endX = l + board),
         Offset(l, tp),
         Size(board, h),
     )
     drawRect(
-        Brush.horizontalGradient(listOf(Color.Transparent, boardShade), startX = r - board, endX = r),
+        Brush.horizontalGradient(listOf(Color.Transparent, shade), startX = r - board, endX = r),
         Offset(r - board, tp),
         Size(board, h),
     )
-    val nose = Color.White.copy(alpha = 0.30f)
+    val nose = rinkBoardNose(theme)
     val goalLeft = midX - goalHalf
     val goalRight = midX + goalHalf
     drawLine(nose, Offset(l + board, tp + board), Offset(goalLeft, tp + board), strokeWidth = short * 0.006f)
@@ -653,7 +656,7 @@ private fun DrawScope.drawHockeyTableStatic(
     drawLine(nose, Offset(l + board, tp + board), Offset(l + board, b - board), strokeWidth = short * 0.006f)
     drawLine(nose, Offset(r - board, tp + board), Offset(r - board, b - board), strokeWidth = short * 0.006f)
     drawRoundRect(
-        woodEdge.copy(alpha = 0.35f),
+        frameEdge.copy(alpha = 0.35f),
         Offset(l, tp),
         Size(w, h),
         CornerRadius(iceCorner),
@@ -670,12 +673,539 @@ private fun DrawScope.drawHockeyTableStatic(
     // 球门（洞口 + 网 + 门柱）
     drawGoalRecess(t, frame, isTop = true, team = aiGoal)
     drawGoalRecess(t, frame, isTop = false, team = playerGoal)
-    // 门区半圆
+    // 门区半圆：木质主题用深色描边，水泥 / 画布沿用队伍色
     val creaseR = goalHalf * 1.28f
     val creaseW = short * 0.008f
-    drawCrease(midX, tp, creaseR, isTop = true, color = aiGoal, lineW = creaseW)
-    drawCrease(midX, b, creaseR, isTop = false, color = playerGoal, lineW = creaseW)
+    drawCrease(midX, tp, creaseR, isTop = true, color = creaseColor(theme, aiGoal), lineW = creaseW)
+    drawCrease(midX, b, creaseR, isTop = false, color = creaseColor(theme, playerGoal), lineW = creaseW)
 }
+
+// ---------------------------------------------------------------------
+// 场地主题调色 / 地面与边框烘焙
+// ---------------------------------------------------------------------
+
+private fun rinkFrameColors(theme: RinkTheme): List<Color> =
+    when (theme) {
+        RinkTheme.ICE -> listOf(woodLight, woodMid, woodDark)
+        RinkTheme.BEAR -> listOf(Color(0xFFEADDC4), Color(0xFFD8C6A6), Color(0xFFC0AA88))
+        RinkTheme.WOOD -> listOf(walnutLight, walnutMid, walnutDark)
+        RinkTheme.CONCRETE -> listOf(Color(0xFFB6BBBF), Color(0xFF989DA2), Color(0xFF7B8085))
+    }
+
+private fun rinkFrameEdge(theme: RinkTheme): Color =
+    when (theme) {
+        RinkTheme.ICE, RinkTheme.WOOD -> woodEdge
+        RinkTheme.BEAR -> Color(0xFF8FA8B8)
+        RinkTheme.CONCRETE -> Color(0xFF5C6166)
+    }
+
+/** 桌框纹理：冰 / 木主题为木纹，画布为织纹，水泥为骨料斑点。 */
+private fun DrawScope.drawRinkFrameTexture(
+    theme: RinkTheme,
+    fl: Float,
+    ft: Float,
+    fb: Float,
+    outerW: Float,
+    outerH: Float,
+    frame: Float,
+) {
+    when (theme) {
+        RinkTheme.ICE, RinkTheme.WOOD -> {
+            val count = if (theme == RinkTheme.WOOD) 16 else 14
+            val dark = if (theme == RinkTheme.WOOD) 0.11f else 0.07f
+            val light = if (theme == RinkTheme.WOOD) 0.08f else 0.05f
+            for (i in 0 until count) {
+                val gx = fl + outerW * hockeyHash01(i * 5 + 31)
+                val sway = sin(i * 1.7f) * frame * 0.05f
+                drawLine(
+                    if (i % 2 == 0) Color.Black.copy(alpha = dark) else Color.White.copy(alpha = light),
+                    Offset(gx, ft + frame * 0.10f),
+                    Offset(gx + sway, fb - frame * 0.10f),
+                    strokeWidth = 0.8f + hockeyHash01(i * 2 + 7),
+                )
+            }
+        }
+        RinkTheme.BEAR -> {
+            for (i in 0 until 12) {
+                val gx = fl + outerW * hockeyHash01(i * 5 + 19)
+                drawLine(
+                    canvasStitch.copy(alpha = 0.14f),
+                    Offset(gx, ft + frame * 0.12f),
+                    Offset(gx, fb - frame * 0.12f),
+                    strokeWidth = 0.8f,
+                )
+            }
+        }
+        RinkTheme.CONCRETE -> {
+            for (i in 0 until 22) {
+                val gx = fl + outerW * hockeyHash01(i * 7 + 13)
+                val gy = ft + outerH * hockeyHash01(i * 11 + 5)
+                drawCircle(
+                    if (i % 3 == 0) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.05f),
+                    0.7f + hockeyHash01(i * 3 + 1) * 1.5f,
+                    Offset(gx, gy),
+                )
+            }
+        }
+    }
+}
+
+private fun rinkBoardShade(theme: RinkTheme): Color =
+    when (theme) {
+        RinkTheme.ICE -> boardShade
+        RinkTheme.BEAR -> canvasBoardShade
+        RinkTheme.WOOD -> walnutBoardShade
+        RinkTheme.CONCRETE -> concreteBoardShade
+    }
+
+/** 库边实体色：冰面沿用原「无实体库边」效果（null），其余主题有各自材质的库边。 */
+private fun rinkBoardRail(theme: RinkTheme): Color? =
+    when (theme) {
+        RinkTheme.ICE -> null
+        RinkTheme.BEAR -> Color(0xFFF1E5CE).copy(alpha = 0.62f)
+        RinkTheme.WOOD -> Color(0xFF50300F).copy(alpha = 0.78f)
+        RinkTheme.CONCRETE -> Color(0xFFD2D6D9).copy(alpha = 0.55f)
+    }
+
+private fun rinkBoardNose(theme: RinkTheme): Color =
+    when (theme) {
+        RinkTheme.ICE -> Color.White.copy(alpha = 0.30f)
+        RinkTheme.BEAR -> Color.White.copy(alpha = 0.42f)
+        RinkTheme.WOOD -> Color(0xFFFFD9A0).copy(alpha = 0.28f)
+        RinkTheme.CONCRETE -> Color.White.copy(alpha = 0.38f)
+    }
+
+private fun creaseColor(
+    theme: RinkTheme,
+    team: Color,
+): Color =
+    when (theme) {
+        RinkTheme.WOOD -> lerp(team, woodMark, 0.55f)
+        RinkTheme.CONCRETE -> lerp(team, Color(0xFF6E7479), 0.45f)
+        else -> team
+    }
+
+/** 主题地面：几何由外层 clipPath 保证，只画材质。 */
+private fun DrawScope.drawRinkSurface(
+    theme: RinkTheme,
+    t: HockeyLogic.Table,
+    style: WeatherSceneStyle,
+    isDay: Boolean,
+    midX: Float,
+    midY: Float,
+    dark: Boolean,
+) {
+    when (theme) {
+        RinkTheme.ICE -> drawIceSurface(t, style, isDay, midX, midY, dark)
+        RinkTheme.WOOD -> drawWoodSurface(t, midX, midY)
+        RinkTheme.CONCRETE -> drawConcreteSurface(t, isDay, midX, midY)
+        RinkTheme.BEAR -> drawBearSurface(t)
+    }
+}
+
+/** 冰面：保持现有冷色渐变、划痕、反光与暗角。 */
+private fun DrawScope.drawIceSurface(
+    t: HockeyLogic.Table,
+    style: WeatherSceneStyle,
+    isDay: Boolean,
+    midX: Float,
+    midY: Float,
+    dark: Boolean,
+) {
+    val l = t.left
+    val tp = t.top
+    val r = t.right
+    val b = t.bottom
+    val w = t.width
+    val h = t.height
+    val short = t.shortSide
+    val iceTop = tintIce(if (isDay) iceDayTop else iceNightTop, style, isDay)
+    val iceMid = tintIce(if (isDay) iceDayMid else iceNightMid, style, isDay)
+    val iceBottom = tintIce(if (isDay) iceDayBottom else iceNightBottom, style, isDay)
+    drawRect(
+        Brush.verticalGradient(listOf(iceTop, iceMid, iceBottom), startY = tp, endY = b),
+        Offset(l, tp),
+        Size(w, h),
+    )
+    // 顶侧灯带反光
+    drawCircle(
+        Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = 0.14f), Color.Transparent),
+            center = Offset(l + w * 0.22f, tp + h * 0.10f),
+            radius = max(w, h) * 0.55f,
+        ),
+        radius = max(w, h) * 0.55f,
+        center = Offset(l + w * 0.22f, tp + h * 0.10f),
+    )
+    // 细化划痕
+    for (i in 0 until 120) {
+        val fx = hockeyHash01(i * 3 + 1)
+        val fy = hockeyHash01(i * 3 + 2)
+        val ang = hockeyHash01(i * 5 + 4) * PI.toFloat()
+        val len = short * (0.010f + hockeyHash01(i * 7 + 5) * 0.050f)
+        val dx = cos(ang) * len * 0.5f
+        val dy = sin(ang) * len * 0.5f
+        val px = l + fx * w
+        val py = tp + fy * h
+        drawLine(
+            if (i % 2 == 0) Color.White.copy(alpha = 0.05f) else Color(0xFF2E4B63).copy(alpha = 0.045f),
+            Offset(px - dx, py - dy),
+            Offset(px + dx, py + dy),
+            strokeWidth = 0.6f + hockeyHash01(i * 11 + 6) * 1.1f,
+        )
+    }
+    // 对角反光带
+    drawRect(
+        Brush.linearGradient(
+            colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.06f), Color.Transparent),
+            start = Offset(l, tp + h * 0.72f),
+            end = Offset(r, tp + h * 0.28f),
+        ),
+        Offset(l, tp),
+        Size(w, h),
+    )
+    // 暗角
+    drawRect(
+        Brush.radialGradient(
+            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.05f), Color.Black.copy(alpha = if (dark) 0.30f else 0.20f)),
+            center = Offset(midX, midY),
+            radius = max(w, h) * 0.72f,
+        ),
+        Offset(l, tp),
+        Size(w, h),
+    )
+}
+
+/** 木质球桌：蜂蜜木纹条板 + 清漆反光 + 暗角。 */
+private fun DrawScope.drawWoodSurface(
+    t: HockeyLogic.Table,
+    midX: Float,
+    midY: Float,
+) {
+    val l = t.left
+    val tp = t.top
+    val r = t.right
+    val b = t.bottom
+    val w = t.width
+    val h = t.height
+    val short = t.shortSide
+    drawRect(
+        Brush.verticalGradient(listOf(woodTableTop, woodTableMid, woodTableBottom), startY = tp, endY = b),
+        Offset(l, tp),
+        Size(w, h),
+    )
+    // 竖向条板：分缝 + 顺纹
+    val planks = (w / (short * 0.34f)).roundToInt().coerceIn(4, 9)
+    val plankW = w / planks
+    val seamW = max(1f, short * 0.0038f)
+    for (i in 0 until planks) {
+        val x0 = l + i * plankW
+        drawRect(
+            if (i % 2 == 0) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.025f),
+            Offset(x0, tp),
+            Size(plankW, h),
+        )
+        drawLine(woodPlankSeam.copy(alpha = 0.55f), Offset(x0, tp), Offset(x0, b), strokeWidth = seamW)
+        drawLine(
+            woodPlankSeam.copy(alpha = 0.22f),
+            Offset(x0 + seamW * 0.6f, tp),
+            Offset(x0 + seamW * 0.6f, b),
+            strokeWidth = max(0.6f, short * 0.0012f),
+        )
+        for (g in 0 until 2) {
+            val gx = x0 + plankW * (0.32f + g * 0.36f)
+            val sway = sin(i * 1.9f + g * 2.1f) * plankW * 0.05f
+            drawLine(
+                Color(0xFF8A5A28).copy(alpha = 0.10f + 0.08f * hockeyHash01(i * 13 + g)),
+                Offset(gx + sway, tp),
+                Offset(gx - sway, b),
+                strokeWidth = 0.8f + hockeyHash01(i * 7 + g) * 1.1f,
+            )
+        }
+    }
+    // 清漆反光：顶部灯带 + 对角
+    drawCircle(
+        Brush.radialGradient(
+            colors = listOf(woodVarnish.copy(alpha = 0.20f), Color.Transparent),
+            center = Offset(l + w * 0.24f, tp + h * 0.10f),
+            radius = max(w, h) * 0.55f,
+        ),
+        radius = max(w, h) * 0.55f,
+        center = Offset(l + w * 0.24f, tp + h * 0.10f),
+    )
+    drawRect(
+        Brush.linearGradient(
+            colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.08f), Color.Transparent),
+            start = Offset(l, tp + h * 0.74f),
+            end = Offset(r, tp + h * 0.26f),
+        ),
+        Offset(l, tp),
+        Size(w, h),
+    )
+    drawRect(
+        Brush.radialGradient(
+            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.06f), Color.Black.copy(alpha = 0.20f)),
+            center = Offset(midX, midY),
+            radius = max(w, h) * 0.72f,
+        ),
+        Offset(l, tp),
+        Size(w, h),
+    )
+}
+
+/** 水泥地：灰底 + 分格伸缩缝 + 细裂纹 + 骨料斑点。 */
+private fun DrawScope.drawConcreteSurface(
+    t: HockeyLogic.Table,
+    isDay: Boolean,
+    midX: Float,
+    midY: Float,
+) {
+    val l = t.left
+    val tp = t.top
+    val r = t.right
+    val b = t.bottom
+    val w = t.width
+    val h = t.height
+    val short = t.shortSide
+    drawRect(
+        Brush.verticalGradient(
+            listOf(
+                if (isDay) concreteDayTop else concreteNightTop,
+                if (isDay) concreteDayMid else concreteNightMid,
+                if (isDay) concreteDayBottom else concreteNightBottom,
+            ),
+            startY = tp,
+            endY = b,
+        ),
+        Offset(l, tp),
+        Size(w, h),
+    )
+    // 分格伸缩缝
+    val cell = max(short * 0.52f, 48f)
+    val grooveW = max(1f, short * 0.0035f)
+    var gx = l + cell
+    while (gx < r) {
+        drawLine(concreteGroove.copy(alpha = 0.40f), Offset(gx, tp), Offset(gx, b), strokeWidth = grooveW)
+        drawLine(
+            Color.White.copy(alpha = 0.12f),
+            Offset(gx + grooveW * 0.7f, tp),
+            Offset(gx + grooveW * 0.7f, b),
+            strokeWidth = max(0.6f, short * 0.0012f),
+        )
+        gx += cell
+    }
+    var gy = tp + cell
+    while (gy < b) {
+        drawLine(concreteGroove.copy(alpha = 0.40f), Offset(l, gy), Offset(r, gy), strokeWidth = grooveW)
+        drawLine(
+            Color.White.copy(alpha = 0.12f),
+            Offset(l, gy + grooveW * 0.7f),
+            Offset(r, gy + grooveW * 0.7f),
+            strokeWidth = max(0.6f, short * 0.0012f),
+        )
+        gy += cell
+    }
+    // 细裂纹：确定性折线
+    for (i in 0 until 8) {
+        var cx = l + hockeyHash01(i * 17 + 3) * w
+        var cy = tp + hockeyHash01(i * 23 + 9) * h
+        var ang = hockeyHash01(i * 29 + 1) * 2f * PI.toFloat()
+        val segLen = short * (0.03f + hockeyHash01(i * 31 + 2) * 0.05f)
+        for (seg in 0 until 5) {
+            val nx = cx + cos(ang) * segLen
+            val ny = cy + sin(ang) * segLen
+            drawLine(concreteCrack.copy(alpha = 0.22f), Offset(cx, cy), Offset(nx, ny), strokeWidth = max(0.6f, short * 0.0015f))
+            cx = nx
+            cy = ny
+            ang += (hockeyHash01(i * 37 + seg) - 0.5f) * 0.9f
+        }
+    }
+    // 骨料斑点
+    for (i in 0 until 90) {
+        val px = l + hockeyHash01(i * 5 + 11) * w
+        val py = tp + hockeyHash01(i * 7 + 23) * h
+        drawCircle(
+            if (i % 3 == 0) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f),
+            0.6f + hockeyHash01(i * 3 + 1) * 1.4f,
+            Offset(px, py),
+        )
+    }
+    drawRect(
+        Brush.radialGradient(
+            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.05f), Color.Black.copy(alpha = 0.18f)),
+            center = Offset(midX, midY),
+            radius = max(w, h) * 0.72f,
+        ),
+        Offset(l, tp),
+        Size(w, h),
+    )
+}
+
+/**
+ * 小熊画布：奶油 / 冰蓝底 + 极淡爪印 / 脸水印（alpha 0.05–0.08，大间距），
+ * 针脚虚线 + 毛边收边，保证不喧宾夺主。
+ */
+private fun DrawScope.drawBearSurface(t: HockeyLogic.Table) {
+    val l = t.left
+    val tp = t.top
+    val r = t.right
+    val b = t.bottom
+    val w = t.width
+    val h = t.height
+    val short = t.shortSide
+    drawRect(
+        Brush.verticalGradient(listOf(canvasCreamTop, canvasCreamMid, canvasIceBlue), startY = tp, endY = b),
+        Offset(l, tp),
+        Size(w, h),
+    )
+    // 重复水印：3 列大间距，爪印与熊脸交替
+    val cols = 3
+    val cell = w / cols
+    val rowH = cell * 1.12f
+    val rows = ceil(h / rowH).toInt() + 1
+    for (row in 0 until rows) {
+        for (col in 0 until cols) {
+            val offset = if (row % 2 == 1) cell * 0.5f else 0f
+            val cx = l + cell * (col + 0.5f) + offset
+            val cy = tp + rowH * (row + 0.5f)
+            val s = min(cell, rowH) * (0.30f + 0.05f * hockeyHash01(row * 11 + col * 5))
+            val alpha = 0.05f + 0.03f * hockeyHash01(row * 7 + col * 13 + 4)
+            if ((row + col) % 2 == 0) {
+                drawPawMark(cx, cy, s, canvasBlue.copy(alpha = alpha))
+            } else {
+                drawBearFaceWatermark(cx, cy, s, canvasStitch.copy(alpha = alpha))
+            }
+        }
+    }
+    // 帆布织纹
+    for (i in 0 until 36) {
+        val py = tp + h * hockeyHash01(i * 3 + 5)
+        drawLine(Color.White.copy(alpha = 0.03f), Offset(l, py), Offset(r, py), strokeWidth = 0.7f)
+    }
+    // 轻暗角
+    drawRect(
+        Brush.radialGradient(
+            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.04f), Color.Black.copy(alpha = 0.10f)),
+            center = Offset(t.midX, t.midY),
+            radius = max(w, h) * 0.72f,
+        ),
+        Offset(l, tp),
+        Size(w, h),
+    )
+    drawStitchBorder(t, short)
+}
+
+/** 极简熊脸水印：头 + 双耳 + 眼睛 + 口鼻。 */
+private fun DrawScope.drawBearFaceWatermark(
+    cx: Float,
+    cy: Float,
+    s: Float,
+    color: Color,
+) {
+    drawCircle(color, s * 0.42f, Offset(cx, cy))
+    drawCircle(color, s * 0.17f, Offset(cx - s * 0.38f, cy - s * 0.34f))
+    drawCircle(color, s * 0.17f, Offset(cx + s * 0.38f, cy - s * 0.34f))
+    drawCircle(color.copy(alpha = color.alpha * 1.2f), s * 0.08f, Offset(cx - s * 0.15f, cy - s * 0.06f))
+    drawCircle(color.copy(alpha = color.alpha * 1.2f), s * 0.08f, Offset(cx + s * 0.15f, cy - s * 0.06f))
+    drawOval(
+        color.copy(alpha = color.alpha * 0.9f),
+        topLeft = Offset(cx - s * 0.14f, cy + s * 0.10f),
+        size = Size(s * 0.28f, s * 0.18f),
+    )
+}
+
+/** 画布收边：内圈针脚虚线 + 边缘毛刺。 */
+private fun DrawScope.drawStitchBorder(
+    t: HockeyLogic.Table,
+    short: Float,
+) {
+    val inset = short * 0.024f
+    val radius = (short * 0.045f * 0.82f - inset).coerceAtLeast(1f)
+    val dash = max(2f, short * 0.016f)
+    val gap = max(1.5f, short * 0.011f)
+    val path = HockeyRenderCache.stitchPath
+    path.reset()
+    path.addRoundRect(RoundRect(t.left + inset, t.top + inset, t.right - inset, t.bottom - inset, CornerRadius(radius)))
+    drawPath(
+        path,
+        canvasStitch.copy(alpha = 0.55f),
+        style = Stroke(width = max(1f, short * 0.0035f), pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, gap))),
+    )
+    // 毛边：沿四边向内的短须
+    val fray = short * (0.010f + 0.010f * hockeyHash01(5))
+    for (i in 0 until 48) {
+        val side = i % 4
+        val u = hockeyHash01(i * 7 + 3)
+        val push = short * (0.004f + 0.008f * hockeyHash01(i * 11 + 1))
+        val x0: Float
+        val y0: Float
+        val dx: Float
+        val dy: Float
+        when (side) {
+            0 -> {
+                x0 = t.left + u * t.width
+                y0 = t.top + inset
+                dx = 0f
+                dy = -push
+            }
+            1 -> {
+                x0 = t.left + u * t.width
+                y0 = t.bottom - inset
+                dx = 0f
+                dy = push
+            }
+            2 -> {
+                x0 = t.left + inset
+                y0 = t.top + u * t.height
+                dx = -push
+                dy = 0f
+            }
+            else -> {
+                x0 = t.right - inset
+                y0 = t.top + u * t.height
+                dx = push
+                dy = 0f
+            }
+        }
+        drawLine(
+            canvasStitch.copy(alpha = 0.28f),
+            Offset(x0, y0),
+            Offset(x0 + dx - push * 0.4f, y0 + dy + fray * 0.2f),
+            strokeWidth = max(0.6f, short * 0.0015f),
+        )
+    }
+}
+
+private fun rinkMarkColor(theme: RinkTheme): Color =
+    when (theme) {
+        RinkTheme.ICE -> markBlue
+        RinkTheme.BEAR -> canvasBlue
+        RinkTheme.WOOD -> woodMark
+        RinkTheme.CONCRETE -> concreteMark
+    }
+
+private fun rinkSoftColor(theme: RinkTheme): Color =
+    when (theme) {
+        RinkTheme.ICE, RinkTheme.BEAR -> Color.White
+        RinkTheme.WOOD -> Color(0xFFFFE9C4)
+        RinkTheme.CONCRETE -> Color(0xFFE8EBEE)
+    }
+
+/** 水泥地上的漆线更淡（褪色漆线），其余主题保持原透明度。 */
+private fun rinkMarkAlpha(theme: RinkTheme): Float =
+    when (theme) {
+        RinkTheme.ICE -> 1f
+        RinkTheme.BEAR, RinkTheme.WOOD -> 0.90f
+        RinkTheme.CONCRETE -> 0.55f
+    }
+
+private fun rinkPawColor(theme: RinkTheme): Color =
+    when (theme) {
+        RinkTheme.ICE -> Color.White.copy(alpha = 0.10f)
+        RinkTheme.BEAR -> canvasStitch.copy(alpha = 0.14f)
+        RinkTheme.WOOD -> woodMark.copy(alpha = 0.16f)
+        RinkTheme.CONCRETE -> concreteMark.copy(alpha = 0.12f)
+    }
 
 private fun DrawScope.drawFrameMiter(
     ox: Float,
@@ -683,10 +1213,11 @@ private fun DrawScope.drawFrameMiter(
     ix: Float,
     iy: Float,
     frame: Float,
+    edge: Color,
 ) {
     val dx = ix - ox
     val dy = iy - oy
-    drawLine(woodEdge.copy(alpha = 0.42f), Offset(ox, oy), Offset(ix, iy), strokeWidth = frame * 0.10f)
+    drawLine(edge.copy(alpha = 0.42f), Offset(ox, oy), Offset(ix, iy), strokeWidth = frame * 0.10f)
     drawLine(
         Color.White.copy(alpha = 0.09f),
         Offset(ox + dx * 0.12f, oy + dy * 0.12f),
@@ -695,10 +1226,15 @@ private fun DrawScope.drawFrameMiter(
     )
 }
 
-private fun DrawScope.drawIceMarkings(
+/**
+ * 场地标记（中线 / 中圈 / 开球点 / 四角弧线）：几何与原来完全一致，
+ * 仅按主题换配色与透明度（水泥地为褪色漆线）。
+ */
+private fun DrawScope.drawRinkMarkings(
     t: HockeyLogic.Table,
     frame: Float,
     iceCorner: Float,
+    theme: RinkTheme,
 ) {
     val l = t.left
     val tp = t.top
@@ -710,19 +1246,34 @@ private fun DrawScope.drawIceMarkings(
     val midX = t.midX
     val midY = t.midY
     val lineW = short * 0.010f
+    val mark = rinkMarkColor(theme)
+    val soft = rinkSoftColor(theme)
+    val k = rinkMarkAlpha(theme)
 
     // 中线 + 中圈 + 开球点
-    drawLine(markBlue.copy(alpha = 0.42f), Offset(l + frame * 0.1f, midY), Offset(r - frame * 0.1f, midY), strokeWidth = lineW)
+    drawLine(mark.copy(alpha = 0.42f * k), Offset(l + frame * 0.1f, midY), Offset(r - frame * 0.1f, midY), strokeWidth = lineW)
     drawLine(
-        Color.White.copy(alpha = 0.22f),
+        soft.copy(alpha = 0.22f * k),
         Offset(l + frame * 0.1f, midY - lineW * 0.55f),
         Offset(r - frame * 0.1f, midY - lineW * 0.55f),
         strokeWidth = lineW * 0.32f,
     )
-    drawCircle(markBlue.copy(alpha = 0.40f), short * 0.155f, Offset(midX, midY), style = strokeOf(lineW * 0.75f))
-    drawCircle(Color.White.copy(alpha = 0.20f), short * 0.055f, Offset(midX, midY), style = strokeOf(lineW * 0.40f))
-    drawCircle(markBlue.copy(alpha = 0.50f), short * 0.014f, Offset(midX, midY))
-    drawPawMark(midX, midY, short * 0.052f, Color.White.copy(alpha = 0.10f))
+    drawCircle(mark.copy(alpha = 0.40f * k), short * 0.155f, Offset(midX, midY), style = strokeOf(lineW * 0.75f))
+    drawCircle(soft.copy(alpha = 0.20f * k), short * 0.055f, Offset(midX, midY), style = strokeOf(lineW * 0.40f))
+    drawCircle(mark.copy(alpha = 0.50f * k), short * 0.014f, Offset(midX, midY))
+    drawPawMark(midX, midY, short * 0.052f, rinkPawColor(theme))
+
+    // 水泥地：中线附近几处褪色斑，模拟被踩花的旧漆
+    if (theme == RinkTheme.CONCRETE) {
+        for (i in 0 until 6) {
+            val px = midX + (hockeyHash01(i * 9 + 2) - 0.5f) * w * 0.55f
+            drawCircle(
+                Color(0xFFACB1B5).copy(alpha = 0.20f),
+                short * (0.012f + 0.018f * hockeyHash01(i * 5 + 3)),
+                Offset(px, midY),
+            )
+        }
+    }
 
     // 四个开球点
     val dotX = short * 0.26f
@@ -731,8 +1282,8 @@ private fun DrawScope.drawIceMarkings(
         for (sy in intArrayOf(-1, 1)) {
             val cx = midX + sx * dotX
             val cy = midY + sy * dotY
-            drawCircle(markBlue.copy(alpha = 0.32f), short * 0.042f, Offset(cx, cy), style = strokeOf(lineW * 0.55f))
-            drawCircle(markBlue.copy(alpha = 0.42f), short * 0.011f, Offset(cx, cy))
+            drawCircle(mark.copy(alpha = 0.32f * k), short * 0.042f, Offset(cx, cy), style = strokeOf(lineW * 0.55f))
+            drawCircle(mark.copy(alpha = 0.42f * k), short * 0.011f, Offset(cx, cy))
         }
     }
 
@@ -740,27 +1291,27 @@ private fun DrawScope.drawIceMarkings(
     val cInset = short * 0.065f
     val rad = short * 0.10f
     val arcW = lineW * 0.60f
-    drawCornerArc(l + cInset, tp + cInset, rad, 0f, arcW)
-    drawCornerArc(r - cInset, tp + cInset, rad, 90f, arcW)
-    drawCornerArc(r - cInset, b - cInset, rad, 180f, arcW)
-    drawCornerArc(l + cInset, b - cInset, rad, 270f, arcW)
+    drawCornerArc(l + cInset, tp + cInset, rad, 0f, arcW, mark, soft, k)
+    drawCornerArc(r - cInset, tp + cInset, rad, 90f, arcW, mark, soft, k)
+    drawCornerArc(r - cInset, b - cInset, rad, 180f, arcW, mark, soft, k)
+    drawCornerArc(l + cInset, b - cInset, rad, 270f, arcW, mark, soft, k)
 
     // 中线位两侧墙短标记
     drawLine(
-        Color.White.copy(alpha = 0.28f),
+        soft.copy(alpha = 0.28f * k),
         Offset(l, midY),
         Offset(l + short * 0.035f, midY),
         strokeWidth = lineW * 0.55f,
     )
     drawLine(
-        Color.White.copy(alpha = 0.28f),
+        soft.copy(alpha = 0.28f * k),
         Offset(r - short * 0.035f, midY),
         Offset(r, midY),
         strokeWidth = lineW * 0.55f,
     )
-    // 冰面圆角内沿细线
+    // 地面圆角内沿细线
     drawRoundRect(
-        Color.White.copy(alpha = 0.10f),
+        soft.copy(alpha = 0.10f * k),
         Offset(l + iceCorner * 0.10f, tp + iceCorner * 0.10f),
         Size(w - iceCorner * 0.20f, h - iceCorner * 0.20f),
         CornerRadius(iceCorner * 0.9f),
@@ -774,9 +1325,12 @@ private fun DrawScope.drawCornerArc(
     radius: Float,
     startAngle: Float,
     strokeWidth: Float,
+    mark: Color,
+    soft: Color,
+    alphaMul: Float,
 ) {
     drawArc(
-        color = markBlue.copy(alpha = 0.26f),
+        color = mark.copy(alpha = 0.26f * alphaMul),
         startAngle = startAngle,
         sweepAngle = 90f,
         useCenter = false,
@@ -785,7 +1339,7 @@ private fun DrawScope.drawCornerArc(
         style = strokeOf(strokeWidth),
     )
     drawArc(
-        color = Color.White.copy(alpha = 0.16f),
+        color = soft.copy(alpha = 0.16f * alphaMul),
         startAngle = startAngle + 12f,
         sweepAngle = 66f,
         useCenter = false,
@@ -1394,12 +1948,13 @@ private fun DrawScope.drawHockeyAmbient(
     hail: Boolean,
     isDay: Boolean,
     time: Float,
+    reduceMotion: Boolean,
 ) {
     val w = size.width
     val h = size.height
     if (w <= 0f || h <= 0f) return
     if (freezingRain) {
-        drawFreezingRain(time, 1f, w, h, splash = false)
+        drawFreezingRain(time, 1f, w, h, splash = false, reduceMotion = reduceMotion)
         return
     }
     if (hail) {
@@ -1413,9 +1968,10 @@ private fun DrawScope.drawHockeyAmbient(
             lenMul = 1.05f,
             alpha = 0.42f,
             splash = false,
+            reduceMotion = reduceMotion,
         )
-        drawHailPellets(time, 1f, w, h, count = 40)
-        drawStormLightning(time, 1f, w, h)
+        drawHailPellets(time, 1f, w, h, count = 40, reduceMotion = reduceMotion)
+        drawStormLightning(time, 1f, w, h, reduceMotion = reduceMotion)
         return
     }
     when (weather) {
@@ -1431,6 +1987,7 @@ private fun DrawScope.drawHockeyAmbient(
                         scale = 1f,
                         alpha = 0.38f,
                         splash = false,
+                        reduceMotion = reduceMotion,
                     )
                 RainStrength.MODERATE ->
                     drawRainLayered(
@@ -1442,6 +1999,7 @@ private fun DrawScope.drawHockeyAmbient(
                         scale = 1f,
                         alpha = 0.48f,
                         splash = false,
+                        reduceMotion = reduceMotion,
                     )
                 RainStrength.HEAVY ->
                     drawRainLayered(
@@ -1453,6 +2011,7 @@ private fun DrawScope.drawHockeyAmbient(
                         scale = 1f,
                         alpha = 0.58f,
                         splash = false,
+                        reduceMotion = reduceMotion,
                     )
                 RainStrength.NONE ->
                     drawRainLayered(
@@ -1464,11 +2023,22 @@ private fun DrawScope.drawHockeyAmbient(
                         scale = 1f,
                         alpha = 0.32f,
                         splash = false,
+                        reduceMotion = reduceMotion,
                     )
             }
         FarmWeather.STORMY -> {
-            drawRainLayered(fgCount = 40, bgCount = 20, time = time, width = w, height = h, scale = 1f, alpha = 0.58f, splash = false)
-            drawStormLightning(time, 1f, w, h)
+            drawRainLayered(
+                fgCount = 40,
+                bgCount = 20,
+                time = time,
+                width = w,
+                height = h,
+                scale = 1f,
+                alpha = 0.58f,
+                splash = false,
+                reduceMotion = reduceMotion,
+            )
+            drawStormLightning(time, 1f, w, h, reduceMotion = reduceMotion)
         }
         FarmWeather.SNOWY -> drawHockeySnow(time, w, h)
         FarmWeather.FOGGY -> drawHockeyFog(time, w, h)

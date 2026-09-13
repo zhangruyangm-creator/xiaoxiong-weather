@@ -5,7 +5,6 @@
     <string name="bear_maze_abandon_keep">Save and exit</string>
     <string name="bear_maze_abandon_text">Progress is saved on exit — you can resume from wave %1$d. Abandon it and restart from wave 1?</string>
     <string name="bear_maze_abandon_title">Endless wave %1$d in progress</string>
-    <string name="bear_maze_campaign_label">Campaign (%1$d levels, later ones are generated)</string>
     <string name="bear_maze_clear">Cleared!</string>
     <string name="bear_maze_clear_hints">Hints used: %1$d</string>
     <string name="bear_maze_clear_moves">Moves: %1$d</string>
@@ -20,7 +19,6 @@
     <string name="bear_maze_endless_wave">Endless #%1$d</string>
     <string name="bear_maze_failed">Challenge failed</string>
     <string name="bear_maze_failed_detail">Reached wave %1$d · %2$d/%3$d moves</string>
-    <string name="bear_maze_hud">Honey %1$d/%2$d · Keys %3$d · Moves %4$d/%5$d</string>
     <string name="bear_maze_chip_honey">Honey %1$d/%2$d</string>
     <string name="bear_maze_chip_keys">Keys %1$d</string>
     <string name="bear_maze_chip_moves">Moves %1$d/%2$d</string>

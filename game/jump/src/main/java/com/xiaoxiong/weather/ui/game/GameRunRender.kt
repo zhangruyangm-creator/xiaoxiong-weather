@@ -52,6 +52,8 @@ fun DrawScope.drawWorld(
     contentColor: Color,
     isDay: Boolean,
     sprites: BearSprites,
+    /** 减弱动画：跳过雨雪/闪电/冰雹粒子，只保留静态天空与世界。 */
+    reduceMotion: Boolean = false,
 ) {
     val s = game.s
 
@@ -82,7 +84,7 @@ fun DrawScope.drawWorld(
     }
 
     // 雨/雪/闪电盖在最上层，看起来像真的在下
-    drawRunPrecip(game)
+    drawRunPrecip(game, reduceMotion)
 }
 
 // ---------------- 天空 ----------------
@@ -182,25 +184,28 @@ private fun DrawScope.drawRunWeather(game: BearGame) {
 }
 
 /** 跑酷降水层：雨/雪粒子 + 雷暴闪电，盖在世界之上；雨点密度随雨势。 */
-private fun DrawScope.drawRunPrecip(game: BearGame) {
+private fun DrawScope.drawRunPrecip(
+    game: BearGame,
+    reduceMotion: Boolean,
+) {
     val s = game.s
     when (game.scene) {
         RunScene.SUNNY, RunScene.CLOUDY -> Unit
-        RunScene.RAIN_LIGHT -> drawRain(game, 20, lenMul = 0.8f)
-        RunScene.RAIN -> drawRain(game, 44)
-        RunScene.RAIN_HEAVY -> drawRain(game, 72, lenMul = 1.2f, alpha = 0.7f)
-        RunScene.SNOW -> drawSnow(game, 32)
+        RunScene.RAIN_LIGHT -> drawRain(game, 20, lenMul = 0.8f, reduceMotion = reduceMotion)
+        RunScene.RAIN -> drawRain(game, 44, reduceMotion = reduceMotion)
+        RunScene.RAIN_HEAVY -> drawRain(game, 72, lenMul = 1.2f, alpha = 0.7f, reduceMotion = reduceMotion)
+        RunScene.SNOW -> drawSnow(game, 32, reduceMotion)
         RunScene.STORM -> {
             // 雷暴：以闪电为主，雨量收敛到中雨量级
-            drawRain(game, 48, lenMul = 1.25f, alpha = 0.65f)
-            drawStormLightning(game.time, s, size.width, size.height)
+            drawRain(game, 48, lenMul = 1.25f, alpha = 0.65f, reduceMotion = reduceMotion)
+            drawStormLightning(game.time, s, size.width, size.height, reduceMotion = reduceMotion)
         }
-        RunScene.FREEZING_RAIN -> drawFreezingRain(game.time, s, size.width, size.height)
+        RunScene.FREEZING_RAIN -> drawFreezingRain(game.time, s, size.width, size.height, reduceMotion = reduceMotion)
         RunScene.HAIL -> {
             // 冰雹：雨更少，突出冰雹粒子
-            drawRain(game, 28, lenMul = 1.1f, alpha = 0.6f, rainColor = Color(0xFFD8E6F8))
-            drawHailPellets(game.time, s, size.width, size.height)
-            drawStormLightning(game.time, s, size.width, size.height)
+            drawRain(game, 28, lenMul = 1.1f, alpha = 0.6f, rainColor = Color(0xFFD8E6F8), reduceMotion = reduceMotion)
+            drawHailPellets(game.time, s, size.width, size.height, reduceMotion = reduceMotion)
+            drawStormLightning(game.time, s, size.width, size.height, reduceMotion = reduceMotion)
         }
     }
 }
@@ -211,6 +216,7 @@ private fun DrawScope.drawRain(
     lenMul: Float = 1f,
     alpha: Float = 0.55f,
     rainColor: Color = Color(0xFFB4D2F0),
+    reduceMotion: Boolean = false,
 ) {
     val bgCount = count / 3
     drawRainLayered(
@@ -223,13 +229,16 @@ private fun DrawScope.drawRain(
         lenMul = lenMul,
         alpha = alpha,
         fgColor = rainColor,
+        reduceMotion = reduceMotion,
     )
 }
 
 private fun DrawScope.drawSnow(
     game: BearGame,
     count: Int,
+    reduceMotion: Boolean = false,
 ) {
+    if (reduceMotion) return
     val s = game.s
     for (i in 0 until count) {
         val x = ((i * 83 + game.time * 24f + sin(game.time * 1.4f + i) * 12f) % (size.width + 30))

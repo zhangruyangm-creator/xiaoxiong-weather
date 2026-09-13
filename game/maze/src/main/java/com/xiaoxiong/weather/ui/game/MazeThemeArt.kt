@@ -27,20 +27,64 @@ internal class MazeBoardLayout(
     val oy: Float,
 )
 
-/** 顶栏预留高度（px）：与 MazePlayField 的 HUD 约定一致，避免棋盘压住胶囊芯片。 */
-private const val HUD_TOP_PX = 110f
-private const val HUD_BOTTOM_PX = 200f
+/** HUD 预留的裁剪结果：小窗下按比例缩水后的实际占用，棋盘以此为准。 */
+internal class MazeHudReserves(
+    val top: Float,
+    val bottom: Float,
+)
+
+/**
+ * 顶栏预留（dp）：状态栏之外还要盖住 HUD 的两行（38dp 圆钮行 + 芯片行），约 96dp。
+ * 系统状态栏 inset 由调用方以 px 叠加，静态层与动态层共用同一份预留保证坐标一致。
+ */
+internal const val MAZE_HUD_TOP_DP = 96f
+
+/** 底部预留（dp）：D-pad 约 208dp + 22dp 内边距；系统导航栏 inset 由调用方叠加。 */
+internal const val MAZE_HUD_BOTTOM_DP = 230f
+
+/**
+ * 可用高度下限：预留裁剪后棋盘区至少要占画布高度的这个比例。
+ * 横屏/分屏（可用高度 360-420dp）时 96dp 顶 + 230dp 底预留会吃满画布，
+ * 不裁剪的话 `mazeBoardLayout` 会退化出 cell=0、整屏不画棋盘；有了下限
+ * 任何正高度下 `availH >= 0.4 * height > 0`，极端小窗也至少能画出一个棋盘。
+ */
+private const val MAZE_MIN_AVAIL_H_FRACTION = 0.40f
+
+/**
+ * 计算 HUD 预留的实际占用：空间充足时原样返回；两段预留相加超过
+ * `height * (1 - [MAZE_MIN_AVAIL_H_FRACTION])` 时按相同比例缩小，
+ * 保证棋盘可用高度不低于画布的 40%。
+ */
+internal fun mazeEffectiveReserves(
+    size: Size,
+    topReservePx: Float,
+    bottomReservePx: Float,
+): MazeHudReserves {
+    val top = topReservePx.coerceAtLeast(0f)
+    val bottom = bottomReservePx.coerceAtLeast(0f)
+    val h = size.height
+    if (h <= 0f) return MazeHudReserves(0f, 0f)
+    val reserveSum = top + bottom
+    val minAvail = h * MAZE_MIN_AVAIL_H_FRACTION
+    if (reserveSum <= 0f || h - reserveSum >= minAvail) return MazeHudReserves(top, bottom)
+    val factor = ((h - minAvail) / reserveSum).coerceIn(0f, 1f)
+    return MazeHudReserves(top * factor, bottom * factor)
+}
 
 internal fun mazeBoardLayout(
     rows: Int,
     cols: Int,
     size: Size,
+    topReservePx: Float,
+    bottomReservePx: Float,
 ): MazeBoardLayout {
-    val pad = 16f
+    val reserves = mazeEffectiveReserves(size, topReservePx, bottomReservePx)
+    // 窄窗同步收缩外边距，避免宽度极小时 availW 直接归零
+    val pad = min(16f, size.width * 0.06f)
     val availW = size.width - pad * 2
-    val availH = size.height - HUD_TOP_PX - HUD_BOTTOM_PX
+    val availH = size.height - reserves.top - reserves.bottom
     if (rows <= 0 || cols <= 0 || availW <= 0f || availH <= 0f) {
-        return MazeBoardLayout(cell = 0f, ox = size.width / 2f, oy = HUD_TOP_PX)
+        return MazeBoardLayout(cell = 0f, ox = size.width / 2f, oy = reserves.top)
     }
     val cell = min(availW / cols, availH / rows)
     val boardW = cell * cols
@@ -48,7 +92,7 @@ internal fun mazeBoardLayout(
     return MazeBoardLayout(
         cell = cell,
         ox = (size.width - boardW) / 2f,
-        oy = HUD_TOP_PX + (availH - boardH) / 2f,
+        oy = reserves.top + (availH - boardH) / 2f,
     )
 }
 
@@ -138,11 +182,13 @@ private val mazeCarpetAlt = Color(0xFF8A2323)
 internal fun DrawScope.drawMazeBaseLayer(
     game: MazeGame,
     style: MazeThemeStyle,
+    topReservePx: Float,
+    bottomReservePx: Float,
 ) {
     if (size.width <= 0f || size.height <= 0f) return
     if (game.rows <= 0 || game.cols <= 0) return
-    val layout = mazeBoardLayout(game.rows, game.cols, size)
-    if (layout.cell <= 0.5f) return
+    val layout = mazeBoardLayout(game.rows, game.cols, size, topReservePx, bottomReservePx)
+    if (layout.cell <= 0f) return
     val boardW = layout.cell * game.cols
     val boardH = layout.cell * game.rows
 
