@@ -70,6 +70,37 @@ class MetNorwayFetcherTest {
     }
 
     @Test
+    fun resolveZone_prefersCityTimezoneOverApproximation() {
+        assertEquals(java.time.ZoneId.of("Asia/Tokyo"), resolveZone(city.copy(timezone = "Asia/Tokyo")))
+        assertEquals(
+            java.time.ZoneId.of("America/New_York"),
+            resolveZone(city.copy(timezone = "America/New_York")),
+        )
+    }
+
+    @Test
+    fun resolveZone_chinaCityWithoutTimezone_usesShanghaiNotLongitude() {
+        // 乌鲁木齐经度 87.6 → 经度近似 UTC+6，与中国统一北京时间相差 2 小时
+        val urumqi = city.copy(latitude = 43.8, longitude = 87.6, country = "中国", timezone = null)
+        assertEquals(java.time.ZoneId.of("Asia/Shanghai"), resolveZone(urumqi))
+    }
+
+    @Test
+    fun resolveZone_foreignCityWithoutTimezone_fallsBackToLongitude() {
+        val newYork = city.copy(country = "United States", longitude = -74.0, timezone = null)
+        assertEquals(approximateZone(-74.0), resolveZone(newYork))
+    }
+
+    @Test
+    fun resolveZone_invalidTimezone_fallsBackGracefully() {
+        assertEquals(java.time.ZoneId.of("Asia/Shanghai"), resolveZone(city.copy(timezone = "Not/AZone")))
+        assertEquals(
+            java.time.ZoneId.of("Asia/Shanghai"),
+            resolveZone(city.copy(timezone = "   ")),
+        )
+    }
+
+    @Test
     fun mapToSnapshot_picksCurrentHourAndAggregatesDaily() {
         val snapshot =
             fetcher.mapToSnapshot(
@@ -78,7 +109,7 @@ class MetNorwayFetcherTest {
                 now = Instant.parse("2026-09-12T07:30:00Z"),
             )
 
-        assertEquals("UTC+08:00", snapshot.timezone)
+        assertEquals("Asia/Shanghai", snapshot.timezone)
         assertEquals("2026-09-12T15:00", snapshot.current.time)
         assertEquals(22.0, snapshot.current.temperatureC)
         assertEquals(60, snapshot.current.humidityPercent)
@@ -134,6 +165,22 @@ class MetNorwayFetcherTest {
         assertEquals(1.0, snapshot.hourly[0].precipitationMm)
         assertEquals(1.0, snapshot.current.precipitationMm)
         assertEquals(1.0, snapshot.current.precipitationRateMmPerHour)
+    }
+
+    @Test
+    fun mapToSnapshot_twelveHourStep_usesNext12Probability() {
+        val snapshot =
+            fetcher.mapToSnapshot(
+                json.decodeFromString(MetNorwayResponse.serializer(), twelveHourStepJson),
+                city,
+                now = Instant.parse("2026-09-12T00:30:00Z"),
+            )
+
+        // 只有 next_12_hours 时：概率取该时段值（不折算），雨量按时段折算为小时率
+        assertEquals(1, snapshot.hourly.size)
+        assertEquals(65, snapshot.hourly[0].precipProbability)
+        assertEquals(1.0, snapshot.hourly[0].precipitationMm)
+        assertEquals(12.0, snapshot.daily[0].precipSumMm)
     }
 
     @Test
@@ -272,6 +319,30 @@ class MetNorwayFetcherTest {
                   "next_6_hours": {
                     "summary": { "symbol_code": "lightrain" },
                     "details": { "precipitation_amount": 6.0, "probability_of_precipitation": 70.0 }
+                  }
+                }
+              }
+            ]
+          }
+        }
+        """.trimIndent()
+
+    private val twelveHourStepJson =
+        """
+        {
+          "properties": {
+            "timeseries": [
+              {
+                "time": "2026-09-12T00:00:00Z",
+                "data": {
+                  "instant": { "details": {
+                    "air_temperature": 8.0, "relative_humidity": 70.0,
+                    "wind_speed": 4.0, "wind_from_direction": 90.0,
+                    "air_pressure_at_sea_level": 1005.0, "cloud_area_fraction": 95.0
+                  } },
+                  "next_12_hours": {
+                    "summary": { "symbol_code": "snow" },
+                    "details": { "precipitation_amount": 12.0, "probability_of_precipitation": 65.0 }
                   }
                 }
               }

@@ -12,6 +12,8 @@ data class City(
     val admin1: String? = null,
     val admin2: String? = null,
     val isCurrentLocation: Boolean = false,
+    /** 城市 IANA 时区（如 Asia/Shanghai），来自 Open-Meteo 地理编码；缺失时由数据源回退近似。 */
+    val timezone: String? = null,
 ) {
     val displayName: String
         get() =

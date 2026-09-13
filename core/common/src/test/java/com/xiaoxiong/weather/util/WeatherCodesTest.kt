@@ -1,6 +1,8 @@
 package com.xiaoxiong.weather.util
 
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.data.AirQuality
+import com.xiaoxiong.weather.data.DailyWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -170,6 +172,69 @@ class WeatherCodesTest {
         assertEquals("⛈️", WeatherCodes.emoji(96))
         assertEquals("🧊", WeatherCodes.emoji(99))
         assertEquals("🌡️", WeatherCodes.emoji(999))
+    }
+
+    @Test
+    fun emoji_nightOverload_avoidsSun() {
+        // 夜间晴朗/大体晴 → 月亮；少云 → 云
+        assertEquals("🌙", WeatherCodes.emoji(0, isDay = false))
+        assertEquals("🌙", WeatherCodes.emoji(1, isDay = false))
+        assertEquals("☁️", WeatherCodes.emoji(2, isDay = false))
+        // 原无 isDay 重载等价白天口径
+        assertEquals(WeatherCodes.emoji(0), WeatherCodes.emoji(0, isDay = true))
+        assertEquals(WeatherCodes.emoji(2), WeatherCodes.emoji(2, isDay = true))
+        // 雨雪等昼夜一致
+        assertEquals("🌧️", WeatherCodes.emoji(61, isDay = false))
+        assertEquals("❄️", WeatherCodes.emoji(71, isDay = false))
+        assertEquals("🌨️", WeatherCodes.emoji(68, isDay = false))
+        assertEquals("⛈️", WeatherCodes.emoji(95, isDay = false))
+    }
+
+    @Test
+    fun uvForDaytime_unifiedAcrossGenerators() {
+        val today = DailyWeather(date = "2026-08-11", uvIndexMax = 9.0)
+        val currentUv = AirQuality(uvIndex = 2.0)
+        // 白天：优先当日最大 UV（当前值偏低也不误报）
+        assertEquals(9.0, WeatherCodes.uvForDaytime(true, currentUv, today))
+        // 当日最大缺失：回退当前值
+        assertEquals(
+            2.0,
+            WeatherCodes.uvForDaytime(true, currentUv, DailyWeather(date = "2026-08-11")),
+        )
+        // 夜间：不取任何口径，返回 null
+        assertNull(WeatherCodes.uvForDaytime(false, currentUv, today))
+        // 昼夜未知：按白天口径
+        assertEquals(9.0, WeatherCodes.uvForDaytime(null, currentUv, today))
+    }
+
+    @Test
+    fun codeSets_areCentralized() {
+        assertEquals(setOf(56, 57, 66, 67), WeatherCodes.freezingCodes)
+        assertTrue(WeatherCodes.isFreezingRainCode(56))
+        assertTrue(WeatherCodes.isFreezingRainCode(67))
+        assertFalse(WeatherCodes.isFreezingRainCode(71))
+        assertFalse(WeatherCodes.isFreezingRainCode(null))
+        // 降水码覆盖毛毛雨/雨/冻雨/雨夹雪/雪/阵雨/雷暴/冰雹
+        assertTrue(
+            listOf(51, 61, 66, 68, 71, 80, 86, 95, 99).all { it in WeatherCodes.precipCodes },
+        )
+        assertFalse(0 in WeatherCodes.precipCodes)
+        // 雪码与冻结码互不重叠，且都是降水码子集
+        assertTrue(WeatherCodes.snowCodes.intersect(WeatherCodes.freezingCodes).isEmpty())
+        assertTrue(WeatherCodes.precipCodes.containsAll(WeatherCodes.snowCodes))
+        assertTrue(WeatherCodes.precipCodes.containsAll(WeatherCodes.freezingCodes))
+    }
+
+    @Test
+    fun uvThresholds_matchLabels() {
+        assertEquals(3.0, WeatherCodes.UV_WATCH, 1e-6)
+        assertEquals(6.0, WeatherCodes.UV_HIGH, 1e-6)
+        assertEquals(8.0, WeatherCodes.UV_VERY_HIGH, 1e-6)
+        assertEquals(11.0, WeatherCodes.UV_EXTREME, 1e-6)
+        assertEquals(R.string.uv_moderate, uvLabelRes(WeatherCodes.UV_WATCH))
+        assertEquals(R.string.uv_high, uvLabelRes(WeatherCodes.UV_HIGH))
+        assertEquals(R.string.uv_very_high, uvLabelRes(WeatherCodes.UV_VERY_HIGH))
+        assertEquals(R.string.uv_extreme, uvLabelRes(WeatherCodes.UV_EXTREME))
     }
 
     @Test

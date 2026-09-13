@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -127,6 +128,17 @@ abstract class WeatherAppWidgetBase : GlanceAppWidget() {
     }
 }
 
+/**
+ * 半透明深色衬底：浅色渐变（widget_bg_sunny/cloudy 等）上的白字/浅蓝字
+ * 加衬底后在纯白极端情况下对比度仍 ≥3:1（白字约 5:1、浅蓝字约 3.5:1）。
+ */
+private val ScrimColor = ColorProvider(Color(0xA6101D2E))
+
+private fun GlanceModifier.scrim(
+    horizontal: Dp = 6.dp,
+    vertical: Dp = 1.dp,
+): GlanceModifier = cornerRadius(6.dp).background(ScrimColor).padding(horizontal = horizontal, vertical = vertical)
+
 class WeatherAppWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = WeatherAppWidget()
 }
@@ -206,6 +218,7 @@ private fun WeatherWidgetContent(ui: WeatherWidgetUi?) {
                 Spacer(modifier = GlanceModifier.height(8.dp))
                 Text(
                     text = ui.tipText,
+                    modifier = GlanceModifier.scrim(horizontal = 5.dp),
                     style =
                         TextStyle(
                             color = ColorProvider(Color(0xFFDCEBFF)),
@@ -261,6 +274,7 @@ private fun LargeWidgetBody(ui: WeatherWidgetUi) {
             Spacer(modifier = GlanceModifier.height(8.dp))
             Text(
                 text = ui.tipText,
+                modifier = GlanceModifier.scrim(horizontal = 5.dp),
                 style =
                     TextStyle(
                         color = ColorProvider(Color(0xFFDCEBFF)),
@@ -282,7 +296,7 @@ private fun MetricTile(
         modifier =
             modifier
                 .cornerRadius(12.dp)
-                .background(ColorProvider(Color(0x332156D9)))
+                .background(ScrimColor)
                 .padding(horizontal = 6.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -326,6 +340,7 @@ private fun EmptyWidgetBody() {
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 text = ctx.getString(R.string.app_name),
+                modifier = GlanceModifier.scrim(),
                 style =
                     TextStyle(
                         color = ColorProvider(Color.White),
@@ -336,6 +351,7 @@ private fun EmptyWidgetBody() {
             Spacer(modifier = GlanceModifier.height(4.dp))
             Text(
                 text = ctx.getString(R.string.widget_empty),
+                modifier = GlanceModifier.scrim(),
                 style =
                     TextStyle(
                         color = ColorProvider(Color(0xFFE3F2FD)),
@@ -360,25 +376,31 @@ private fun CompactWidgetBody(ui: WeatherWidgetUi) {
             contentScale = ContentScale.Fit,
         )
         Spacer(modifier = GlanceModifier.height(4.dp))
-        Text(
-            text = ui.temperatureText,
-            style =
-                TextStyle(
-                    color = ColorProvider(Color.White),
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
-            maxLines = 1,
-        )
-        Text(
-            text = ui.cityName,
-            style =
-                TextStyle(
-                    color = ColorProvider(Color(0xFFE8F4FF)),
-                    fontSize = 11.sp,
-                ),
-            maxLines = 1,
-        )
+        // 两行文字共用一块衬底，避免逐行 padding 在 2x2 紧凑高度里累积溢出
+        Column(
+            modifier = GlanceModifier.scrim(horizontal = 8.dp, vertical = 0.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = ui.temperatureText,
+                style =
+                    TextStyle(
+                        color = ColorProvider(Color.White),
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                maxLines = 1,
+            )
+            Text(
+                text = ui.cityName,
+                style =
+                    TextStyle(
+                        color = ColorProvider(Color(0xFFE8F4FF)),
+                        fontSize = 11.sp,
+                    ),
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -398,7 +420,8 @@ private fun MainWidgetHeader(
             contentScale = ContentScale.Fit,
         )
         Spacer(modifier = GlanceModifier.width(10.dp))
-        Column(modifier = GlanceModifier.defaultWeight()) {
+        // 整列文字共用一块衬底，保证浅色渐变上的对比度，同时不逐行累积 padding 高度
+        Column(modifier = GlanceModifier.defaultWeight().scrim(horizontal = 6.dp, vertical = 0.dp)) {
             Text(
                 text = ui.cityName,
                 style =
@@ -461,7 +484,7 @@ private fun TomorrowRow(ui: WeatherWidgetUi) {
             GlanceModifier
                 .fillMaxWidth()
                 .cornerRadius(12.dp)
-                .background(ColorProvider(Color(0x332156D9)))
+                .background(ScrimColor)
                 .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -498,7 +521,12 @@ private fun HourlyStrip(
     count: Int = 5,
 ) {
     Row(
-        modifier = GlanceModifier.fillMaxWidth(),
+        modifier =
+            GlanceModifier
+                .fillMaxWidth()
+                .cornerRadius(10.dp)
+                .background(ScrimColor)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         hours.take(count).forEach { hour ->

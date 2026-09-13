@@ -83,6 +83,8 @@ private val cueFerrule = Color(0xFFF2EFE6)
 
 private val aimLineColor = Color.White.copy(alpha = 0.50f)
 private val targetLineColor = Color(0xFFFFF176).copy(alpha = 0.85f)
+private val potLineColor = Color(0xFF9CF29C)
+private val potRingColor = Color(0xFF7DE39A)
 private val cueBreakColor = Color(0xFF90CAF9).copy(alpha = 0.62f)
 private val reflectLineColor = Color.White.copy(alpha = 0.26f)
 private val ghostFill = Color.White.copy(alpha = 0.24f)
@@ -628,15 +630,15 @@ private fun DrawScope.drawPoolTableStatic(
         )
     }
 
-    // 库边菱形标记
+    // 库边菱形标记：上下短库各 3 个、左右长库各 7 个（与真实台一致）
     val dm = ballR * 0.40f
-    for (k in 1..7) {
-        val fx = l + (r - l) * k / 8f
+    for (k in 1..3) {
+        val fx = l + (r - l) * k / 4f
         drawDiamond(fx, t - frame * 0.5f, dm)
         drawDiamond(fx, b + frame * 0.5f, dm)
     }
-    for (k in 1..3) {
-        val fy = t + (b - t) * k / 4f
+    for (k in 1..7) {
+        val fy = t + (b - t) * k / 8f
         drawDiamond(l - frame * 0.5f, fy, dm)
         drawDiamond(r + frame * 0.5f, fy, dm)
     }
@@ -1258,6 +1260,7 @@ private fun DrawScope.drawAimAssist(
     full: Boolean,
 ) {
     val table = game.table
+    val scale = game.viewScale
     val fc = PoolPhysics.predictFirstContact(game.balls, table, cue, game.aimAngle)
     if (fc != null && fc.target != null) {
         val ghostX = game.toCanvasX(fc.x)
@@ -1281,7 +1284,7 @@ private fun DrawScope.drawAimAssist(
         drawCircle(ghostRing, ballR, Offset(ghostX, ghostY), style = Stroke(ballR * 0.14f))
         drawCircle(ghostInner, ballR * 0.55f, Offset(ghostX, ghostY), style = Stroke(ballR * 0.06f))
 
-        // 目标球行进方向
+        // 目标球路径：预测到袋口 / 其它球 / 库边（与物理同一套捕获判定，画到哪就打到哪）
         val tvx = target.x - fc.x
         val tvy = target.y - fc.y
         val tl = hypot(tvx, tvy)
@@ -1290,9 +1293,78 @@ private fun DrawScope.drawAimAssist(
             val uy = tvy / tl
             val startX = game.toCanvasX(target.x)
             val startY = game.toCanvasY(target.y)
-            val endX = startX + ux * ballR * 9f
-            val endY = startY + uy * ballR * 9f
-            drawArrowLine(Offset(startX, startY), Offset(endX, endY), targetLineColor, ballR * 0.11f, ballR * 0.85f)
+            val path =
+                PoolPhysics.predictObjectPath(
+                    game.balls,
+                    table,
+                    target.x,
+                    target.y,
+                    ux,
+                    uy,
+                    target.radius,
+                    target,
+                )
+            val pathEndX = game.toCanvasX(path.endX)
+            val pathEndY = game.toCanvasY(path.endY)
+            if (path.pocket != null) {
+                // 预测落袋：实线 + 袋口高亮圈
+                drawArrowLine(
+                    Offset(startX, startY),
+                    Offset(pathEndX, pathEndY),
+                    potLineColor,
+                    ballR * 0.12f,
+                    ballR * 0.90f,
+                )
+                val holeR = max(path.pocket.radius * scale * 1.15f, ballR * 1.9f)
+                val holeX = game.toCanvasX(path.pocket.x)
+                val holeY = game.toCanvasY(path.pocket.y)
+                drawCircle(potRingColor.copy(alpha = 0.20f), holeR, Offset(holeX, holeY))
+                drawCircle(potRingColor, holeR, Offset(holeX, holeY), style = Stroke(ballR * 0.16f))
+            } else {
+                drawGuideLine(
+                    Offset(startX, startY),
+                    Offset(pathEndX, pathEndY),
+                    targetLineColor,
+                    ballR * 0.10f,
+                    ballR * 0.60f,
+                    ballR * 0.48f,
+                )
+                val blocker = path.blocker
+                if (full && blocker != null) {
+                    // 被其它球挡住：给出被撞球沿两球心连线的分离方向
+                    val bx = blocker.x - path.endX
+                    val by = blocker.y - path.endY
+                    val bl = hypot(bx, by)
+                    if (bl > 1e-4f) {
+                        drawArrowLine(
+                            Offset(pathEndX, pathEndY),
+                            Offset(pathEndX + bx / bl * ballR * 7f, pathEndY + by / bl * ballR * 7f),
+                            cueBreakColor,
+                            ballR * 0.10f,
+                            ballR * 0.70f,
+                        )
+                    }
+                } else if (full && path.railDistance != null && path.distance > 1e-3f) {
+                    val rail = nearestRail(table, path.endX, path.endY)
+                    if (rail != null) {
+                        val (nx, ny) = PoolPhysics.railInwardNormal(rail, table)
+                        val dot = ux * nx + uy * ny
+                        val rdx = ux - 2f * dot * nx
+                        val rdy = uy - 2f * dot * ny
+                        drawGuideLine(
+                            Offset(pathEndX, pathEndY),
+                            Offset(
+                                game.toCanvasX(path.endX + rdx * ballR * 8f),
+                                game.toCanvasY(path.endY + rdy * ballR * 8f),
+                            ),
+                            reflectLineColor,
+                            ballR * 0.09f,
+                            ballR * 0.60f,
+                            ballR * 0.50f,
+                        )
+                    }
+                }
+            }
 
             if (full) {
                 // 白球分离线（切线方向，符号取白球碰后实际切线速度方向）

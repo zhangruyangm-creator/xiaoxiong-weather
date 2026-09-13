@@ -8,10 +8,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
 private val Context.phenologyDataStore by preferencesDataStore("phenology_cache_v1")
@@ -91,18 +87,19 @@ class PhenologyCacheStore(
     ) {
         fun sameCity(city: City): Boolean = abs(cityLat - city.latitude) < 0.01 && abs(cityLon - city.longitude) < 0.01
 
-        /** 当日有效：跨天视为过期，下次进入七日页会重拉。 */
-        fun isFreshToday(): Boolean {
-            val fetchedDate =
-                Instant
-                    .ofEpochMilli(fetchedAtEpochMs)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-            return ChronoUnit.DAYS.between(fetchedDate, LocalDate.now()) < 1
-        }
+        /**
+         * 当日有效：年龄必须落在 `[0, 24h]`（与 [isWithinFreshnessWindow] 同口径）。
+         * 未来时间戳（时钟回拨 / 异常写入）视为过期——否则回拨后缓存会长期不过期；
+         * 跨天但未满 24h 仍可用（与 WeatherCacheStore 的 24h 时效一致）。
+         */
+        fun isFreshToday(nowEpochMs: Long = System.currentTimeMillis()): Boolean =
+            isWithinFreshnessWindow(fetchedAtEpochMs, nowEpochMs, MAX_AGE_MS)
     }
 
     companion object {
         private const val MAX_ENTRIES = 24
+
+        /** 缓存最大存活时长：与 WeatherCacheStore.MAX_AGE_MS 保持一致。 */
+        private const val MAX_AGE_MS = 24L * 60 * 60 * 1000
     }
 }

@@ -46,6 +46,12 @@ import com.xiaoxiong.weather.util.indexOfCurrentHour
 import com.xiaoxiong.weather.util.isSameHour
 import com.xiaoxiong.weather.util.parseFlexibleDateTime
 
+/**
+ * 无日出日落数据时的小时级昼夜口径：6:00（含）~18:00（不含）视为白天，
+ * 与图表/其它页面口径保持一致（核心模块的日出日落优先）。
+ */
+internal fun isDayHour(hour: Int): Boolean = hour in 6 until 18
+
 @Composable
 fun HourlyPage(
     weather: WeatherSnapshot?,
@@ -94,6 +100,7 @@ fun HourlyPage(
                     HourlyChartSection(
                         hourly = weather.hourly,
                         currentTime = weather.current.time,
+                        cityId = weather.city.id,
                         onDragStateChange = onChartDragStateChange,
                     )
             }
@@ -171,7 +178,7 @@ internal fun HourlyStrip(
                 Spacer(modifier = Modifier.height(4.dp))
                 WeatherIcon(
                     code = item.weatherCode,
-                    isDay = parseFlexibleDateTime(item.time)?.hour?.let { it in 6..18 } ?: true,
+                    isDay = parseFlexibleDateTime(item.time)?.hour?.let(::isDayHour) ?: true,
                     modifier = Modifier.size(28.dp),
                     precipMmPerHour = item.precipitationMm,
                 )

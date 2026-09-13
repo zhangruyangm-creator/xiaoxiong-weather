@@ -17,6 +17,8 @@ fun weatherSceneStyle(
     val scene = weatherSceneOf(code, isDay)
     val day = isDay != false
     return when (scene) {
+        // 天气码 1（大体晴）与 0 共用 CLEAR 场景；启动图标层单独区分 FEW_CLOUDS，
+        // 应用内背景/图标不单列，避免多一套渐变而收益有限。
         WeatherScene.CLEAR ->
             if (day) {
                 WeatherSceneStyle(
@@ -34,13 +36,24 @@ fun weatherSceneStyle(
                 )
             }
 
+        // 少云夜间与 CLEAR 夜间同色，供 atmosphere 侧按 isDay=false 取深色渐变；
+        // 若仍用白天的浅蓝会在夜间出现「白天蓝」违和。
         WeatherScene.PARTLY_CLOUDY ->
-            WeatherSceneStyle(
-                scene = scene,
-                gradient = listOf(Color(0xFF89CFF0), Color(0xFF7F9CF5), Color(0xFFB8C6FF)),
-                contentColor = Color.White,
-                mutedContentColor = Color.White.copy(alpha = 0.85f),
-            )
+            if (day) {
+                WeatherSceneStyle(
+                    scene = scene,
+                    gradient = listOf(Color(0xFF89CFF0), Color(0xFF7F9CF5), Color(0xFFB8C6FF)),
+                    contentColor = Color.White,
+                    mutedContentColor = Color.White.copy(alpha = 0.85f),
+                )
+            } else {
+                WeatherSceneStyle(
+                    scene = scene,
+                    gradient = listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)),
+                    contentColor = Color(0xFFEAF2FF),
+                    mutedContentColor = Color(0xFFEAF2FF).copy(alpha = 0.8f),
+                )
+            }
 
         WeatherScene.OVERCAST ->
             WeatherSceneStyle(

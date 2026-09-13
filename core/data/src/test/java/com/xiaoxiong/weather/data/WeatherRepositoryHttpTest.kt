@@ -176,6 +176,68 @@ class WeatherRepositoryHttpTest {
         }
 
     @Test
+    fun fetchWeather_requestsSlimAirQualityWithoutHourly() =
+        runBlocking {
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(200).setBody(FORECAST_JSON),
+                    air = MockResponse().setResponseCode(200).setBody(AIR_JSON),
+                )
+
+            repository.fetchWeather(WeatherFixtures.city("济南"))
+
+            val requests = (1..server.requestCount).map { server.takeRequest() }
+            val airRequest = requests.first { it.path.orEmpty().contains("air-quality") }
+            assertNull(airRequest.requestUrl?.queryParameter("hourly"))
+            assertTrue(
+                airRequest.requestUrl
+                    ?.queryParameter("current")
+                    .orEmpty()
+                    .contains("european_aqi"),
+            )
+        }
+
+    @Test
+    fun fetchWeather_forecastCurrentRequestDropsUnusedPrecipitation() =
+        runBlocking {
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(200).setBody(FORECAST_JSON),
+                    air = MockResponse().setResponseCode(200).setBody(AIR_JSON),
+                )
+
+            val snapshot = repository.fetchWeather(WeatherFixtures.city("济南"))
+
+            val requests = (1..server.requestCount).map { server.takeRequest() }
+            val forecastRequest = requests.first { it.path.orEmpty().contains("forecast") }
+            val currentFields =
+                forecastRequest.requestUrl
+                    ?.queryParameter("current")
+                    .orEmpty()
+                    .split(",")
+            assertFalse(currentFields.contains("precipitation"))
+            // 响应里仍带 precipitation 时字段解析保持兼容（快照可读到）
+            assertEquals(0.0, snapshot.current.precipitationMm)
+        }
+
+    @Test
+    fun fetchWeather_airQualityCurrentAllNull_returnsNullAirQuality() =
+        runBlocking {
+            server.dispatcher =
+                pathDispatcher(
+                    forecast = MockResponse().setResponseCode(200).setBody(FORECAST_JSON),
+                    air =
+                        MockResponse()
+                            .setResponseCode(200)
+                            .setBody("""{"latitude":36.65,"longitude":117.12,"timezone":"Asia/Shanghai"}"""),
+                )
+
+            val snapshot = repository.fetchWeather(WeatherFixtures.city("济南"))
+
+            assertNull(snapshot.airQuality)
+        }
+
+    @Test
     fun fetchWeather_normalizesHailCode96to95() =
         runBlocking {
             // 广州实测 daily 5/7 天返回 96（雷暴伴轻微冰雹），粗网格模式虚报严重；

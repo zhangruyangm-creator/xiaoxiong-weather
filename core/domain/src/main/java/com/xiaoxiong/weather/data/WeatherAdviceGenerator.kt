@@ -10,33 +10,6 @@ import com.xiaoxiong.weather.util.upcomingFromCurrent
  * 基于体感、降水、紫外线生成一句穿衣 / 出行建议。
  */
 object WeatherAdviceGenerator {
-    val precipCodes =
-        setOf(
-            51,
-            53,
-            55,
-            56,
-            57,
-            61,
-            63,
-            65,
-            66,
-            67,
-            71,
-            73,
-            75,
-            77,
-            80,
-            81,
-            82,
-            85,
-            86,
-            95,
-            96,
-            99,
-        )
-    private val snowOrIceCodes = setOf(56, 57, 66, 67, 71, 73, 75, 77, 85, 86)
-
     @StringRes
     fun clothingRes(feelsC: Double?): Int =
         when {
@@ -56,7 +29,7 @@ object WeatherAdviceGenerator {
         upcomingPrecip: Boolean,
     ): Int? {
         val precipNow = WeatherCodes.isPrecipitatingNow(precipitationMm)
-        val snowOrIceNow = weatherCode in snowOrIceCodes
+        val snowOrIceNow = WeatherCodes.isSnowCode(weatherCode) || WeatherCodes.isFreezingRainCode(weatherCode)
         return when {
             snowOrIceNow -> R.string.advice_rain_snow
             precipNow -> R.string.advice_rain_now
@@ -73,14 +46,19 @@ object WeatherAdviceGenerator {
         if (isDay == false) return null
         return when {
             uv == null -> null
-            uv >= 8 -> R.string.advice_uv_strong
-            uv >= 5 -> R.string.advice_uv_moderate
+            uv >= WeatherCodes.UV_VERY_HIGH -> R.string.advice_uv_strong
+            uv >= WeatherCodes.UV_HIGH -> R.string.advice_uv_moderate
             else -> null
         }
     }
 
     @StringRes
-    fun windTipRes(windKmh: Double?): Int? = if (windKmh != null && windKmh >= 40) R.string.advice_wind_strong else null
+    fun windTipRes(windKmh: Double?): Int? =
+        if (windKmh != null && windKmh >= WeatherCodes.WIND_WATCH_KMH) {
+            R.string.advice_wind_strong
+        } else {
+            null
+        }
 
     fun generate(
         resources: Resources,
@@ -96,11 +74,8 @@ object WeatherAdviceGenerator {
             upcoming.drop(1).any {
                 (it.precipitationMm ?: 0.0) >= 0.2 || (it.precipProbability ?: 0) >= 60
             }
-        val uv =
-            when {
-                current.isDay == false -> airQuality?.uvIndex
-                else -> airQuality?.uvIndex ?: daily.firstOrNull()?.uvIndexMax
-            }
+        // 与预警/生活指数同一口径：白天看当日最大 UV，夜间不提示
+        val uv = WeatherCodes.uvForDaytime(current.isDay, airQuality, daily.firstOrNull())
         val wind = current.windGustsKmh ?: current.windSpeedKmh
 
         val parts =

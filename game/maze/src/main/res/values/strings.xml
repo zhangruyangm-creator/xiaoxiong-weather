@@ -21,6 +21,9 @@
     <string name="bear_maze_failed">挑战失败</string>
     <string name="bear_maze_failed_detail">到达第 %1$d 波 · %2$d/%3$d 步</string>
     <string name="bear_maze_hud">蜜 %1$d/%2$d · 钥匙 %3$d · 步数 %4$d/%5$d</string>
+    <string name="bear_maze_chip_honey">蜜 %1$d/%2$d</string>
+    <string name="bear_maze_chip_keys">钥匙 %1$d</string>
+    <string name="bear_maze_chip_moves">步数 %1$d/%2$d</string>
     <string name="bear_maze_levels">选关</string>
     <string name="bear_maze_need_honey">还要收齐蜂蜜才能出门！</string>
     <string name="bear_maze_hint_none">当前局面已无解，试试重来或撤销</string>
@@ -45,4 +48,9 @@
     <string name="cd_close_game">退出游戏</string>
     <string name="cd_maze_hint">提示下一步</string>
     <string name="cd_maze_undo">撤销上一步</string>
+    <string name="cd_maze_pause">暂停</string>
+    <string name="cd_maze_up">向上移动</string>
+    <string name="cd_maze_down">向下移动</string>
+    <string name="cd_maze_left">向左移动</string>
+    <string name="cd_maze_right">向右移动</string>
 </resources>

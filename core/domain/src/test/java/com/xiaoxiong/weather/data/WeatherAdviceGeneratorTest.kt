@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.data
 
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.fixtures.WeatherFixtures
+import com.xiaoxiong.weather.util.WeatherCodes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -31,6 +32,11 @@ class WeatherAdviceGeneratorTest {
             R.string.advice_rain_snow,
             WeatherAdviceGenerator.rainTipRes(71, 0.0, upcomingPrecip = false),
         )
+        // 冻雨码与雪码共用「雨夹雪/结冰」提示（集合统一到 WeatherCodes）
+        assertEquals(
+            R.string.advice_rain_snow,
+            WeatherAdviceGenerator.rainTipRes(66, 0.0, upcomingPrecip = false),
+        )
         assertEquals(
             R.string.advice_rain_soon,
             WeatherAdviceGenerator.rainTipRes(0, 0.0, upcomingPrecip = true),
@@ -40,12 +46,14 @@ class WeatherAdviceGeneratorTest {
 
     @Test
     fun uvAndWindTips() {
-        assertEquals(R.string.advice_uv_strong, WeatherAdviceGenerator.uvTipRes(8.0))
-        assertEquals(R.string.advice_uv_moderate, WeatherAdviceGenerator.uvTipRes(5.5))
-        assertNull(WeatherAdviceGenerator.uvTipRes(3.0))
+        // 阈值统一到 WeatherCodes.UV_HIGH(6)/UV_VERY_HIGH(8)
+        assertEquals(R.string.advice_uv_strong, WeatherAdviceGenerator.uvTipRes(WeatherCodes.UV_VERY_HIGH))
+        assertEquals(R.string.advice_uv_moderate, WeatherAdviceGenerator.uvTipRes(WeatherCodes.UV_HIGH))
+        assertNull(WeatherAdviceGenerator.uvTipRes(WeatherCodes.UV_WATCH))
+        assertNull(WeatherAdviceGenerator.uvTipRes(5.9))
         assertNull(WeatherAdviceGenerator.uvTipRes(9.0, isDay = false))
-        assertEquals(R.string.advice_wind_strong, WeatherAdviceGenerator.windTipRes(45.0))
-        assertNull(WeatherAdviceGenerator.windTipRes(20.0))
+        assertEquals(R.string.advice_wind_strong, WeatherAdviceGenerator.windTipRes(WeatherCodes.WIND_WATCH_KMH))
+        assertNull(WeatherAdviceGenerator.windTipRes(WeatherCodes.WIND_WATCH_KMH - 0.1))
     }
 
     @Test

@@ -67,7 +67,7 @@ class WeatherRepositoryMetNorwayFallbackHttpTest {
 
             val snapshot = repository.fetchWeather(city)
 
-            assertEquals("UTC+08:00", snapshot.timezone)
+            assertEquals("Asia/Shanghai", snapshot.timezone)
             assertNull(snapshot.airQuality)
             assertTrue(snapshot.hourly.isNotEmpty())
             assertTrue(snapshot.daily.isNotEmpty())
@@ -91,7 +91,30 @@ class WeatherRepositoryMetNorwayFallbackHttpTest {
 
             val snapshot = repository.fetchWeather(city)
 
-            assertEquals("UTC+08:00", snapshot.timezone)
+            assertEquals("Asia/Shanghai", snapshot.timezone)
+            assertEquals(1, metServer.requestCount)
+        }
+
+    @Test
+    fun forecast429_fallsBackToMetNorway() =
+        runBlocking {
+            mainServer.dispatcher = mainDispatcher(forecast = MockResponse().setResponseCode(429).setBody("slow down"))
+            metServer.enqueue(MockResponse().setResponseCode(200).setBody(metJson()))
+
+            val snapshot = repository.fetchWeather(city)
+
+            assertEquals("Asia/Shanghai", snapshot.timezone)
+            assertEquals(1, metServer.requestCount)
+        }
+
+    @Test
+    fun forecast408_fallsBackToMetNorway() =
+        runBlocking {
+            mainServer.dispatcher = mainDispatcher(forecast = MockResponse().setResponseCode(408).setBody("timeout"))
+            metServer.enqueue(MockResponse().setResponseCode(200).setBody(metJson()))
+
+            repository.fetchWeather(city)
+
             assertEquals(1, metServer.requestCount)
         }
 

@@ -28,8 +28,8 @@ object OpenMeteoHttp {
     ): String = executeWithFallback(listOf(url), client, userAgent)
 
     /**
-     * 主 URL 请求失败时按候选顺序重试。网络异常（IOException）与 5xx（服务端故障）
-     * 都会转移到候选入口；4xx 是请求本身问题，直接上抛不转移。
+     * 主 URL 请求失败时按候选顺序重试。网络异常（IOException）与 5xx（服务端故障）、
+     * 429（限流）、408（请求超时）都会转移到候选入口；其余 4xx 是请求本身问题，直接上抛不转移。
      * 取消信号（CancellationException）始终透传，不参与故障转移。
      *
      * [userAgent] 非空时覆盖默认 User-Agent（部分数据源要求带联系方式的标识，如 MET Norway）。
@@ -46,18 +46,20 @@ object OpenMeteoHttp {
             try {
                 return executeOnce(url, client, userAgent)
             } catch (e: AppError.Http) {
-                // 5xx（服务端故障）可转移；4xx 是请求本身问题，不在候选间转移
-                if (e.code !in 500..599) throw e
+                // 5xx / 429 / 408 可转移；其余 4xx 是请求本身问题，不在候选间转移
+                if (!isRetryableHttpCode(e.code)) throw e
                 lastError = e
                 httpError = e
             } catch (e: IOException) {
                 lastError = e
             }
         }
-        // 后续候选只断连时仍保留服务端故障分类：Http(5xx) 比 IOException 更具体
+        // 后续候选只断连时仍保留服务端故障分类：Http(5xx/429/408) 比 IOException 更具体
         httpError?.let { throw it }
         throw AppError.NetworkUnavailable(lastError as? IOException)
     }
+
+    internal fun isRetryableHttpCode(code: Int): Boolean = code in 500..599 || code == 429 || code == 408
 
     private suspend fun executeOnce(
         url: String,

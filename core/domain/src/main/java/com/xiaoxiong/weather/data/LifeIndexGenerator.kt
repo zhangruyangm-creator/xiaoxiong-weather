@@ -60,19 +60,13 @@ object LifeIndexGenerator {
     }
 
     /**
-     * 防晒是全天建议：白天以当日最大 UV 为准，避免早晚用当前低值误报「无需防晒」；
-     * 夜间几乎为 0，用当前值即可。
+     * 统一 UV 口径，与预警/建议一致：白天以当日最大 UV 为准（缺失回退当前值），夜间返回 null。
      */
     internal fun uvForIndex(
         isDay: Boolean?,
         airQuality: AirQuality?,
         today: DailyWeather?,
-    ): Double? =
-        if (isDay != false) {
-            today?.uvIndexMax ?: airQuality?.uvIndex
-        } else {
-            airQuality?.uvIndex
-        }
+    ): Double? = WeatherCodes.uvForDaytime(isDay, airQuality, today)
 
     /**
      * 统一到 US AQI 口径，供运动指数等判断使用。
@@ -170,7 +164,7 @@ object LifeIndexGenerator {
         weatherCode: Int?,
         upcomingPrecipSoon: Boolean,
     ): LifeIndexLevel {
-        val snow = weatherCode in setOf(56, 57, 66, 67, 71, 73, 75, 77, 85, 86)
+        val snow = WeatherCodes.isSnowCode(weatherCode) || WeatherCodes.isFreezingRainCode(weatherCode)
         return when {
             snow || rainingNow -> LifeIndexLevel.POOR
             upcomingPrecipSoon -> LifeIndexLevel.FAIR
@@ -207,7 +201,7 @@ object LifeIndexGenerator {
     ): LifeIndexLevel =
         when {
             rainingNow || precipSum >= 1.0 || (maxPrecipProb ?: 0) >= 60 -> LifeIndexLevel.POOR
-            (maxPrecipProb ?: 0) >= 35 || (windKmh ?: 0.0) >= 40 -> LifeIndexLevel.FAIR
+            (maxPrecipProb ?: 0) >= 35 || (windKmh ?: 0.0) >= WeatherCodes.WIND_WATCH_KMH -> LifeIndexLevel.FAIR
             else -> LifeIndexLevel.GOOD
         }
 
@@ -418,13 +412,13 @@ object LifeIndexGenerator {
         val daytime = isDay != false
         val (level, labelRes, summaryRes) =
             when {
-                !daytime || uv == null || uv < 3 ->
+                !daytime || uv == null || uv < WeatherCodes.UV_WATCH ->
                     Triple(
                         LifeIndexLevel.GOOD,
                         R.string.life_uv_label_low,
                         R.string.life_uv_low,
                     )
-                uv < 6 ->
+                uv < WeatherCodes.UV_HIGH ->
                     Triple(
                         LifeIndexLevel.FAIR,
                         R.string.life_uv_label_mid,
@@ -511,7 +505,7 @@ object LifeIndexGenerator {
                 rainingNow || hotOrCold || badAir || strongWind ->
                     LifeIndexLevel.POOR to R.string.life_sport_bad
                 (aqi != null && aqi >= 60) ||
-                    (uv != null && uv >= 8) ||
+                    (uv != null && uv >= WeatherCodes.UV_VERY_HIGH) ||
                     (feelsC != null && (feelsC >= 28 || feelsC <= 8)) ->
                     LifeIndexLevel.FAIR to R.string.life_sport_fair
                 else -> LifeIndexLevel.GOOD to R.string.life_sport_good

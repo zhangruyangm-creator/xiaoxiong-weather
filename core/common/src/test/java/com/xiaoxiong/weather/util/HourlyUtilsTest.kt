@@ -89,12 +89,44 @@ class HourlyUtilsTest {
     }
 
     @Test
+    fun isDaytimeHour_boundaries() {
+        assertTrue(isDaytimeHour(6))
+        assertTrue(isDaytimeHour(17))
+        // 18:00 起算夜间（与 SunPath 兜底、MET 口径对齐）
+        assertEquals(false, isDaytimeHour(18))
+        assertEquals(false, isDaytimeHour(5))
+        assertEquals(false, isDaytimeHour(0))
+        assertEquals(false, isDaytimeHour(23))
+    }
+
+    @Test
     fun parseFlexibleDateTime_supportsCommonFormats() {
         assertEquals(14, parseFlexibleDateTime("2026-08-02T14:35:00")?.hour)
         assertEquals(14, parseFlexibleDateTime("2026-08-02T14:35")?.hour)
         assertEquals(14, parseFlexibleDateTime("2026-08-02 14:35")?.hour)
         assertEquals(0, parseFlexibleDateTime("2026-08-02")?.hour)
         assertNull(parseFlexibleDateTime("garbage"))
+    }
+
+    @Test
+    fun parseFlexibleDateTime_boundaries() {
+        // 年末分钟边界
+        val endOfYear = parseFlexibleDateTime("2026-12-31T23:59")!!
+        assertEquals(2026, endOfYear.year)
+        assertEquals(23, endOfYear.hour)
+        assertEquals(59, endOfYear.minute)
+        // 带小数秒的 ISO
+        assertEquals(14, parseFlexibleDateTime("2026-08-02T14:35:00.123")?.hour)
+        // 带秒 + 时区偏移
+        assertEquals(
+            java.time.OffsetDateTime
+                .parse("2026-08-02T14:35:30+08:00")
+                .atZoneSameInstant(java.time.ZoneId.systemDefault())
+                .toLocalDateTime(),
+            parseFlexibleDateTime("2026-08-02T14:35:30+08:00"),
+        )
+        // 非法日期（月/日越界）→ null，不得抛出
+        assertNull(parseFlexibleDateTime("2026-13-40T25:61"))
     }
 
     @Test

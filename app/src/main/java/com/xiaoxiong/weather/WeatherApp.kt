@@ -7,6 +7,7 @@ import com.xiaoxiong.weather.data.WeatherRefreshPolicy
 import com.xiaoxiong.weather.di.AppContainer
 import com.xiaoxiong.weather.util.CrashReporting
 import com.xiaoxiong.weather.util.PerformanceMonitor
+import com.xiaoxiong.weather.util.WeatherLauncherIcon
 import com.xiaoxiong.weather.worker.WeatherRefreshWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,12 @@ class WeatherApp : Application() {
         startMemoryTracking()
 
         container = AppContainer(this)
+
+        // 启动后台准备：PackageManager 对账 + ServiceLoader 扫描都不该占用首帧主线程
+        appScope.launch {
+            runCatching { WeatherLauncherIcon.reconcile(this@WeatherApp) }
+            runCatching { container.preloadGameEntries() }
+        }
 
         // 记录冷启动耗时（Application.onCreate 完成时）
         val duration = SystemClock.elapsedRealtime() - processStartMs
@@ -62,6 +69,16 @@ class WeatherApp : Application() {
         }, "PerfMonitor-memory").apply {
             isDaemon = true
             start()
+        }
+    }
+
+    /**
+     * Activity 退后台时调用：排队中的桌面图标切换放到 appScope 执行。
+     * `flushPending` 内含 PackageManager IPC 与 prefs 写盘，不在主线程做。
+     */
+    fun flushLauncherIconPending() {
+        appScope.launch {
+            runCatching { WeatherLauncherIcon.flushPending(this@WeatherApp) }
         }
     }
 

@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,6 +78,7 @@ import com.xiaoxiong.weather.util.parseFlexibleDateTime
 import com.xiaoxiong.weather.util.uvLabelText
 import com.xiaoxiong.weather.util.weatherCodeDescription
 import com.xiaoxiong.weather.util.windDirectionText
+import java.util.Locale
 
 @Composable
 fun TodayPage(
@@ -128,6 +130,7 @@ fun TodayPage(
                     RadarCloudMapSection(
                         snapshot = weather,
                         repository = radarMapRepository,
+                        paused = paused,
                     )
                 TodayCardId.SUN_EXTRAS -> SunAndExtrasCard(weather)
             }
@@ -154,6 +157,11 @@ internal fun AlertsSection(alerts: List<WeatherAlert>) {
 
     var expanded by remember(alertKey) { mutableStateOf(false) }
     val stackBehind = ordered.drop(1).take(2)
+    val stackLabel =
+        stringResource(
+            if (expanded) R.string.alerts_collapse else R.string.alerts_expand,
+            ordered.size,
+        )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // 折叠：扑克牌叠层，默认只展开优先级最高的一条
@@ -164,6 +172,8 @@ internal fun AlertsSection(alerts: List<WeatherAlert>) {
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(bounded = true),
+                        role = Role.Button,
+                        onClickLabel = stackLabel,
                         onClick = { expanded = !expanded },
                     ).padding(bottom = if (expanded) 0.dp else (stackBehind.size * 8).dp),
         ) {
@@ -417,9 +427,10 @@ internal fun CurrentWeatherCard(
                     style.contentColor,
                     style.mutedContentColor,
                 )
+                val unitKmh = stringResource(R.string.unit_kmh)
                 FrostedMetricTile(
                     stringResource(R.string.metric_wind),
-                    current.windSpeedKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--",
+                    current.windSpeedKmh?.let { String.format(Locale.US, "%.0f %s", it, unitKmh) } ?: "--",
                     Modifier.weight(1f),
                     style.contentColor,
                     style.mutedContentColor,
@@ -453,11 +464,14 @@ internal fun MetricGrid(
     valueColor: Color,
 ) {
     val precipRate = WeatherCodes.intensityPrecipMmPerHour(current)
+    val unitKmh = stringResource(R.string.unit_kmh)
+    val unitHpa = stringResource(R.string.unit_hpa)
+    val unitMm = stringResource(R.string.unit_mm)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FrostedMetricTile(
                 stringResource(R.string.metric_gust),
-                current.windGustsKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--",
+                current.windGustsKmh?.let { String.format(Locale.US, "%.0f %s", it, unitKmh) } ?: "--",
                 Modifier.weight(1f),
                 valueColor,
                 labelColor,
@@ -473,7 +487,7 @@ internal fun MetricGrid(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FrostedMetricTile(
                 stringResource(R.string.metric_pressure),
-                current.pressureHpa?.let { "${"%.0f".format(it)} hPa" } ?: "--",
+                current.pressureHpa?.let { String.format(Locale.US, "%.0f %s", it, unitHpa) } ?: "--",
                 Modifier.weight(1f),
                 valueColor,
                 labelColor,
@@ -489,7 +503,7 @@ internal fun MetricGrid(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FrostedMetricTile(
                 stringResource(R.string.metric_precip),
-                precipRate?.let { "${"%.1f".format(it)} mm" } ?: "--",
+                precipRate?.let { String.format(Locale.US, "%.1f %s", it, unitMm) } ?: "--",
                 Modifier.weight(1f),
                 valueColor,
                 labelColor,
@@ -534,25 +548,25 @@ internal fun AirQualityCard(
         val uv = airQuality.uvIndex ?: today?.uvIndexMax
         QualityBar(
             label = stringResource(R.string.aq_uv, uvLabelText(uv)),
-            valueText = uv?.let { "%.1f".format(it) } ?: "--",
+            valueText = uv?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
             progress = ((uv ?: 0.0) / 11.0).toFloat().coerceIn(0f, 1f),
             barColor = Color(0xFFFFCA28),
         )
         Spacer(modifier = Modifier.height(14.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MiniStat("PM2.5", airQuality.pm25?.let { "%.1f".format(it) } ?: "--", Modifier.weight(1f))
-            MiniStat("PM10", airQuality.pm10?.let { "%.1f".format(it) } ?: "--", Modifier.weight(1f))
+            MiniStat("PM2.5", airQuality.pm25?.let { String.format(Locale.US, "%.1f", it) } ?: "--", Modifier.weight(1f))
+            MiniStat("PM10", airQuality.pm10?.let { String.format(Locale.US, "%.1f", it) } ?: "--", Modifier.weight(1f))
         }
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MiniStat(
                 stringResource(R.string.aq_no2),
-                airQuality.nitrogenDioxide?.let { "%.0f".format(it) } ?: "--",
+                airQuality.nitrogenDioxide?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
                 Modifier.weight(1f),
             )
             MiniStat(
                 stringResource(R.string.aq_o3),
-                airQuality.ozone?.let { "%.0f".format(it) } ?: "--",
+                airQuality.ozone?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
                 Modifier.weight(1f),
             )
         }
@@ -565,7 +579,7 @@ internal fun AirQualityCard(
             )
             MiniStat(
                 stringResource(R.string.aq_dust),
-                airQuality.dustUgM3?.let { "%.0f".format(it) } ?: "--",
+                airQuality.dustUgM3?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
                 Modifier.weight(1f),
             )
         }

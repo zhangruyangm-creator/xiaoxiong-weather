@@ -121,18 +121,27 @@ enum class HourlyMetric(
 }
 
 private val SelectedLineColor = Color(0xFFFFC107)
+private val SelectedLabelColorInt = "#F9A825".toColorInt()
 
 @Composable
 fun HourlyChartSection(
     hourly: List<HourlyWeather>,
     currentTime: String,
+    /** 城市标识：换城时清空选点；静默刷新（hourly 列表变化）不打扰用户 */
+    cityId: Long,
     onDragStateChange: (Boolean) -> Unit = {},
 ) {
     var metric by remember { mutableStateOf(HourlyMetric.TEMPERATURE) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
-    // 换城市或切换指标后，旧下标指向的数据已不同，清掉选中标记
-    LaunchedEffect(hourly, metric) {
+    // 仅在换城或切换指标时清掉选中标记：静默刷新生成的新列表不清，
+    // 否则用户选中的时刻会被周期性刷新悄悄重置
+    LaunchedEffect(cityId, metric) {
         selectedIndex = null
+    }
+    // 整点滚窗后旧下标越界时兜底清除，避免选中态残留
+    LaunchedEffect(hourly.size) {
+        val selected = selectedIndex
+        if (selected != null && selected >= hourly.size) selectedIndex = null
     }
     // 小时明细默认折叠，避免页面一进来就是 24 行列表
     var detailsExpanded by remember { mutableStateOf(false) }
@@ -370,10 +379,10 @@ fun HourlyChartSection(
 
                         // 注意：cache 块内只能读 currentIndex；selectedIndex 必须在
                         // onDrawBehind 里读，否则拖动每帧都会让整份缓存（Path/Brush）重建。
-                        val highlightIndexes =
-                            if (currentIndex in values.indices) setOf(currentIndex) else emptySet()
                         val step = max(1, values.size / 5)
                         val minLabelGapPx = 48.dp.toPx()
+                        // 每帧复用，避免在 onDrawBehind 里新建 ArrayList
+                        val drawnXs = FloatArray(values.size)
 
                         onDrawBehind {
                             // 网格
@@ -465,33 +474,34 @@ fun HourlyChartSection(
                             }
 
                             val selected = selectedIndex
-                            if (currentIndex in values.indices) {
+                            val hasCurrent = currentIndex in values.indices
+                            val hasSelected =
+                                selected != null && selected in values.indices && selected != currentIndex
+                            if (hasCurrent) {
                                 drawMarker(currentIndex, nowColor, android.graphics.Color.RED)
                             }
-                            if (selected != null && selected in values.indices && selected != currentIndex) {
-                                drawMarker(selected, SelectedLineColor, "#F9A825".toColorInt())
+                            if (hasSelected) {
+                                drawMarker(selected!!, SelectedLineColor, SelectedLabelColorInt)
                             }
-                            val visibleHighlights =
-                                if (selected != null && selected in values.indices) {
-                                    highlightIndexes + selected
-                                } else {
-                                    highlightIndexes
+
+                            var drawnCount = 0
+
+                            fun canDrawAt(x: Float): Boolean {
+                                for (i in 0 until drawnCount) {
+                                    if (abs(drawnXs[i] - x) < minLabelGapPx) return false
                                 }
+                                return true
+                            }
 
-                            val drawnXs = ArrayList<Float>(8)
-
-                            fun canDrawAt(x: Float): Boolean = drawnXs.none { abs(it - x) < minLabelGapPx }
-
-                            visibleHighlights.sorted().forEach { index ->
+                            fun drawTimeLabel(
+                                index: Int,
+                                color: Int,
+                                bold: Boolean,
+                            ) {
                                 val x = xOf(index)
-                                val isSelected = index == selected && index != currentIndex
-                                axisPaint.color =
-                                    when {
-                                        index == currentIndex -> android.graphics.Color.RED
-                                        isSelected -> "#F9A825".toColorInt()
-                                        else -> axisArgb
-                                    }
-                                axisPaint.isFakeBoldText = true
+                                if (!canDrawAt(x)) return
+                                axisPaint.color = color
+                                axisPaint.isFakeBoldText = bold
                                 axisPaint.textAlign = android.graphics.Paint.Align.CENTER
                                 drawContext.canvas.nativeCanvas.drawText(
                                     formatHourLabel(hourly[index].time),
@@ -499,23 +509,20 @@ fun HourlyChartSection(
                                     size.height - 8f,
                                     axisPaint,
                                 )
-                                drawnXs += x
+                                if (drawnCount < drawnXs.size) drawnXs[drawnCount++] = x
+                            }
+
+                            // 当前/选中标签优先占位，其余标签按间隔去重，避免互相压字
+                            if (hasCurrent) {
+                                drawTimeLabel(currentIndex, android.graphics.Color.RED, bold = true)
+                            }
+                            if (hasSelected) {
+                                drawTimeLabel(selected!!, SelectedLabelColorInt, bold = true)
                             }
                             values.indices.forEach { index ->
-                                if (index in visibleHighlights) return@forEach
+                                if (index == currentIndex || (hasSelected && index == selected)) return@forEach
                                 if (index % step != 0 && index != values.lastIndex) return@forEach
-                                val x = xOf(index)
-                                if (!canDrawAt(x)) return@forEach
-                                axisPaint.color = axisArgb
-                                axisPaint.isFakeBoldText = false
-                                axisPaint.textAlign = android.graphics.Paint.Align.CENTER
-                                drawContext.canvas.nativeCanvas.drawText(
-                                    formatHourLabel(hourly[index].time),
-                                    x,
-                                    size.height - 8f,
-                                    axisPaint,
-                                )
-                                drawnXs += x
+                                drawTimeLabel(index, axisArgb, bold = false)
                             }
                         }
                     },
@@ -738,6 +745,9 @@ private fun HourlyDetailRow(
     val labelToday = stringResource(R.string.label_today)
     val labelTomorrow = stringResource(R.string.label_tomorrow)
     val datePattern = stringResource(R.string.hour_detail_date)
+    val unitKm = stringResource(R.string.unit_km)
+    val unitMm = stringResource(R.string.unit_mm)
+    val unitKmh = stringResource(R.string.unit_kmh)
 
     val isNow = isSameHour(item.time, currentTime)
     val showSelected = isSelected && !isNow
@@ -756,17 +766,20 @@ private fun HourlyDetailRow(
             HourlyMetric.TEMPERATURE ->
                 convertCelsiusForDisplay(item.temperatureC, tempUnit)
                     ?.let {
-                        "${"%.1f".format(it)}${
-                            if (tempUnit == TemperatureUnit.FAHRENHEIT) "\u00B0F" else "\u00B0C"
-                        }"
+                        String.format(
+                            Locale.US,
+                            "%.1f%s",
+                            it,
+                            if (tempUnit == TemperatureUnit.FAHRENHEIT) "\u00B0F" else "\u00B0C",
+                        )
                     } ?: "--"
             HourlyMetric.HUMIDITY -> item.humidityPercent?.let { "$it%" } ?: "--"
             HourlyMetric.VISIBILITY ->
-                item.visibilityMeters?.let { "${"%.1f".format(it / 1000)} km" } ?: "--"
+                item.visibilityMeters?.let { String.format(Locale.US, "%.1f %s", it / 1000, unitKm) } ?: "--"
             HourlyMetric.PRECIP_PROB -> item.precipProbability?.let { "$it%" } ?: "--"
             HourlyMetric.PRECIP_MM ->
-                item.precipitationMm?.let { "${"%.1f".format(it)} mm" } ?: "--"
-            HourlyMetric.WIND -> item.windSpeedKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--"
+                item.precipitationMm?.let { String.format(Locale.US, "%.1f %s", it, unitMm) } ?: "--"
+            HourlyMetric.WIND -> item.windSpeedKmh?.let { String.format(Locale.US, "%.0f %s", it, unitKmh) } ?: "--"
         }
     val bg =
         when {

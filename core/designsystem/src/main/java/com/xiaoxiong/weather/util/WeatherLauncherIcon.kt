@@ -20,6 +20,12 @@ object WeatherLauncherIcon {
     private const val KEY_ALIAS = "active_alias"
     private const val KEY_PENDING = "pending_alias"
 
+    /**
+     * 进程内串行化 prefs + PackageManager 操作：
+     * 前台 `scheduleForWeatherCode` 与后台 `apply` 并发时不再互相覆盖。
+     */
+    private val lock = Any()
+
     enum class Style(
         val aliasSimpleName: String,
     ) {
@@ -197,26 +203,28 @@ object WeatherLauncherIcon {
     ) {
         val app = context.applicationContext
         val style = fromWeather(weatherCode, precipMmPerHour, isDay)
-        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val current = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
-        if (current == style.aliasSimpleName) {
-            prefs.edit { remove(KEY_PENDING) }
-            return
+        synchronized(lock) {
+            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val current = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
+            if (current == style.aliasSimpleName) {
+                prefs.edit { remove(KEY_PENDING) }
+                return
+            }
+            prefs.edit { putString(KEY_PENDING, style.aliasSimpleName) }
+            Log.d(TAG, "queued launcher icon -> ${style.aliasSimpleName}")
         }
-        prefs.edit { putString(KEY_PENDING, style.aliasSimpleName) }
-        Log.d(TAG, "queued launcher icon -> ${style.aliasSimpleName}")
     }
 
     /** Activity onStop / 后台 Worker：执行排队中的图标切换。 */
     fun flushPending(context: Context) {
         val app = context.applicationContext
-        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val pending = prefs.getString(KEY_PENDING, null) ?: return
-        val ok = apply(app, Style.fromAlias(pending))
-        if (ok) {
-            prefs.edit { remove(KEY_PENDING) }
-        } else {
-            Log.w(TAG, "keep pending alias=$pending after failed apply")
+        synchronized(lock) {
+            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val pending = prefs.getString(KEY_PENDING, null) ?: return
+            val ok = applyLocked(app, Style.fromAlias(pending))
+            if (!ok) {
+                Log.w(TAG, "keep pending alias=$pending after failed apply")
+            }
         }
     }
 
@@ -230,70 +238,126 @@ object WeatherLauncherIcon {
         apply(context, fromWeather(weatherCode, precipMmPerHour, isDay))
     }
 
-    /** @return 是否已成功切到目标（或本就已是目标） */
+    /**
+     * 启动时以 PackageManager 实际启用的 alias 为准对账：
+     * 消除进程被杀导致 `apply()` 未落盘、或历史异常路径残留多个 enabled alias 的问题。
+     * 只读 20 次组件状态，仅在需要时做全量校正（调用方应放在后台线程）。
+     */
+    fun reconcile(context: Context) {
+        val app = context.applicationContext
+        synchronized(lock) {
+            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val stored = Style.fromAlias(prefs.getString(KEY_ALIAS, null))
+            val pm = app.packageManager
+            val enabled = Style.entries.filter { isEnabled(pm, it.componentName(app)) }
+            val target = reconcileTarget(stored, enabled)
+            if (enabled.size == 1 && enabled.first() == target && stored == target) return
+            val corrected = runCatching { correctAll(app, pm, target) }.isSuccess
+            if (corrected) {
+                prefs.edit().putString(KEY_ALIAS, target.aliasSimpleName).apply()
+            }
+            Log.d(
+                TAG,
+                "reconciled launcher icon -> ${target.aliasSimpleName} " +
+                    "(enabled=$enabled, stored=${stored.aliasSimpleName}, corrected=$corrected)",
+            )
+        }
+    }
+
+    /** @return 是否已成功切到目标 */
     fun apply(
         context: Context,
         style: Style,
     ): Boolean {
         val app = context.applicationContext
-        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val previous = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
-        if (previous == style.aliasSimpleName) {
-            prefs.edit { remove(KEY_PENDING) }
-            return true
-        }
+        return synchronized(lock) { applyLocked(app, style) }
+    }
 
+    /**
+     * 全量校正：先 enable 目标，再 disable 其余全部 [Style.entries]。
+     * 顺序保证中间态不会「全部禁用」导致桌面图标消失；结束后最多只剩目标启用。
+     */
+    private fun applyLocked(
+        app: Context,
+        style: Style,
+    ): Boolean {
         val pm = app.packageManager
         return try {
-            // 先 enable 目标再 disable 旧 alias，避免中间态「全部禁用」导致桌面图标短暂消失。
-            // 短暂双启用可接受；异常恢复路径仍走全量校正。
-            val previousKnown = Style.entries.any { it.aliasSimpleName == previous }
-            pm.setComponentEnabledSetting(
-                style.componentName(app),
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP,
-            )
-            if (previousKnown) {
-                val previousStyle = Style.fromAlias(previous)
-                if (previousStyle != style) {
-                    pm.setComponentEnabledSetting(
-                        previousStyle.componentName(app),
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP,
-                    )
-                }
-            } else {
-                // 预置丢失/被清空：无法确定当前启用的 alias，全量校正，
-                // 确保任何时刻只有一个 alias 启用（只在异常恢复时走慢路径）。
-                Style.entries.forEach { candidate ->
-                    if (candidate != style) {
-                        pm.setComponentEnabledSetting(
-                            candidate.componentName(app),
-                            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                            PackageManager.DONT_KILL_APP,
-                        )
-                    }
-                }
-            }
-            // KEY_ALIAS 必须同步落盘，否则进程被杀后重启会与 PackageManager 的实际启用状态不一致
-            prefs
+            correctAll(app, pm, style)
+            // apply()：主线程不做 commit 磁盘等待；进程内由 lock 串行，
+            // 跨进程被杀后由启动时 reconcile 用 PackageManager 实际状态对账
+            app
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit()
                 .putString(KEY_ALIAS, style.aliasSimpleName)
                 .remove(KEY_PENDING)
-                .commit()
+                .apply()
             Log.d(TAG, "launcher icon -> ${style.aliasSimpleName}")
             true
         } catch (e: Exception) {
             Log.w(TAG, "failed to switch launcher icon to ${style.aliasSimpleName}", e)
-            // 尽量恢复：至少保证默认晴天 alias 可用
-            runCatching {
-                pm.setComponentEnabledSetting(
-                    Style.SUNNY.componentName(app),
-                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                    PackageManager.DONT_KILL_APP,
-                )
+            // 失败恢复同样走全量校正：只留 SUNNY，避免残留多个 enabled alias
+            val recovered = runCatching { correctAll(app, pm, Style.SUNNY) }.isSuccess
+            if (recovered) {
+                app
+                    .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
+                    .apply()
             }
             false
         }
     }
+
+    /** enable [target]，disable 其余全部 alias；任一步失败抛异常由调用方处理。 */
+    private fun correctAll(
+        app: Context,
+        pm: PackageManager,
+        target: Style,
+    ) {
+        pm.setComponentEnabledSetting(
+            target.componentName(app),
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            PackageManager.DONT_KILL_APP,
+        )
+        Style.entries.forEach { candidate ->
+            if (candidate != target) {
+                pm.setComponentEnabledSetting(
+                    candidate.componentName(app),
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+            }
+        }
+    }
+
+    private fun isEnabled(
+        pm: PackageManager,
+        component: ComponentName,
+    ): Boolean =
+        when (pm.getComponentEnabledSetting(component)) {
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> true
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED,
+            -> false
+            else ->
+                runCatching { pm.getActivityInfo(component, 0).enabled }
+                    .getOrDefault(true)
+        }
 }
+
+/**
+ * 启动对账时选目标 alias：PackageManager 实际状态优先于 prefs；
+ * 多个残留 enabled 时优先保留 prefs 记录的那个，保证全量校正后与用户预期一致。
+ */
+internal fun reconcileTarget(
+    stored: WeatherLauncherIcon.Style,
+    enabled: List<WeatherLauncherIcon.Style>,
+): WeatherLauncherIcon.Style =
+    when {
+        enabled.isEmpty() -> stored
+        enabled.size == 1 -> enabled.first()
+        stored in enabled -> stored
+        else -> enabled.first()
+    }

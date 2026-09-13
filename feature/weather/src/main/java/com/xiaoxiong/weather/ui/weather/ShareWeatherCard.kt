@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
@@ -57,7 +58,10 @@ import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.formatTemperature
 import com.xiaoxiong.weather.util.parseFlexibleDateTime
 import com.xiaoxiong.weather.util.weatherCodeDescription
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
@@ -261,13 +265,24 @@ fun ShareWeatherCardDialog(
                             var raw: Bitmap? = null
                             var copy: Bitmap? = null
                             try {
-                                raw = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                                // 硬件位图无法 compress；统一拷成软件 ARGB_8888 再导出
-                                copy =
-                                    raw.copy(Bitmap.Config.ARGB_8888, false)
-                                        ?: throw IllegalStateException("bitmap copy failed")
-                                shareWeatherCardImage(context, copy)
+                                // toImageBitmap 需要在主线程读取 GraphicsLayer 渲染结果；
+                                // 之后的位图拷贝、PNG 压缩与文件写全部移到后台，避免卡住 UI 线程
+                                val image = graphicsLayer.toImageBitmap()
+                                val uri =
+                                    withContext(Dispatchers.Default) {
+                                        raw = image.asAndroidBitmap()
+                                        // 硬件位图无法 compress；统一拷成软件 ARGB_8888 再导出
+                                        copy =
+                                            raw?.copy(Bitmap.Config.ARGB_8888, false)
+                                                ?: throw IllegalStateException("bitmap copy failed")
+                                        withContext(Dispatchers.IO) {
+                                            writeShareCardImage(context, copy!!)
+                                        }
+                                    }
+                                launchShareCard(context, uri)
                                 onDismiss()
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (_: Exception) {
                                 Toast
                                     .makeText(
@@ -276,6 +291,7 @@ fun ShareWeatherCardDialog(
                                         Toast.LENGTH_SHORT,
                                     ).show()
                             } finally {
+                                // 导出结束（无论成败）立即回收，避免大图滞留内存
                                 copy?.recycle()
                                 raw?.recycle()
                                 sharing = false
@@ -319,21 +335,28 @@ private fun shareBearArtwork(snapshot: WeatherSnapshot): BearArtwork {
     }
 }
 
-private fun shareWeatherCardImage(
+/** 压缩并写入缓存目录（IO 线程调用），返回可分享的 content URI。 */
+private fun writeShareCardImage(
     context: Context,
     bitmap: Bitmap,
-) {
+): Uri {
     val dir = File(context.cacheDir, "share").apply { mkdirs() }
     val file = File(dir, "weather_card.png")
     FileOutputStream(file).use { out ->
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
     }
-    val uri =
-        FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file,
-        )
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file,
+    )
+}
+
+/** 拉起系统分享面板（主线程调用）。 */
+private fun launchShareCard(
+    context: Context,
+    uri: Uri,
+) {
     val send =
         Intent(Intent.ACTION_SEND).apply {
             type = "image/png"

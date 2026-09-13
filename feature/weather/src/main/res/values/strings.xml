@@ -29,6 +29,7 @@
     <string name="cd_play">播放</string>
     <string name="cd_precip_chart">逐小时降水量柱状图，峰值 %1$s 毫米</string>
     <string name="cd_radar_echo">雷达回波</string>
+    <string name="cd_radar_frame_time">雷达帧时间 %1$s</string>
     <string name="cd_refresh_cloud">刷新云图</string>
     <string name="cd_refresh_radar">刷新雷达</string>
     <string name="cd_settings">设置</string>
@@ -80,6 +81,8 @@
     <string name="history_days_count">%1$d天</string>
     <string name="history_empty_day">选择一个日期，查看当天天气</string>
     <string name="history_empty_range">选择起止日期后点查询，查看区间统计</string>
+    <string name="history_idle_day">尚未查询，先选择日期查看当天历史天气</string>
+    <string name="history_idle_range">尚未查询，选择起止日期后点「查询」查看区间统计</string>
     <string name="history_failed">该日期暂无数据</string>
     <string name="history_meta_humidity">湿度 %1$s</string>
     <string name="history_meta_precip">降水 %1$s</string>
@@ -156,6 +159,10 @@
     <string name="metric_wind_dir">风向</string>
     <string name="metric_wind_short">风速</string>
     <string name="metric_wind_unit">风速 (km/h)</string>
+    <string name="unit_km">km</string>
+    <string name="unit_kmh">km/h</string>
+    <string name="unit_hpa">hPa</string>
+    <string name="unit_mm">mm</string>
     <string name="nighttime">夜间</string>
     <string name="offline_cached">离线 · 显示缓存天气</string>
     <string name="offline_updated">离线 · %1$s 更新</string>

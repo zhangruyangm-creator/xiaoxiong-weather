@@ -113,6 +113,54 @@ class WeatherViewModelSelectCityTest {
         }
 
     @Test
+    fun cachePublishLate_doesNotOverwriteNetworkResult() =
+        runTest {
+            val city = WeatherFixtures.city("济南")
+            val cached = snapshotFor(city, temp = 5.0)
+            val fresh = snapshotFor(city, temp = 25.0)
+            val cache =
+                FakeWeatherCache().apply {
+                    put(city, cached, savedAt = 1_700_000_000_000L)
+                }
+            val debugStore = FakeDebugWeatherSource()
+            // 只拦第一次 getOnce（缓存发布的 presentWeather），模拟缓存发布挂起；
+            // 网络发布不受影响，会先完成
+            val gate = CompletableDeferred<Unit>()
+            debugStore.getOnceGates += gate
+            val vm =
+                createTestViewModel(
+                    RecordingFetcher(weatherBlock = { fresh }),
+                    cache = cache,
+                    debugWeatherStore = debugStore,
+                ).vm
+
+            vm.selectCity(city)
+            advanceUntilIdle()
+
+            // 网络结果已发布
+            assertEquals(
+                25.0,
+                vm.uiState.value.weather
+                    ?.current
+                    ?.temperatureC,
+            )
+            assertEquals(false, vm.uiState.value.isLoadingWeather)
+
+            // 放行晚到的缓存发布：不得反向覆盖已成功的网络结果
+            gate.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(
+                25.0,
+                vm.uiState.value.weather
+                    ?.current
+                    ?.temperatureC,
+            )
+            assertFalse(vm.uiState.value.isLoadingWeather)
+            assertFalse(vm.uiState.value.isOffline)
+        }
+
+    @Test
     fun selectCity_cancelsPendingLocateAndDropsStaleFetch() =
         runTest {
             val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)

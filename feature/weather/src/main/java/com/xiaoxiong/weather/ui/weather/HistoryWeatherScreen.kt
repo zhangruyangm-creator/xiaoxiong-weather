@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.weather
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +68,7 @@ import com.xiaoxiong.weather.util.formatDateLabel
 import com.xiaoxiong.weather.util.formatTemperature
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 private enum class HistoryQueryMode { DAY, RANGE }
 
@@ -90,13 +93,15 @@ fun HistoryWeatherScreen(
     onFetchRange: (LocalDate, LocalDate) -> Unit,
     onBack: () -> Unit,
 ) {
-    var mode by remember { mutableStateOf(HistoryQueryMode.DAY) }
-    var pickedDay by remember { mutableStateOf<String?>(null) }
-    var rangeStart by remember { mutableStateOf<String?>(null) }
-    var rangeEnd by remember { mutableStateOf<String?>(null) }
+    // 页面级 UI 状态跨进程重建保留：枚举存 name，日期均以 ISO 字符串保存
+    var modeName by rememberSaveable { mutableStateOf(HistoryQueryMode.DAY.name) }
+    val mode = HistoryQueryMode.entries.firstOrNull { it.name == modeName } ?: HistoryQueryMode.DAY
+    var pickedDay by rememberSaveable { mutableStateOf<String?>(null) }
+    var rangeStart by rememberSaveable { mutableStateOf<String?>(null) }
+    var rangeEnd by rememberSaveable { mutableStateOf<String?>(null) }
     // 查询键提升到页面层：切换单日/区间模式时 RangeQueryContent 会销毁重建，
     // 放在内部会丢失，导致切回区间模式后已有结果显示为空
-    var rangeQueriedKey by remember { mutableStateOf<String?>(null) }
+    var rangeQueriedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var showDayPicker by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -156,14 +161,14 @@ fun HistoryWeatherScreen(
                 ) {
                     SegmentedButton(
                         selected = mode == HistoryQueryMode.DAY,
-                        onClick = { mode = HistoryQueryMode.DAY },
+                        onClick = { modeName = HistoryQueryMode.DAY.name },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     ) {
                         Text(stringResource(R.string.history_mode_day))
                     }
                     SegmentedButton(
                         selected = mode == HistoryQueryMode.RANGE,
-                        onClick = { mode = HistoryQueryMode.RANGE },
+                        onClick = { modeName = HistoryQueryMode.RANGE.name },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     ) {
                         Text(stringResource(R.string.history_mode_range))
@@ -179,6 +184,7 @@ fun HistoryWeatherScreen(
                         failed = historyFailed,
                         networkFailed = historyNetworkFailed,
                         onPick = { showDayPicker = true },
+                        onRetryDate = onPickDate,
                     )
                 } else {
                     RangeQueryContent(
@@ -229,7 +235,12 @@ private fun DayQueryContent(
     failed: Boolean,
     networkFailed: Boolean,
     onPick: () -> Unit,
+    onRetryDate: (LocalDate) -> Unit,
 ) {
+    val pickedDate =
+        remember(pickedDay) {
+            pickedDay?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -256,13 +267,23 @@ private fun DayQueryContent(
                                 R.string.history_failed
                             },
                         ),
-                    onRetry = onPick,
+                    // 已选过日期时直接按原日期重试，不再重开日历
+                    retryLabelRes =
+                        if (pickedDate != null) {
+                            R.string.label_retry
+                        } else {
+                            R.string.history_retry
+                        },
+                    onRetry = { pickedDate?.let(onRetryDate) ?: onPick() },
                 )
             }
         } else if (weather != null) {
             item {
                 HistoryDayCard(weather = weather, tempUnit = temperatureUnit)
             }
+        } else if (pickedDate == null) {
+            // 未查询：明确引导先选日期，而不是误报「无数据」
+            item { StatusRow(text = stringResource(R.string.history_idle_day)) }
         } else {
             item { StatusRow(text = stringResource(R.string.history_empty_day)) }
         }
@@ -297,12 +318,19 @@ private fun RangeQueryContent(
     val tooLong = rangeDays != null && rangeDays > MAX_RANGE_DAYS
     val canQuery = rangeDays != null && !tooLong
     val currentKey = if (startDate != null && endDate != null) "$startDate|$endDate" else null
+    // 当前所选区间是否已查询：区分「未查询」与「查过但无数据/失败」
+    val queried = currentKey != null && currentKey == queriedKey
     // 仅展示「与当前所选区间一致」的查询结果，避免改日期后残留旧区间统计
-    val showResult = summary != null && currentKey != null && currentKey == queriedKey
+    val showResult = summary != null && queried
     // 长区间按月聚合展示，短区间保留逐日明细
     val useMonthly = rangeDays != null && rangeDays > RANGE_DAILY_DETAIL_MAX_DAYS
     // 当前展开的月份（"yyyy-MM"）；点击行展开当月明细，再点收回
-    var expandedMonth by remember { mutableStateOf<String?>(null) }
+    var expandedMonth by rememberSaveable { mutableStateOf<String?>(null) }
+    // 按月展开时避免每次重组都 O(days) 过滤
+    val daysByMonth =
+        remember(summary) {
+            historyDaysByMonth(summary?.days.orEmpty())
+        }
 
     fun runQuery() {
         if (canQuery) {
@@ -352,7 +380,7 @@ private fun RangeQueryContent(
         }
         if (isLoading) {
             item { LoadingRow() }
-        } else if (failed || networkFailed) {
+        } else if (queried && (failed || networkFailed)) {
             item {
                 FailedCard(
                     message =
@@ -467,14 +495,13 @@ private fun RangeQueryContent(
                         onClick = { expandedMonth = if (expanded) null else key },
                     )
                     if (expanded) {
-                        summary.days
-                            .filter { it.date.startsWith(key) }
-                            .forEach { day ->
-                                HistoryDayRow(day = day, tempUnit = temperatureUnit)
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
-                                )
-                            }
+                        // groupBy 结果已按月份键缓存，展开时不再逐日 startsWith 过滤
+                        daysByMonth[key].orEmpty().forEach { day ->
+                            HistoryDayRow(day = day, tempUnit = temperatureUnit)
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                            )
+                        }
                     }
                 }
             } else if (summary.days.isNotEmpty()) {
@@ -523,6 +550,9 @@ private fun RangeQueryContent(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                 }
             }
+        } else if (!queried) {
+            // 未查询：引导用户完成查询，而不是误报「区间无数据」
+            item { StatusRow(text = stringResource(R.string.history_idle_range)) }
         } else {
             item { StatusRow(text = stringResource(R.string.history_empty_range)) }
         }
@@ -579,6 +609,7 @@ private fun LoadingRow() {
 private fun FailedCard(
     message: String,
     onRetry: () -> Unit,
+    @StringRes retryLabelRes: Int = R.string.history_retry,
 ) {
     SoftCard(modifier = Modifier.fillMaxWidth()) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -591,7 +622,7 @@ private fun FailedCard(
             )
             Spacer(modifier = Modifier.height(10.dp))
             TextButton(onClick = onRetry) {
-                Text(stringResource(R.string.history_retry))
+                Text(stringResource(retryLabelRes))
             }
         }
     }
@@ -656,7 +687,7 @@ private fun HistoryDayRow(
     day: HistoryWeather,
     tempUnit: TemperatureUnit,
 ) {
-    val precip = day.precipSumMm?.let { "%.1f".format(it) } ?: "--"
+    val precip = day.precipSumMm?.let { String.format(Locale.US, "%.1f", it) } ?: "--"
     Row(
         modifier =
             Modifier
@@ -744,7 +775,7 @@ private fun HistoryMonthRow(
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-            text = month.totalPrecipMm?.let { "%.1f".format(it) } ?: "--",
+            text = month.totalPrecipMm?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(46.dp),
@@ -774,7 +805,10 @@ private const val MAX_RANGE_DAYS = 3660L
 private const val RANGE_DAILY_DETAIL_MAX_DAYS = 62L
 
 /** 月份 key 统一补零（"2026-08"），与 HistoryWeather.date 的 ISO 前缀匹配。 */
-private fun monthKey(
+internal fun monthKey(
     year: Int,
     month: Int,
-): String = "%d-%02d".format(year, month)
+): String = String.format(Locale.US, "%d-%02d", year, month)
+
+/** 逐日明细按月份（ISO 日期的前 7 位）分组，供按月展开复用，避免每次重组过滤。 */
+internal fun historyDaysByMonth(days: List<HistoryWeather>): Map<String, List<HistoryWeather>> = days.groupBy { it.date.take(7) }

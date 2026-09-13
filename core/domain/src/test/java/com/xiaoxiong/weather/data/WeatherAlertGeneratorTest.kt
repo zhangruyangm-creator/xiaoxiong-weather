@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.data
 
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.fixtures.WeatherFixtures
+import com.xiaoxiong.weather.util.WeatherCodes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -430,6 +431,70 @@ class WeatherAlertGeneratorTest {
                     listOf(WeatherFixtures.daily(uvIndexMax = 9.0)),
                     null,
                 ).any { it.kind == AlertKind.UV },
+        )
+    }
+
+    @Test
+    fun uv_unifiedDaytimeMax_nightSilentEvenWithHighCurrentUv() {
+        // 白天用当日最大（当前实测低值不误报「无需防晒」）
+        val day =
+            WeatherAlertGenerator
+                .specs(
+                    WeatherFixtures.current(isDay = true),
+                    emptyList(),
+                    listOf(WeatherFixtures.daily(uvIndexMax = WeatherCodes.UV_VERY_HIGH)),
+                    WeatherFixtures.air(uvIndex = 1.0),
+                ).first { it.kind == AlertKind.UV }
+        assertEquals(WeatherCodes.UV_VERY_HIGH, day.messageArg as Double, 1e-6)
+
+        // 夜间统一不提示，即便当前 UV 很高
+        assertFalse(
+            WeatherAlertGenerator
+                .specs(
+                    WeatherFixtures.current(isDay = false),
+                    emptyList(),
+                    listOf(WeatherFixtures.daily(uvIndexMax = WeatherCodes.UV_EXTREME)),
+                    WeatherFixtures.air(uvIndex = WeatherCodes.UV_EXTREME),
+                ).any { it.kind == AlertKind.UV },
+        )
+    }
+
+    @Test
+    fun alertThresholds_matchWeatherCodesConstants() {
+        assertEquals(
+            AlertSeverity.WATCH,
+            first(WeatherFixtures.current(windSpeedKmh = WeatherCodes.WIND_WATCH_KMH)).severity,
+        )
+        assertEquals(
+            AlertSeverity.WARNING,
+            first(WeatherFixtures.current(windGustsKmh = WeatherCodes.WIND_WARNING_KMH)).severity,
+        )
+        assertEquals(
+            AlertKind.HEAT,
+            first(WeatherFixtures.current(apparentTemperatureC = WeatherCodes.HEAT_WARNING_TEMP_C)).kind,
+        )
+        // AQI 为严格大于提醒线
+        assertFalse(
+            kindsOf(
+                air = WeatherFixtures.air(europeanAqi = WeatherCodes.AQI_WATCH),
+            ).contains(AlertKind.AIR_QUALITY),
+        )
+        assertEquals(
+            AlertKind.AIR_QUALITY,
+            first(air = WeatherFixtures.air(europeanAqi = WeatherCodes.AQI_WATCH + 1)).kind,
+        )
+        assertEquals(
+            AlertSeverity.WARNING,
+            first(air = WeatherFixtures.air(europeanAqi = WeatherCodes.AQI_WARNING + 1)).severity,
+        )
+        // UV 档位与常量对齐
+        assertEquals(
+            AlertSeverity.WATCH,
+            first(air = WeatherFixtures.air(uvIndex = WeatherCodes.UV_VERY_HIGH)).severity,
+        )
+        assertEquals(
+            AlertSeverity.WARNING,
+            first(air = WeatherFixtures.air(uvIndex = WeatherCodes.UV_EXTREME)).severity,
         )
     }
 

@@ -19,6 +19,11 @@ import com.xiaoxiong.weather.data.WeatherNotifyDedupStore
 import com.xiaoxiong.weather.data.WeatherRepository
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
 import com.xiaoxiong.weather.domain.CitySearchUseCase
+import com.xiaoxiong.weather.game.GameEntry
+import com.xiaoxiong.weather.game.loadGameEntryProviders
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.io.File
@@ -109,6 +114,19 @@ class AppContainer(
             repository = weatherRepository,
             locationHelper = locationHelper,
         )
+    }
+
+    private val _gameEntries = MutableStateFlow<List<GameEntry>>(emptyList())
+
+    /** ServiceLoader 装配的游戏入口；由 [preloadGameEntries] 在后台填充，WeatherScreen 订阅读取。 */
+    val gameEntries: StateFlow<List<GameEntry>> = _gameEntries.asStateFlow()
+
+    /**
+     * 后台预载游戏入口（保持 `-Pgames` 语义：未选中的模块不在 classpath，结果自然为空）。
+     * 避免 MainActivity 首帧在主线程做 ServiceLoader 扫描。
+     */
+    suspend fun preloadGameEntries() {
+        _gameEntries.value = loadGameEntryProviders()
     }
 }
 

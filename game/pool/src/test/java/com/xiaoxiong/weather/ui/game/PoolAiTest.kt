@@ -26,14 +26,21 @@ class PoolAiTest {
 
     @Test
     fun plan_findsStraightShotToBottomPocket() {
-        val cue = ball(0, CUE, table.centerX, table.top + 0.35f)
-        val target = ball(1, SOLID, table.centerX, table.top + 1.0f)
+        // 目标球在「右下角袋 → 台心」连线上，白球在其正后方：直线球必进右下角袋
+        val corner = table.pockets.first { it.corner && it.x == table.right && it.y == table.bottom }
+        val dx = table.centerX - corner.x
+        val dy = table.centerY - corner.y
+        val len = kotlin.math.hypot(dx, dy)
+        val ux = dx / len
+        val uy = dy / len
+        val target = ball(1, SOLID, corner.x + ux * 0.6f, corner.y + uy * 0.6f)
+        val cue = ball(0, CUE, corner.x + ux * 1.1f, corner.y + uy * 1.1f)
         val state = PoolMatchState(openTable = true, turn = PLAYER)
         val plan = PoolAi.plan(listOf(cue, target), table, state, Difficulty.MASTER, Random(42))
         assertNotNull(plan)
         assertEquals(1, plan!!.targetBallId)
-        // 目标球与底中袋对齐 → 瞄准应接近正下方（+π/2）
-        val expected = atan2((table.bottom - target.y), (table.centerX - target.x))
+        assertEquals(table.pockets.indexOf(corner), plan.pocketIndex)
+        val expected = atan2((target.y - cue.y), (target.x - cue.x))
         assertEquals(expected, plan.angle, 0.05f)
     }
 

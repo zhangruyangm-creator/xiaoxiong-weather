@@ -21,6 +21,9 @@
     <string name="bear_maze_failed">Challenge failed</string>
     <string name="bear_maze_failed_detail">Reached wave %1$d · %2$d/%3$d moves</string>
     <string name="bear_maze_hud">Honey %1$d/%2$d · Keys %3$d · Moves %4$d/%5$d</string>
+    <string name="bear_maze_chip_honey">Honey %1$d/%2$d</string>
+    <string name="bear_maze_chip_keys">Keys %1$d</string>
+    <string name="bear_maze_chip_moves">Moves %1$d/%2$d</string>
     <string name="bear_maze_levels">Levels</string>
     <string name="bear_maze_need_honey">Collect all the honey before you leave!</string>
     <string name="bear_maze_hint_none">No solution from here — try undo or restart</string>
@@ -45,4 +48,9 @@
     <string name="cd_close_game">Exit game</string>
     <string name="cd_maze_hint">Show next step</string>
     <string name="cd_maze_undo">Undo last move</string>
+    <string name="cd_maze_pause">Pause</string>
+    <string name="cd_maze_up">Move up</string>
+    <string name="cd_maze_down">Move down</string>
+    <string name="cd_maze_left">Move left</string>
+    <string name="cd_maze_right">Move right</string>
 </resources>

@@ -23,7 +23,9 @@ import kotlin.math.roundToInt
  * - 免密钥、全球覆盖；官方要求可识别 User-Agent（见 [MET_USER_AGENT]）
  * - 缺失字段（空气质量/体感/阵风/露点/能见度/日出日落/紫外线）保持 null，
  *   由展示层按「无数据」处理，相关预警自然不生成
- * - 响应时间为 UTC，按城市经度近似时区换算为本地墙钟时间（仅主源故障时使用）
+ * - 响应时间为 UTC，按城市时区换算为本地墙钟时间（仅主源故障时使用）；
+ *   时区优先取 [City.timezone]（地理编码回填），中国城市无时区时固定用 Asia/Shanghai，
+ *   其余退回按经度近似
  */
 class MetNorwayFetcher(
     private val client: OkHttpClient,
@@ -63,7 +65,7 @@ class MetNorwayFetcher(
         city: City,
         now: Instant,
     ): WeatherSnapshot {
-        val zone = approximateZone(city.longitude)
+        val zone = resolveZone(city)
         val points =
             response.properties
                 ?.timeseries
@@ -205,6 +207,34 @@ internal fun approximateZone(longitude: Double): ZoneId {
 }
 
 /**
+ * 城市时区解析优先级：
+ * 1. [City.timezone]（Open-Meteo 地理编码返回的 IANA 时区）；
+ * 2. 中国城市固定 Asia/Shanghai——中国横跨五个地理时区但统一使用北京时间，
+ *    按经度近似会让西部（如乌鲁木齐）偏 2 小时；
+ * 3. 其余按经度近似（每 15° 一小时）。
+ */
+internal fun resolveZone(city: City): ZoneId {
+    city.timezone
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { id -> runCatching { ZoneId.of(id) }.getOrNull() }
+        ?.let { return it }
+    if (isChinaCity(city)) return CHINA_ZONE
+    return approximateZone(city.longitude)
+}
+
+/** 按国家名判断是否中国城市（地理编码 `language=zh` 返回「中国」，兼容英文/代码写法）。 */
+internal fun isChinaCity(city: City): Boolean {
+    val country = city.country?.trim().orEmpty()
+    return country.equals("中国", ignoreCase = true) ||
+        country.equals("China", ignoreCase = true) ||
+        country.equals("CN", ignoreCase = true) ||
+        country.equals("CHN", ignoreCase = true)
+}
+
+private val CHINA_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
+
+/**
  * MET Norway symbol_code → WMO 天气码。先去掉 `_day/_night/_polartwilight` 后缀，
  * 未知代码返回 null（展示层按无数据/阴天处理）。
  */
@@ -310,5 +340,10 @@ private fun probabilityForHour(entry: MetNorwayTimeseriesEntry): Double? =
         ?.probabilityOfPrecipitation
         ?: entry.data
             ?.next6Hours
+            ?.details
+            ?.probabilityOfPrecipitation
+        // 长步长序列只有 next_12_hours：概率是时段值（百分比），不随时长折算
+        ?: entry.data
+            ?.next12Hours
             ?.details
             ?.probabilityOfPrecipitation

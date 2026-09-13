@@ -9,6 +9,25 @@ import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
+/** 无日出日落数据时的昼夜兜底判定：6:00–17:59 为白天，18:00 起为夜间。 */
+fun isDaytimeHour(hour: Int): Boolean = hour in 6 until 18
+
+/** 本地/无时区格式：避免每次解析都重建 `DateTimeFormatter`。 */
+private val localDateTimeFormats =
+    listOf(
+        DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"),
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),
+        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"),
+    )
+
+/** 带时区偏移的 ISO 格式：如 2026-08-21T19:30+02:00 / …Z。 */
+private val offsetDateTimeFormats =
+    listOf(
+        DateTimeFormatter.ISO_OFFSET_DATE_TIME,
+        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX"),
+    )
+
 fun hourKey(isoTime: String): String = isoTime.take(13) // yyyy-MM-ddTHH
 
 fun isSameHour(
@@ -89,14 +108,7 @@ fun hoursBetween(
 }
 
 fun parseFlexibleDateTime(value: String): LocalDateTime? {
-    val candidates =
-        listOf(
-            DateTimeFormatter.ISO_LOCAL_DATE_TIME,
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"),
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"),
-        )
-    for (formatter in candidates) {
+    for (formatter in localDateTimeFormats) {
         try {
             return LocalDateTime.parse(value, formatter)
         } catch (_: DateTimeParseException) {
@@ -105,12 +117,7 @@ fun parseFlexibleDateTime(value: String): LocalDateTime? {
     }
     // 带时区偏移的 ISO（如 2026-08-21T19:30+02:00 / …Z）：转成系统时区后的本地时刻，
     // 避免 indexOfCurrentHour 在 hourKey 匹配不到时解析失败退化为取第 0 小时。
-    val offsetFormats =
-        listOf(
-            DateTimeFormatter.ISO_OFFSET_DATE_TIME,
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX"),
-        )
-    for (formatter in offsetFormats) {
+    for (formatter in offsetDateTimeFormats) {
         try {
             val odt = OffsetDateTime.parse(value, formatter)
             return odt.atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()

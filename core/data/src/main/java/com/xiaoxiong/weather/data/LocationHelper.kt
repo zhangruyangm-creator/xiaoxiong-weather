@@ -73,7 +73,8 @@ class LocationHelper(
      * 规则：
      * - 最近 [REUSE_FRESH_MS] 内定位过则直接复用，零定位开销；
      * - 否则重新完整定位（坐标 + 逆地理）并刷新缓存；
-     * - 定位失败时退回最近一次结果（即使超时），保证后台路径不空转。
+     * - 定位失败时退回最近一次结果，但仅限 [LAST_LOCATION_FALLBACK_MAX_AGE_MS] 内，
+     *   超期视为定位失败——避免 Worker / 小组件长期使用数月前的坐标。
      */
     @SuppressLint("MissingPermission")
     suspend fun resolveCurrentCityReuseLast(): City =
@@ -717,6 +718,8 @@ class LocationHelper(
         if (parts.size < 7) return null
         val lat = parts[0].toDoubleOrNull() ?: return null
         val lon = parts[1].toDoubleOrNull() ?: return null
+        val savedAt = parts[6].toLongOrNull() ?: return null
+        if (!isUsableLastLocationFallback(savedAt, System.currentTimeMillis())) return null
         return City(
             id = (("loc-$lat-$lon").hashCode()).toLong(),
             name = parts[2],
@@ -822,3 +825,16 @@ class LocationHelper(
             Regex("[\u4e00-\u9fff]{1,8}(?:自治县|新区|林区|区|县|旗)")
     }
 }
+
+/** 后台定位失败时回退旧坐标的最大年龄：超期视为定位失败（返回 null）。 */
+internal const val LAST_LOCATION_FALLBACK_MAX_AGE_MS = 24L * 60 * 60 * 1000
+
+/**
+ * 最近一次定位结果能否作为后台失败回退：年龄必须落在 `[0, maxAgeMs]`。
+ * 未来时间戳（时钟回拨）与超期记录都不可用，避免长期使用陈旧坐标。
+ */
+internal fun isUsableLastLocationFallback(
+    savedAtEpochMs: Long,
+    nowEpochMs: Long,
+    maxAgeMs: Long = LAST_LOCATION_FALLBACK_MAX_AGE_MS,
+): Boolean = isWithinFreshnessWindow(savedAtEpochMs, nowEpochMs, maxAgeMs)

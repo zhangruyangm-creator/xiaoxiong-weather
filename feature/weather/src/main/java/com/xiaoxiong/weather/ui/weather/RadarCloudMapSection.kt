@@ -36,6 +36,8 @@ fun RadarCloudMapSection(
     snapshot: WeatherSnapshot,
     repository: RadarMapRepository,
     modifier: Modifier = Modifier,
+    /** 游戏等场景活跃时透传给雷达：停止轮播与预取 */
+    paused: Boolean = false,
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -91,6 +93,7 @@ fun RadarCloudMapSection(
                     city = city,
                     repository = repository,
                     timezoneId = snapshot.timezone,
+                    paused = paused,
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 RadarIntensityLegend()

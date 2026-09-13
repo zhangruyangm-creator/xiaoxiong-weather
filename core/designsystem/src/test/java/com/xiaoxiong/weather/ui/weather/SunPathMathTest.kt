@@ -10,6 +10,7 @@ import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import com.xiaoxiong.weather.resillustrations.R as IllustR
 
 class SunPathMathTest {
@@ -56,6 +57,37 @@ class SunPathMathTest {
     @Test
     fun invalidWindow_returnsNull() {
         assertNull(sunPathPhase(sunrise, sunset, sunrise))
+        // 极昼/极夜等日出==日落窗口：返回 null，由调用方按无日照兜底
+        val same = LocalDateTime.of(2026, 6, 21, 12, 0)
+        assertNull(sunPathPhase(same, same, same))
+    }
+
+    @Test
+    fun dstSpringForward_zoneIdUsesRealElapsedTime() {
+        // 2026-03-08 美国东部 02:00 → 03:00（跳过一小时）：昨夜 18:30 → 今晨 06:30
+        val sunrise = LocalDateTime.of(2026, 3, 8, 6, 30)
+        val sunset = LocalDateTime.of(2026, 3, 8, 18, 30)
+        val now = LocalDateTime.of(2026, 3, 8, 3, 0)
+        // 默认 zoneId=null：沿用 naive 口径，夜弧 12h、已过 8.5h
+        assertEquals(8.5f / 12f, sunPathPhase(now, sunrise, sunset)!!.progress, 0.001f)
+        // 真实时区：夜弧 11h（少 1h）、已过 7.5h
+        val zoned = sunPathPhase(now, sunrise, sunset, ZoneId.of("America/New_York"))!!
+        assertFalse(zoned.isDay)
+        assertEquals(7.5f / 11f, zoned.progress, 0.001f)
+    }
+
+    @Test
+    fun dstFallBack_zoneIdUsesRealElapsedTime() {
+        // 2026-11-01 美国东部 02:00 EDT → 01:00 EST（回拨一小时）：昨夜 17:30 → 今晨 06:30
+        val sunrise = LocalDateTime.of(2026, 11, 1, 6, 30)
+        val sunset = LocalDateTime.of(2026, 11, 1, 17, 30)
+        val now = LocalDateTime.of(2026, 11, 1, 3, 0)
+        // 默认 zoneId=null：夜弧 13h、已过 9.5h
+        assertEquals(9.5f / 13f, sunPathPhase(now, sunrise, sunset)!!.progress, 0.001f)
+        // 真实时区：夜弧 14h（多 1h）、已过 10.5h
+        val zoned = sunPathPhase(now, sunrise, sunset, ZoneId.of("America/New_York"))!!
+        assertFalse(zoned.isDay)
+        assertEquals(10.5f / 14f, zoned.progress, 0.001f)
     }
 
     @Test

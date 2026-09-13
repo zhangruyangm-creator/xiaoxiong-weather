@@ -79,15 +79,40 @@ class NetworkMonitor(
 }
 
 /**
- * 当前默认网络是否走 Wi-Fi（VPN 网络按底层传输判断）。
- * 无活动网络或未知时返回 false（视为蜂窝，走雷达帧懒加载）。
+ * 当前设备是否具备可用的 Wi-Fi 传输。
+ *
+ * 不能只看默认网络：VPN 生效时默认网络是 VPN（只有 TRANSPORT_VPN），
+ * 底层 Wi-Fi 仍在 [ConnectivityManager.allNetworks] 里。因此遍历所有具备
+ * 上网能力（INTERNET）的生效网络，任一携带 WIFI transport 即视为 Wi-Fi。
+ * 无活动网络、无权限或系统异常时返回 false（保守回退蜂窝语义，走雷达帧懒加载）。
  */
 fun Context.isWifiConnected(): Boolean {
     val cm =
         applicationContext
             .getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return false
-    val network = cm.activeNetwork ?: return false
-    val capabilities = cm.getNetworkCapabilities(network) ?: return false
-    return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    val networks =
+        try {
+            cm.allNetworks
+        } catch (e: Exception) {
+            // 缺少 ACCESS_NETWORK_STATE 等系统限制：按蜂窝处理
+            return false
+        }
+    return networks.any { network ->
+        val capabilities =
+            try {
+                cm.getNetworkCapabilities(network)
+            } catch (e: Exception) {
+                null
+            }
+        isWifiTransportCapability(capabilities)
+    }
 }
+
+/**
+ * 单张网络能力是否是「生效的 Wi-Fi」：需具备 INTERNET（排除仅本地/未生效网络），
+ * 且携带 WIFI transport（VPN 的底层 Wi-Fi 网络同样满足）。
+ */
+internal fun isWifiTransportCapability(capabilities: NetworkCapabilities?): Boolean =
+    capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)

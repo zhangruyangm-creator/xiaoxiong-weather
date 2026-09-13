@@ -30,9 +30,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.ui.theme.AccentCoral
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 兼容重载：调用方仍传整个 [WeatherUiState] 时，提取最小字段后交给下面的实现。
+ * 新调用点请直接传字段，减少无关状态变化引发的重组。
+ */
 @Composable
 fun WeatherTopBar(
     viewModel: WeatherViewModel,
@@ -43,9 +47,39 @@ fun WeatherTopBar(
     onOpenSettings: () -> Unit,
     onTitleSecretTap: () -> Unit = {},
 ) {
+    WeatherTopBar(
+        viewModel = viewModel,
+        selectedCity = state.selectedCity,
+        lastUpdatedText = state.lastUpdatedText,
+        isOffline = state.isOffline,
+        usingCurrentLocation = state.usingCurrentLocation,
+        hasWeather = state.weather != null,
+        onLocate = onLocate,
+        onToggleFavorite = onToggleFavorite,
+        onShare = onShare,
+        onOpenSettings = onOpenSettings,
+        onTitleSecretTap = onTitleSecretTap,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WeatherTopBar(
+    viewModel: WeatherViewModel,
+    selectedCity: City?,
+    lastUpdatedText: String?,
+    isOffline: Boolean,
+    usingCurrentLocation: Boolean,
+    hasWeather: Boolean,
+    onLocate: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onShare: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onTitleSecretTap: () -> Unit = {},
+) {
     // 收藏状态只在顶栏星标使用：组件内收集，收藏变化仅重组顶栏
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
-    val isFavorite = viewModel.isFavorite(state.selectedCity, favorites)
+    val isFavorite = viewModel.isFavorite(selectedCity, favorites)
     TopAppBar(
         colors =
             TopAppBarDefaults.topAppBarColors(
@@ -71,16 +105,16 @@ fun WeatherTopBar(
                                 })
                             },
                 )
-                val updated = state.lastUpdatedText
+                val updated = lastUpdatedText
                 val subtitle =
                     when {
-                        state.isOffline && updated != null ->
+                        isOffline && updated != null ->
                             stringResource(R.string.subtitle_offline_updated, updated)
-                        updated != null && state.usingCurrentLocation ->
+                        updated != null && usingCurrentLocation ->
                             stringResource(R.string.subtitle_location_updated, updated)
                         updated != null ->
                             stringResource(R.string.subtitle_updated_refresh, updated)
-                        state.usingCurrentLocation ->
+                        usingCurrentLocation ->
                             stringResource(R.string.subtitle_current_location)
                         else -> stringResource(R.string.subtitle_search_world)
                     }
@@ -105,7 +139,7 @@ fun WeatherTopBar(
                 }
                 RoundAction(
                     onClick = onToggleFavorite,
-                    enabled = state.selectedCity != null,
+                    enabled = selectedCity != null,
                 ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Remove else Icons.Filled.Add,
@@ -127,7 +161,7 @@ fun WeatherTopBar(
                 }
                 RoundAction(
                     onClick = onShare,
-                    enabled = state.weather != null,
+                    enabled = hasWeather,
                 ) {
                     Icon(
                         Icons.Default.Share,

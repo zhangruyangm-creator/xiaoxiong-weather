@@ -513,8 +513,8 @@ object PoolPhysics {
     private fun resolveBallBall(
         a: PoolBall,
         b: PoolBall,
-        nx: Float,
-        ny: Float,
+        fallbackNx: Float,
+        fallbackNy: Float,
     ) {
         // 位置纠偏（数值误差导致的少量重叠）
         val dx = b.x - a.x
@@ -527,6 +527,17 @@ object PoolPhysics {
             a.y -= (dy / dist) * push
             b.x += (dx / dist) * push
             b.y += (dy / dist) * push
+        }
+        // 法线必须取「推进到接触时刻之后」的实际球心连线：hit.n 是 TOI 前的旧方向，
+        // 切球时偏差可达数十度，会让目标球按错误方向分离（瞄准线对准却打不进）。
+        val nx: Float
+        val ny: Float
+        if (dist > 1e-6f) {
+            nx = dx / dist
+            ny = dy / dist
+        } else {
+            nx = fallbackNx
+            ny = fallbackNy
         }
         val vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny
         if (vn >= 0f) return
@@ -616,16 +627,26 @@ object PoolPhysics {
     ): Boolean {
         for (pocket in table.pockets) {
             val d = hypot(ball.x - pocket.x, ball.y - pocket.y)
-            // 角袋：球心进入袋口区域即落袋；中袋：需真正越过库线进袋，
-            // 否则贴库滚过中袋会被误捕获（阈值小于球半径）
-            val capture = if (pocket.corner) pocket.radius - ball.radius * 0.05f else ball.radius * 0.78f
-            if (d <= capture) {
+            // 角袋捕获半径贴近绘制洞口；中袋同样按洞口取，
+            // 让「瞄准线指向洞内」与「实际落袋」一致（贴库滚过洞口会被自然捕获）。
+            if (d <= pocketCaptureRadius(pocket, ball.radius)) {
                 ball.pocketIndex = table.pockets.indexOf(pocket)
                 return true
             }
         }
         return false
     }
+
+    /** 袋口捕获半径（物理与瞄准预测共用，保证辅助线「画到袋里」=「真能进」）。 */
+    fun pocketCaptureRadius(
+        pocket: PoolPocket,
+        ballRadius: Float,
+    ): Float =
+        if (pocket.corner) {
+            pocket.radius - ballRadius * 0.05f
+        } else {
+            pocket.radius * 0.85f
+        }
 
     // ---------------------------------------------------------------------
     // 供渲染/AI 的预测
@@ -675,6 +696,89 @@ object PoolPhysics {
         val x: Float,
         val y: Float,
         val distance: Float,
+    )
+
+    /**
+     * 目标球沿 [dirX]/[dirY] 出球后的路径预测：返回最早遇到的袋口、其它球或库边。
+     * 袋口判定与 [pocketCaptureRadius] 完全一致，辅助线端点即真实停点。
+     */
+    fun predictObjectPath(
+        balls: List<PoolBall>,
+        table: PoolTable,
+        originX: Float,
+        originY: Float,
+        dirX: Float,
+        dirY: Float,
+        radius: Float,
+        exclude: PoolBall?,
+        maxDistance: Float = PoolConfig.PLAY_HEIGHT * 2f,
+    ): ObjectPath {
+        var bestT = maxDistance
+        var pocket: PoolPocket? = null
+        var pocketIndex = -1
+        var blocker: PoolBall? = null
+
+        for ((index, p) in table.pockets.withIndex()) {
+            val capture = pocketCaptureRadius(p, radius)
+            val px = p.x - originX
+            val py = p.y - originY
+            val proj = px * dirX + py * dirY
+            if (proj < 0f) continue
+            val perp = abs(px * dirY - py * dirX)
+            if (perp > capture) continue
+            val t = proj - sqrt(max(0f, capture * capture - perp * perp))
+            if (t in 0f..bestT) {
+                bestT = t
+                pocket = p
+                pocketIndex = index
+                blocker = null
+            }
+        }
+
+        for (b in balls) {
+            if (b === exclude || !b.onTable) continue
+            val px = b.x - originX
+            val py = b.y - originY
+            val proj = px * dirX + py * dirY
+            if (proj <= 0f) continue
+            val perp = abs(px * dirY - py * dirX)
+            val r = radius + b.radius
+            if (perp > r) continue
+            val t = proj - sqrt(max(0f, r * r - perp * perp))
+            if (t in 0f..bestT) {
+                bestT = t
+                pocket = null
+                blocker = b
+            }
+        }
+
+        val railT = raycastRail(originX, originY, dirX, dirY, table, maxDistance)
+        val railDistance = railT?.let { (it - radius).coerceAtLeast(0f) }
+        if (railDistance != null && railDistance < bestT) {
+            bestT = railDistance
+            pocket = null
+            blocker = null
+        }
+
+        return ObjectPath(
+            endX = originX + dirX * bestT,
+            endY = originY + dirY * bestT,
+            distance = bestT,
+            pocket = pocket,
+            pocketIndex = pocketIndex,
+            blocker = blocker,
+            railDistance = railDistance,
+        )
+    }
+
+    data class ObjectPath(
+        val endX: Float,
+        val endY: Float,
+        val distance: Float,
+        val pocket: PoolPocket?,
+        val pocketIndex: Int,
+        val blocker: PoolBall?,
+        val railDistance: Float?,
     )
 
     /** 射线与库边线段的最近交点距离（用于瞄准线被库挡住的判断），无交点返回 null。 */

@@ -18,11 +18,18 @@ class PoolJumpTest {
             startMatch(PoolSide.PLAYER, seed = 1L)
         }
 
+    /** 一次出杆的挡球结果：最终位置 + 飞行中最大速度（速度 >0 即代表被撞到）。 */
+    private data class ShotOutcome(
+        val x: Float,
+        val y: Float,
+        val blockerMaxSpeed: Float,
+    )
+
     /**
      * 摆一个「白球 + 正前方挡球」的局面并以给定抬杆角出杆，
-     * 返回挡球最终位置（挡球位移即代表是否被撞到）。
+     * 返回挡球结果（挡球是否被撞到以最大速度判断，避免其回弹后停在原位附近造成误判）。
      */
-    private fun runShot(elevation: Float): Pair<Float, Float> {
+    private fun runShot(elevation: Float): ShotOutcome {
         val game = newGame()
         val cx = game.table.centerX
         game.balls.clear()
@@ -33,25 +40,28 @@ class PoolJumpTest {
         game.updateElevation(elevation)
         game.shoot((PI / 2).toFloat(), 1f)
         var t = 0f
+        var maxSpeed = 0f
         while (game.phase == PoolGame.Phase.SHOOTING && t < 5f) {
             game.tick(1f / 60f)
+            maxSpeed = maxOf(maxSpeed, kotlin.math.hypot(blocker.vx, blocker.vy))
             t += 1f / 60f
         }
-        return blocker.x to blocker.y
+        return ShotOutcome(blocker.x, blocker.y, maxSpeed)
     }
 
     @Test
     fun jumpShot_clearsBlockerWhileFlatShotHits() {
         val flat = runShot(0f)
-        // 平杆会撞上挡球并把它推走
-        assertTrue("flat shot should hit blocker: $flat", kotlin.math.abs(flat.second - (table.top + 0.65f)) > 0.05f)
+        // 平杆会撞上挡球并把它推走（高速）
+        assertTrue("flat shot should hit blocker hard: $flat", flat.blockerMaxSpeed > 5f)
 
         val jump = runShot(1f)
         // 跳球从挡球上方越过，挡球纹丝不动
         assertTrue(
             "jump shot should clear blocker: $jump",
-            PoolMath.approximately(jump.first, table.centerX, 1e-3f) &&
-                PoolMath.approximately(jump.second, table.top + 0.65f, 1e-3f),
+            PoolMath.approximately(jump.x, table.centerX, 1e-3f) &&
+                PoolMath.approximately(jump.y, table.top + 0.65f, 1e-3f) &&
+                jump.blockerMaxSpeed < 0.01f,
         )
     }
 

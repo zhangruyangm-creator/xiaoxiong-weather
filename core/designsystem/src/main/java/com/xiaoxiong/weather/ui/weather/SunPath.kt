@@ -1,9 +1,13 @@
 package com.xiaoxiong.weather.ui.weather
 
+import com.xiaoxiong.weather.util.isDaytimeHour
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 /**
@@ -43,21 +47,38 @@ fun dailyVariantIndex(
     return ((h % size) + size).toInt() % size
 }
 
+/**
+ * [zoneId] 非空时按真实时区换算时间戳，夏令时跳变日按真实经过秒数计算（升/降一小时不再被均摊）；
+ * 为 null 时用固定 UTC 偏移（等价旧的 naive LocalDateTime 口径），行为不变。
+ *
+ * 极昼/极夜（日出 == 日落或数据缺失）返回 null，调用方按无日照数据兜底（见 [sunPathBearMoment]）。
+ */
 fun sunPathPhase(
     now: LocalDateTime,
     sunrise: LocalDateTime,
     sunset: LocalDateTime,
+    zoneId: ZoneId? = null,
 ): SunPathPhase? {
     if (!sunset.isAfter(sunrise)) return null
-    val dayTotal = ChronoUnit.SECONDS.between(sunrise, sunset).coerceAtLeast(1)
-    if (!now.isBefore(sunrise) && !now.isAfter(sunset)) {
-        val elapsed = ChronoUnit.SECONDS.between(sunrise, now).coerceIn(0, dayTotal)
+
+    fun zoned(value: LocalDateTime): ZonedDateTime =
+        if (zoneId == null) {
+            value.atOffset(ZoneOffset.UTC).toZonedDateTime()
+        } else {
+            value.atZone(zoneId)
+        }
+    val sunriseZ = zoned(sunrise)
+    val sunsetZ = zoned(sunset)
+    val nowZ = zoned(now)
+    val dayTotal = ChronoUnit.SECONDS.between(sunriseZ, sunsetZ).coerceAtLeast(1)
+    if (!nowZ.isBefore(sunriseZ) && !nowZ.isAfter(sunsetZ)) {
+        val elapsed = ChronoUnit.SECONDS.between(sunriseZ, nowZ).coerceIn(0, dayTotal)
         return SunPathPhase(isDay = true, progress = elapsed.toFloat() / dayTotal)
     }
-    val nightStart = if (!now.isBefore(sunset)) sunset else sunset.minusDays(1)
-    val nightEnd = if (now.isBefore(sunrise)) sunrise else sunrise.plusDays(1)
+    val nightStart = if (!nowZ.isBefore(sunsetZ)) sunsetZ else sunsetZ.minusDays(1)
+    val nightEnd = if (nowZ.isBefore(sunriseZ)) sunriseZ else sunriseZ.plusDays(1)
     val nightTotal = ChronoUnit.SECONDS.between(nightStart, nightEnd).coerceAtLeast(1)
-    val elapsed = ChronoUnit.SECONDS.between(nightStart, now).coerceIn(0, nightTotal)
+    val elapsed = ChronoUnit.SECONDS.between(nightStart, nowZ).coerceIn(0, nightTotal)
     return SunPathPhase(isDay = false, progress = elapsed.toFloat() / nightTotal)
 }
 
@@ -72,9 +93,9 @@ fun sunPathBearMoment(
     sunrise: LocalTime? = null,
 ): SunPathBearMoment {
     val minutes = time.hour * 60 + time.minute
-    // 无日出日落数据时按本地钟点近似昼夜（6:00–18:00 为白天），
+    // 无日出日落数据时按本地钟点近似昼夜（6:00–17:59 为白天），
     // 否则深夜会被当成早晨，显示晨练/周末早晨等不符合作息的画面
-    val isDay = phase?.isDay ?: (minutes in 6 * 60 until 18 * 60)
+    val isDay = phase?.isDay ?: isDaytimeHour(time.hour)
     return if (isDay) {
         dayBearMoment(date, minutes, sunrise)
     } else {

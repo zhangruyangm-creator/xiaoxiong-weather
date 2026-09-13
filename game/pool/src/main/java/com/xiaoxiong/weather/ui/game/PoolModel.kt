@@ -71,13 +71,13 @@ object PoolConfig {
     const val SLEEP_SPEED = 0.0055f
     const val SLEEP_SPIN = 0.06f
 
-    /** 台边到袋口中心的横向缺口（决定袋口大小）。 */
-    const val CORNER_MOUTH = BALL_RADIUS * 2.05f
-    const val SIDE_MOUTH = BALL_RADIUS * 2.35f
+    /** 台边到袋口中心的横向缺口（决定袋口大小）：接近真实比例（角袋约 2.2 个球直径）。 */
+    const val CORNER_MOUTH = BALL_RADIUS * 3.2f
+    const val SIDE_MOUTH = BALL_RADIUS * 3.4f
 
-    /** 袋口捕获半径。 */
-    const val CORNER_POCKET_R = BALL_RADIUS * 1.95f
-    const val SIDE_POCKET_R = BALL_RADIUS * 2.05f
+    /** 袋口捕获半径（球心进入该范围即落袋，与绘制洞口同量级）。 */
+    const val CORNER_POCKET_R = BALL_RADIUS * 2.9f
+    const val SIDE_POCKET_R = BALL_RADIUS * 2.4f
 
     /** 角袋钳口：库端沿 45° 向袋内斜伸的倒角分量（收口后对角净宽仍 > 2×球半径）。 */
     const val JAW_CORNER_CHAMFER = 0.007f
@@ -316,23 +316,22 @@ class PoolTable(
                     PoolPocket(right, top, cornerR, corner = true),
                     PoolPocket(left, bottom, cornerR, corner = true),
                     PoolPocket(right, bottom, cornerR, corner = true),
-                    PoolPocket((left + right) * 0.5f, top, sideR, corner = false),
-                    PoolPocket((left + right) * 0.5f, bottom, sideR, corner = false),
+                    // 中袋在长库（左右）中点，而不是短库：竖版长轴沿 Y 时，标准台的中袋在左右。
+                    PoolPocket(left, (top + bottom) * 0.5f, sideR, corner = false),
+                    PoolPocket(right, (top + bottom) * 0.5f, sideR, corner = false),
                 )
 
-            val cx = (left + right) * 0.5f
+            val cy = (top + bottom) * 0.5f
             val rails =
                 buildList {
-                    // 上边（y = top）：袋口间两段
-                    add(PoolRail(left + cornerMouth, top, cx - sideMouth * 0.5f, top))
-                    add(PoolRail(cx + sideMouth * 0.5f, top, right - cornerMouth, top))
-                    // 下边（y = bottom）
-                    add(PoolRail(left + cornerMouth, bottom, cx - sideMouth * 0.5f, bottom))
-                    add(PoolRail(cx + sideMouth * 0.5f, bottom, right - cornerMouth, bottom))
-                    // 左边（x = left）
-                    add(PoolRail(left, top + cornerMouth, left, bottom - cornerMouth))
-                    // 右边（x = right）
-                    add(PoolRail(right, top + cornerMouth, right, bottom - cornerMouth))
+                    // 上下短库（y = top / bottom）：角袋之间整段
+                    add(PoolRail(left + cornerMouth, top, right - cornerMouth, top))
+                    add(PoolRail(left + cornerMouth, bottom, right - cornerMouth, bottom))
+                    // 左右长库（x = left / right）：中袋处断开为两段
+                    add(PoolRail(left, top + cornerMouth, left, cy - sideMouth * 0.5f))
+                    add(PoolRail(left, cy + sideMouth * 0.5f, left, bottom - cornerMouth))
+                    add(PoolRail(right, top + cornerMouth, right, cy - sideMouth * 0.5f))
+                    add(PoolRail(right, cy + sideMouth * 0.5f, right, bottom - cornerMouth))
                     // 袋口钳口：让贴袋/擦袋有更真实的反弹（rattling），并收窄入口。
                     addAll(jaws(left, top, right, bottom, cornerMouth, sideMouth))
                 }
@@ -355,7 +354,7 @@ class PoolTable(
             val c = PoolConfig.JAW_CORNER_CHAMFER
             val depth = PoolConfig.JAW_SIDE_DEPTH
             val sideFront = sideMouth * 0.5f - PoolConfig.JAW_SIDE_INSET
-            val cx = (left + right) * 0.5f
+            val cy = (top + bottom) * 0.5f
             return buildList {
                 // 四个角袋
                 for (sx in listOf(1f, -1f)) {
@@ -382,11 +381,11 @@ class PoolTable(
                         )
                     }
                 }
-                // 上下中袋的袋内漏斗
-                for (sy in listOf(1f, -1f)) {
-                    val pocketY = if (sy > 0f) top else bottom
-                    add(PoolRail(cx - sideMouth * 0.5f, pocketY, cx - sideFront, pocketY - sy * depth))
-                    add(PoolRail(cx + sideMouth * 0.5f, pocketY, cx + sideFront, pocketY - sy * depth))
+                // 左右中袋的袋内漏斗（沿 ±X 向外）
+                for (sx in listOf(1f, -1f)) {
+                    val pocketX = if (sx > 0f) left else right
+                    add(PoolRail(pocketX, cy - sideMouth * 0.5f, pocketX - sx * depth, cy - sideFront))
+                    add(PoolRail(pocketX, cy + sideMouth * 0.5f, pocketX - sx * depth, cy + sideFront))
                 }
             }
         }

@@ -182,7 +182,7 @@ class LifeIndexGeneratorTest {
     }
 
     @Test
-    fun uvForIndex_daytimeUsesDailyMax_nightUsesCurrent() {
+    fun uvForIndex_daytimeUsesDailyMax_nightReturnsNull() {
         val today = DailyWeather(date = "2026-08-11", uvIndexMax = 8.0)
         val air = AirQuality(uvIndex = 2.0)
         // 白天优先当日最大，避免早晚用当前低值误报
@@ -192,9 +192,8 @@ class LifeIndexGeneratorTest {
             2.0,
             LifeIndexGenerator.uvForIndex(true, air, DailyWeather(date = "2026-08-11")),
         )
-        // 夜间用当前值（夜里几乎为 0）
-        assertEquals(2.0, LifeIndexGenerator.uvForIndex(false, air, today))
-        // 夜间且当前值缺失
+        // 夜间统一不提示 → null（不再用当前值）
+        assertNull(LifeIndexGenerator.uvForIndex(false, air, today))
         assertNull(
             LifeIndexGenerator.uvForIndex(
                 false,

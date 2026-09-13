@@ -374,7 +374,16 @@ class FakeDebugWeatherSource : DebugWeatherSource {
     private val stateFlow = MutableStateFlow(DebugWeatherState())
     override val state: Flow<DebugWeatherState> = stateFlow
 
-    override suspend fun getOnce(): DebugWeatherState = stateFlow.value
+    /**
+     * 按调用顺序消费的闸门：非空时本次 getOnce 先挂起，模拟 DataStore 读取缓慢。
+     * 用于构造「缓存发布晚于网络发布完成」的竞态。
+     */
+    val getOnceGates = ArrayDeque<CompletableDeferred<Unit>>()
+
+    override suspend fun getOnce(): DebugWeatherState {
+        getOnceGates.removeFirstOrNull()?.await()
+        return stateFlow.value
+    }
 
     override suspend fun setEnabled(enabled: Boolean) {
         stateFlow.value =
@@ -434,6 +443,7 @@ fun createTestViewModel(
     selectedCityStore: FakeSelectedCitySource = FakeSelectedCitySource(),
     presentationEffects: RecordingPresentationEffects = RecordingPresentationEffects(),
     citySearch: CitySearchUseCase = Mockito.mock(CitySearchUseCase::class.java),
+    debugWeatherStore: DebugWeatherSource = FakeDebugWeatherSource(),
 ): ViewModelTestHarness {
     val app = mockApplication()
     val permissionSource = FakeLocationPermissionSource(locationPermission)
@@ -448,7 +458,7 @@ fun createTestViewModel(
             phenologyCache = phenologyCache,
             citySearch = citySearch,
             settingsStore = FakeAppSettingsSource(settings),
-            debugWeatherStore = FakeDebugWeatherSource(),
+            debugWeatherStore = debugWeatherStore,
             radarMapRepository = Mockito.mock(RadarMapRepository::class.java),
             locationSessionFactory = LocationSessionFactory { session },
             presentationEffects = presentationEffects,

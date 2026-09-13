@@ -29,6 +29,7 @@
     <string name="cd_play">Play</string>
     <string name="cd_precip_chart">Hourly precipitation chart, peak of %1$s mm</string>
     <string name="cd_radar_echo">Radar echo</string>
+    <string name="cd_radar_frame_time">Radar frame %1$s</string>
     <string name="cd_refresh_cloud">Refresh cloud map</string>
     <string name="cd_refresh_radar">Refresh radar</string>
     <string name="cd_settings">Settings</string>
@@ -80,6 +81,8 @@
     <string name="history_days_count">%1$dd</string>
     <string name="history_empty_day">Pick a date to see that day\'s weather</string>
     <string name="history_empty_range">Pick a start and end date, then search</string>
+    <string name="history_idle_day">Not searched yet — pick a date to view that day</string>
+    <string name="history_idle_range">Not searched yet — pick a range, then tap Search</string>
     <string name="history_failed">No data for this date</string>
     <string name="history_meta_humidity">Humidity %1$s</string>
     <string name="history_meta_precip">Precip %1$s</string>
@@ -156,6 +159,10 @@
     <string name="metric_wind_dir">Direction</string>
     <string name="metric_wind_short">Wind</string>
     <string name="metric_wind_unit">Wind (km/h)</string>
+    <string name="unit_km">km</string>
+    <string name="unit_kmh">km/h</string>
+    <string name="unit_hpa">hPa</string>
+    <string name="unit_mm">mm</string>
     <string name="nighttime">Night</string>
     <string name="offline_cached">Offline · showing cached weather</string>
     <string name="offline_updated">Offline · updated %1$s</string>

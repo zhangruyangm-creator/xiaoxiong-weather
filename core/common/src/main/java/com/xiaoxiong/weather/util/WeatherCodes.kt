@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.res.Resources
 import androidx.annotation.StringRes
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.data.AirQuality
 import com.xiaoxiong.weather.data.CurrentWeather
+import com.xiaoxiong.weather.data.DailyWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import java.util.Locale
 
@@ -69,6 +71,31 @@ object WeatherCodes {
 
     /** 连续 ≥5 天 ≥35°C，或连续 ≥3 天且天天 ≥37°C → 红色预警。 */
     const val HEAT_WAVE_WARNING_DAYS = 5
+
+    /** 当前体感/气温 ≥ 此值 → 高温预警（°C）。 */
+    const val HEAT_WARNING_TEMP_C = 37.0
+
+    /** 紫外线分档（WHO 常用口径）：中 / 高 / 很高 / 极强。 */
+    const val UV_WATCH = 3.0
+    const val UV_HIGH = 6.0
+    const val UV_VERY_HIGH = 8.0
+    const val UV_EXTREME = 11.0
+
+    /** 风：≥40 km/h 提醒，≥62 km/h 预警；各生成器统一引用。 */
+    const val WIND_WATCH_KMH = 40.0
+    const val WIND_WARNING_KMH = 62.0
+
+    /** 空气质量（欧洲 AQI）：>60 提醒，>80 预警。 */
+    const val AQI_WATCH = 60
+    const val AQI_WARNING = 80
+
+    /** 未来降雨提醒：小时雨量 ≥ 此值或降水概率 ≥ 此值（%）。 */
+    const val RAIN_SOON_MM_H = 1.0
+    const val RAIN_SOON_PROBABILITY = 70
+
+    /** 未来降雪提醒：小时雪量（LWE mm）≥ 此值或降水概率 ≥ 此值（%）。 */
+    const val SNOW_SOON_MM_H = 0.5
+    const val SNOW_SOON_PROBABILITY = 70
 
     /** CAMS 近地面沙尘（μg/m³）：≥50 提醒，≥150 预警。 */
     const val DUST_WATCH_UG_M3 = 50.0
@@ -170,10 +197,46 @@ object WeatherCodes {
 
     /** 晴/云/雾等「非降水码」：有实测雨量时应升为雨码，避免文案写小雨、emoji 仍是阴天。 */
     private val drySkyCodes = setOf(0, 1, 2, 3, 45, 48)
-    private val snowCodes = setOf(71, 73, 75, 77, 85, 86)
     private val drizzleCodes = setOf(51, 53, 55)
 
+    /** 雪（含阵雪/米雪）天气码；生成器统一引用，避免各自维护漂移。 */
+    val snowCodes: Set<Int> = setOf(71, 73, 75, 77, 85, 86)
+
+    /** 冻雨 / 冻毛毛雨天气码（56/57 冻毛毛雨，66/67 冻雨）。 */
+    val freezingCodes: Set<Int> = setOf(56, 57, 66, 67)
+
+    /** 降水天气码：毛毛雨、雨、冻雨、雨夹雪、雪、阵雨、雷暴、冰雹。 */
+    val precipCodes: Set<Int> =
+        setOf(
+            51,
+            53,
+            55,
+            56,
+            57,
+            61,
+            63,
+            65,
+            66,
+            67,
+            68,
+            69,
+            71,
+            73,
+            75,
+            77,
+            80,
+            81,
+            82,
+            85,
+            86,
+            95,
+            96,
+            99,
+        )
+
     fun isSnowCode(code: Int?): Boolean = code in snowCodes
+
+    fun isFreezingRainCode(code: Int?): Boolean = code in freezingCodes
 
     fun isDrizzleCode(code: Int?): Boolean = code in drizzleCodes
 
@@ -383,6 +446,21 @@ object WeatherCodes {
     /** 是否正在降水（以雨强为准，避免天气码粘滞误报「正在下雨」）。 */
     fun isPrecipitatingNow(precipMmPerHour: Double?): Boolean = (precipMmPerHour ?: 0.0) >= 0.1
 
+    /**
+     * 统一紫外线取数口径：白天以当日最大 UV 为准（早晚用当前低值会误报「无需防晒」），
+     * 当日最大缺失时回退当前实测值；夜间无日晒返回 null，调用方不应再提示或预警。
+     */
+    fun uvForDaytime(
+        isDay: Boolean?,
+        airQuality: AirQuality?,
+        today: DailyWeather?,
+    ): Double? =
+        if (isDay == false) {
+            null
+        } else {
+            today?.uvIndexMax ?: airQuality?.uvIndex
+        }
+
     @StringRes
     fun descriptionRes(code: Int?): Int =
         when (code) {
@@ -488,8 +566,24 @@ object WeatherCodes {
         precipMmPerHour: Double?,
     ): String = description(context.resources, code, precipMmPerHour)
 
-    fun emoji(code: Int?): String =
-        when (code) {
+    /** 白天口径的 emoji，等价于 [emoji]`(code, isDay = true)`。 */
+    fun emoji(code: Int?): String = emoji(code, isDay = true)
+
+    /**
+     * 按昼夜区分的 emoji：夜间晴朗/大体晴 → 🌙，少云 → ☁️，避免夜里显示太阳；
+     * 其余天气（雨雪雾等）昼夜一致。
+     */
+    fun emoji(
+        code: Int?,
+        isDay: Boolean,
+    ): String {
+        if (!isDay) {
+            when (code) {
+                0, 1 -> return "🌙"
+                2 -> return "☁️"
+            }
+        }
+        return when (code) {
             0, 1 -> if (code == 1) "🌤️" else "☀️"
             2 -> "⛅"
             3 -> "☁️"
@@ -505,6 +599,7 @@ object WeatherCodes {
             99 -> "🧊"
             else -> "🌡️"
         }
+    }
 }
 
 fun formatVisibility(meters: Double?): String {
@@ -602,10 +697,10 @@ fun aqiLabel(
 fun uvLabelRes(uv: Double?): Int =
     when {
         uv == null -> R.string.label_unknown
-        uv < 3 -> R.string.uv_low
-        uv < 6 -> R.string.uv_moderate
-        uv < 8 -> R.string.uv_high
-        uv < 11 -> R.string.uv_very_high
+        uv < WeatherCodes.UV_WATCH -> R.string.uv_low
+        uv < WeatherCodes.UV_HIGH -> R.string.uv_moderate
+        uv < WeatherCodes.UV_VERY_HIGH -> R.string.uv_high
+        uv < WeatherCodes.UV_EXTREME -> R.string.uv_very_high
         else -> R.string.uv_extreme
     }
 

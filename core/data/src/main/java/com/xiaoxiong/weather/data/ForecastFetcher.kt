@@ -33,9 +33,15 @@ class ForecastFetcher(
      * 仅在 Open-Meteo 主站（含备用入口）全失败时启用，见 [fetchForecastWithFallback]。
      */
     metNorwayBase: String? = DEFAULT_MET_NORWAY_BASE,
+    /**
+     * 主源近期故障标记的 TTL：命中期间跳过主源直接走备用/MET，见 [PrimarySourceHealth]。
+     */
+    primaryFailureTtlMs: Long = PrimarySourceHealth.DEFAULT_FAILURE_TTL_MS,
 ) {
     private val metNorway: MetNorwayFetcher? =
         metNorwayBase?.let { MetNorwayFetcher(client, json, it) }
+
+    private val primaryHealth = PrimarySourceHealth(primaryFailureTtlMs)
 
     suspend fun fetchWeather(city: City): WeatherSnapshot =
         withContext(Dispatchers.IO) {
@@ -93,18 +99,43 @@ class ForecastFetcher(
 
     /**
      * 主预报失败时先按 [forecastBaseFallbacks] 换 base URL（同格式镜像），
-     * 仍失败且错误属于「服务端/网络/数据格式」范畴时，再切 MET Norway 完全不同的数据源。
-     * 4xx（请求本身问题）不降级；降级源也失败时抛出主源错误，保持错误分类不变。
+     * 仍失败且错误属于「服务端/网络/数据格式/限流」范畴时，再切 MET Norway 完全不同的数据源。
+     * 其余 4xx（请求本身问题）不降级；降级源也失败时抛出主源错误，保持错误分类不变。
+     *
+     * 主源近期失败标记命中时跳过主源直接走 MET（避免每次先等主源超时）；
+     * 若 MET 也失败再尝试一次主源，给主源恢复机会（同一轮不重复请求 MET）。
+     * 主源成功会清零标记。
      */
-    private suspend fun fetchForecastWithFallback(city: City): WeatherSnapshot =
+    private suspend fun fetchForecastWithFallback(city: City): WeatherSnapshot {
+        val met = metNorway
+        if (met != null && primaryHealth.shouldSkipPrimary(System.currentTimeMillis())) {
+            try {
+                return met.fetchWeather(city)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 备用源也失败：继续尝试主源一次（fallback=null，不再重复打 MET）
+                return fetchFromPrimary(city, fallback = null)
+            }
+        }
+        return fetchFromPrimary(city, fallback = met)
+    }
+
+    private suspend fun fetchFromPrimary(
+        city: City,
+        fallback: MetNorwayFetcher?,
+    ): WeatherSnapshot =
         try {
-            fetchForecast(city)
+            val snapshot = fetchForecast(city)
+            primaryHealth.recordSuccess()
+            snapshot
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            val fallback = metNorway?.takeIf { isMetNorwayFallbackWorthy(e) } ?: throw e
+            if (isTransientSourceFailure(e)) primaryHealth.recordFailure(System.currentTimeMillis())
+            val met = fallback?.takeIf { isMetNorwayFallbackWorthy(e) } ?: throw e
             try {
-                fallback.fetchWeather(city)
+                met.fetchWeather(city)
             } catch (e2: kotlinx.coroutines.CancellationException) {
                 throw e2
             } catch (e2: Exception) {
@@ -112,9 +143,15 @@ class ForecastFetcher(
             }
         }
 
-    private fun isMetNorwayFallbackWorthy(e: Exception): Boolean =
+    private fun isMetNorwayFallbackWorthy(e: Exception): Boolean = isTransientSourceFailure(e)
+
+    /**
+     * 是否属于「换源有意义」的瞬时故障：5xx 服务端故障、429 限流、408 超时、
+     * 网络不可达、数据格式异常。其余 4xx 是请求本身问题，换源也不会成功。
+     */
+    private fun isTransientSourceFailure(e: Exception): Boolean =
         when (e) {
-            is AppError.Http -> e.code in 500..599
+            is AppError.Http -> e.code in 500..599 || e.code == 429 || e.code == 408
             is AppError.NetworkUnavailable -> true
             is AppError.DataFormat -> true
             else -> e is java.io.IOException
@@ -139,7 +176,8 @@ class ForecastFetcher(
                         "wind_gusts_10m",
                         "wind_direction_10m",
                         "visibility",
-                        "precipitation",
+                        // precipitation 生产不用（降水展示统一取 hourly 的整点桶），
+                        // 不再请求；DTO/快照字段保留以兼容调试与旧响应
                         "cloud_cover",
                         "pressure_msl",
                         "dew_point_2m",
@@ -272,7 +310,11 @@ class ForecastFetcher(
         )
     }
 
-    private suspend fun fetchAirQuality(city: City): AirQuality {
+    /**
+     * 当前空气质量：只请求 `current`（多天 `hourly` 序列生产不用，去掉可显著缩小响应体积）。
+     * `current` 全部指标缺失时返回 null，展示层按无 AQ 处理。
+     */
+    private suspend fun fetchAirQuality(city: City): AirQuality? {
         val url =
             airQualityBase
                 .toHttpUrl()
@@ -292,10 +334,6 @@ class ForecastFetcher(
                         "nitrogen_dioxide",
                         "ozone",
                     ).joinToString(","),
-                ).addQueryParameter(
-                    "hourly",
-                    listOf("european_aqi", "us_aqi", "pm2_5", "pm10", "dust", "uv_index")
-                        .joinToString(","),
                 ).addQueryParameter("timezone", "auto")
                 .build()
 
@@ -305,87 +343,28 @@ class ForecastFetcher(
                 OpenMeteoHttp.execute(url.toString(), client),
             )
 
-        val current = response.current
-        // current 有有效指标时优先用；否则按城市时区取最近整点小时
-        if (current != null &&
-            (
-                current.europeanAqi != null ||
-                    current.usAqi != null ||
-                    current.pm25 != null ||
-                    current.dust != null
-            )
-        ) {
-            return AirQuality(
-                europeanAqi = current.europeanAqi,
-                usAqi = current.usAqi,
-                pm25 = current.pm25,
-                pm10 = current.pm10,
-                dustUgM3 = current.dust,
-                uvIndex = current.uvIndex,
-                nitrogenDioxide = current.nitrogenDioxide,
-                ozone = current.ozone,
-            )
-        }
+        val current = response.current ?: return null
+        val hasAnyMetric =
+            current.europeanAqi != null ||
+                current.usAqi != null ||
+                current.pm25 != null ||
+                current.pm10 != null ||
+                current.dust != null ||
+                current.uvIndex != null ||
+                current.nitrogenDioxide != null ||
+                current.ozone != null
+        if (!hasAnyMetric) return null
 
-        val hourly = response.hourly
-        val index =
-            nearestHourlyIndex(
-                times = hourly?.time.orEmpty(),
-                timezoneId = response.timezone,
-                // 若有 current.time，优先按该城市本地时刻对齐
-                preferredTime = current?.time,
-            )
         return AirQuality(
-            europeanAqi = hourly?.europeanAqi?.getOrNull(index),
-            usAqi = hourly?.usAqi?.getOrNull(index),
-            pm25 = hourly?.pm25?.getOrNull(index),
-            pm10 = hourly?.pm10?.getOrNull(index),
-            dustUgM3 = hourly?.dust?.getOrNull(index),
-            uvIndex = hourly?.uvIndex?.getOrNull(index),
-            nitrogenDioxide = null,
-            ozone = null,
+            europeanAqi = current.europeanAqi,
+            usAqi = current.usAqi,
+            pm25 = current.pm25,
+            pm10 = current.pm10,
+            dustUgM3 = current.dust,
+            uvIndex = current.uvIndex,
+            nitrogenDioxide = current.nitrogenDioxide,
+            ozone = current.ozone,
         )
-    }
-
-    /**
-     * 物候积温偏移天数（正 = 推迟，负 = 提前），失败或数据不足返回 null。
-     *
-     * 仅在进入「七日」页时按需调用（跨年/换城/当日未拉过才真正联网，
-     * 见 WeatherViewModel.ensurePhenologyShift），不参与主天气加载。
-     *
-     * 用 Open-Meteo Archive API 拉取「今年至今」与「往年同期」逐日均温：
-     * 今年与常年按积温（GDD）对比，把温差换算为物候偏移天数。
-     */
-
-    private fun nearestHourlyIndex(
-        times: List<String>,
-        timezoneId: String?,
-        preferredTime: String? = null,
-    ): Int {
-        if (times.isEmpty()) return 0
-        if (!preferredTime.isNullOrBlank()) {
-            return com.xiaoxiong.weather.util
-                .indexOfCurrentHour(times, preferredTime)
-                .coerceAtLeast(0)
-        }
-        val zone =
-            runCatching {
-                if (!timezoneId.isNullOrBlank()) {
-                    java.time.ZoneId.of(timezoneId)
-                } else {
-                    java.time.ZoneId.systemDefault()
-                }
-            }.getOrDefault(java.time.ZoneId.systemDefault())
-        val nowKey =
-            java.time.LocalDateTime
-                .now(zone)
-                .format(
-                    java.time.format.DateTimeFormatter
-                        .ofPattern("yyyy-MM-dd'T'HH"),
-                )
-        return com.xiaoxiong.weather.util
-            .indexOfCurrentHour(times, nowKey)
-            .coerceAtLeast(0)
     }
 
     private fun decodeForecast(body: String): ForecastResponse =
@@ -405,5 +384,44 @@ class ForecastFetcher(
 
         /** MET Norway Locationforecast：免密钥、全球覆盖，作为主源故障时的降级数据源。 */
         const val DEFAULT_MET_NORWAY_BASE = MetNorwayFetcher.DEFAULT_BASE_URL
+    }
+}
+
+/**
+ * 主源短期故障标记（进程内、不持久化）。
+ *
+ * 主源出现瞬时故障（网络/超时/限流/5xx/数据格式）后，在一个短 TTL 内标记为「不健康」：
+ * 期间刷新直接走备用/MET，避免每次都先等主源超时再降级；主源成功一次即清零。
+ * 纯逻辑、显式传入 now，便于单测覆盖 TTL 边界与时钟回拨。
+ */
+internal class PrimarySourceHealth(
+    private val failureTtlMs: Long = DEFAULT_FAILURE_TTL_MS,
+) {
+    @Volatile
+    private var lastFailureAtEpochMs: Long? = null
+
+    /** 是否处于主源熔断期（[nowEpochMs] 距上次失败不超过 TTL）。 */
+    fun shouldSkipPrimary(nowEpochMs: Long): Boolean {
+        val failedAt = lastFailureAtEpochMs ?: return false
+        val age = nowEpochMs - failedAt
+        if (age !in 0 until failureTtlMs) {
+            // TTL 到期或时钟回拨：清标记，给主源恢复机会
+            lastFailureAtEpochMs = null
+            return false
+        }
+        return true
+    }
+
+    fun recordFailure(nowEpochMs: Long) {
+        lastFailureAtEpochMs = nowEpochMs
+    }
+
+    fun recordSuccess() {
+        lastFailureAtEpochMs = null
+    }
+
+    companion object {
+        /** 默认熔断时长：5 分钟。 */
+        const val DEFAULT_FAILURE_TTL_MS = 5L * 60 * 1000
     }
 }

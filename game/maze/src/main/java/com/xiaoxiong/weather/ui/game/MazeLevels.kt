@@ -32,6 +32,14 @@ data class MazeThemeStyle(
     val accent: Color,
     val ice: Color,
     val pathHint: Color,
+    /** 以下为渲染扩展字段：仅绘制层使用，不参与玩法/存档/选关规则。 */
+    val wallSide: Color,
+    val wallDeep: Color,
+    val wallEdge: Color,
+    val boardRim: Color,
+    val hudPanel: Color,
+    val hudInk: Color,
+    val fx: Color,
 )
 
 fun mazeThemeStyle(theme: MazeTheme): MazeThemeStyle =
@@ -47,6 +55,13 @@ fun mazeThemeStyle(theme: MazeTheme): MazeThemeStyle =
                 accent = Color(0xFFFFD54F),
                 ice = Color(0xFFB3E5FC),
                 pathHint = Color(0xFFE8F5C8),
+                wallSide = Color(0xFF67492D),
+                wallDeep = Color(0xFF4E3620),
+                wallEdge = Color(0xFFB08A5E),
+                boardRim = Color(0xFF8A6A48),
+                hudPanel = Color(0xFF2C4A30),
+                hudInk = Color(0xFFFFF8E7),
+                fx = Color(0xFFFFE082),
             )
         MazeTheme.RAIN ->
             MazeThemeStyle(
@@ -59,6 +74,13 @@ fun mazeThemeStyle(theme: MazeTheme): MazeThemeStyle =
                 accent = Color(0xFF81D4FA),
                 ice = Color(0xFF90CAF9),
                 pathHint = Color(0xFF7A8898),
+                wallSide = Color(0xFF303B4A),
+                wallDeep = Color(0xFF242E3B),
+                wallEdge = Color(0xFF7E90A6),
+                boardRim = Color(0xFF556070),
+                hudPanel = Color(0xFF22303F),
+                hudInk = Color(0xFFE3F2FD),
+                fx = Color(0xFF90CAF9),
             )
         MazeTheme.SNOW ->
             MazeThemeStyle(
@@ -71,6 +93,13 @@ fun mazeThemeStyle(theme: MazeTheme): MazeThemeStyle =
                 accent = Color(0xFFFFAB91),
                 ice = Color(0xFFB3E5FC),
                 pathHint = Color(0xFFDCE8F0),
+                wallSide = Color(0xFF567A9C),
+                wallDeep = Color(0xFF3E5E7E),
+                wallEdge = Color(0xFFE4F1FC),
+                boardRim = Color(0xFF9AB8D0),
+                hudPanel = Color(0xFF2E4A66),
+                hudInk = Color(0xFFF0F8FF),
+                fx = Color(0xFFFFFFFF),
             )
         MazeTheme.NIGHT ->
             MazeThemeStyle(
@@ -83,6 +112,13 @@ fun mazeThemeStyle(theme: MazeTheme): MazeThemeStyle =
                 accent = Color(0xFFFFE082),
                 ice = Color(0xFF5C6BC0),
                 pathHint = Color(0xFF354560),
+                wallSide = Color(0xFF141C2E),
+                wallDeep = Color(0xFF0B1220),
+                wallEdge = Color(0xFF5E74A8),
+                boardRim = Color(0xFF3A4A6A),
+                hudPanel = Color(0xFF141D33),
+                hudInk = Color(0xFFE8EEFF),
+                fx = Color(0xFFFFE082),
             )
         MazeTheme.FESTIVAL ->
             MazeThemeStyle(
@@ -95,6 +131,13 @@ fun mazeThemeStyle(theme: MazeTheme): MazeThemeStyle =
                 accent = Color(0xFFFFEB3B),
                 ice = Color(0xFFFFCC80),
                 pathHint = Color(0xFFF0D090),
+                wallSide = Color(0xFF742323),
+                wallDeep = Color(0xFF571616),
+                wallEdge = Color(0xFFE8A0A0),
+                boardRim = Color(0xFFB03A3A),
+                hudPanel = Color(0xFF4A1414),
+                hudInk = Color(0xFFFFF3E0),
+                fx = Color(0xFFFFD54F),
             )
         MazeTheme.CLOUD ->
             MazeThemeStyle(
@@ -107,6 +150,13 @@ fun mazeThemeStyle(theme: MazeTheme): MazeThemeStyle =
                 accent = Color(0xFFFFD54F),
                 ice = Color(0xFFB2EBF2),
                 pathHint = Color(0xFFEEF6FC),
+                wallSide = Color(0xFF7E94B2),
+                wallDeep = Color(0xFF64789A),
+                wallEdge = Color(0xFFF2F8FF),
+                boardRim = Color(0xFFB8CCE0),
+                hudPanel = Color(0xFF3A6E9E),
+                hudInk = Color(0xFFF5FBFF),
+                fx = Color(0xFFFFF8E1),
             )
     }
 

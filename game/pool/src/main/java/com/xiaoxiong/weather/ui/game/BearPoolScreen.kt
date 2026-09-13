@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -783,6 +784,9 @@ fun BearPoolScreen(
     }
 
     val poolTableCd = stringResource(R.string.cd_pool_table)
+    // 底部控制区高度：把台面布局让出来，避免杆法盘/力度条压住台呢与左下角袋口。
+    var controlsBandPx by remember { mutableIntStateOf(0) }
+    val controlsBandDp = with(LocalDensity.current) { controlsBandPx.toDp() }
     Box(
         modifier =
             Modifier
@@ -793,6 +797,7 @@ fun BearPoolScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .padding(bottom = controlsBandDp)
                     .semantics { contentDescription = poolTableCd }
                     .onSizeChanged { sz -> game.resize(sz.width.toFloat(), sz.height.toFloat()) }
                     .pointerInput(Unit) {
@@ -845,7 +850,10 @@ fun BearPoolScreen(
             PoolControls(
                 game = game,
                 onBeginPlacing = { game.beginPlacing() },
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { controlsBandPx = it.height },
             )
         }
 
@@ -1428,7 +1436,7 @@ private fun PoolControls(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         SpinControl(
             game = game,
@@ -1443,7 +1451,7 @@ private fun PoolControls(
             modifier =
                 Modifier
                     .align(Alignment.BottomStart)
-                    .padding(bottom = 128.dp),
+                    .padding(bottom = 106.dp),
         )
         PowerBar(
             power = game.power,
@@ -1456,7 +1464,7 @@ private fun PoolControls(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 58.dp),
+                    .padding(bottom = 50.dp),
         )
         if (game.isPlayerTurn() && game.ballInHand) {
             TextButton(
@@ -1490,7 +1498,7 @@ private fun SpinControl(
         Canvas(
             modifier =
                 Modifier
-                    .size(92.dp)
+                    .size(80.dp)
                     .alpha(if (enabled) 1f else 0.45f)
                     .semantics { contentDescription = spinCd }
                     .pointerInput(enabled) {

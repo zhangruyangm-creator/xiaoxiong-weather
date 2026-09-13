@@ -29,6 +29,7 @@ import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.formatVisibility
 import com.xiaoxiong.weather.util.formatWindDirection
 import com.xiaoxiong.weather.util.upcomingFromCurrent
+import java.util.Locale
 
 internal data class RadarPrecipOutlook(
     val maxProbPercent: Int?,
@@ -51,7 +52,7 @@ internal data class RadarPrecipOutlook(
                     .mapNotNull { it.precipitationMm }
                     .takeIf { it.isNotEmpty() }
                     ?.sum()
-            val windSpeed = current.windSpeedKmh?.let { "${"%.0f".format(it)} km/h" } ?: "--"
+            val windSpeed = current.windSpeedKmh?.let { String.format(Locale.US, "%.0f km/h", it) } ?: "--"
             val windDir = formatWindDirection(resources, current.windDirectionDeg)
             val windText =
                 if (windDir == "--" && windSpeed == "--") {
@@ -97,7 +98,7 @@ internal fun RadarSituationStrip(outlook: RadarPrecipOutlook) {
             )
             MiniStat(
                 label = stringResource(R.string.radar_sum_2h),
-                value = outlook.precipSumMm?.let { "${"%.1f".format(it)} mm" } ?: "--",
+                value = outlook.precipSumMm?.let { String.format(Locale.US, "%.1f mm", it) } ?: "--",
                 modifier = Modifier.weight(1f),
             )
         }

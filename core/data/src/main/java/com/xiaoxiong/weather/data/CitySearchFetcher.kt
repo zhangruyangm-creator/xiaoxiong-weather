@@ -4,9 +4,13 @@ import android.content.res.Resources
 import com.github.promeg.pinyinhelper.Pinyin
 import com.xiaoxiong.weather.data.remote.GeocodingResponse
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -20,44 +24,58 @@ class CitySearchFetcher(
     private val json: Json,
     private val geocodingBase: String,
 ) {
+    /** 相同 normalizedQuery 的短 TTL 缓存（60–120s），避免输入抖动/重复搜索反复打上游。 */
+    private val resultCache = CitySearchCache()
+
+    /** 同一 query 的并发请求合并为一次上游调用。 */
+    private val singleFlight = SingleFlight<String, List<City>>()
+
     suspend fun searchCities(query: String): List<City> =
         withContext(Dispatchers.IO) {
             val trimmed = query.trim()
             if (trimmed.length < 2) return@withContext emptyList()
 
             val normalized = normalizePlaceQuery(trimmed)
-            val pinyinQuery = if (containsHan(normalized)) toPinyinQuery(normalized) else ""
-            // Open-Meteo 对「纽约」等中文世界城市常搜不到，用英文别名补查
-            val englishAlias = ForeignCityAliases.get(resources)[normalized]
-            coroutineScope {
-                // 主查询错误应抛出（让 UI 显示网络异常）；拼音/英文别名是补充，失败静默
-                val primaryDeferred = async { searchOpenMeteo(normalized) }
-                val pinyinDeferred =
-                    async {
-                        if (pinyinQuery.length >= 2) {
-                            searchOpenMeteoOrEmpty(pinyinQuery)
-                        } else {
-                            emptyList()
-                        }
+            resultCache.get(normalized, System.currentTimeMillis())?.let { return@withContext it }
+
+            val result = singleFlight.run(normalized) { searchUpstream(normalized) }
+            resultCache.put(normalized, result, System.currentTimeMillis())
+            result
+        }
+
+    private suspend fun searchUpstream(normalized: String): List<City> {
+        val pinyinQuery = if (containsHan(normalized)) toPinyinQuery(normalized) else ""
+        // Open-Meteo 对「纽约」等中文世界城市常搜不到，用英文别名补查
+        val englishAlias = ForeignCityAliases.get(resources)[normalized]
+        return coroutineScope {
+            // 主查询错误应抛出（让 UI 显示网络异常）；拼音/英文别名是补充，失败静默
+            val primaryDeferred = async { searchOpenMeteo(normalized) }
+            val pinyinDeferred =
+                async {
+                    if (pinyinQuery.length >= 2) {
+                        searchOpenMeteoOrEmpty(pinyinQuery)
+                    } else {
+                        emptyList()
                     }
-                val englishDeferred =
-                    async {
-                        if (!englishAlias.isNullOrBlank()) {
-                            searchOpenMeteoOrEmpty(englishAlias)
-                        } else {
-                            emptyList()
-                        }
-                    }
-                val primary = mergeCityResults(primaryDeferred.await(), pinyinDeferred.await())
-                val english = englishDeferred.await()
-                // 有中文→英文别名时优先英文结果：避免「高雄/花莲」等命中大陆同名点
-                if (english.isNotEmpty() && !englishAlias.isNullOrBlank()) {
-                    mergeCityResults(english, primary)
-                } else {
-                    mergeCityResults(primary, english)
                 }
+            val englishDeferred =
+                async {
+                    if (!englishAlias.isNullOrBlank()) {
+                        searchOpenMeteoOrEmpty(englishAlias)
+                    } else {
+                        emptyList()
+                    }
+                }
+            val primary = mergeCityResults(primaryDeferred.await(), pinyinDeferred.await())
+            val english = englishDeferred.await()
+            // 有中文→英文别名时优先英文结果：避免「高雄/花莲」等命中大陆同名点
+            if (english.isNotEmpty() && !englishAlias.isNullOrBlank()) {
+                mergeCityResults(english, primary)
+            } else {
+                mergeCityResults(primary, english)
             }
         }
+    }
 
     // 拼音/英文别名分支是辅助查询，失败降级为空列表：但 CancellationException 必须透传，
     // 避免挂后台时该协程被取消却被吞掉、走完 fallback 返回"无结果"列表而无法传播取消信号
@@ -95,6 +113,7 @@ class CitySearchFetcher(
                 country = result.country,
                 admin1 = result.admin1,
                 admin2 = result.admin2,
+                timezone = result.timezone,
             )
         }
     }
@@ -155,5 +174,92 @@ class CitySearchFetcher(
                         "%.2f".format(java.util.Locale.US, it.longitude)
                 }.sortedByDescending { ChinaCityCatalog.relevanceScore(it, query) }
                 .take(12)
+    }
+}
+
+/** 城市搜索短 TTL 缓存时长：输入抖动/重复搜索窗口内不重复打上游。 */
+internal const val CITY_SEARCH_CACHE_TTL_MS = 90_000L
+
+/**
+ * 搜索结果 LRU：按 normalizedQuery 缓存，60–120s 内重复搜索直接命中。
+ * 空结果也缓存，避免无结果查询在 TTL 内反复打上游。线程安全（Mutex）。
+ */
+internal class CitySearchCache(
+    private val maxEntries: Int = 16,
+    private val ttlMs: Long = CITY_SEARCH_CACHE_TTL_MS,
+) {
+    private data class Entry(
+        val cities: List<City>,
+        val storedAtEpochMs: Long,
+    )
+
+    private val mutex = Mutex()
+    private val entries =
+        object : LinkedHashMap<String, Entry>(0, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Entry>): Boolean = size > maxEntries
+        }
+
+    suspend fun get(
+        query: String,
+        nowEpochMs: Long,
+    ): List<City>? =
+        mutex.withLock {
+            val entry = entries[query] ?: return@withLock null
+            if (nowEpochMs - entry.storedAtEpochMs !in 0 until ttlMs) {
+                entries.remove(query)
+                return@withLock null
+            }
+            entry.cities
+        }
+
+    suspend fun put(
+        query: String,
+        cities: List<City>,
+        nowEpochMs: Long,
+    ) {
+        mutex.withLock {
+            entries[query] = Entry(cities, nowEpochMs)
+        }
+    }
+}
+
+/**
+ * 同 key 并发的 single-flight：首个调用执行 [run] 的 block，其余等待同一结果；
+ * block 失败/取消会原样传递给所有等待者，并从 in-flight 表移除以便下次重试。
+ * 纯逻辑、无调度器依赖，便于单测。
+ */
+internal class SingleFlight<K, V> {
+    private val lock = Mutex()
+    private val inFlight = mutableMapOf<K, CompletableDeferred<V>>()
+
+    suspend fun run(
+        key: K,
+        block: suspend () -> V,
+    ): V {
+        var owner = false
+        val deferred =
+            lock.withLock {
+                inFlight[key]
+                    ?: CompletableDeferred<V>().also {
+                        inFlight[key] = it
+                        owner = true
+                    }
+            }
+        if (!owner) return deferred.await()
+        try {
+            val value = block()
+            deferred.complete(value)
+            return value
+        } catch (e: CancellationException) {
+            deferred.cancel(e)
+            throw e
+        } catch (e: Throwable) {
+            deferred.completeExceptionally(e)
+            throw e
+        } finally {
+            lock.withLock {
+                if (inFlight[key] === deferred) inFlight.remove(key)
+            }
+        }
     }
 }

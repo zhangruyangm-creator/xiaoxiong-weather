@@ -162,32 +162,19 @@ private fun AtmosphereCanvas(
         when (scene) {
             WeatherScene.CLEAR -> {
                 if (isDay) {
-                    // 太阳：光晕脉动 + 光芒慢转
-                    val cx = size.width * 0.82f
-                    val cy = size.height * 0.22f
-                    val pulse = 0.3f + 0.08f * sin(phase() * TWO_PI_F)
-                    drawCircle(Color(0xFFFFFDE7).copy(alpha = pulse), radius = 58.dp.toPx(), center = Offset(cx, cy))
-                    drawSunRays(cx, cy, 40.dp.toPx(), 54.dp.toPx(), drift() * TWO_PI_F)
-                    drawCircle(Color(0xFFFFF176).copy(alpha = 0.95f), radius = 34.dp.toPx(), center = Offset(cx, cy))
+                    drawDayNoon(phase, drift)
                 } else {
-                    // 月亮 + 星星
-                    val cx = size.width * 0.8f
-                    val cy = size.height * 0.2f
-                    drawCircle(Color(0xFFFFF59D), radius = 26.dp.toPx(), center = Offset(cx, cy))
-                    drawCircle(Color(0xFF203A43), radius = 20.dp.toPx(), center = Offset(cx - 10.dp.toPx(), cy - 6.dp.toPx()))
-                    repeat(12) { i ->
-                        val sx = size.width * ((i * 37) % 100) / 100f
-                        val sy = size.height * ((i * 53) % 55) / 100f
-                        drawCircle(Color.White.copy(alpha = 0.55f + 0.35f * sin(phase() * 6 + i)), radius = 2f, center = Offset(sx, sy))
-                    }
+                    drawNightSky(phase)
                 }
             }
 
             WeatherScene.PARTLY_CLOUDY -> {
-                val sunX = size.width * 0.78f
-                val sunY = size.height * 0.2f
-                drawSunRays(sunX, sunY, 32.dp.toPx(), 42.dp.toPx(), drift() * TWO_PI_F)
-                drawSun(sunX, sunY, 26.dp.toPx())
+                // 夜间不能画太阳/光芒：按 isDay 分支，夜间复用晴朗夜空的月亮+星星
+                if (isDay) {
+                    drawDayNoon(phase, drift)
+                } else {
+                    drawNightSky(phase)
+                }
                 // 云层各自带相位差的缓慢摆动，模拟微风
                 val swayA = sin(drift() * TWO_PI_F) * size.width * 0.03f
                 val swayB = sin(drift() * TWO_PI_F + 2.1f) * size.width * 0.025f
@@ -341,13 +328,30 @@ private data class Particle(
     val drift: Float,
 )
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSun(
-    cx: Float,
-    cy: Float,
-    r: Float,
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDayNoon(
+    phase: () -> Float,
+    drift: () -> Float,
 ) {
-    drawCircle(Color(0xFFFFF176).copy(alpha = 0.95f), radius = r, center = Offset(cx, cy))
-    drawCircle(Color(0xFFFFFDE7).copy(alpha = 0.28f), radius = r * 1.7f, center = Offset(cx, cy))
+    // 太阳：光晕脉动 + 光芒慢转（晴朗 / 少云白天共用）
+    val cx = size.width * 0.82f
+    val cy = size.height * 0.22f
+    val pulse = 0.3f + 0.08f * sin(phase() * TWO_PI_F)
+    drawCircle(Color(0xFFFFFDE7).copy(alpha = pulse), radius = 58.dp.toPx(), center = Offset(cx, cy))
+    drawSunRays(cx, cy, 40.dp.toPx(), 54.dp.toPx(), drift() * TWO_PI_F)
+    drawCircle(Color(0xFFFFF176).copy(alpha = 0.95f), radius = 34.dp.toPx(), center = Offset(cx, cy))
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawNightSky(phase: () -> Float) {
+    // 月亮 + 星星（晴朗 / 少云夜间共用）
+    val cx = size.width * 0.8f
+    val cy = size.height * 0.2f
+    drawCircle(Color(0xFFFFF59D), radius = 26.dp.toPx(), center = Offset(cx, cy))
+    drawCircle(Color(0xFF203A43), radius = 20.dp.toPx(), center = Offset(cx - 10.dp.toPx(), cy - 6.dp.toPx()))
+    repeat(12) { i ->
+        val sx = size.width * ((i * 37) % 100) / 100f
+        val sy = size.height * ((i * 53) % 55) / 100f
+        drawCircle(Color.White.copy(alpha = 0.55f + 0.35f * sin(phase() * 6 + i)), radius = 2f, center = Offset(sx, sy))
+    }
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunRays(

@@ -118,12 +118,22 @@ class PoolPhysicsTest {
     }
 
     @Test
-    fun railRollPastPocketMouth_isNotPotted() {
-        // 贴库直线滚过中袋口正上方：不应被捕获
-        val sidePocket = table.pockets.first { !it.corner && it.y == table.top }
-        val ball = cue(sidePocket.x - 0.06f, table.top + BALL_RADIUS * 1.02f, vx = 2f)
+    fun railRollOverSidePocket_isPotted() {
+        // 贴库直线滚过中袋口：真实台会落袋（洞口判定与绘制一致）
+        val sidePocket = table.pockets.first { !it.corner && it.x == table.left }
+        val ball = cue(table.left + BALL_RADIUS * 1.02f, sidePocket.y - 0.06f, vy = 2f)
         repeat(180) { PoolPhysics.step(listOf(ball), table) }
-        assertFalse("grazing the mouth should not pot", ball.potted)
+        assertTrue("cushion-hugging ball should drop into side pocket", ball.potted)
+        assertEquals(sidePocket, table.pockets[ball.pocketIndex])
+    }
+
+    @Test
+    fun passingBesideSideMouth_isNotPotted() {
+        // 从洞口旁（超出捕获半径）平行经过：不应被吸入
+        val sidePocket = table.pockets.first { !it.corner && it.x == table.left }
+        val ball = cue(table.left + BALL_RADIUS * 2.3f, sidePocket.y - 0.06f, vy = 2f)
+        repeat(180) { PoolPhysics.step(listOf(ball), table) }
+        assertFalse("passing beyond capture radius should not pot", ball.potted)
     }
 
     @Test

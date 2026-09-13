@@ -139,6 +139,47 @@ class OpenMeteoHttpFallbackTest {
         }
 
     @Test
+    fun httpError429_fallsBackToSecondary() =
+        runBlocking {
+            // 限流换 host 有意义：应转移到候选入口
+            serverA.enqueue(MockResponse().setResponseCode(429).setBody("too many requests"))
+            serverB.enqueue(MockResponse().setResponseCode(200).setBody("""{"ok":true,"from":"b"}"""))
+            val urlA = serverA.url("/v1/forecast").toString()
+            val urlB = serverB.url("/v1/forecast").toString()
+
+            val body = OpenMeteoHttp.executeWithFallback(listOf(urlA, urlB), client)
+
+            assertEquals("""{"ok":true,"from":"b"}""", body)
+            assertEquals(1, serverB.requestCount)
+        }
+
+    @Test
+    fun httpError408_fallsBackToSecondary() =
+        runBlocking {
+            // 请求超时同样值得换入口重试
+            serverA.enqueue(MockResponse().setResponseCode(408).setBody("request timeout"))
+            serverB.enqueue(MockResponse().setResponseCode(200).setBody("""{"ok":true,"from":"b"}"""))
+            val urlA = serverA.url("/v1/forecast").toString()
+            val urlB = serverB.url("/v1/forecast").toString()
+
+            val body = OpenMeteoHttp.executeWithFallback(listOf(urlA, urlB), client)
+
+            assertEquals("""{"ok":true,"from":"b"}""", body)
+            assertEquals(1, serverB.requestCount)
+        }
+
+    @Test
+    fun retryableCodes_matchFallbackPolicy() {
+        assertTrue(OpenMeteoHttp.isRetryableHttpCode(500))
+        assertTrue(OpenMeteoHttp.isRetryableHttpCode(529))
+        assertTrue(OpenMeteoHttp.isRetryableHttpCode(429))
+        assertTrue(OpenMeteoHttp.isRetryableHttpCode(408))
+        org.junit.Assert.assertFalse(OpenMeteoHttp.isRetryableHttpCode(400))
+        org.junit.Assert.assertFalse(OpenMeteoHttp.isRetryableHttpCode(404))
+        org.junit.Assert.assertFalse(OpenMeteoHttp.isRetryableHttpCode(499))
+    }
+
+    @Test
     fun httpError4xx_doesNotFallBack() =
         runBlocking {
             // 4xx 是请求本身问题：换 host 没意义，不应命中备用站

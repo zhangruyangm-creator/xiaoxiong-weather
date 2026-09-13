@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 3x2 尺寸档：添加器里额外的大号选项；同样支持拉伸到 4x4 -->
+<!-- updatePeriodMillis=0：不注册系统 30 分钟周期更新，刷新只由 WorkManager 按用户后台间隔与前台刷新推送 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:description="@string/widget_wide_description"
@@ -14,6 +15,6 @@
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="3"
     android:targetCellHeight="2"
-    android:updatePeriodMillis="1800000"
+    android:updatePeriodMillis="0"
     android:widgetCategory="home_screen"
     tools:ignore="UnusedAttribute" />

@@ -45,6 +45,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -71,6 +73,8 @@ internal fun LiveRadarPane(
     city: City,
     repository: RadarMapRepository,
     timezoneId: String? = null,
+    /** 游戏/弹窗等场景活跃：暂停轮播与预取，省电省流量 */
+    paused: Boolean = false,
 ) {
     var frames by remember(city.id, city.latitude, city.longitude) {
         mutableStateOf<List<RadarFrame>>(emptyList())
@@ -97,11 +101,8 @@ internal fun LiveRadarPane(
     // Wi-Fi 全量预取并自动播放；蜂窝只下底图+最新帧，点播放才预取
     val wifi = remember(city.id, city.latitude, city.longitude) { context.isWifiConnected() }
 
-    // 切城时清空旧城市的帧缓存（帧 URL 含城市坐标，本就不复用）；
-    // 刷新 / 重进不清理，避免把刚下好的帧又清掉，白费流量
-    LaunchedEffect(city.id, city.latitude, city.longitude) {
-        repository.clearRadarFrameCache()
-    }
+    // 帧缓存按 URL 复用（RadarMapRepository 内 LRU 自动淘汰），切城/重进都无需清空：
+    // 清空会把刚预取好的帧扔掉，重进页面又得重下，白白浪费流量
 
     // 切城 / 刷新：底图与帧列表并行；先出最新一帧再后台预取其余
     LaunchedEffect(city.id, city.latitude, city.longitude, refreshKey) {
@@ -165,9 +166,10 @@ internal fun LiveRadarPane(
         imageLoading = false
     }
 
-    // 首次进入播放时预取其余帧：Wi-Fi 加载完即自动播放随即触发；蜂窝由用户点播放触发
-    LaunchedEffect(frames, playing) {
-        if (playing && frames.size > 1 && !prefetchStarted) {
+    // 首次进入播放时预取其余帧：Wi-Fi 加载完即自动播放随即触发；蜂窝由用户点播放触发。
+    // paused（游戏进行中等）时不预取，避免后台占用带宽
+    LaunchedEffect(frames, playing, paused) {
+        if (playing && !paused && frames.size > 1 && !prefetchStarted) {
             prefetchStarted = true
             repository.prefetchImages(frames.dropLast(1).map { it.imageUrl })
         }
@@ -182,8 +184,9 @@ internal fun LiveRadarPane(
         }
     }
 
-    LaunchedEffect(playing, frames, appStarted) {
-        if (!playing || !appStarted || frames.size < 2) return@LaunchedEffect
+    LaunchedEffect(playing, frames, appStarted, paused) {
+        // 游戏/弹窗活跃（paused）时停止 500ms 轮播，恢复后自动续播
+        if (!playing || !appStarted || paused || frames.size < 2) return@LaunchedEffect
         while (true) {
             delay(500)
             frameIndex = (frameIndex + 1) % frames.size
@@ -286,11 +289,15 @@ internal fun LiveRadarPane(
                     fontWeight = FontWeight.SemiBold,
                 )
                 frames.getOrNull(frameIndex)?.let { frame ->
+                    val frameTimeText = formatRadarTime(frame.timeEpochSec, timezoneId)
+                    // Canvas 内容对读屏不可见，这里用 stateDescription 说明当前帧时间
+                    val frameTimeDesc = stringResource(R.string.cd_radar_frame_time, frameTimeText)
                     Row(
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(10.dp),
+                                .padding(10.dp)
+                                .semantics { stateDescription = frameTimeDesc },
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -308,7 +315,7 @@ internal fun LiveRadarPane(
                             )
                         }
                         Text(
-                            text = formatRadarTime(frame.timeEpochSec, timezoneId),
+                            text = frameTimeText,
                             modifier =
                                 Modifier
                                     .clip(RoundedCornerShape(8.dp))
@@ -375,22 +382,25 @@ internal fun LiveRadarPane(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            // 避免播放时每帧重建 MutableState
-            var sliderValue by remember(frames.size) { mutableFloatStateOf(frameIndex.toFloat()) }
-            LaunchedEffect(frameIndex) {
-                sliderValue = frameIndex.toFloat()
+            // 单帧时没有可滑动区间：不渲染 Slider，避免 valueRange 0f..0f 触发异常
+            if (frames.size >= 2) {
+                // 避免播放时每帧重建 MutableState
+                var sliderValue by remember(frames.size) { mutableFloatStateOf(frameIndex.toFloat()) }
+                LaunchedEffect(frameIndex) {
+                    sliderValue = frameIndex.toFloat()
+                }
+                Slider(
+                    value = sliderValue,
+                    onValueChange = {
+                        playing = false
+                        sliderValue = it
+                        frameIndex = it.toInt().coerceIn(0, frames.lastIndex)
+                    },
+                    valueRange = 0f..frames.lastIndex.toFloat(),
+                    steps = frames.size - 2,
+                    modifier = Modifier.weight(1f),
+                )
             }
-            Slider(
-                value = sliderValue,
-                onValueChange = {
-                    playing = false
-                    sliderValue = it
-                    frameIndex = it.toInt().coerceIn(0, frames.lastIndex)
-                },
-                valueRange = 0f..(frames.lastIndex.coerceAtLeast(0).toFloat()),
-                steps = (frames.size - 2).coerceAtLeast(0),
-                modifier = Modifier.weight(1f),
-            )
         }
     }
 

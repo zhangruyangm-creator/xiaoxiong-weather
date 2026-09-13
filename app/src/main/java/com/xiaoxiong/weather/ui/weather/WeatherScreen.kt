@@ -61,6 +61,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -144,11 +145,13 @@ private fun WeatherScreenContent(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // rememberPagerState 内部即 rememberSaveable（保存 currentPage/offset），旋转后页码不丢
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
     val pullToRefreshState = rememberPullToRefreshState()
-    var overlay by remember { mutableStateOf(OverlayScreen.None) }
-    var showPrivacyGate by remember { mutableStateOf(false) }
-    var showShareCard by remember { mutableStateOf(false) }
+    // 全屏页/弹窗状态用 rememberSaveable：旋转重建后不丢（OverlayScreen 为枚举，可序列化）
+    var overlay by rememberSaveable { mutableStateOf(OverlayScreen.None) }
+    var showPrivacyGate by rememberSaveable { mutableStateOf(false) }
+    var showShareCard by rememberSaveable { mutableStateOf(false) }
     // 等 DataStore 真实值读出前不渲染隐私门，避免老用户冷启动闪一下
     var privacyGateResolved by remember { mutableStateOf(false) }
     var gameActive by remember { mutableStateOf(false) }

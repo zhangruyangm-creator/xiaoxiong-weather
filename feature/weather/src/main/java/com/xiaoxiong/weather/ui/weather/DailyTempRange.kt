@@ -14,12 +14,18 @@ data class DailyTempBarRange(
 }
 
 fun weekTemperatureBounds(days: List<DailyWeather>): Pair<Double, Double>? {
-    val mins = days.mapNotNull { it.tempMinC }
-    val maxs = days.mapNotNull { it.tempMaxC }
-    if (mins.isEmpty() || maxs.isEmpty()) return null
-    val weekMin = mins.minOrNull() ?: return null
-    val weekMax = maxs.maxOrNull() ?: return null
-    return weekMin to weekMax.coerceAtLeast(weekMin + 1.0)
+    // 单趟扫描，避免两次 mapNotNull 的临时列表分配
+    var weekMin: Double? = null
+    var weekMax: Double? = null
+    for (day in days) {
+        val low = day.tempMinC
+        if (low != null && (weekMin == null || low < weekMin)) weekMin = low
+        val high = day.tempMaxC
+        if (high != null && (weekMax == null || high > weekMax)) weekMax = high
+    }
+    val min = weekMin ?: return null
+    val max = weekMax ?: return null
+    return min to max.coerceAtLeast(min + 1.0)
 }
 
 /**

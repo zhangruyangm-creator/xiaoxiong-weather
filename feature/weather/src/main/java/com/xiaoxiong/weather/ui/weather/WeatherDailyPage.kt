@@ -66,6 +66,7 @@ import com.xiaoxiong.weather.util.formatHourLabel
 import com.xiaoxiong.weather.util.formatTemperature
 import com.xiaoxiong.weather.util.weatherCodeDescription
 import java.time.LocalDate
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -297,9 +298,10 @@ private fun DailyDayCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        val precip = day.precipSumMm?.let { "%.1fmm".format(it) } ?: "--"
+        val unitMm = stringResource(R.string.unit_mm)
+        val precip = day.precipSumMm?.let { String.format(Locale.US, "%.1f %s", it, unitMm) } ?: "--"
         val prob = day.precipProbabilityMax?.let { "$it%" } ?: "--"
-        val uv = day.uvIndexMax?.let { "%.1f".format(it) } ?: "--"
+        val uv = day.uvIndexMax?.let { String.format(Locale.US, "%.1f", it) } ?: "--"
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -330,7 +332,8 @@ private fun DailyDayCard(
                 Spacer(modifier = Modifier.height(12.dp))
                 val sunrise = day.sunrise?.let { formatHourLabel(it) } ?: "--"
                 val sunset = day.sunset?.let { formatHourLabel(it) } ?: "--"
-                val wind = day.windMaxKmh?.let { "%.0f km/h".format(it) } ?: "--"
+                val unitKmh = stringResource(R.string.unit_kmh)
+                val wind = day.windMaxKmh?.let { String.format(Locale.US, "%.0f %s", it, unitKmh) } ?: "--"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -373,16 +376,19 @@ private fun DailyTempRangeBar(
     fillBrush: Brush,
     modifier: Modifier = Modifier,
 ) {
+    // 同一工作日期的多次重组无需重复计算对齐比例
     val range =
-        if (weekMinC != null && weekMaxC != null) {
-            weekAlignedTempBarRange(minC, maxC, weekMinC, weekMaxC)
-        } else {
-            // 无周界时退回「日较差宽度」示意
-            val min = minC ?: 0.0
-            val max = maxC ?: min
-            val span = (max - min).coerceAtLeast(1.0)
-            val fraction = (span / 18.0).toFloat().coerceIn(0.28f, 1f)
-            DailyTempBarRange(start = 0f, end = fraction)
+        remember(minC, maxC, weekMinC, weekMaxC) {
+            if (weekMinC != null && weekMaxC != null) {
+                weekAlignedTempBarRange(minC, maxC, weekMinC, weekMaxC)
+            } else {
+                // 无周界时退回「日较差宽度」示意
+                val min = minC ?: 0.0
+                val max = maxC ?: min
+                val span = (max - min).coerceAtLeast(1.0)
+                val fraction = (span / 18.0).toFloat().coerceIn(0.28f, 1f)
+                DailyTempBarRange(start = 0f, end = fraction)
+            }
         }
 
     BoxWithConstraints(

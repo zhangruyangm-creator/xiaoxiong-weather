@@ -136,6 +136,13 @@ class WeatherViewModel(
     private var weatherJob: Job? = null
     private val weatherRequestId = AtomicInteger(0)
 
+    /**
+     * 发布序号：同一 requestId 下可能先发缓存快照、后发网络快照，
+     * 而两次发布各自会挂起（presentWeather 读 DataStore），完成顺序不保证。
+     * 用单调序号保证晚到的旧快照（缓存）不会盖掉已成功的较新快照（网络）。
+     */
+    private val weatherPublishSeq = AtomicInteger(0)
+
     /** 上一次发起天气请求的墙钟时间；用于静默刷新去重，防止多来源叠加重复拉取 */
     private var lastRefreshAtEpochMs = 0L
 
@@ -550,11 +557,15 @@ class WeatherViewModel(
     ) {
         // 入口即弃过期请求：presentWeather 会挂起读 DataStore，期间可能已有更新的请求
         if (requestId != weatherRequestId.get()) return
+        // 本次发布的单调序号：值更大者更新，旧序号完成后直接丢弃
+        val publishSeq = weatherPublishSeq.incrementAndGet()
         _baseWeather.value = snapshot
         viewModelScope.launch {
             val shown = presentWeather(snapshot)
             // 续体再校验一次，否则快速切城时旧快照会盖回新城市
             if (requestId != weatherRequestId.get()) return@launch
+            // 同 requestId 下缓存发布可能晚于网络发布返回：较旧快照不得反向覆盖新数据
+            if (publishSeq != weatherPublishSeq.get()) return@launch
             // DataStore 读取放到 update lambda 外：避免挂起点卡在 CAS 重试循环内、阻塞主线程状态更新
             val debugEnabled = debugWeatherStore.getOnce().enabled
             if (updateIcon) {

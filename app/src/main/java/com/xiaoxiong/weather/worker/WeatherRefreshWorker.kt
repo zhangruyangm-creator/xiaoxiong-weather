@@ -18,7 +18,6 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.xiaoxiong.weather.MainActivity
 import com.xiaoxiong.weather.R
-import com.xiaoxiong.weather.data.AlertKind
 import com.xiaoxiong.weather.data.AppError
 import com.xiaoxiong.weather.data.WeatherAlertGenerator
 import com.xiaoxiong.weather.data.WeatherRefreshPolicy
@@ -87,25 +86,32 @@ class WeatherRefreshWorker(
 
             val settings = container.settingsStore.getOnce()
             if (settings.notificationsEnabled) {
-                val soonSpec =
-                    WeatherAlertGenerator
-                        .specs(snapshot.current, snapshot.hourly, snapshot.daily, snapshot.airQuality)
-                        .firstOrNull { it.kind == AlertKind.RAIN_SOON || it.kind == AlertKind.SNOW_SOON }
+                // 候选=所有 WARNING + 关键 kind 的 WATCH + 临近雨雪（沿用旧行为）；
+                // 高温/寒潮/雾/沙尘/大风/UV/积水等严重预警不再被整类漏掉
+                val specs =
+                    WeatherAlertGenerator.specs(snapshot.current, snapshot.hourly, snapshot.daily, snapshot.airQuality)
+                val severeSpecs = selectSevereNotificationSpecs(specs)
+                val newSignatures =
+                    if (severeSpecs.isEmpty()) {
+                        emptyList()
+                    } else {
+                        dedup.shouldNotifyAlertsAndRemember(
+                            severeSpecs.map { severeNotificationSignature(city.name, it) },
+                        )
+                    }
                 when {
-                    soonSpec != null &&
-                        dedup.shouldNotifySoonAndRemember(
-                            city.name,
-                            soonSignature(city.name, soonSpec),
-                        ) -> {
-                        val alertTitle = applicationContext.getString(soonSpec.titleRes)
-                        val alertText =
-                            if (soonSpec.messageArg != null) {
-                                applicationContext.getString(soonSpec.messageRes, soonSpec.messageArg)
-                            } else {
-                                applicationContext.getString(soonSpec.messageRes)
-                            }
-                        showNotification("${city.name} · $alertTitle", alertText)
-                        // 同步通用去重基线：否则下一轮 soon 被去重后会因 lastCity 为空误判 firstEver 再推一条
+                    newSignatures.isNotEmpty() -> {
+                        val specBySignature =
+                            severeSpecs.associateBy { severeNotificationSignature(city.name, it) }
+                        newSignatures.forEach { signature ->
+                            val spec = specBySignature[signature] ?: return@forEach
+                            showNotification(
+                                title = "${city.name} · ${applicationContext.getString(spec.titleRes)}",
+                                text = alertMessage(spec),
+                                notifyId = SEVERE_NOTIFICATION_ID_BASE + spec.kind.ordinal,
+                            )
+                        }
+                        // 同步通用去重基线：严重预警已推送后，通用分支不再立刻重复推一条
                         dedup.shouldNotifyAndRemember(
                             city.name,
                             current.weatherCode,
@@ -153,15 +159,18 @@ class WeatherRefreshWorker(
         }
     }
 
-    private fun soonSignature(
-        cityName: String,
-        spec: WeatherAlertGenerator.Spec,
-    ): String = "$cityName|${spec.kind}|${spec.titleRes}"
+    private fun alertMessage(spec: WeatherAlertGenerator.Spec): String =
+        if (spec.messageArg != null) {
+            applicationContext.getString(spec.messageRes, spec.messageArg)
+        } else {
+            applicationContext.getString(spec.messageRes)
+        }
 
     @SuppressLint("MissingPermission")
     private fun showNotification(
         title: String,
         text: String,
+        notifyId: Int = NOTIFICATION_ID,
     ) {
         ensureChannel()
         // 显式指向 MainActivity：动态图标会禁用当前 activity-alias，解析 alias 的 launch intent 会失效
@@ -193,7 +202,7 @@ class WeatherRefreshWorker(
 
         // Android 13+ 未授权通知时静默失败即可
         runCatching {
-            NotificationManagerCompat.from(applicationContext).notify(NOTIFICATION_ID, notification)
+            NotificationManagerCompat.from(applicationContext).notify(notifyId, notification)
         }
     }
 
@@ -222,6 +231,9 @@ class WeatherRefreshWorker(
         private const val LEGACY_UNIQUE_WORK = "weather_periodic_refresh"
         private const val CHANNEL_ID = "weather_auto_refresh"
         private const val NOTIFICATION_ID = 1001
+
+        /** 每条严重预警一个通知槽位（kind.ordinal 偏移），避免同类多预警互相覆盖 */
+        private const val SEVERE_NOTIFICATION_ID_BASE = 1100
 
         fun enqueue(
             context: Context,

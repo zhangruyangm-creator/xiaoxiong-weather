@@ -23,17 +23,16 @@ import androidx.compose.ui.unit.Density
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.data.ThemeMode
 import com.xiaoxiong.weather.di.appContainer
-import com.xiaoxiong.weather.game.loadGameEntryProviders
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.theme.XiaoxiongWeatherTheme
 import com.xiaoxiong.weather.ui.weather.WeatherScreen
-import com.xiaoxiong.weather.util.WeatherLauncherIcon
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val settingsStore = applicationContext.appContainer().settingsStore
+        val container = applicationContext.appContainer()
+        val settingsStore = container.settingsStore
         setContent {
             val settings by settingsStore.settings.collectAsStateWithLifecycle(
                 initialValue =
@@ -103,8 +102,9 @@ class MainActivity : ComponentActivity() {
                         contentColor = MaterialTheme.colorScheme.onBackground,
                     ) {
                         CompositionLocalProvider(LocalReduceMotion provides reduceMotion) {
-                            // ServiceLoader 扫描有成本，只在首次进入时执行一次，避免每次重组重复扫描
-                            val gameEntries = remember { loadGameEntryProviders() }
+                            // ServiceLoader 扫描已移到 WeatherApp 后台预载到 AppContainer；
+                            // 这里订阅结果，加载完成后自动重组，首帧不再阻塞主线程
+                            val gameEntries by container.gameEntries.collectAsStateWithLifecycle()
                             WeatherScreen(
                                 settingsStore = settingsStore,
                                 gameEntries = gameEntries,
@@ -117,9 +117,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        // 前台切换图标会在部分机型杀进程；真正退后台再改（旋转屏幕不触发）
+        // 前台切换图标会在部分机型杀进程；真正退后台再改（旋转屏幕不触发）。
+        // PackageManager IPC + prefs 写盘放到应用级后台协程，避免主线程卡顿
         if (!isChangingConfigurations) {
-            WeatherLauncherIcon.flushPending(this)
+            (application as? WeatherApp)?.flushLauncherIconPending()
         }
         super.onStop()
     }

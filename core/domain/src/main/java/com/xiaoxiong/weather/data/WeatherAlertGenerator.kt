@@ -114,10 +114,10 @@ object WeatherAlertGenerator {
                 WeatherCodes.isHeavySnowForecastPeak(futureSnowPeakMm, futureSnowCode) &&
                 (!heavySnowNow || (soonSnowWarning && !blizzardNow))
 
-        when (current.weatherCode) {
+        when {
             // 95/96 雷暴常见：仅当有实测强降雨证据时升红色预警，否则黄色提醒，
             // 避免粗网格模式虚报的雷暴天天弹「红色预警」
-            95, 96 ->
+            current.weatherCode == 95 || current.weatherCode == 96 ->
                 alerts +=
                     if (heavyRainNow) {
                         Spec(
@@ -135,7 +135,7 @@ object WeatherAlertGenerator {
                         )
                     }
             // 99 重度冰雹才报冰雹；同样按实测强降雨分档，避免模式虚报
-            99 ->
+            current.weatherCode == 99 ->
                 alerts +=
                     if (heavyRainNow) {
                         Spec(
@@ -152,7 +152,7 @@ object WeatherAlertGenerator {
                             R.string.alert_hail_watch_msg,
                         )
                     }
-            56, 57, 66, 67 ->
+            WeatherCodes.isFreezingRainCode(current.weatherCode) ->
                 alerts +=
                     Spec(
                         AlertKind.FREEZING_RAIN,
@@ -213,7 +213,8 @@ object WeatherAlertGenerator {
             !heavyRainDaily &&
             precipitatingNow &&
             !WeatherCodes.isSnowCode(current.weatherCode) &&
-            current.weatherCode !in listOf(95, 96, 99, 56, 57, 66, 67)
+            !WeatherCodes.isFreezingRainCode(current.weatherCode) &&
+            current.weatherCode !in listOf(95, 96, 99)
         ) {
             // 小到中雨等：尚不够强降雨阈值，但不宜再显示「暂无预警 / 适宜出行」
             alerts +=
@@ -311,7 +312,7 @@ object WeatherAlertGenerator {
         }
 
         val wind = current.windGustsKmh ?: current.windSpeedKmh
-        if (wind != null && wind >= 62) {
+        if (wind != null && wind >= WeatherCodes.WIND_WARNING_KMH) {
             alerts +=
                 Spec(
                     AlertKind.WIND,
@@ -320,7 +321,7 @@ object WeatherAlertGenerator {
                     R.string.alert_wind_warning_msg,
                     wind,
                 )
-        } else if (wind != null && wind >= 40) {
+        } else if (wind != null && wind >= WeatherCodes.WIND_WATCH_KMH) {
             alerts +=
                 Spec(
                     AlertKind.WIND,
@@ -332,7 +333,7 @@ object WeatherAlertGenerator {
         }
 
         val temp = current.apparentTemperatureC ?: current.temperatureC
-        if (temp != null && temp >= 37) {
+        if (temp != null && temp >= WeatherCodes.HEAT_WARNING_TEMP_C) {
             alerts +=
                 Spec(
                     AlertKind.HEAT,
@@ -396,7 +397,10 @@ object WeatherAlertGenerator {
                 !precipitatingNow &&
                 futureHours.any {
                     !WeatherCodes.isSnowCode(it.weatherCode) &&
-                        ((it.precipitationMm ?: 0.0) >= 1.0 || (it.precipProbability ?: 0) >= 70)
+                        (
+                            (it.precipitationMm ?: 0.0) >= WeatherCodes.RAIN_SOON_MM_H ||
+                                (it.precipProbability ?: 0) >= WeatherCodes.RAIN_SOON_PROBABILITY
+                        )
                 }
         if (rainSoon && current.weatherCode !in listOf(95, 96, 99)) {
             val soonPeakMm =
@@ -421,7 +425,10 @@ object WeatherAlertGenerator {
                 !(precipitatingNow && WeatherCodes.isSnowCode(current.weatherCode)) &&
                 futureHours.any {
                     WeatherCodes.isSnowCode(it.weatherCode) &&
-                        ((it.precipitationMm ?: 0.0) >= 0.5 || (it.precipProbability ?: 0) >= 70)
+                        (
+                            (it.precipitationMm ?: 0.0) >= WeatherCodes.SNOW_SOON_MM_H ||
+                                (it.precipProbability ?: 0) >= WeatherCodes.SNOW_SOON_PROBABILITY
+                        )
                 }
         if (snowSoon) {
             val soonPeakMm =
@@ -438,16 +445,13 @@ object WeatherAlertGenerator {
                 )
         }
 
-        val uv =
-            when {
-                current.isDay == false -> airQuality?.uvIndex // 夜间不用今日 uvIndexMax 冒充当前
-                else -> airQuality?.uvIndex ?: today?.uvIndexMax
-            }
-        if (uv != null && uv >= 8) {
+        // 与生活指数/建议同一口径：白天看当日最大 UV，夜间不提示
+        val uv = WeatherCodes.uvForDaytime(current.isDay, airQuality, today)
+        if (uv != null && uv >= WeatherCodes.UV_VERY_HIGH) {
             alerts +=
                 Spec(
                     AlertKind.UV,
-                    if (uv >= 11) AlertSeverity.WARNING else AlertSeverity.WATCH,
+                    if (uv >= WeatherCodes.UV_EXTREME) AlertSeverity.WARNING else AlertSeverity.WATCH,
                     R.string.alert_uv_title,
                     R.string.alert_uv_msg,
                     uv,
@@ -455,11 +459,11 @@ object WeatherAlertGenerator {
         }
 
         val aqi = airQuality?.europeanAqi
-        if (aqi != null && aqi > 60) {
+        if (aqi != null && aqi > WeatherCodes.AQI_WATCH) {
             alerts +=
                 Spec(
                     AlertKind.AIR_QUALITY,
-                    if (aqi > 80) AlertSeverity.WARNING else AlertSeverity.WATCH,
+                    if (aqi > WeatherCodes.AQI_WARNING) AlertSeverity.WARNING else AlertSeverity.WATCH,
                     R.string.alert_aqi_title,
                     R.string.alert_aqi_msg,
                     aqi,
