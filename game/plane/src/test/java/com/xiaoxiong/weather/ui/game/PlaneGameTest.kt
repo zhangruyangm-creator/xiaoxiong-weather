@@ -60,6 +60,7 @@ class PlaneGameTest {
         val game = newGame()
         game.startGame(seed = 1L)
         assertEquals(PlanePhase.PLAYING, game.phase)
+        assertEquals(PlaneConfig.START_LIVES, game.startLives)
         assertEquals(PlaneConfig.START_LIVES, game.player.lives)
         assertEquals(PlaneConfig.START_BOMBS, game.player.bombs)
         assertEquals(PlaneConfig.MIN_WEAPON_LEVEL, game.player.weaponLevel)
@@ -67,6 +68,24 @@ class PlaneGameTest {
         assertEquals(0, game.waveIndex)
         assertEquals(PlaneConfig.WAVE_INTRO_TICKS, game.betweenWaveTicks)
         assertTrue(game.player.alive)
+    }
+
+    @Test
+    fun startGame_usesConfiguredStartLives_andClamps() {
+        val game = newGame()
+        game.startLives = 7
+        game.startGame(seed = 101L)
+        assertEquals(7, game.player.lives)
+
+        game.startLives = 99
+        assertEquals("设置值应夹到上限", PlaneConfig.START_LIVES_MAX, game.startLives)
+        game.startGame(seed = 102L)
+        assertEquals(PlaneConfig.START_LIVES_MAX, game.player.lives)
+
+        game.startLives = -3
+        assertEquals("设置值应夹到下限", PlaneConfig.START_LIVES_MIN, game.startLives)
+        game.startGame(seed = 103L)
+        assertEquals(PlaneConfig.START_LIVES_MIN, game.player.lives)
     }
 
     @Test
@@ -210,6 +229,46 @@ class PlaneGameTest {
     }
 
     @Test
+    fun heliAndTank_fireTheirOwnBulletPatterns() {
+        val game = newGame()
+        game.startGame(seed = 53L)
+        game.advanceTicks(1)
+        game.enemies.clear()
+        game.enemyBullets.clear()
+        game.enemies +=
+            PlaneEnemy(
+                id = 975,
+                type = PlaneEnemyType.HELI,
+                x = 50f,
+                y = PlaneLogic.HELI_HOVER_Y,
+                vx = 0f,
+                vy = 0f,
+                hp = 6,
+                maxHp = 6,
+                fireTimerTicks = 0,
+            )
+        game.enemies +=
+            PlaneEnemy(
+                id = 976,
+                type = PlaneEnemyType.TANK,
+                x = 50f,
+                y = game.fieldH - PlaneLogic.TANK_GROUND_MARGIN,
+                vx = 12f,
+                vy = 0f,
+                hp = 9,
+                maxHp = 9,
+                fireTimerTicks = 0,
+            )
+        game.advanceTicks(1)
+        assertEquals("直升机 3 发向下扇形 + 装甲车 1 发瞄准炮弹", 4, game.enemyBullets.count { it.shape == PlaneBulletShape.CIRCLE })
+        assertTrue(
+            "直升机向下扇形至少有 3 发朝下",
+            game.enemyBullets.count { it.shape == PlaneBulletShape.CIRCLE && it.vy > 0f } >= 3,
+        )
+        assertTrue("装甲车应发射竖直向上的 CAPSULE 跟踪弹", game.enemyBullets.any { it.shape == PlaneBulletShape.CAPSULE && it.vx == 0f && it.vy < 0f })
+    }
+
+    @Test
     fun bomb_clearsBullets_andDamagesAllEnemies() {
         val game = newGame()
         game.startGame(seed = 6L)
@@ -331,9 +390,9 @@ class PlaneGameTest {
     }
 
     @Test
-    fun defeatingFinalBoss_wins() {
+    fun defeatingBoss_continuesEndlessly_withoutWinEvent() {
         val game = newGame()
-        game.startGame(seed = 10L, startWave = PLANE_TOTAL_WAVES)
+        game.startGame(seed = 10L, startWave = PLANE_BOSS_EVERY * 2)
         game.advanceTicks(PlaneConfig.WAVE_INTRO_TICKS + PlaneConfig.BOSS_WARNING_TICKS)
         game.advanceTicks(120)
         val boss = game.enemies.first { it.isBoss }
@@ -343,10 +402,14 @@ class PlaneGameTest {
         assertTrue(game.pendingHapticBossDown)
         assertFalse("Boss 死亡只触发 bossDown，不应再叠加 explosion 音", game.pendingHapticExplosion)
         game.advanceTicks(1)
-        assertEquals(PlanePhase.SETTLED, game.phase)
-        assertTrue(game.pendingHapticWin)
+        assertEquals("无尽模式：击破 Boss 不结算", PlanePhase.PLAYING, game.phase)
+        assertFalse("无尽模式不再触发 WIN 事件", game.pendingHapticWin)
         assertFalse(game.pendingHapticLose)
         assertTrue(game.player.alive)
+        // 波次间隔后继续进入下一波非 Boss 编队
+        game.advanceTicks(PlaneConfig.WAVE_GAP_TICKS)
+        assertEquals(PLANE_BOSS_EVERY * 2 + 1, game.waveIndex)
+        assertEquals(PlanePhase.PLAYING, game.phase)
     }
 
     @Test

@@ -41,7 +41,7 @@ class GameLeaderboardState(
 fun rememberLeaderboardState(
     prefs: SharedPreferences,
     tableKey: String,
-    bestKey: String,
+    bestKey: String? = null,
     retainRecent: Boolean = false,
 ): GameLeaderboardState {
     val store =

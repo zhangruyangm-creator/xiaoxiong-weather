@@ -2,12 +2,14 @@
 #
 # 本地一键发布：构建 release APK -> 发布 GitHub Release -> 更新下载站 README -> 打 tag
 # 用法: ./release.sh v1.4.6
+#        SKIP_TESTS=1 ./release.sh v1.4.6   # 跳过发布前的单元测试与 ktlint（应急发布用）
+# 默认先跑 ./gradlew test lintKotlin，失败即退出，不会创建 Release
 #
 set -euo pipefail
 
 VERSION_ARG="${1:-}"
 if [[ ! "$VERSION_ARG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "用法: ./release.sh v1.4.6"
+  echo "用法: ./release.sh v1.4.6   （SKIP_TESTS=1 可跳过发布前的测试与 lint）"
   exit 1
 fi
 VERSION="${VERSION_ARG#v}"
@@ -26,6 +28,14 @@ if git tag -l "$VERSION_ARG" | grep -q .; then
 fi
 echo "==> 校验版本一致性（versionName / CHANGELOG / tag）"
 python3 tools/verify_release_version.py "$VERSION_ARG"
+
+# ---------- 发布前校验：单元测试 + ktlint（失败即退出，不创建 Release） ----------
+if [[ "${SKIP_TESTS:-0}" == "1" ]]; then
+  echo "==> SKIP_TESTS=1，跳过单元测试与 ktlint"
+else
+  echo "==> 运行单元测试与 ktlint（SKIP_TESTS=1 可跳过）"
+  ./gradlew test lintKotlin --console=plain
+fi
 
 # ---------- 构建 ----------
 echo "==> 构建 full release APK（本地缓存，约 2-3 分钟）"

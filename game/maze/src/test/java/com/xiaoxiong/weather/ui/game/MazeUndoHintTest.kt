@@ -75,6 +75,18 @@ class MazeUndoHintTest {
         assertFalse("换关/重开后历史应清空", game.canUndo)
     }
 
+    @Test
+    fun boardVersion_bumpsOnRestartAndUndo() {
+        val game = startLevel1()
+        val initial = game.boardVersion
+        game.step(MazeDir.RIGHT)
+        assertEquals("普通移动不应重置棋盘代次", initial, game.boardVersion)
+        assertTrue(game.undo())
+        assertEquals("撤销应使棋盘代次自增", initial + 1, game.boardVersion)
+        game.restart()
+        assertEquals("重开应使棋盘代次自增", initial + 2, game.boardVersion)
+    }
+
     // ── 提示 ───────────────────────────────────────────────────
 
     @Test

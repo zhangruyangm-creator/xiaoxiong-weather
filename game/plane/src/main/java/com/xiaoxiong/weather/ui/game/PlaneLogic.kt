@@ -91,6 +91,28 @@ object PlaneLogic {
     const val WEAVE_OMEGA = 2.4f
     const val WEAVE_AMP = 11f
 
+    /** 直升机悬停高度、摆动角频率 / 振幅与垂直浮动幅度。 */
+    const val HELI_HOVER_Y = 36f
+    const val HELI_SWAY_OMEGA = 1.5f
+    const val HELI_SWAY_AMP = 15f
+    const val HELI_BOB_AMP = 3.5f
+
+    /** 直升机悬停持续时间（tick）：超时后加速脱离，避免不推进的敌人让波次永久卡住。 */
+    const val HELI_HOLD_TICKS = 480
+
+    /** 直升机脱离时的竖直速度倍率。 */
+    const val HELI_EXIT_SPEED_MUL = 1.35f
+
+    /** 装甲车地面线距场底距离、瞄准炮弹半径与直射炮弹参数。 */
+    const val TANK_GROUND_MARGIN = 8f
+    const val TANK_SHELL_RADIUS = 2.4f
+    const val TANK_MORTAR_RADIUS = 1.7f
+    const val TANK_MORTAR_HALF_LENGTH = 4.5f
+    const val TANK_MORTAR_SPEED_MUL = 0.8f
+
+    /** 直升机向下扇形射击的张角（弧度）。 */
+    const val HELI_DOWN_FAN_SPREAD = 0.24f
+
     /** Boss 停靠高度、横向扫射角频率与速度。 */
     const val BOSS_HOLD_Y = 22f
     const val BOSS_SWEEP_OMEGA = 1.1f
@@ -255,6 +277,28 @@ object PlaneLogic {
         }
     }
 
+    /** 向下扇形：以正下方为中轴、[count] 发等角散布（直升机专用）。 */
+    fun downFan(
+        x: Float,
+        y: Float,
+        count: Int,
+        spreadRad: Float,
+        speed: Float,
+        radius: Float = PlaneConfig.ENEMY_BULLET_RADIUS,
+    ): List<PlaneBulletSpec> =
+        List(count.coerceAtLeast(1)) { i ->
+            val offset = if (count <= 1) 0f else (i - (count - 1) / 2f) * spreadRad
+            val a = HALF_PI + offset
+            PlaneBulletSpec(
+                x = x,
+                y = y,
+                vx = cos(a) * speed,
+                vy = sin(a) * speed,
+                radius = radius,
+                angle = a,
+            )
+        }
+
     /** 环形弹幕：[count] 发均匀分布，[phaseRad] 控制整体旋转。 */
     fun ring(
         x: Float,
@@ -279,6 +323,8 @@ object PlaneLogic {
     /**
      * 敌人本次开火的弹幕。Boss 按 [PlaneEnemy.bossPhase] 切换：
      * 0 追踪扇形 / 1 扇形 + 环形 / 2 旋转环 + 密集扇形。
+     * 直升机固定向下扇形；装甲车发射瞄准炮弹 + 直射跟踪弹。
+     * [waveIndex] 参与弹速的波次成长（与 [PlaneConfig.enemySpec] 口径一致）。
      */
     fun enemyBulletSpecs(
         enemy: PlaneEnemy,
@@ -286,9 +332,13 @@ object PlaneLogic {
         playerY: Float,
         difficulty: PlaneDifficulty,
         spinPhaseRad: Float,
+        waveIndex: Int = 1,
     ): List<PlaneBulletSpec> {
         if (enemy.type.baseFireIntervalTicks <= 0) return emptyList()
-        val speed = enemy.type.baseBulletSpeed * difficulty.bulletSpeedMul
+        val speed =
+            enemy.type.baseBulletSpeed *
+                difficulty.bulletSpeedMul *
+                PlaneConfig.waveBulletSpeedMul(waveIndex)
         return when (enemy.type) {
             PlaneEnemyType.TRANSPORT -> emptyList()
             PlaneEnemyType.BOSS -> bossBulletSpecs(enemy, playerX, playerY, speed, spinPhaseRad)
@@ -296,11 +346,53 @@ object PlaneLogic {
                 aimedFan(enemy.x, enemy.y, playerX, playerY, count = 1, spreadRad = 0f, speed = speed)
             PlaneEnemyType.WEAVER ->
                 aimedFan(enemy.x, enemy.y, playerX, playerY, count = 2, spreadRad = 0.20f, speed = speed)
+            PlaneEnemyType.HELI ->
+                downFan(
+                    enemy.x,
+                    enemy.y,
+                    count = 3,
+                    spreadRad = HELI_DOWN_FAN_SPREAD,
+                    speed = speed,
+                )
+            PlaneEnemyType.TANK -> tankBulletSpecs(enemy, playerX, playerY, speed)
             PlaneEnemyType.TURRET ->
                 aimedFan(enemy.x, enemy.y, playerX, playerY, count = 2, spreadRad = 0.26f, speed = speed) +
                     turretBarSpec(enemy.x, enemy.y, speed)
         }
     }
+
+    /**
+     * 装甲车弹幕：一发瞄准玩家的炮弹（大圆，跟随玩家位置）+ 一发垂直上射的慢速跟踪弹
+     * （CAPSULE 形状、沿弹体方向判定），逼迫玩家横向走位。
+     */
+    fun tankBulletSpecs(
+        enemy: PlaneEnemy,
+        playerX: Float,
+        playerY: Float,
+        speed: Float,
+    ): List<PlaneBulletSpec> =
+        aimedFan(
+            enemy.x,
+            enemy.y,
+            playerX,
+            playerY,
+            count = 1,
+            spreadRad = 0f,
+            speed = speed,
+            radius = TANK_SHELL_RADIUS,
+        ) +
+            listOf(
+                PlaneBulletSpec(
+                    x = enemy.x,
+                    y = enemy.y,
+                    vx = 0f,
+                    vy = -speed * TANK_MORTAR_SPEED_MUL,
+                    shape = PlaneBulletShape.CAPSULE,
+                    radius = TANK_MORTAR_RADIUS,
+                    halfLength = TANK_MORTAR_HALF_LENGTH,
+                    angle = -HALF_PI,
+                ),
+            )
 
     /**
      * 炮台长条弹：竖直 RECT 慢速下压封锁走位。
@@ -413,19 +505,25 @@ object PlaneLogic {
     /**
      * 敌人当前是否允许开火（还须配合 [PlaneEnemy.fireTimerTicks] 计时）：
      * - 小兵按 id 奇偶交替开火，控制弹幕总量；
-     * - 俯冲兵俯冲后才开火；炮台停靠后才开火。
+     * - 俯冲兵俯冲后才开火；炮台停靠后才开火；直升机悬停后才开火；
+     * - 装甲车贴地巡行时即可开火（地面单位不适用常规场高限制）。
      */
     fun enemyWantsFire(
         enemy: PlaneEnemy,
         fieldH: Float,
     ): Boolean {
         if (enemy.type.baseFireIntervalTicks <= 0) return false
-        if (enemy.y < 4f || enemy.y > fieldH * 0.85f) return false
+        if (enemy.type == PlaneEnemyType.TANK) {
+            if (enemy.y < fieldH - TANK_GROUND_MARGIN - 1f) return false
+        } else {
+            if (enemy.y < 4f || enemy.y > fieldH * 0.85f) return false
+        }
         if (enemy.x < 2f || enemy.x > PLANE_LOGICAL_WIDTH - 2f) return false
         return when (enemy.type) {
             PlaneEnemyType.GRUNT -> enemy.id % 2 == 0
             PlaneEnemyType.DIVER -> enemy.ageTicks >= DIVER_DIVE_AFTER_TICKS
             PlaneEnemyType.TURRET -> enemy.y >= enemy.targetY - 1f
+            PlaneEnemyType.HELI -> enemy.y >= HELI_HOVER_Y - 1f
             else -> true
         }
     }
@@ -433,8 +531,9 @@ object PlaneLogic {
     /**
      * 敌人每 tick 的速度（逻辑单位 / 秒），由类型与 [PlaneEnemy.ageTicks] 决定：
      * - 侧向入场期间返回入场时已按难度缩放的速度，入场结束后转入常规行为；
-     * - 摆渡兵按正弦轨迹摆动（用速度形式表达，便于积分）；
+     * - 摆渡兵 / 直升机按正弦轨迹摆动（用速度形式表达，便于积分）；
      * - 炮台下降到 [PlaneEnemy.targetY] 后停下；
+     * - 装甲车从场底爬升到地面线后保持 [PlaneEnemy.vx] 横向巡行；
      * - Boss 下降到停靠线后左右扫射。
      */
     fun enemyVelocity(
@@ -462,6 +561,25 @@ object PlaneLogic {
             PlaneEnemyType.WEAVER ->
                 (WEAVE_AMP * WEAVE_OMEGA * cos(enemy.ageTicks * WEAVE_OMEGA / 60f)) to base * 0.75f
             PlaneEnemyType.TURRET -> if (enemy.y < enemy.targetY - 0.5f) 0f to base else 0f to 0f
+            PlaneEnemyType.HELI -> {
+                if (enemy.y < HELI_HOVER_Y) {
+                    0f to base
+                } else {
+                    val t = enemy.ageTicks / 60f
+                    val sway = HELI_SWAY_AMP * HELI_SWAY_OMEGA * cos(t * HELI_SWAY_OMEGA)
+                    val vy =
+                        if (enemy.ageTicks >= HELI_HOLD_TICKS) {
+                            base * HELI_EXIT_SPEED_MUL
+                        } else {
+                            HELI_BOB_AMP * sin(t * 1.3f)
+                        }
+                    sway to vy
+                }
+            }
+            PlaneEnemyType.TANK -> {
+                val groundY = fieldH - TANK_GROUND_MARGIN
+                if (enemy.y > groundY) enemy.vx to -base else enemy.vx to 0f
+            }
             PlaneEnemyType.BOSS -> {
                 val vy = if (enemy.y < BOSS_HOLD_Y) base else 0f
                 (sin(enemy.ageTicks * BOSS_SWEEP_OMEGA / 60f) * BOSS_SWEEP_SPEED) to vy

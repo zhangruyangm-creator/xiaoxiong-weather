@@ -110,6 +110,20 @@ class PoolSnapshotTest {
     }
 
     @Test
+    fun restoreSnapshot_raceToDiffersFromPrefs_snapshotWins() {
+        val prefs = FakePrefs()
+        val source = newGame() // 初始 raceTo = 2（模拟旧 prefs）
+        source.mode = PoolMode.NINE_BALL
+        source.raceTo = 7
+        source.startMatch(PoolSide.PLAYER, seed = 31L)
+        source.saveSnapshot(prefs)
+
+        val restored = newGame() // 构造时 raceTo 仍为 2，恢复后应被快照覆盖
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals("进行中对局的赛制应优先于 prefs，否则会当场误判 matchOver", 7, restored.raceTo)
+    }
+
+    @Test
     fun restoreSnapshot_empty_returnsFalse() {
         val game = newGame()
         assertFalse(game.restoreSnapshot(FakePrefs()))

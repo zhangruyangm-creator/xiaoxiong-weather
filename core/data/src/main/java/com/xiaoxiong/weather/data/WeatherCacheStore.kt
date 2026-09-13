@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.abs
 
@@ -94,7 +96,8 @@ class WeatherCacheStore internal constructor(
             val entry = decodeEntry(raw) ?: continue
             if (!isWithinFreshnessWindow(entry.savedAtEpochMs, now, MAX_AGE_MS)) continue
             if (!sameCacheCity(entry.snapshot.city, city)) continue
-            return entry
+            // 离线跨天：缓存里的 daily[0] 仍是昨天，返回前按快照时区裁掉过期日
+            return entry.copy(snapshot = dropStaleDaily(entry.snapshot))
         }
         return null
     }
@@ -211,6 +214,41 @@ internal fun trimSnapshotForCache(snapshot: WeatherSnapshot): WeatherSnapshot {
     val to = (currentIndex + CACHE_HOURLY_FUTURE_HOURS + 1).coerceAtMost(hourly.size)
     if (from == 0 && to == hourly.size) return snapshot
     return snapshot.copy(hourly = hourly.subList(from, to))
+}
+
+/**
+ * 快照所属时区的「今天」：timezone 缺失或非法时回退 [fallbackZone]（默认系统时区）。
+ * 纯逻辑，便于单测跨天/回退边界。
+ */
+internal fun todayInSnapshotZone(
+    timezoneId: String?,
+    fallbackZone: ZoneId = ZoneId.systemDefault(),
+): LocalDate {
+    val zone = runCatching { timezoneId?.let { ZoneId.of(it) } }.getOrNull() ?: fallbackZone
+    return LocalDate.now(zone)
+}
+
+/**
+ * 裁掉早于「今天」的 daily 条目（按快照时区判定）。
+ *
+ * 离线跨午夜后读取缓存时，daily[0] 仍是昨天，会让首页高低温、七日页「今天」、
+ * UV/预警整体错位一天。全部条目都过期时保留最后一条，避免消费方拿到空列表。
+ */
+internal fun dropStaleDaily(
+    snapshot: WeatherSnapshot,
+    today: LocalDate = todayInSnapshotZone(snapshot.timezone),
+): WeatherSnapshot {
+    val daily = snapshot.daily
+    if (daily.isEmpty()) return snapshot
+    val fresh = daily.filter { it.isOnOrAfter(today) }
+    if (fresh.size == daily.size) return snapshot
+    return snapshot.copy(daily = fresh.ifEmpty { listOf(daily.last()) })
+}
+
+/** date 为 ISO 日期；无法解析时保守保留，不做跨天丢弃。 */
+private fun DailyWeather.isOnOrAfter(today: LocalDate): Boolean {
+    val parsed = runCatching { LocalDate.parse(date) }.getOrNull() ?: return true
+    return !parsed.isBefore(today)
 }
 
 /**

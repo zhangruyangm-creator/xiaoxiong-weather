@@ -335,6 +335,85 @@ class PlaneLogicTest {
         assertFalse(PlaneLogic.enemyWantsFire(transport, 180f))
     }
 
+    @Test
+    fun waveScaling_growsThenSaturatesAtSoftCaps() {
+        assertTrue("HP 随波次增长", PlaneConfig.waveHpScale(3) > PlaneConfig.waveHpScale(1))
+        assertEquals("HP 进入软上限", 5.5f, PlaneConfig.waveHpScale(5000), 1e-4f)
+        assertEquals("分数进入软上限", 5f, PlaneConfig.waveScoreScale(5000), 1e-4f)
+        assertEquals("速度进入软上限", 1.5f, PlaneConfig.waveSpeedMul(5000), 1e-4f)
+        assertEquals("弹速进入软上限", 1.4f, PlaneConfig.waveBulletSpeedMul(5000), 1e-4f)
+        assertEquals("密度进入软上限", 1.5f, PlaneConfig.waveFireDensityMul(5000), 1e-4f)
+        assertEquals(
+            "远波次使用同一平台值",
+            PlaneConfig.waveHpScale(PLANE_MAX_WAVE),
+            PlaneConfig.waveHpScale(PLANE_MAX_WAVE - 100),
+            1e-6f,
+        )
+    }
+
+    @Test
+    fun enemySpec_highWave_boundedAndFireIntervalHasHardFloor() {
+        val far = PlaneConfig.enemySpec(PlaneEnemyType.BOSS, PlaneDifficulty.CHALLENGE, PLANE_MAX_WAVE)
+        assertTrue("Boss 高波次 HP 必须低于快照清洗上限", far.hp <= PlaneConfig.MAX_ENEMY_HP)
+        val early = PlaneConfig.fireIntervalTicks(PlaneEnemyType.GRUNT, PlaneDifficulty.CHALLENGE, 1)
+        val late = PlaneConfig.fireIntervalTicks(PlaneEnemyType.GRUNT, PlaneDifficulty.CHALLENGE, PLANE_MAX_WAVE)
+        assertTrue("高波次开火更密", late <= early)
+        assertTrue("开火间隔存在硬下限", late >= PlaneConfig.MIN_FIRE_INTERVAL_TICKS)
+    }
+
+    @Test
+    fun heli_hoversThenFiresDownwardFanOnly() {
+        val descending = enemy(PlaneEnemyType.HELI, y = 8f)
+        val (vx0, vy0) = PlaneLogic.enemyVelocity(descending, 50f, 180f, 1f)
+        assertEquals("悬停前不横移", 0f, vx0, 1e-4f)
+        assertTrue("悬停前下降", vy0 > 0f)
+        assertFalse(
+            "未到悬停高度不开火",
+            PlaneLogic.enemyWantsFire(enemy(PlaneEnemyType.HELI, y = PlaneLogic.HELI_HOVER_Y - 4f), 180f),
+        )
+
+        val hovering = enemy(PlaneEnemyType.HELI, y = PlaneLogic.HELI_HOVER_Y, ageTicks = 0)
+        val (vx1, _) = PlaneLogic.enemyVelocity(hovering, 50f, 180f, 1f)
+        assertEquals("悬停后按正弦速度摆动", PlaneLogic.HELI_SWAY_AMP * PlaneLogic.HELI_SWAY_OMEGA, vx1, 1e-3f)
+        assertTrue(PlaneLogic.enemyWantsFire(hovering, 180f))
+
+        val leaving =
+            enemy(PlaneEnemyType.HELI, y = PlaneLogic.HELI_HOVER_Y, ageTicks = PlaneLogic.HELI_HOLD_TICKS)
+        val (_, exitVy) = PlaneLogic.enemyVelocity(leaving, 50f, 180f, 1f)
+        assertTrue("悬停超时后应下撤离场（保证波次可清空）", exitVy > 0f)
+
+        val fan = PlaneLogic.enemyBulletSpecs(hovering, 50f, 150f, PlaneDifficulty.STANDARD, 0f)
+        assertEquals(3, fan.size)
+        assertTrue("直升机只向下射击", fan.all { it.vy > 0f && it.shape == PlaneBulletShape.CIRCLE })
+        assertEquals("向下扇形左右对称", -fan[0].vx, fan[2].vx, 1e-3f)
+        assertEquals("中轴竖直向下", 0f, fan[1].vx, 1e-3f)
+    }
+
+    @Test
+    fun tank_climbsToGroundLine_thenPatrolsAndFiresUpward() {
+        val climbing = enemy(PlaneEnemyType.TANK, y = 186f)
+        val (_, climbVy) = PlaneLogic.enemyVelocity(climbing, 50f, 180f, 1f)
+        assertTrue("地面线以下向上爬升", climbVy < 0f)
+        assertFalse(
+            "未到地面线不开火",
+            PlaneLogic.enemyWantsFire(enemy(PlaneEnemyType.TANK, y = 120f), 180f),
+        )
+
+        val grounded = enemy(PlaneEnemyType.TANK, y = 180f - PlaneLogic.TANK_GROUND_MARGIN)
+        val (_, patrolVy) = PlaneLogic.enemyVelocity(grounded, 50f, 180f, 1f)
+        assertEquals("到地面线后不再升降", 0f, patrolVy, 1e-4f)
+        assertTrue(PlaneLogic.enemyWantsFire(grounded, 180f))
+
+        val specs = PlaneLogic.enemyBulletSpecs(grounded, 30f, 100f, PlaneDifficulty.STANDARD, 0f)
+        assertEquals("炮弹 + 跟踪弹两发", 2, specs.size)
+        val shell = specs.first { it.shape == PlaneBulletShape.CIRCLE }
+        assertTrue("瞄准炮弹朝左上方的玩家", shell.vx < 0f && shell.vy < 0f)
+        val mortar = specs.first { it.shape == PlaneBulletShape.CAPSULE }
+        assertEquals("直射弹竖直向上", 0f, mortar.vx, 1e-4f)
+        assertTrue(mortar.vy < 0f)
+        assertTrue("CAPSULE 半长不小于半径", mortar.halfLength >= mortar.radius)
+    }
+
     // ---------------------------------------------------------------------
     // RNG
     // ---------------------------------------------------------------------

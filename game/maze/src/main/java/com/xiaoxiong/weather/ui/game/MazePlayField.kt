@@ -83,6 +83,8 @@ internal fun MazePlayField(
             game.canUndo
         }
     }
+    // needHoneyHintT 每帧递减；收敛为布尔翻转，避免出口提示的 2.2s 内整树逐帧重组
+    val needHoneyHint by remember { derivedStateOf { game.needHoneyHintT > 0f } }
     var swipeAcc by remember { mutableStateOf(Offset.Zero) }
     // 提示：高亮下一步方向，1.5s 后自动消失；无解 / 状态空间过大时短暂提示文案
     var hintDir by remember { mutableStateOf<MazeDir?>(null) }
@@ -106,12 +108,14 @@ internal fun MazePlayField(
 
     // 提示求解放到后台线程：忙碌期间禁用按钮，避免连点重复 BFS
     val scope = rememberCoroutineScope()
-    val hintSession = remember(game.level) { MazeHintSession() }
+    // 提示缓存与对局棋盘代次绑定：换关/重开/撤销后旧缓存与在途求解一律失效
+    val hintSession = remember(game.boardVersion) { MazeHintSession() }
     var hintJob by remember { mutableStateOf<Job?>(null) }
-    // 换关：取消在途求解并复位忙碌/缓存，旧 BFS 的结果不会残留到新关卡
-    LaunchedEffect(game.level) {
+    // 棋盘重置：取消在途求解并清提示 UI，旧 BFS 的结果和提示箭头不会残留到新棋盘
+    LaunchedEffect(game.boardVersion) {
         hintJob?.cancel()
         hintJob = null
+        clearHintUi()
     }
     LaunchedEffect(hintDir) {
         if (hintDir != null) {
@@ -130,6 +134,15 @@ internal fun MazePlayField(
             delay(HINT_HIGHLIGHT_MS)
             showHintUnavailable = false
         }
+    }
+
+    // 重开：可能复用同一关卡对象（remember 不会重启），显式取消在途求解、复位忙碌并清提示 UI
+    fun restartWithCleanHints() {
+        clearHintUi()
+        hintJob?.cancel()
+        hintJob = null
+        hintSession.cancel()
+        onRestart()
     }
     // 任何一次移动都清掉提示；被墙/锁挡住时补一次回弹 + 尘土（与触感反馈同源条件）
     val move: (MazeDir) -> Unit = { dir ->
@@ -253,22 +266,14 @@ internal fun MazePlayField(
                     }
                 }
             },
-            onRestart = {
-                clearHintUi()
-                // 重开可能复用同一关卡对象（remember/LaunchedEffect 不会重启）：
-                // 这里显式取消在途求解并复位忙碌，避免旧 BFS 阻塞新一局的提示按钮
-                hintJob?.cancel()
-                hintJob = null
-                hintSession.cancel()
-                onRestart()
-            },
+            onRestart = { restartWithCleanHints() },
             onPause = onPause,
             onCharacter = onCharacter,
         )
 
         val banner =
             when {
-                game.needHoneyHintT > 0f ->
+                needHoneyHint ->
                     stringResource(R.string.bear_maze_need_honey) to Color(0xFFFFC107)
                 showNoHint ->
                     stringResource(R.string.bear_maze_hint_none) to Color(0xFFFF8A80)
@@ -328,7 +333,7 @@ internal fun MazePlayField(
                     style = style,
                     reduceMotion = reduceMotion,
                     onExitSelect = onExitSelect,
-                    onRestart = onRestart,
+                    onRestart = { restartWithCleanHints() },
                     onNext = onNext,
                 )
             }

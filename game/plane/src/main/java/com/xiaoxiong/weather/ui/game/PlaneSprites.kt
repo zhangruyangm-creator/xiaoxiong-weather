@@ -26,9 +26,10 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * 精灵烘焙缓存（玩家机 / 6 种敌机 / Boss 三阶段 / 道具）。
+ * 精灵烘焙缓存（玩家机 / 7 种敌机 / Boss 三阶段 / 道具）。
  *
  * 键含「类型（kind/variant）+ 尺寸（像素半径取整）+ 阵营 / 昼夜」，同一键只烘焙一次；
+ * 新增敌人类型通过 [PlaneEnemyType.ordinal] 进入 variant，缓存键天然区分新类型。
  * 小图（最长边约 2×290px）做 LRU 限制常驻，先淘汰最旧再分配，分配 / 绘制失败静默降级。
  * 仅主线程绘制，无需加锁。
  */
@@ -50,7 +51,7 @@ internal object PlaneSprites {
     const val KIND_ENEMY = 1
     const val KIND_POWERUP = 2
 
-    private const val MAX_ENTRIES = 18
+    private const val MAX_ENTRIES = 24
 
     private val entries = ArrayList<PlaneSprite>(MAX_ENTRIES)
 
@@ -288,6 +289,8 @@ private fun DrawScope.drawEnemyArt(
         PlaneEnemyType.WEAVER -> drawWeaverArt(r, palette)
         PlaneEnemyType.TURRET -> drawTurretArt(r, palette)
         PlaneEnemyType.TRANSPORT -> drawTransportArt(r, palette)
+        PlaneEnemyType.HELI -> drawHeliArt(r, palette)
+        PlaneEnemyType.TANK -> drawTankArt(r, palette)
         PlaneEnemyType.BOSS -> drawBossArt(r, phase, palette)
     }
 }
@@ -595,6 +598,217 @@ private fun DrawScope.drawTransportArt(
     for (side in intArrayOf(-1, 1)) {
         drawCircle(Color(0xFFFF5252), r * 0.05f, Offset(side * r * 0.46f, -r * 0.02f))
     }
+}
+
+// ---------------------------------------------------------------------
+// 直升机：悬停空中，主旋翼 + 尾撑 + 起落橇
+// ---------------------------------------------------------------------
+
+private fun DrawScope.drawHeliArt(
+    r: Float,
+    p: PlaneEnemyPalette,
+) {
+    val outline = Stroke(r * 0.07f)
+    // 地面投影
+    drawOval(
+        Color.Black.copy(alpha = 0.18f),
+        topLeft = Offset(-r * 0.85f, r * 0.30f),
+        size = Size(r * 1.70f, r * 0.60f),
+    )
+    // 尾撑 + 尾桨（朝上）
+    drawRoundRect(
+        color = p.panel,
+        topLeft = Offset(-r * 0.09f, -r * 1.00f),
+        size = Size(r * 0.18f, r * 0.72f),
+        cornerRadius = CornerRadius(r * 0.08f),
+    )
+    drawRoundRect(
+        color = p.dark,
+        topLeft = Offset(-r * 0.09f, -r * 1.00f),
+        size = Size(r * 0.18f, r * 0.72f),
+        cornerRadius = CornerRadius(r * 0.08f),
+        style = outline,
+    )
+    for (side in intArrayOf(-1, 1)) {
+        drawLine(
+            p.dark,
+            Offset(0f, -r * 0.92f),
+            Offset(side * r * 0.34f, -r * 1.00f),
+            strokeWidth = r * 0.06f,
+        )
+    }
+    drawCircle(p.accent, r * 0.07f, Offset(0f, -r * 0.94f))
+    // 短翼 + 武器挂架
+    for (side in intArrayOf(-1, 1)) {
+        drawRoundRect(
+            color = p.panel,
+            topLeft = Offset(side * r * 0.20f - r * 0.30f, -r * 0.18f),
+            size = Size(r * 0.30f, r * 0.16f),
+            cornerRadius = CornerRadius(r * 0.06f),
+        )
+        drawRoundRect(
+            color = p.dark,
+            topLeft = Offset(side * r * 0.20f - r * 0.30f, -r * 0.18f),
+            size = Size(r * 0.30f, r * 0.16f),
+            cornerRadius = CornerRadius(r * 0.06f),
+            style = Stroke(r * 0.05f),
+        )
+        drawRoundRect(
+            color = Color(0xFF3A4658),
+            topLeft = Offset(side * r * 0.42f - r * 0.05f, -r * 0.14f),
+            size = Size(r * 0.10f, r * 0.34f),
+            cornerRadius = CornerRadius(r * 0.04f),
+        )
+    }
+    // 机身（水滴形，机鼻朝下）
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(0f, r * 0.88f)
+    PlaneArt.path.cubicTo(r * 0.52f, r * 0.40f, r * 0.46f, -r * 0.36f, 0f, -r * 0.62f)
+    PlaneArt.path.cubicTo(-r * 0.46f, -r * 0.36f, -r * 0.52f, r * 0.40f, 0f, r * 0.88f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.body)
+    drawPath(PlaneArt.path, p.dark, style = outline)
+    // 座舱（前风挡）
+    drawOval(
+        p.accent.copy(alpha = 0.55f),
+        topLeft = Offset(-r * 0.22f, r * 0.06f),
+        size = Size(r * 0.44f, r * 0.34f),
+    )
+    drawOval(
+        Color(0xFF243244).copy(alpha = 0.75f),
+        topLeft = Offset(-r * 0.16f, r * 0.14f),
+        size = Size(r * 0.32f, r * 0.20f),
+    )
+    // 机腹机炮
+    drawCircle(p.dark, r * 0.10f, Offset(0f, r * 0.62f))
+    // 起落橇
+    for (side in intArrayOf(-1, 1)) {
+        drawLine(
+            p.dark,
+            Offset(side * r * 0.38f, -r * 0.04f),
+            Offset(side * r * 0.46f, r * 0.36f),
+            strokeWidth = r * 0.06f,
+        )
+        drawLine(
+            p.dark,
+            Offset(side * r * 0.30f, -r * 0.02f),
+            Offset(side * r * 0.56f, r * 0.34f),
+            strokeWidth = r * 0.06f,
+        )
+    }
+    // 主旋翼（静止帧：十字桨叶 + 旋翼盘模糊）
+    drawOval(
+        Color.White.copy(alpha = 0.10f),
+        topLeft = Offset(-r * 1.20f, r * 0.00f),
+        size = Size(r * 2.40f, r * 0.18f),
+    )
+    drawLine(p.dark, Offset(-r * 1.08f, r * 0.09f), Offset(r * 1.08f, r * 0.09f), strokeWidth = r * 0.09f)
+    drawLine(p.dark, Offset(-r * 0.30f, -r * 0.06f), Offset(r * 0.30f, r * 0.24f), strokeWidth = r * 0.07f)
+    drawCircle(p.panel, r * 0.14f, Offset(0f, r * 0.09f))
+    drawCircle(p.dark, r * 0.07f, Offset(0f, r * 0.09f))
+    // 航行灯
+    drawCircle(Color(0xFFFF5252), r * 0.05f, Offset(-r * 0.46f, r * 0.34f))
+    drawCircle(Color(0xFF69F0AE), r * 0.05f, Offset(r * 0.46f, r * 0.34f))
+}
+
+// ---------------------------------------------------------------------
+// 装甲车：地面载具，履带 + 车体 + 朝上炮管
+// ---------------------------------------------------------------------
+
+private fun DrawScope.drawTankArt(
+    r: Float,
+    p: PlaneEnemyPalette,
+) {
+    val outline = Stroke(r * 0.07f)
+    // 双履带（上下两条横向履带）
+    for (side in intArrayOf(-1, 1)) {
+        val top = side * r * 0.30f
+        drawRoundRect(
+            color = Color(0xFF3A4148),
+            topLeft = Offset(-r * 1.00f, top),
+            size = Size(r * 2.00f, r * 0.34f),
+            cornerRadius = CornerRadius(r * 0.16f),
+        )
+        drawRoundRect(
+            color = p.dark,
+            topLeft = Offset(-r * 1.00f, top),
+            size = Size(r * 2.00f, r * 0.34f),
+            cornerRadius = CornerRadius(r * 0.16f),
+            style = outline,
+        )
+        for (i in 0 until 5) {
+            drawCircle(
+                p.panel,
+                r * 0.10f,
+                Offset(-r * 0.76f + i * r * 0.38f, top + r * 0.17f),
+            )
+        }
+    }
+    // 车体
+    drawRoundRect(
+        color = p.body,
+        topLeft = Offset(-r * 0.86f, -r * 0.30f),
+        size = Size(r * 1.72f, r * 0.60f),
+        cornerRadius = CornerRadius(r * 0.10f),
+    )
+    drawRoundRect(
+        color = p.dark,
+        topLeft = Offset(-r * 0.86f, -r * 0.30f),
+        size = Size(r * 1.72f, r * 0.60f),
+        cornerRadius = CornerRadius(r * 0.10f),
+        style = outline,
+    )
+    // 车头 / 车尾斜甲
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(r * 0.86f, -r * 0.26f)
+    PlaneArt.path.lineTo(r * 1.06f, -r * 0.04f)
+    PlaneArt.path.lineTo(r * 1.06f, r * 0.10f)
+    PlaneArt.path.lineTo(r * 0.86f, r * 0.26f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.panel)
+    drawPath(PlaneArt.path, p.dark, style = outline)
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(-r * 0.86f, -r * 0.26f)
+    PlaneArt.path.lineTo(-r * 1.02f, r * 0.02f)
+    PlaneArt.path.lineTo(-r * 0.86f, r * 0.26f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.dark)
+    // 警示斜纹
+    drawLine(p.accent, Offset(-r * 0.62f, r * 0.22f), Offset(-r * 0.42f, r * 0.04f), strokeWidth = r * 0.10f)
+    drawLine(p.accent, Offset(-r * 0.48f, r * 0.24f), Offset(-r * 0.28f, r * 0.06f), strokeWidth = r * 0.10f)
+    // 炮塔 + 向上炮管
+    drawCircle(p.panel, r * 0.34f, Offset.Zero)
+    drawCircle(p.dark, r * 0.34f, Offset.Zero, style = outline)
+    drawRoundRect(
+        color = Color(0xFF3A4658),
+        topLeft = Offset(-r * 0.09f, -r * 1.06f),
+        size = Size(r * 0.18f, r * 0.86f),
+        cornerRadius = CornerRadius(r * 0.06f),
+    )
+    drawRoundRect(
+        color = p.dark,
+        topLeft = Offset(-r * 0.09f, -r * 1.06f),
+        size = Size(r * 0.18f, r * 0.86f),
+        cornerRadius = CornerRadius(r * 0.06f),
+        style = Stroke(r * 0.05f),
+    )
+    drawRoundRect(
+        color = Color(0xFF3A4658),
+        topLeft = Offset(-r * 0.17f, -r * 0.86f),
+        size = Size(r * 0.34f, r * 0.16f),
+        cornerRadius = CornerRadius(r * 0.05f),
+    )
+    drawCircle(p.accent, r * 0.09f, Offset(0f, r * 0.10f))
+    drawCircle(p.dark, r * 0.04f, Offset(0f, r * 0.10f))
+    // 舱盖 + 尾灯
+    drawRoundRect(
+        color = Color(0xFF243244),
+        topLeft = Offset(-r * 0.16f, -r * 0.20f),
+        size = Size(r * 0.32f, r * 0.14f),
+        cornerRadius = CornerRadius(r * 0.05f),
+    )
+    drawCircle(Color(0xFFFF5252), r * 0.05f, Offset(-r * 0.90f, r * 0.12f))
+    drawCircle(Color(0xFFFFF176), r * 0.05f, Offset(r * 0.94f, r * 0.00f))
 }
 
 private fun DrawScope.drawBossArt(

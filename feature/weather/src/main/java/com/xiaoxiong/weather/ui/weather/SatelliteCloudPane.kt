@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.weather
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -254,7 +255,11 @@ internal fun SatelliteCloudPane(
         TextButton(
             onClick = {
                 val url = RadarMapRepository.windySatelliteUrl(city.latitude, city.longitude)
-                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                // 无浏览器/无 Activity 处理的设备上 startActivity 会抛 ActivityNotFoundException
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+                    .onFailure {
+                        Toast.makeText(context, R.string.radar_open_failed, Toast.LENGTH_SHORT).show()
+                    }
             },
         ) {
             Icon(

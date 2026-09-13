@@ -247,11 +247,20 @@ class BearCatchGame {
 
     /** 恢复局中快照；无档 / 坏档返回 false（坏档会被清除，当作无档）。 */
     fun restoreSnapshot(prefs: SharedPreferences): Boolean {
-        val groups = SnapshotCodec.decodeGroups(GameSnapshot.load(prefs, CATCH_SNAPSHOT_KEY)) ?: return false
-        return runCatching { applySnapshot(groups) }.getOrElse {
-            clearSnapshot(prefs)
-            false
-        }
+        val raw = GameSnapshot.load(prefs, CATCH_SNAPSHOT_KEY) ?: return false
+        val groups =
+            SnapshotCodec.decodeGroups(raw) ?: run {
+                clearSnapshot(prefs)
+                return false
+            }
+        val applied =
+            runCatching { applySnapshot(groups) }.getOrElse {
+                clearSnapshot(prefs)
+                return false
+            }
+        // 内容不合法（阶段/场景过期、生命为 0、物品类型损坏）：坏档不再每次进入都尝试
+        if (!applied) clearSnapshot(prefs)
+        return applied
     }
 
     /** 清档：结算、暂停重开、退出时调用，避免陈旧续玩。 */
@@ -265,6 +274,8 @@ class BearCatchGame {
         // 旧档只有 19 个表头字段：difficulty 缺省沿用当前值（通常来自 prefs，未设置则 STANDARD）
         if (header.size < CATCH_HEADER_FIELDS_LEGACY) return false
         if (GamePhase.entries.getOrNull(header[0].toInt()) != GamePhase.RUNNING) return false
+        // 合法对局不可能以 0 心落盘（死亡会先切 OVER 并清档），0 心档直接判坏。
+        if (header[2].toInt() <= 0) return false
         val newScene = BearCatchLogic.CatchScene.entries.getOrNull(header[13].toInt()) ?: return false
         // 先完整解析到临时容器，全部合法后再提交，避免坏档恢复出半个局面
         val newItems = ArrayList<BearCatchLogic.Item>()

@@ -168,6 +168,10 @@ internal class MazeGame {
     var progressVersion by mutableIntStateOf(0)
         private set
 
+    /** 棋盘代次：换关 / 重开 / 撤销导致棋盘或位置重置时自增，供对局页失效提示缓存与在途求解。 */
+    var boardVersion by mutableIntStateOf(0)
+        private set
+
     private var endlessSessionSeed = Random.nextLong()
 
     var rows = 0
@@ -454,6 +458,7 @@ internal class MazeGame {
             }
         }
         phase = MazePhase.PLAYING
+        boardVersion++
     }
 
     fun restart() {
@@ -602,6 +607,7 @@ internal class MazeGame {
         needHoneyHintT = s.needHoneyHintT
         moveT = 1f
         sliding = false
+        boardVersion++
         return true
     }
 

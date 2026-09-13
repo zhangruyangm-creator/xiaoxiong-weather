@@ -52,13 +52,43 @@ import java.time.format.DateTimeFormatter
 /** 排行榜单条记录：分数 + 达成时间 + 地点 + 天气。 */
 @Serializable
 data class LeaderboardEntry(
+    /**
+     * 主排序键，越大越靠前。对局类游戏用「净胜」（胜局-负局），而非各自总得分之和。
+     */
     val score: Int,
     val timestamp: Long,
     val city: String? = null,
     val weather: String? = null,
     /** 自定义展示文本（如冰球的比分 "3 : 1"）；为空则按 [score] 显示分数。 */
     val label: String? = null,
+    /**
+     * 同分次级排序键，越小越靠前（对局类填失局数：同为净胜 +2 时 3:1 排在 4:2 前面）。
+     */
+    val tieBreak: Int = 0,
 )
+
+/** 排行榜统一排序：净胜分降序 → 失分升序 → 时间新者靠前。 */
+internal val leaderboardEntryOrder: Comparator<LeaderboardEntry> =
+    compareByDescending<LeaderboardEntry> { it.score }
+        .thenBy { it.tieBreak }
+        .thenByDescending { it.timestamp }
+
+/** 旧对局记录展示用比分格式（如 "3 : 1"）。 */
+private val scoreLabelPattern = Regex("""^\s*(\d+)\s*:\s*(\d+)\s*$""")
+
+/**
+ * 兼容旧 JSON：`tieBreak` 字段缺失时默认 0。对局类旧记录可从比分 label（"3 : 1"）还原失局数，
+ * 仅当 label 与 score 自洽（净胜 = 比分差）时才还原，避免误改其它游戏的普通分数文本。
+ */
+private fun deriveTieBreak(entry: LeaderboardEntry): LeaderboardEntry {
+    if (entry.tieBreak != 0) return entry
+    val label = entry.label ?: return entry
+    val match = scoreLabelPattern.matchEntire(label) ?: return entry
+    val player = match.groupValues[1].toIntOrNull() ?: return entry
+    val rival = match.groupValues[2].toIntOrNull() ?: return entry
+    if (rival <= 0 || player - rival != entry.score) return entry
+    return entry.copy(tieBreak = rival)
+}
 
 private const val MAX_ENTRIES = 20
 
@@ -91,34 +121,71 @@ class GameLeaderboardStore(
         cache =
             runCatching {
                 leaderboardJson.decodeFromString<List<LeaderboardEntry>>(raw)
-            }.getOrDefault(emptyList()).sortedByDescending { it.score }
+            }.getOrDefault(emptyList())
+                .map(::deriveTieBreak)
+                .sortedWith(leaderboardEntryOrder)
         return cache!!
     }
 
-    /** 提交一局成绩；返回当前排名（1 起），未进前 [MAX_ENTRIES] 返回 null。 */
-    fun submit(entry: LeaderboardEntry): Int? {
+    /**
+     * 提交一局成绩；返回当前排名（1 起），未进前 [MAX_ENTRIES] 返回 null。
+     *
+     * 传入的 [entry] 先做兼容归一化（缺 `tieBreak` 的旧式记录从比分 label 还原），
+     * 保证当次排名与下次 [load] 完全一致。只有成绩成功进榜（返回非空排名）才清理
+     * [legacyKeys] 指定的旧榜 key，避免用户一进游戏旧记录就永久消失。
+     */
+    fun submit(
+        entry: LeaderboardEntry,
+        vararg legacyKeys: String,
+    ): Int? {
+        val normalized = deriveTieBreak(entry)
         val kept =
             if (retainRecent) {
-                (load() + entry).sortedByDescending { it.timestamp }.take(MAX_ENTRIES)
+                (load() + normalized).sortedByDescending { it.timestamp }.take(MAX_ENTRIES)
             } else {
-                (load() + entry).sortedByDescending { it.score }.take(MAX_ENTRIES)
+                (load() + normalized).sortedWith(leaderboardEntryOrder).take(MAX_ENTRIES)
             }
-        val display = kept.sortedByDescending { it.score }
+        val display = kept.sortedWith(leaderboardEntryOrder)
         prefs.edit { putString(key, leaderboardJson.encodeToString(display)) }
         cache = display
-        val idx = display.indexOfFirst { it.timestamp == entry.timestamp && it.score == entry.score }
-        return if (idx >= 0) idx + 1 else null
+        val idx = display.indexOfFirst { it == normalized }
+        val rank = if (idx >= 0) idx + 1 else null
+        if (rank != null && legacyKeys.isNotEmpty()) purgeLegacyKeys(*legacyKeys)
+        return rank
     }
 
-    /** 清空全部纪录；若配置了 [bestKey]，最高分一并清零。 */
-    fun clear() {
+    /**
+     * 清理被新 key 取代的旧版本数据（如 v1 排行榜 / 旧最高分），避免孤儿数据常驻。
+     * 只删除显式传入的 key，不触碰其它统计与设置。
+     */
+    fun purgeLegacyKeys(vararg keys: String) {
+        val stale = keys.filter { prefs.contains(it) }
+        if (stale.isEmpty()) return
+        prefs.edit { stale.forEach { remove(it) } }
+    }
+
+    /**
+     * 清空全部纪录；若配置了 [bestKey]，最高分一并清零。
+     * [legacyKeys] 为被当前榜取代的旧榜 key，用户主动清榜时一并清理。
+     */
+    fun clear(vararg legacyKeys: String) {
         prefs.edit {
             remove(key)
             if (bestKey != null) remove(bestKey)
+            legacyKeys.forEach { remove(it) }
         }
         cache = emptyList()
     }
 }
+
+/**
+ * 结算界面展示用的名次：仅净胜为正才算「上榜」；负净胜 / 零分返回 0（不展示名次）。
+ * 只影响展示，榜单存储仍按 [GameLeaderboardStore.retainRecent] 保留最近记录。
+ */
+fun leaderboardDisplayRank(
+    score: Int,
+    rank: Int?,
+): Int = if (score > 0) rank ?: 0 else 0
 
 private val leaderboardTimeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 

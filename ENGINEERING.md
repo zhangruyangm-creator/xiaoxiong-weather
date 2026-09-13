@@ -51,6 +51,10 @@ git push origin v1.5.0
 并检查 versionCode 相对上一版本严格递增（本地 `release.sh` 与 CI `release.yml` 均已接入，CI checkout 使用
 `fetch-depth: 0` 以读取历史 tag）。任何一项不一致都会在构建前直接失败。
 
+`release.sh` 与 `release.yml` 现在都会在构建签名 APK 之前先运行 `./gradlew test lintKotlin`
+（全模块单元测试 + ktlint），失败即中止、不产出 Release；本地应急发布可用
+`SKIP_TESTS=1 ./release.sh <tag>` 跳过，CI 无跳过开关。
+
 ## 崩溃监控（Crashlytics）
 
 代码已就绪（`CrashReporting.kt` 门面 + `build.gradle.kts` 条件启用），放入 `app/google-services.json`

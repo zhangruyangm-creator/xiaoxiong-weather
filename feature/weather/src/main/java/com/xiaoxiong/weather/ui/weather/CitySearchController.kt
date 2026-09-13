@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.weather
 
 import android.app.Application
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.DebugWeatherStore
 import com.xiaoxiong.weather.domain.CitySearchUseCase
 import kotlinx.coroutines.CancellationException
@@ -29,6 +30,12 @@ internal class CitySearchController(
     private val queryFlow = MutableStateFlow("")
 
     /**
+     * 选城同步的 query 基线：置入后由 [handleQuery] 消费并跳过搜索；
+     * 任何用户输入/清空都会作废它，避免过期标记误吞后续合法搜索。
+     */
+    private var syncedCityQuery: String? = null
+
+    /**
      * 搜索世代：选城等场景调用 [cancelPending] 后，在途请求的回写全部作废，
      * 避免旧建议在选城后复活。
      */
@@ -48,7 +55,21 @@ internal class CitySearchController(
         onState { it.copy(suggestions = emptyList(), isSearching = false) }
     }
 
+    /**
+     * 选城后同步搜索基线：ViewModel 已把 UI query 改为城市名，这里把 queryFlow 一并同步，
+     * 否则 queryFlow 停在旧输入，用户删回原词时 StateFlow 值未变、搜索不再触发。
+     * 同步值会被 [handleQuery] 识别并跳过，避免选城后自动搜一轮城市全名。
+     */
+    fun onCitySelected(city: City) {
+        val displayName = city.displayName
+        // 值未变时 StateFlow 不发射，无需留待消费的跳过标记
+        if (queryFlow.value == displayName) return
+        syncedCityQuery = displayName
+        queryFlow.value = displayName
+    }
+
     fun onQueryChange(value: String) {
+        syncedCityQuery = null
         onState {
             // 仅在用户真正改动了定位城市文案时才退出「当前位置」模式，避免误触
             val keepLocation =
@@ -68,6 +89,7 @@ internal class CitySearchController(
      * 常规输入走 [onQueryChange]（清空时会按文本内容决定是否保持定位）。
      */
     fun clearQueryKeepLocation() {
+        syncedCityQuery = null
         onState {
             it.copy(
                 query = "",
@@ -81,6 +103,11 @@ internal class CitySearchController(
     }
 
     private suspend fun handleQuery(query: String) {
+        // 选城同步值：只同步基线，不发起搜索
+        if (query == syncedCityQuery) {
+            syncedCityQuery = null
+            return
+        }
         val gen = generation
         val trimmed = query.trim()
         if (DebugWeatherStore.isMagicQuery(trimmed)) {

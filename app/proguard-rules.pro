@@ -12,8 +12,6 @@
 -keepclasseswithmembers class com.xiaoxiong.weather.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
--keep class com.xiaoxiong.weather.data.** { *; }
--keep class com.xiaoxiong.weather.data.remote.** { *; }
 
 # 彩蛋游戏入口：GameEntryProvider 经 ServiceLoader 反射实例化，
 # provider 实现类、接口与无参构造器必须保留，否则 R8 会把游戏列表剥离为空

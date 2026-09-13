@@ -270,13 +270,10 @@ private val sceneBrushes = SceneBrushCache()
 // ---------------------------------------------------------------------
 
 /**
- * 台面静态层（木框 / 台呢暗角与织纹 / 库边明暗 / 开球线与置球点 / 菱形 / 袋口）
- * 每帧不变，按「画布尺寸 + style + isDay + viewScale/offset」烘焙成 [ImageBitmap]，
- * 之后每帧只 drawImage。仅主线程绘制，无需加锁；最多保留 [MAX_ENTRIES] 张做 LRU，
- * 尺寸或主题切换时淘汰最旧的一张以限制内存。
+ * 静态层缓存键：画布位图尺寸 + 视图变换 + 球桌几何 + 场景样式 + 台呢主题。
+ * 纯数据（不含位图），便于把「主题是否参与缓存」抽成纯函数做单测。
  */
-private class PoolTableLayer(
-    val bitmap: ImageBitmap,
+internal data class PoolLayerKey(
     val width: Int,
     val height: Int,
     val viewScale: Float,
@@ -291,8 +288,40 @@ private class PoolTableLayer(
     val clothTheme: Int,
 )
 
+/** 拖动窗口时允许复用的位图尺寸误差（px）。 */
+private const val POOL_LAYER_RESIZE_TOLERANCE_PX = 24
+
+/**
+ * 静态层是否可近似复用：台呢主题 / 场景样式 / 昼夜 / 球桌几何必须一致，位图尺寸在容差内。
+ * 主题不一致必须重建——否则切台呢时几何/样式/尺寸都没变，会错误复用旧主题的静态层，
+ * 画面看起来「无论怎么选都一样」。
+ */
+internal fun poolLayerKeyReusable(
+    cached: PoolLayerKey,
+    target: PoolLayerKey,
+): Boolean =
+    cached.clothTheme == target.clothTheme &&
+        cached.style == target.style &&
+        cached.isDay == target.isDay &&
+        cached.tableLeft == target.tableLeft &&
+        cached.tableTop == target.tableTop &&
+        cached.tableWidth == target.tableWidth &&
+        cached.tableHeight == target.tableHeight &&
+        abs(cached.width - target.width) <= POOL_LAYER_RESIZE_TOLERANCE_PX &&
+        abs(cached.height - target.height) <= POOL_LAYER_RESIZE_TOLERANCE_PX
+
+/**
+ * 台面静态层（木框 / 台呢暗角与织纹 / 库边明暗 / 开球线与置球点 / 菱形 / 袋口）
+ * 每帧不变，按 [PoolLayerKey] 烘焙成 [ImageBitmap]，之后每帧只 drawImage。仅主线程
+ * 绘制，无需加锁；最多保留 [PoolTableLayerCache.MAX_ENTRIES] 张做 LRU。
+ */
+private class PoolTableLayer(
+    val bitmap: ImageBitmap,
+    val key: PoolLayerKey,
+)
+
 private object PoolTableLayerCache {
-    private const val MAX_ENTRIES = 2
+    const val MAX_ENTRIES = 2
     private val entries = ArrayList<PoolTableLayer>(MAX_ENTRIES)
 
     fun bitmap(
@@ -308,47 +337,39 @@ private object PoolTableLayerCache {
         if (w <= 0 || h <= 0) return null
         val scale = game.viewScale
         if (scale <= 0f) return null
-        val ox = game.viewOffsetX
-        val oy = game.viewOffsetY
-        val tableLeft = game.table.left
-        val tableTop = game.table.top
-        val tableWidth = game.table.width
-        val tableHeight = game.table.height
+        val key =
+            PoolLayerKey(
+                width = w,
+                height = h,
+                viewScale = scale,
+                offsetX = game.viewOffsetX,
+                offsetY = game.viewOffsetY,
+                tableLeft = game.table.left,
+                tableTop = game.table.top,
+                tableWidth = game.table.width,
+                tableHeight = game.table.height,
+                style = style,
+                isDay = isDay,
+                clothTheme = game.clothTheme,
+            )
 
-        val hit =
-            entries.firstOrNull {
-                it.width == w &&
-                    it.height == h &&
-                    it.viewScale == scale &&
-                    it.offsetX == ox &&
-                    it.offsetY == oy &&
-                    it.tableLeft == tableLeft &&
-                    it.tableTop == tableTop &&
-                    it.tableWidth == tableWidth &&
-                    it.tableHeight == tableHeight &&
-                    it.style == style &&
-                    it.isDay == isDay &&
-                    it.clothTheme == game.clothTheme
+        var i = entries.size - 1
+        while (i >= 0) {
+            val e = entries[i]
+            if (e.key == key) {
+                entries.removeAt(i)
+                entries.add(e)
+                return e
             }
-        if (hit != null) {
-            entries.remove(hit)
-            entries.add(hit)
-            return hit
+            i--
         }
         // 连续拖动 resize 时避免每像素重建整屏位图：尺寸相近且几何/主题一致时复用并按需拉伸绘制
-        val near =
-            entries.lastOrNull {
-                it.style == style &&
-                    it.isDay == isDay &&
-                    it.clothTheme == game.clothTheme &&
-                    it.tableLeft == tableLeft &&
-                    it.tableTop == tableTop &&
-                    it.tableWidth == tableWidth &&
-                    it.tableHeight == tableHeight &&
-                    abs(it.width - w) <= RESIZE_TOLERANCE_PX &&
-                    abs(it.height - h) <= RESIZE_TOLERANCE_PX
-            }
-        if (near != null) return near
+        i = entries.size - 1
+        while (i >= 0) {
+            val e = entries[i]
+            if (poolLayerKeyReusable(e.key, key)) return e
+            i--
+        }
 
         val bitmap = ImageBitmap(w, h)
         // 用原始浮点 size 布局，保证坐标与直接绘制一致；位图取 ceil 仅多出边缘空像素。
@@ -356,14 +377,9 @@ private object PoolTableLayerCache {
             drawPoolTableStatic(game, style, isDay)
         }
         if (entries.size >= MAX_ENTRIES) entries.removeAt(0)
-        entries.add(
-            PoolTableLayer(bitmap, w, h, scale, ox, oy, tableLeft, tableTop, tableWidth, tableHeight, style, isDay, game.clothTheme),
-        )
+        entries.add(PoolTableLayer(bitmap, key))
         return entries.last()
     }
-
-    /** 拖动窗口时允许复用的尺寸误差（px）。 */
-    private const val RESIZE_TOLERANCE_PX = 24
 
     /** 释放缓存的全屏 Bitmap（退出对局时调用，二次进入会按需重建）。 */
     fun clear() {
@@ -566,11 +582,11 @@ internal fun DrawScope.drawPoolTable(
     if (base != null) {
         val dstW = ceil(size.width).toInt()
         val dstH = ceil(size.height).toInt()
-        val same = base.width == dstW && base.height == dstH
+        val same = base.key.width == dstW && base.key.height == dstH
         drawImage(
             image = base.bitmap,
             srcOffset = IntOffset.Zero,
-            srcSize = IntSize(base.width, base.height),
+            srcSize = IntSize(base.key.width, base.key.height),
             dstOffset = IntOffset.Zero,
             dstSize = IntSize(dstW, dstH),
             filterQuality = if (same) FilterQuality.None else FilterQuality.Low,
@@ -692,7 +708,8 @@ private fun DrawScope.drawPoolTableStatic(
             Size(r - l, b - t),
         )
 
-        // 织纹：确定性伪随机，短线横竖交错
+        // 织纹：确定性伪随机，短线横竖交错。长度/线宽以球半径为尺度（像素级），
+        // 不能用 viewScale 放大——那会让几百条半透明巨线铺满整张台呢，把主题色洗成灰。
         val texCount = 240
         val hi = Color.White.copy(alpha = 0.045f)
         val lo = Color.Black.copy(alpha = 0.05f)
@@ -701,11 +718,13 @@ private fun DrawScope.drawPoolTableStatic(
             val fy = hash01(i * 2 + 2)
             val px = l + fx * (r - l)
             val py = t + fy * (b - t)
-            val len = (2f + hash01(i * 5 + 3) * 5f) * scale
+            val rnd = hash01(i * 5 + 3)
+            val len = clothWeaveLength(ballR, rnd)
+            val width = clothWeaveWidth(ballR)
             if (i % 2 == 0) {
-                drawLine(hi, Offset(px - len * 0.5f, py), Offset(px + len * 0.5f, py), strokeWidth = 0.9f * scale)
+                drawLine(hi, Offset(px - len * 0.5f, py), Offset(px + len * 0.5f, py), strokeWidth = width)
             } else {
-                drawLine(lo, Offset(px, py - len * 0.5f), Offset(px, py + len * 0.5f), strokeWidth = 0.9f * scale)
+                drawLine(lo, Offset(px, py - len * 0.5f), Offset(px, py + len * 0.5f), strokeWidth = width)
             }
         }
     }
@@ -817,19 +836,29 @@ private fun DrawScope.drawPoolTableStatic(
     }
 }
 
-private fun feltBase(
+/** 台呢主题的基础色（0..3 有效；越界回退默认湖蓝）。纯函数，便于单测四档差异。 */
+internal fun clothThemeFeltColor(
+    theme: Int,
+    isDay: Boolean,
+): Color =
+    if (theme in clothDayThemes.indices) {
+        Color(if (isDay) clothDayThemes[theme] else clothNightThemes[theme])
+    } else if (isDay) {
+        feltDayBase
+    } else {
+        feltNightBase
+    }
+
+/**
+ * 台呢基色 = 主题色（或默认色）叠加场景冷色：非晴/多云场景把台面拉向冷色，
+ * 让天气氛围进入台面；晴/多云保持主题原色。纯函数，便于单测天气下主题仍可区分。
+ */
+internal fun feltBase(
     style: WeatherSceneStyle,
     isDay: Boolean,
     theme: Int,
 ): Color {
-    val base =
-        if (theme in clothDayThemes.indices) {
-            Color(if (isDay) clothDayThemes[theme] else clothNightThemes[theme])
-        } else if (isDay) {
-            feltDayBase
-        } else {
-            feltNightBase
-        }
+    val base = clothThemeFeltColor(theme, isDay)
     val cold =
         when (style.scene) {
             WeatherScene.RAIN,
@@ -848,6 +877,15 @@ private fun feltBase(
         }
     return if (cold > 0f) lerp(base, feltColdTint, cold) else base
 }
+
+/** 织纹短线长度（px）：以球半径为尺度（约 2~8px @ 1080p），不随 viewScale 放大。 */
+internal fun clothWeaveLength(
+    ballR: Float,
+    rnd: Float,
+): Float = ballR * (0.08f + rnd * 0.21f)
+
+/** 织纹线宽（px）：以球半径为尺度，不随 viewScale 放大。 */
+internal fun clothWeaveWidth(ballR: Float): Float = ballR * 0.04f
 
 private fun DrawScope.drawMiter(
     ox: Float,

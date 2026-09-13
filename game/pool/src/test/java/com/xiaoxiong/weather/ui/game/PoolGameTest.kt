@@ -14,6 +14,80 @@ import kotlin.math.hypot
 import kotlin.math.sin
 
 class PoolGameTest {
+    @Test
+    fun poolRaceScore_isNetWins() {
+        assertEquals(3, poolRaceScore(3, 0))
+        assertEquals(1, poolRaceScore(7, 6))
+        assertEquals(-2, poolRaceScore(1, 3))
+    }
+
+    @Test
+    fun clampRaceTo_keepsCustomValuesWithinBounds() {
+        assertEquals(1, clampRaceTo(0))
+        assertEquals(3, clampRaceTo(3))
+        assertEquals(7, clampRaceTo(7))
+        assertEquals(POOL_RACE_TO_MAX, clampRaceTo(99))
+    }
+
+    @Test
+    fun stageRuleChange_midMatch_appliesOnNextMatch() {
+        val game =
+            PoolGame().apply {
+                resize(420f, 820f)
+                mode = PoolMode.EIGHT_BALL
+                raceTo = 2
+                startMatch(PoolSide.PLAYER, seed = 1L)
+            }
+        game.stageRuleChange(7, PoolMode.NINE_BALL)
+        assertEquals("当前场赛制不变", 2, game.raceTo)
+        assertEquals("界面展示下一场赛制", 7, game.displayRaceTo())
+        assertEquals(PoolMode.NINE_BALL, game.displayMode())
+
+        game.startMatch()
+        assertEquals("新一场应用暂存赛制", 7, game.raceTo)
+        assertEquals(PoolMode.NINE_BALL, game.mode)
+        assertEquals(7, game.displayRaceTo())
+    }
+
+    @Test
+    fun customRaceTo_sevenFrames_sixKeepPlaying_seventhEnds() {
+        val game = newGame()
+        game.mode = PoolMode.NINE_BALL
+        game.raceTo = 7
+        game.startMatch(PoolSide.PLAYER, seed = 31L)
+        repeat(6) { round ->
+            winNineBallFrame(game)
+            assertEquals("第 ${round + 1} 局应正常结算", PoolGame.Phase.FRAME_OVER, game.phase)
+            assertEquals(round + 1, game.match.playerFrames)
+            assertFalse("赢 6 局（先到 7）不应结束整场", game.matchOver())
+            game.nextFrame()
+            assertEquals(PoolGame.Phase.AIMING, game.phase)
+        }
+        winNineBallFrame(game)
+        assertEquals(7, game.match.playerFrames)
+        assertEquals("赢满 7 局应结束整场", PoolGame.Phase.MATCH_OVER, game.phase)
+        assertTrue(game.matchOver())
+    }
+
+    /** 只留白球与 9 号并打进角袋，快速拿下一局（九球）。 */
+    private fun winNineBallFrame(game: PoolGame) {
+        val cue = game.cueBall()!!
+        val nine = game.balls.first { it.number == 9 }
+        game.balls.retainAll { it.kind == CUE || it.number == 9 }
+        nine.stop()
+        nine.x = game.table.left + 0.09f
+        nine.y = game.table.top + 0.09f
+        cue.stop()
+        cue.x = game.table.left + 0.42f
+        cue.y = game.table.top + 0.42f
+        game.shoot(atan2(-1f, -1f), 0.6f)
+        var simulated = 0f
+        while (game.phase == PoolGame.Phase.SHOOTING && simulated < 30f) {
+            game.tick(1f / 60f)
+            simulated += 1f / 60f
+        }
+    }
+
     private fun newGame(): PoolGame =
         PoolGame().apply {
             resize(420f, 820f)

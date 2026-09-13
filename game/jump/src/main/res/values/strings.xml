@@ -5,7 +5,7 @@
     <string name="bear_game_exit">回到天气</string>
     <string name="bear_game_hint_jump">点击跳跃 · 空中可再跳一次</string>
     <string name="bear_game_over">哎呀，撞到了</string>
-    <string name="bear_game_restart">再来一局</string>
+    <string name="bear_jump_restart">再来一局</string>
     <string name="bear_game_tap_start">点一下屏幕，开始奔跑</string>
     <string name="bear_game_title">小熊跳跳</string>
     <string name="bear_game_view_rank">查看排行榜</string>

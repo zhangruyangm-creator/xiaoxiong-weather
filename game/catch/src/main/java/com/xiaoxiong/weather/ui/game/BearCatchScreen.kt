@@ -587,7 +587,7 @@ fun BearCatchScreen(
                                 game.clearSnapshot(prefs)
                                 game.start()
                             }) {
-                                Text(stringResource(R.string.bear_game_restart))
+                                Text(stringResource(R.string.bear_catch_restart))
                             }
                         }
                     }

@@ -65,6 +65,11 @@ jobs:
             echo "Firebase config restored (plain JSON)"
           fi
 
+      # 发布前必须通过单元测试与 ktlint，失败即中止，不产出 Release；
+      # 与 release.sh 的默认校验一致（release.sh 可用 SKIP_TESTS=1 跳过）
+      - name: Unit tests + ktlint
+        run: ./gradlew test lintKotlin --console=plain
+
       - name: Build full release APK
         run: ./gradlew assembleFullRelease --stacktrace
 

@@ -18,10 +18,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -462,16 +467,19 @@ internal fun PlaneBossWarningBanner(text: String) {
     }
 }
 
-/** READY：标题 / 简介 / 难度 3 档 / 开始 / 最高分 / 排行榜 / 音效开关。 */
+/** READY：标题 / 简介 / 难度 3 档 / 开局命数 / 开始 / 最高分 / 排行榜 / 音效开关。 */
 @Composable
 internal fun PlaneReadyOverlay(
     game: PlaneGame,
     best: Int,
+    bestWave: Int,
+    startLives: Int,
     soundEnabled: Boolean,
     frame: () -> Long,
     isDay: Boolean,
     reduceMotion: Boolean,
     onPick: (PlaneDifficulty) -> Unit,
+    onStartLivesChange: (Int) -> Unit,
     onStart: () -> Unit,
     onToggleSound: (Boolean) -> Unit,
     onLeaderboard: () -> Unit,
@@ -524,12 +532,57 @@ internal fun PlaneReadyOverlay(
                 }
             }
             Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.bear_plane_start_lives),
+                    color = PlaneUi.textSecondary,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = { onStartLivesChange(startLives - 1) },
+                    enabled = startLives > PlaneConfig.START_LIVES_MIN,
+                ) {
+                    Icon(
+                        Icons.Filled.Remove,
+                        contentDescription = stringResource(R.string.cd_plane_lives_minus),
+                        tint = Color.White,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.bear_plane_lives_value, startLives),
+                    color = PlaneUi.accentWarm,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                IconButton(
+                    onClick = { onStartLivesChange(startLives + 1) },
+                    enabled = startLives < PlaneConfig.START_LIVES_MAX,
+                ) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.cd_plane_lives_plus),
+                        tint = Color.White,
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
             Text(
                 text = stringResource(R.string.bear_plane_best, best),
                 color = PlaneUi.accentWarm,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
             )
+            if (bestWave > 0) {
+                Text(
+                    text = stringResource(R.string.bear_plane_best_wave, bestWave),
+                    color = PlaneUi.textSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             Spacer(Modifier.height(14.dp))
             Button(
                 onClick = onStart,
@@ -574,11 +627,13 @@ internal fun PlaneReadyOverlay(
     }
 }
 
-/** 结算：胜负 / 分数 / 新纪录 / 击毁 / 波次 / 排名 / 再来 / 退出 / 排行榜。 */
+/** 结算：分数 / 新纪录 / 击毁 / 波次 / 最远波次 / 排名 / 再来 / 退出 / 排行榜。 */
 @Composable
 internal fun PlaneSettledOverlay(
     game: PlaneGame,
     best: Int,
+    bestWave: Int,
+    isNewWaveRecord: Boolean,
     rank: Int,
     isNewRecord: Boolean,
     onRestart: () -> Unit,
@@ -649,6 +704,29 @@ internal fun PlaneSettledOverlay(
                 Spacer(Modifier.width(14.dp))
                 Text(
                     text = stringResource(R.string.bear_plane_wave_reached, game.waveIndex.coerceAtLeast(1)),
+                    color = PlaneUi.textSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+            if (isNewWaveRecord) {
+                Spacer(Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = PlaneUi.accent.copy(alpha = 0.20f),
+                    border = BorderStroke(1.dp, PlaneUi.accent),
+                ) {
+                    Text(
+                        text = stringResource(R.string.bear_plane_new_wave_record),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
+                        color = PlaneUi.accent,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            } else if (bestWave > 0) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.bear_plane_best_wave, bestWave),
                     color = PlaneUi.textSecondary,
                     style = MaterialTheme.typography.labelMedium,
                 )

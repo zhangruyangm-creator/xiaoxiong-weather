@@ -4,9 +4,10 @@
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="location_place_cache.xml" />
-    <exclude domain="sharedpref" path="weather_refresh_notify.xml" />
     <exclude domain="sharedpref" path="weather_launcher_icon.xml" />
     <exclude domain="file" path="datastore/weather_cache_v1.preferences_pb" />
     <exclude domain="file" path="datastore/weather_cache_v1.preferences_pb.bak" />
+    <exclude domain="file" path="datastore/weather_notify_dedup.preferences_pb" />
+    <exclude domain="file" path="datastore/weather_notify_dedup.preferences_pb.bak" />
     <exclude domain="database" path="androidx.work.workdb" />
 </full-backup-content>

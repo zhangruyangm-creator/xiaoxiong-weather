@@ -169,6 +169,7 @@ internal class StarJumpGame {
         maxHeight = bearY
         starsCollected = 0
         score = 0
+        time = 0f
         squashT = -1f
         shakeT = 0f
         deadT = 0f

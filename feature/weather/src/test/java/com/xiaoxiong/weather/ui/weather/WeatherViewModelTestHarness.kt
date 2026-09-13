@@ -293,13 +293,23 @@ class FakeFavoriteCitySource : FavoriteCitySource {
     var toggleCount = 0
         private set
     var favorite: City? = null
+    private val state = MutableStateFlow<List<City>>(emptyList())
 
-    override val favorites: Flow<List<City>> =
-        MutableStateFlow(favorite?.let { listOf(it) } ?: emptyList())
+    override val favorites: Flow<List<City>> = state
+
+    /** 预置收藏列表，模拟「已收藏若干（可能已达上限）」场景。 */
+    fun seedFavorites(cities: List<City>) {
+        state.value = cities
+        favorite = cities.firstOrNull()
+    }
 
     override suspend fun toggle(city: City) {
         toggleCount++
         favorite = city
+        val current = state.value.toMutableList()
+        val index = current.indexOfFirst { samePlace(it, city) }
+        if (index >= 0) current.removeAt(index) else current.add(0, city)
+        state.value = current
     }
 
     override fun isFavorite(
@@ -307,12 +317,15 @@ class FakeFavoriteCitySource : FavoriteCitySource {
         city: City?,
     ): Boolean =
         city?.let { c ->
-            favorites.any {
-                it.latitude == c.latitude && it.longitude == c.longitude
-            }
+            favorites.any { samePlace(it, c) }
         } ?: false
 
     override suspend fun firstOrNull(): City? = favorite
+
+    private fun samePlace(
+        a: City,
+        b: City,
+    ): Boolean = a.latitude == b.latitude && a.longitude == b.longitude
 }
 
 class FakeRecentCitySource : RecentCitySource {
@@ -538,6 +551,7 @@ fun messageForRes(id: Int): String =
         R.string.debug_exited -> "已退出调试模式"
         R.string.debug_applied -> "已应用调试覆盖"
         R.string.debug_override_cleared -> "已清除覆盖，恢复实况字段"
+        R.string.search_favorite_limit_reached -> "收藏已达上限"
         R.string.cold_start_fallback_city -> "Beijing"
         else -> "error"
     }

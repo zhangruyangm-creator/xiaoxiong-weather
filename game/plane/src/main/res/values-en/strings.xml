@@ -6,8 +6,14 @@
     <string name="cd_plane_hud_stats">Lives %1$d, bombs %2$d, power level %3$d</string>
     <string name="cd_plane_boss_hp">Boss health</string>
     <string name="bear_plane_start">Start mission</string>
-    <string name="bear_plane_intro">Drag the bear fighter to dodge bullets and auto-fire; grab P to upgrade, B for bombs, and clear all 10 waves to finish the mission.</string>
+    <string name="bear_plane_intro">Drag the bear fighter to dodge bullets and auto-fire; grab P to upgrade, B for bombs. Endless waves with a boss every 5 waves — survive longer for a higher score!</string>
     <string name="bear_plane_best">Best %1$d</string>
+    <string name="bear_plane_best_wave">Farthest wave %1$d</string>
+    <string name="bear_plane_new_wave_record">New farthest wave!</string>
+    <string name="bear_plane_start_lives">Starting lives</string>
+    <string name="bear_plane_lives_value">%1$d</string>
+    <string name="cd_plane_lives_minus">Decrease starting lives</string>
+    <string name="cd_plane_lives_plus">Increase starting lives</string>
     <string name="bear_plane_score">Score %1$d</string>
     <string name="bear_plane_score_label">Score</string>
     <string name="bear_plane_win">Mission complete!</string>

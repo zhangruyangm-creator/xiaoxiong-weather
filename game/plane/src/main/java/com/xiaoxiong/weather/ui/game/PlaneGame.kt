@@ -30,6 +30,12 @@ class PlaneGame {
     /** 当前难度；影响敌人 HP / 速度 / 弹速 / 密度 / 掉率 / 分数倍率。 */
     var difficulty: PlaneDifficulty = PlaneDifficulty.DEFAULT
 
+    /** 开局命数（1..[PlaneConfig.START_LIVES_MAX]，默认 [PlaneConfig.START_LIVES]）；只在 [startGame] 时写入玩家。 */
+    var startLives: Int = PlaneConfig.START_LIVES
+        set(value) {
+            field = value.coerceIn(PlaneConfig.START_LIVES_MIN, PlaneConfig.START_LIVES_MAX)
+        }
+
     /** 屏幕层从 prefs 读入的最高分（只用于展示 / 结算比较，不参与快照）。 */
     var best: Int = 0
 
@@ -164,10 +170,10 @@ class PlaneGame {
     // ---------------------------------------------------------------------
 
     /**
-     * 开始一局。
+     * 开始一局（无尽模式：死亡才结束，Boss 每 5 波永久循环）。
      *
      * @param seed 随机种子（同 seed 同输入结果一致）。
-     * @param startWave 起始波次（1..[PLANE_TOTAL_WAVES]；测试 / 调试可直接跳到 Boss 波）。
+     * @param startWave 起始波次（1..[PLANE_MAX_WAVE]；测试 / 调试可直接跳到 Boss 波）。
      */
     fun startGame(
         seed: Long = System.nanoTime(),
@@ -178,7 +184,7 @@ class PlaneGame {
         phase = PlanePhase.PLAYING
         player.x = PLANE_LOGICAL_WIDTH * 0.5f
         player.y = (fieldH - 12f).coerceAtLeast(8f)
-        player.lives = PlaneConfig.START_LIVES
+        player.lives = startLives
         player.bombs = PlaneConfig.START_BOMBS
         player.weaponLevel = PlaneConfig.MIN_WEAPON_LEVEL
         player.invulnTicks = PlaneConfig.HIT_INVULN_TICKS
@@ -196,7 +202,7 @@ class PlaneGame {
         comboWindowTicks = 0
         tickCount = 0L
         shotCount = 0L
-        waveIndex = (startWave - 1).coerceIn(0, PLANE_TOTAL_WAVES)
+        waveIndex = (startWave - 1).coerceIn(0, PLANE_MAX_WAVE)
         waveDef = PlaneWaveDef(0, isBoss = false, spawns = emptyList())
         waveTick = 0
         spawnCursor = 0
@@ -343,18 +349,15 @@ class PlaneGame {
                 spawnDue()
                 waveTick++
                 if (waveSpawningDone && enemies.isEmpty()) {
-                    if (waveIndex >= PLANE_TOTAL_WAVES) {
-                        settle(win = true)
-                    } else {
-                        betweenWaveTicks = PlaneConfig.WAVE_GAP_TICKS
-                    }
+                    // 无尽模式：清波后只进入间隔，永不判胜；死亡才会 SETTLED。
+                    betweenWaveTicks = PlaneConfig.WAVE_GAP_TICKS
                 }
             }
         }
     }
 
     private fun beginWave() {
-        waveIndex = (waveIndex + 1).coerceAtMost(PLANE_TOTAL_WAVES)
+        waveIndex = (waveIndex + 1).coerceAtMost(PLANE_MAX_WAVE)
         waveDef = PlaneConfig.wave(waveIndex)
         waveTick = 0
         spawnCursor = 0
@@ -376,14 +379,15 @@ class PlaneGame {
 
     private fun spawnEnemy(def: PlaneSpawnDef) {
         val spec = PlaneConfig.enemySpec(def.type, difficulty, waveIndex)
-        val speedMul = difficulty.enemySpeedMul * PlaneConfig.weatherSpeedMul(weather)
+        val speedMul = PlaneConfig.waveSpeedMul(waveIndex) * difficulty.enemySpeedMul * PlaneConfig.weatherSpeedMul(weather)
         val spawnX = if (def.side != 0) def.x else def.x.coerceIn(8f, PLANE_LOGICAL_WIDTH - 8f)
+        val spawnY = if (def.fromBottom) fieldH + 4f else def.y
         val enemy =
             PlaneEnemy(
                 id = nextEntityId++,
                 type = def.type,
                 x = spawnX,
-                y = def.y,
+                y = spawnY,
                 vx = def.vx * speedMul,
                 vy = def.vy * speedMul,
                 hp = spec.hp,
@@ -404,7 +408,7 @@ class PlaneGame {
 
     private fun updateEnemies() {
         val dt = PlaneConfig.LOGIC_STEP_SECONDS
-        val speedMul = difficulty.enemySpeedMul * PlaneConfig.weatherSpeedMul(weather)
+        val speedMul = PlaneConfig.waveSpeedMul(waveIndex) * difficulty.enemySpeedMul * PlaneConfig.weatherSpeedMul(weather)
         for (enemy in enemies) {
             val (vx, vy) = PlaneLogic.enemyVelocity(enemy, player.x, fieldH, speedMul)
             enemy.x += vx * dt
@@ -416,7 +420,7 @@ class PlaneGame {
             if (enemy.fireTimerTicks > 0) enemy.fireTimerTicks--
             if (enemy.fireTimerTicks <= 0 && PlaneLogic.enemyWantsFire(enemy, fieldH)) {
                 fireEnemy(enemy)
-                enemy.fireTimerTicks = PlaneConfig.fireIntervalTicks(enemy.type, difficulty)
+                enemy.fireTimerTicks = PlaneConfig.fireIntervalTicks(enemy.type, difficulty, waveIndex)
             }
         }
         val margin = PlaneConfig.OFFSCREEN_MARGIN
@@ -428,7 +432,7 @@ class PlaneGame {
     }
 
     private fun fireEnemy(enemy: PlaneEnemy) {
-        for (spec in PlaneLogic.enemyBulletSpecs(enemy, player.x, player.y, difficulty, spinPhaseRad)) {
+        for (spec in PlaneLogic.enemyBulletSpecs(enemy, player.x, player.y, difficulty, spinPhaseRad, waveIndex)) {
             enemyBullets +=
                 PlaneBullet(
                     id = nextEntityId++,
@@ -603,6 +607,7 @@ class PlaneGame {
         }
     }
 
+    /** 对局结束。[win] 分支保留给未来有终点的模式；无尽模式只以失败结算。 */
     private fun settle(win: Boolean) {
         if (phase == PlanePhase.SETTLED) return
         phase = PlanePhase.SETTLED
@@ -720,6 +725,8 @@ class PlaneGame {
             PlaneEnemyType.WEAVER -> 0xFFA5D6A7.toInt()
             PlaneEnemyType.TURRET -> 0xFFFFCC80.toInt()
             PlaneEnemyType.TRANSPORT -> 0xFFFFF59D.toInt()
+            PlaneEnemyType.HELI -> 0xFF80CBC4.toInt()
+            PlaneEnemyType.TANK -> 0xFFB0BEC5.toInt()
             PlaneEnemyType.BOSS -> 0xFFFF8A80.toInt()
         }
 
@@ -816,6 +823,7 @@ class PlaneGame {
         PlaneSnapshot(
             phase = phase,
             difficulty = difficulty,
+            startLives = startLives,
             fieldH = fieldH,
             sceneCode = sceneCode,
             isDay = isDay,
@@ -861,6 +869,7 @@ class PlaneGame {
         // 恢复成功即进入暂停：屏幕侧据此弹出暂停菜单，避免带弹幕立刻开跑第一帧掉命。
         phase = PlanePhase.PAUSED
         difficulty = safe.difficulty
+        startLives = safe.startLives
         fieldH = safe.fieldH
         sceneCode = safe.sceneCode
         isDay = safe.isDay
@@ -939,10 +948,11 @@ class PlaneGame {
         val maxCooldown =
             (PlaneConfig.MIN_WEAPON_LEVEL..PlaneConfig.MAX_WEAPON_LEVEL)
                 .maxOf { PlaneConfig.weaponSpec(it).intervalTicks }
-        val safeLives = player.lives.coerceAtLeast(1)
-        val safeWaveIndex = waveIndex.coerceIn(0, PLANE_TOTAL_WAVES)
+        val safeLives = player.lives.coerceIn(1, PlaneConfig.START_LIVES_MAX)
+        val safeWaveIndex = waveIndex.coerceIn(0, PLANE_MAX_WAVE)
         val safeSpawnCount = PlaneConfig.wave(safeWaveIndex).spawns.size
         return copy(
+            startLives = startLives.coerceIn(PlaneConfig.START_LIVES_MIN, PlaneConfig.START_LIVES_MAX),
             waveIndex = safeWaveIndex,
             waveTick = waveTick.coerceAtLeast(0),
             betweenWaveTicks = betweenWaveTicks.coerceIn(0, max(PlaneConfig.WAVE_INTRO_TICKS, PlaneConfig.WAVE_GAP_TICKS)),
@@ -1096,6 +1106,7 @@ private data class PlaneEffectSnap(
 private data class PlaneSnapshot(
     val phase: PlanePhase,
     val difficulty: PlaneDifficulty,
+    val startLives: Int,
     val fieldH: Float,
     val sceneCode: Int?,
     val isDay: Boolean,
@@ -1252,13 +1263,14 @@ private fun String.planeIntList(): List<Int>? = if (isBlank()) emptyList() else 
  * 不使用 kotlinx.serialization 以保持游戏模块零序列化运行时依赖。
  */
 private object PlaneSnapshotCodec {
-    private const val VERSION = 3
+    private const val VERSION = 4
 
     fun encode(snapshot: PlaneSnapshot): String {
         val lines = ArrayList<String>()
         lines += "v=$VERSION"
         lines += "phase=${snapshot.phase.name}"
         lines += "diff=${snapshot.difficulty.id}"
+        lines += "start=${snapshot.startLives}"
         lines += "field=${snapshot.fieldH}"
         lines += "weather=${snapshot.sceneCode ?: -1},${planeBool(snapshot.isDay)},${snapshot.weather.name}"
         lines += "seed=${snapshot.seed}"
@@ -1336,6 +1348,9 @@ private object PlaneSnapshotCodec {
             }
         val fieldH = values["field"]?.toFloatOrNull() ?: return null
         if (!fieldH.isFinite() || fieldH <= 0f) return null
+        val startLives =
+            (values["start"]?.toIntOrNull() ?: PlaneConfig.START_LIVES)
+                .coerceIn(PlaneConfig.START_LIVES_MIN, PlaneConfig.START_LIVES_MAX)
         val seed = values["seed"]?.toLongOrNull() ?: return null
         val rngState = values["rng"]?.toLongOrNull() ?: return null
 
@@ -1398,13 +1413,14 @@ private object PlaneSnapshotCodec {
         return PlaneSnapshot(
             phase = phase,
             difficulty = difficulty,
+            startLives = startLives,
             fieldH = fieldH.coerceIn(PLANE_FIELD_H_MIN, PLANE_FIELD_H_MAX),
             sceneCode = sceneCode.takeIf { it >= 0 },
             isDay = isDay,
             weather = weather,
             seed = seed,
             rngState = rngState,
-            waveIndex = waveIndex.coerceAtMost(PLANE_TOTAL_WAVES),
+            waveIndex = waveIndex.coerceAtMost(PLANE_MAX_WAVE),
             waveTick = waveTick,
             betweenWaveTicks = betweenWaveTicks,
             bossWarningTicks = bossWarningTicks,

@@ -2,7 +2,7 @@
 <resources>
     <string name="bear_game_best_label">Best</string>
     <string name="bear_game_exit">Back to weather</string>
-    <string name="bear_game_restart">Play again</string>
+    <string name="bear_catch_restart">Play again</string>
     <string name="bear_game_view_rank">View leaderboard</string>
     <string name="bear_catch_hint">Drag left/right to catch raindrops, snowflakes, coins and petals\nDodge storm clouds, hail and lightning — the weather changes what falls\nGift boxes double your score, bubbles grant a shield\nRain has crosswinds, snow is slow and calm, thunderstorms burst</string>
     <string name="bear_catch_difficulty_label">Difficulty</string>

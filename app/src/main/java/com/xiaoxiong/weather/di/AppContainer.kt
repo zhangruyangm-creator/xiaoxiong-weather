@@ -6,6 +6,7 @@ import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
 import com.xiaoxiong.weather.data.DebugWeatherStore
 import com.xiaoxiong.weather.data.FavoriteCityStore
+import com.xiaoxiong.weather.data.ForecastFetcher
 import com.xiaoxiong.weather.data.LocationHelper
 import com.xiaoxiong.weather.data.NetworkMonitor
 import com.xiaoxiong.weather.data.PerformanceInterceptor
@@ -112,6 +113,13 @@ class AppContainer(
     val settingsStore by lazy { AppSettingsStore(appContext) }
     val debugWeatherStore by lazy { DebugWeatherStore(appContext) }
     val notifyDedupStore by lazy { WeatherNotifyDedupStore(appContext) }
+
+    init {
+        // 后台独立进程（Worker/小组件）可能不经过 DebugWeatherStore 就直接拉取写缓存：
+        // 温度单位 provider 在容器构建时安装，provider 内部读 settingsStore 当前单位，
+        // 保证任何路径生成的预警文案都跟随设置；DebugWeatherStore 保留同样安装（幂等）。
+        ForecastFetcher.installTemperatureUnitProvider(settingsStore)
+    }
 
     val citySearchUseCase by lazy {
         CitySearchUseCase(

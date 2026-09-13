@@ -551,7 +551,8 @@ private fun DrawScope.drawEnemies(
         val sprite = PlaneSprites.enemy(enemy.type, enemy.bossPhase, r, isDay, this, layoutDirection)
         if (sprite != null) {
             val wobble =
-                if (enemy.isBoss) {
+                if (enemy.isBoss || enemy.type == PlaneEnemyType.TANK) {
+                    // Boss / 地面装甲车不做空中悬浮摆动
                     0f
                 } else {
                     sin(tick * 0.05f + enemy.id) * 0.7f * scale

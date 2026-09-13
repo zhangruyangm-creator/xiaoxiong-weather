@@ -41,7 +41,7 @@ class ForecastFetcher(
      * 当前设置温度单位（预警文案用）。默认读进程级注入的 provider；
      * 未注入时保持摄氏，保证单测与未装配场景行为不变。
      */
-    private val temperatureUnitProvider: suspend () -> TemperatureUnit = { installedTemperatureUnitProvider() },
+    private val temperatureUnitProvider: suspend () -> TemperatureUnit = { resolveTemperatureUnitProvider().invoke() },
 ) {
     private val metNorway: MetNorwayFetcher? =
         metNorwayBase?.let { MetNorwayFetcher(client, json, it) }
@@ -383,15 +383,40 @@ class ForecastFetcher(
 
     companion object {
         /**
-         * 进程级温度单位 provider：App 装配层/DebugWeatherStore 在拿到 Context 后注入设置读取，
-         * 使前台快照里的预警文案跟随「设置 → 温度单位」。默认摄氏。
+         * 进程级温度单位 provider：App 装配层（AppContainer 初始化）/DebugWeatherStore 在拿到
+         * Context 后注入设置读取，使前台/后台快照里的预警文案跟随「设置 → 温度单位」。
+         * null = 尚未安装，拉取按摄氏兜底。
          */
         @Volatile
-        private var installedTemperatureUnitProvider: suspend () -> TemperatureUnit = { TemperatureUnit.CELSIUS }
+        private var installedTemperatureUnitProvider: (suspend () -> TemperatureUnit)? = null
 
+        /**
+         * 安装进程级温度单位 provider。幂等：重复安装以最后一次为准。
+         * AppContainer 在容器构建时安装，保证 Worker/小组件等独立进程拉取时也跟随设置单位。
+         */
         fun installTemperatureUnitProvider(provider: suspend () -> TemperatureUnit) {
             installedTemperatureUnitProvider = provider
         }
+
+        /**
+         * 安装读取 [settingsStore] 当前单位的 provider：AppContainer 与测试共用的装配入口，
+         * 避免后台路径因未初始化 DebugWeatherStore 而回退到摄氏。
+         */
+        fun installTemperatureUnitProvider(settingsStore: AppSettingsSource) {
+            installTemperatureUnitProvider { settingsStore.getOnce().temperatureUnit }
+        }
+
+        /** 当前安装的 provider；null = 尚未安装。供装配层测试断言安装点存在。 */
+        fun installedTemperatureUnitProviderOrNull(): (suspend () -> TemperatureUnit)? = installedTemperatureUnitProvider
+
+        /** 清除安装，恢复摄氏兜底（测试用）。 */
+        fun clearInstalledTemperatureUnitProvider() {
+            installedTemperatureUnitProvider = null
+        }
+
+        /** 当前生效的 provider：未安装时按摄氏兜底。 */
+        internal fun resolveTemperatureUnitProvider(): suspend () -> TemperatureUnit =
+            installedTemperatureUnitProvider ?: { TemperatureUnit.CELSIUS }
 
         /**
          * 主预报站的备用入口。当前 Open-Meteo 免费 API 无官方镜像，保持为空；

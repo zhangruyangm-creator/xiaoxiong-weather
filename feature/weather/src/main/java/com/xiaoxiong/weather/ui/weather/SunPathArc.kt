@@ -285,7 +285,8 @@ private fun SunPathBearChip(
     ) {
         Image(
             painter = painterResource(bearRes),
-            contentDescription = caption,
+            // 相邻 Text(caption) 已朗读描述，图片置 null 避免重复
+            contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier =
                 Modifier

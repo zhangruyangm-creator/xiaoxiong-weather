@@ -12,7 +12,8 @@ import kotlin.random.Random
  * 确定性实战模拟 + 回归测试。
  *
  * - 挂机玩家：三档难度都应在有限时间内掉光命并进入 SETTLED（无卡死）；
- * - 躲避机器人：固定 seed / 固定策略跑到结算，验证波次推进、Boss 可击破、实体数量有界；
+ * - 躲避机器人：固定 seed / 固定策略跑限时窗口，验证波次持续推进、不卡波、实体数量有界；
+ * - 无尽数值报告：1 / 5 / 10 / 20 / 30 波的挂机生存与机器人推进数据；
  * - 随机输入模糊：任意移动 / 炸弹 / resize / 天气 / 难度切换不产生 NaN 或数值崩塌；
  * - 几何回归：炮台长条弹（RECT）不穿透玩家、擦弹椭圆包络边界正确、L4 激光射程覆盖全屏。
  *
@@ -45,26 +46,32 @@ class PlaneSimulationTest {
     // ---------------------------------------------------------------------
 
     @Test
-    fun dodgeBot_settlesStandardRun_withoutWaveStall() {
+    fun dodgeBot_makesProgress_throughBossWaves_withoutStall() {
         val report = runDodge(PlaneDifficulty.STANDARD, seed = 777L, maxTicks = 20 * 60 * 60)
         assertTrue(
-            "STANDARD 躲避机器人应跑到结算（结果=${report.result} wave=${report.wave} ticks=${report.ticks}）",
-            report.result != RunResult.STALL && report.result != RunResult.TIMEOUT,
+            "STANDARD 躲避机器人不应卡波（结果=${report.result} wave=${report.wave} ticks=${report.ticks}）",
+            report.result != RunResult.STALL,
         )
-        assertTrue("结算时应至少推进到第 6 波（实际 ${report.wave}）", report.wave >= PLANE_BOSS_EVERY + 1)
+        assertTrue("机器人应至少推进到第 6 波（实际 ${report.wave}）", report.wave >= PLANE_BOSS_EVERY + 1)
+        assertTrue(
+            "无尽模式只可能落败或限时未结束（结果=${report.result}）",
+            report.result == RunResult.LOSE || report.result == RunResult.TIMEOUT,
+        )
     }
 
     @Test
     fun challengeTier_pressesHarderThanCasual_inDeterministicBotRun() {
-        val casual = runDodge(PlaneDifficulty.CASUAL, seed = 777L, maxTicks = 20 * 60 * 60)
-        val standard = runDodge(PlaneDifficulty.STANDARD, seed = 777L, maxTicks = 20 * 60 * 60)
-        val challenge = runDodge(PlaneDifficulty.CHALLENGE, seed = 777L, maxTicks = 20 * 60 * 60)
+        // 同一时间窗口（3 分钟）对比，避免无尽模式下「先死的档位峰值反而低」的混淆
+        val window = 60 * 180
+        val casual = runDodge(PlaneDifficulty.CASUAL, seed = 777L, maxTicks = window)
+        val standard = runDodge(PlaneDifficulty.STANDARD, seed = 777L, maxTicks = window)
+        val challenge = runDodge(PlaneDifficulty.CHALLENGE, seed = 777L, maxTicks = window)
         assertTrue(
-            "CHALLENGE 同屏敌弹峰值应不低于 CASUAL（casual=${casual.peakBullets}, challenge=${challenge.peakBullets}）",
+            "CHALLENGE 前 3 分钟同屏敌弹峰值应不低于 CASUAL（casual=${casual.peakBullets}, challenge=${challenge.peakBullets}）",
             challenge.peakBullets >= casual.peakBullets,
         )
         assertTrue(
-            "STANDARD 同屏敌弹峰值应不低于 CASUAL（casual=${casual.peakBullets}, standard=${standard.peakBullets}）",
+            "STANDARD 前 3 分钟同屏敌弹峰值应不低于 CASUAL（casual=${casual.peakBullets}, standard=${standard.peakBullets}）",
             standard.peakBullets >= casual.peakBullets,
         )
         assertTrue("三档机器人都应产生击杀（casual=${casual.kills}）", casual.kills > 0 && challenge.kills > 0)
@@ -95,7 +102,7 @@ class PlaneSimulationTest {
         repeat(6000) {
             if (game.phase != PlanePhase.PLAYING) {
                 restarts++
-                game.startGame(seed = rng.nextLong(), startWave = rng.nextInt(1, PLANE_TOTAL_WAVES + 1))
+                game.startGame(seed = rng.nextLong(), startWave = rng.nextInt(1, 16))
             }
             when (rng.nextInt(10)) {
                 0 -> game.movePlayerTo(rng.nextFloat() * 160f - 30f, rng.nextFloat() * 260f - 40f)
@@ -255,7 +262,7 @@ class PlaneSimulationTest {
     @Test
     fun topEntryEnemies_spawnInsideField_evenOnLateWaves() {
         val game = gameFor(PlaneDifficulty.STANDARD)
-        game.startGame(seed = 1L, startWave = PLANE_TOTAL_WAVES - 1)
+        game.startGame(seed = 1L, startWave = 9)
         val firstSeenX = HashMap<Int, Float>()
         repeat(60 * 40) {
             for (enemy in game.enemies) firstSeenX.putIfAbsent(enemy.id, enemy.x)
@@ -268,6 +275,53 @@ class PlaneSimulationTest {
         assertTrue(
             "顶部入场敌人首次出现必须在场内（实测越界 ${firstSeenX.values.filter { it < 1f || it > PLANE_LOGICAL_WIDTH - 1f }}）",
             firstSeenX.values.all { it in 1f..(PLANE_LOGICAL_WIDTH - 1f) },
+        )
+    }
+
+    // ---------------------------------------------------------------------
+    // 无尽模式数值曲线报告：挂机 / 躲避机器人在 1、5、10、20、30 波
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun endlessScaling_report_atMilestoneWaves() {
+        val milestones = listOf(1, 5, 10, 20, 30)
+        println("plane-sim | wave | gruntHP | bossHP | speedMul | bulletMul | idleTicks | idleKills | botKills | botWave | botPeakBullets")
+        for (wave in milestones) {
+            // 挂机：跳到目标波，观察存活时间（死亡即结束）
+            val idle = gameFor(PlaneDifficulty.STANDARD)
+            idle.startGame(seed = 20260913L, startWave = wave)
+            var idleTicks = 0
+            while (idle.phase == PlanePhase.PLAYING && idleTicks < 60 * 60 * 5) {
+                idle.advanceTicks(1)
+                idleTicks++
+            }
+            assertFalse("挂机应在 5 分钟内落败（wave=$wave）", idle.player.alive)
+            // 躲避机器人：固定 2 分钟窗口，记录推进节奏
+            val bot = gameFor(PlaneDifficulty.STANDARD)
+            bot.startGame(seed = 777L, startWave = wave)
+            val dodgeBot = DodgeBot()
+            var botTicks = 0
+            var peakBullets = 0
+            while (bot.phase == PlanePhase.PLAYING && botTicks < 60 * 120) {
+                dodgeBot.step(bot)
+                bot.advanceTicks(1)
+                botTicks++
+                peakBullets = maxOf(peakBullets, bot.enemyBullets.size)
+            }
+            val grunt = PlaneConfig.enemySpec(PlaneEnemyType.GRUNT, PlaneDifficulty.STANDARD, wave)
+            val boss = PlaneConfig.enemySpec(PlaneEnemyType.BOSS, PlaneDifficulty.STANDARD, wave)
+            println(
+                "plane-sim | $wave | ${grunt.hp} | ${boss.hp} | " +
+                    "${"%.3f".format(PlaneConfig.waveSpeedMul(wave))} | " +
+                    "${"%.3f".format(PlaneConfig.waveBulletSpeedMul(wave))} | " +
+                    "$idleTicks | ${idle.kills} | ${bot.kills} | ${bot.waveIndex} | $peakBullets",
+            )
+            assertTrue("机器人模拟必须保持有限状态（wave=$wave）", bot.player.x.isFinite() && bot.player.y.isFinite())
+            assertTrue("敌弹峰值应有界（wave=$wave，实测 $peakBullets）", peakBullets <= 300)
+        }
+        assertTrue(
+            "高波次 HP 应进入软上限",
+            PlaneConfig.waveHpScale(30) <= PlaneConfig.waveHpScale(PLANE_MAX_WAVE),
         )
     }
 

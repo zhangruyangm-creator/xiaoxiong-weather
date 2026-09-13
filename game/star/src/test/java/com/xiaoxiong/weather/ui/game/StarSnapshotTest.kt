@@ -236,6 +236,15 @@ class StarSnapshotTest {
         assertTrue(StarJumpGame().restoreSnapshot(prefs))
     }
 
+    @Test
+    fun restart_resetsClockTime() {
+        val game = StarJumpGame().apply { setDims(1080f, 1920f, 1f) }
+        game.start()
+        game.time = 42f
+        game.start()
+        assertEquals("重开应重置动画时钟，避免残留上一局相位", 0f, game.time, 0f)
+    }
+
     /** 把快照第一行（meta）的 phase 字段改写为指定档位，模拟旧档/异常档。 */
     private fun rewritePhase(
         prefs: FakePrefs,

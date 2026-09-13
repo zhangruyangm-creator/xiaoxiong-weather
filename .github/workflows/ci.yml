@@ -75,6 +75,10 @@ jobs:
       - name: Lint (full debug)
         run: ./gradlew lintFullDebug
 
+      # 各游戏模块 namespace 相同，同名资源会被资源合并静默覆盖；值不一致必须修
+      - name: Check duplicate game string resources
+        run: python3 tools/check_duplicate_game_strings.py
+
       # CI 只验证 release 构建产物，用一次性密钥满足 signingConfig；
       # 真实发布密钥仅在 release.yml 从 secrets 注入，仓库内不落盘任何真实密钥
       - name: Generate CI signing key

@@ -81,6 +81,8 @@ private const val MAX_ZOOM = 2.5f
 fun BearAlbumScreen(onBack: () -> Unit) {
     val sections = remember { bearAlbumSections() + holidayAlbumSection() }
     val total = remember(sections) { sections.sumOf { it.drawableRes.size } }
+    // 分组标题在非 Composable 的 LazyListScope 里也要用，先统一取出
+    val sectionTitles = sections.map { stringResource(it.titleRes) }
 
     // 当前大图浏览的起始位置（扁平索引）；-1 表示未打开
     var viewerStart by remember { mutableIntStateOf(-1) }
@@ -141,6 +143,7 @@ fun BearAlbumScreen(onBack: () -> Unit) {
                             AlbumRow(
                                 drawables = row,
                                 startIndex = offset,
+                                sectionTitle = sectionTitles[index],
                                 onOpen = { viewerStart = it },
                             )
                         }
@@ -195,6 +198,7 @@ private fun AlbumSectionHeader(section: BearAlbumSection) {
 private fun AlbumRow(
     drawables: List<Int>,
     startIndex: Int,
+    sectionTitle: String,
     onOpen: (Int) -> Unit,
 ) {
     Row(
@@ -214,7 +218,12 @@ private fun AlbumRow(
             ) {
                 Image(
                     painter = painterResource(drawable),
-                    contentDescription = null,
+                    contentDescription =
+                        stringResource(
+                            R.string.cd_album_thumbnail,
+                            startIndex + i + 1,
+                            sectionTitle,
+                        ),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
@@ -252,7 +261,12 @@ private fun BearAlbumViewer(
         ) { page ->
             ZoomableImage(
                 painter = painterResource(drawables[page]),
-                contentDescription = null,
+                contentDescription =
+                    stringResource(
+                        R.string.cd_album_viewer,
+                        page + 1,
+                        drawables.size,
+                    ),
                 onZoomChange = { anyZoomed = it },
                 onSingleTap = onClose,
                 modifier = Modifier.fillMaxSize(),

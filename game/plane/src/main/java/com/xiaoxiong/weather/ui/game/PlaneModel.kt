@@ -1,6 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
-/** 对局阶段：READY（标题）/ PLAYING / PAUSED（配合 common GamePauseState）/ SETTLED（胜负已分）。 */
+/** 对局阶段：READY（标题）/ PLAYING / PAUSED（配合 common GamePauseState）/ SETTLED（死亡结算）。 */
 enum class PlanePhase { READY, PLAYING, PAUSED, SETTLED }
 
 /** 子弹形状：圆 / 胶囊（激光 / 横滚弹）/ 矩形（宽幅弹幕）。 */
@@ -118,6 +118,7 @@ class PlaneEffect(
  * 一 tick 内产生的反馈事件快照（由 [PlaneGame.consumeEvents] 读取后复位）。
  *
  * 各标志在 tick 内是布尔去重：同一 tick 多次触发只置位一次，屏幕消费后不会重复播放。
+ * [win] 保留给未来「有终点」的模式；无尽模式永远不置位（只有 [lose] 会结束对局）。
  */
 data class PlaneEvents(
     val shot: Boolean = false,

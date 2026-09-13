@@ -326,6 +326,20 @@ class CatchSnapshotTest {
         assertEquals(2, game.hearts)
     }
 
+    @Test
+    fun restore_zeroHearts_isRejectedAndCleared() {
+        val prefs = FakePrefs()
+        val source = BearCatchGame()
+        source.resize(IntSize(400, 800))
+        source.start()
+        // 合法对局不可能以 0 心落盘（死亡会先切 OVER 并清档）
+        source.hearts = 0
+        source.saveSnapshot(prefs)
+
+        assertFalse(BearCatchGame().restoreSnapshot(prefs))
+        assertFalse("0 心坏档应被清掉", prefs.contains(snapshotKey))
+    }
+
     /** 覆盖 BearCatchGame 快照用到的 SharedPreferences 子集。 */
     private class FakePrefs : SharedPreferences {
         private val values = mutableMapOf<String, Any>()

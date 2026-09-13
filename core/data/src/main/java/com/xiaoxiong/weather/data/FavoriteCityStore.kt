@@ -77,7 +77,7 @@ class FavoriteCityStore(
         const val MAX_FAVORITES = 12
 
         /** 是否允许新增收藏；取消已有收藏（[isAlreadyFavorite]）始终允许。 */
-        internal fun canAddFavorite(
+        fun canAddFavorite(
             currentCount: Int,
             isAlreadyFavorite: Boolean,
         ): Boolean = isAlreadyFavorite || currentCount < MAX_FAVORITES

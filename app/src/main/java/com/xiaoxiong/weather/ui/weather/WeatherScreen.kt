@@ -98,7 +98,7 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 
 /** 连点标题打开游戏枢纽所需的连续点击次数。 */
-private const val SECRET_TITLE_TAPS = 5
+private const val SECRET_TITLE_TAPS = 4
 
 /** 连点标题的计时窗口（毫秒）：窗口内点击计数，超时清零。 */
 private const val SECRET_TITLE_WINDOW_MS = 2_000L
@@ -173,7 +173,7 @@ private fun WeatherScreenContent(
         }
     }
 
-    // ── 标题连点彩蛋：2s 内连点 5 次打开游戏枢纽（小熊的家）──
+    // ── 标题连点彩蛋：2s 内连点 4 次打开游戏枢纽（小熊的家）──
     val lastTitleTapAt = remember { mutableLongStateOf(0L) }
     var titleTapCount by remember { mutableIntStateOf(0) }
     // nonce 自增保证退出枢纽后再次连点仍能重新触发

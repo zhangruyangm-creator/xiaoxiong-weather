@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.settings
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -155,7 +156,11 @@ fun PrivacyScreen(onBack: () -> Unit) {
                                     val offset = result.getOffsetForPosition(down.position)
                                     val link = links.firstOrNull { offset in it.start until it.end }
                                     if (link != null) {
-                                        uriHandler.openUri(link.url)
+                                        // 无浏览器/无 Activity 处理的设备上 openUri 会抛异常
+                                        runCatching { uriHandler.openUri(link.url) }
+                                            .onFailure {
+                                                Toast.makeText(context, R.string.open_link_failed, Toast.LENGTH_SHORT).show()
+                                            }
                                         waitForUpOrCancellation()?.consume()
                                     }
                                 }

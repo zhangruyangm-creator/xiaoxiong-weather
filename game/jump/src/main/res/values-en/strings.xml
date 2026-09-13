@@ -5,7 +5,7 @@
     <string name="bear_game_exit">Back to weather</string>
     <string name="bear_game_hint_jump">Tap to jump · once more in mid-air</string>
     <string name="bear_game_over">Oops, bumped!</string>
-    <string name="bear_game_restart">Run again</string>
+    <string name="bear_jump_restart">Run again</string>
     <string name="bear_game_tap_start">Tap anywhere to start running</string>
     <string name="bear_game_title">Bear Hop</string>
     <string name="bear_game_view_rank">View leaderboard</string>

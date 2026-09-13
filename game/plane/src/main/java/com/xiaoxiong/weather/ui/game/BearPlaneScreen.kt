@@ -1,10 +1,12 @@
 package com.xiaoxiong.weather.ui.game
 
+import android.content.SharedPreferences
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,15 +42,35 @@ import kotlin.math.max
 
 private const val PREF_PLANE_DIFF = "plane_difficulty"
 private const val PREF_PLANE_BEST_PREFIX = "plane_best_"
+private const val PREF_PLANE_BEST_WAVE_PREFIX = "plane_best_wave_"
 private const val PREF_PLANE_LEADERBOARD_PREFIX = "leaderboard_plane_"
+
+/** 开局命数持久化 key（1..9，默认 3）。 */
+internal const val PLANE_START_LIVES_KEY = "plane_start_lives"
 
 /** 波次横幅展示时长（毫秒）。 */
 private const val PLANE_WAVE_BANNER_MS = 1500L
 
-/** 手指上方偏移（**逻辑单位**）：让战机不被手指遮挡，飞机始终浮在指尖上方约 26 逻辑单位。 */
-private const val PLANE_FINGER_OFFSET_LOGICAL = 26f
+/**
+ * 手指上方偏移（**逻辑单位**）：让战机不被手指遮挡，同时保持「指哪打哪」的跟手手感。
+ * 逻辑场宽固定 100、典型场高 180，10 单位约屏高的 1/18，远小于旧值 26 的拖拽延迟感。
+ */
+internal const val PLANE_FINGER_OFFSET_LOGICAL = 10f
+
+/** 触摸逻辑坐标 -> 战机目标 y（手指上方固定偏移）；非有限值原样透传，由 [PlaneGame.movePlayerTo] 忽略。 */
+internal fun planeTouchTargetY(touchLogicalY: Float): Float =
+    if (touchLogicalY.isFinite()) touchLogicalY - PLANE_FINGER_OFFSET_LOGICAL else touchLogicalY
+
+/** 读取持久化的开局命数并夹到 1..9（缺省 / 坏值回退默认 3）。 */
+internal fun planeStartLivesOf(prefs: SharedPreferences): Int =
+    planeClampStartLives(prefs.getInt(PLANE_START_LIVES_KEY, PlaneConfig.START_LIVES))
+
+/** 开局命数夹取：1..9。 */
+internal fun planeClampStartLives(value: Int): Int = value.coerceIn(PlaneConfig.START_LIVES_MIN, PlaneConfig.START_LIVES_MAX)
 
 private fun planeBestKey(difficulty: PlaneDifficulty): String = PREF_PLANE_BEST_PREFIX + difficulty.id
+
+private fun planeBestWaveKey(difficulty: PlaneDifficulty): String = PREF_PLANE_BEST_WAVE_PREFIX + difficulty.id
 
 private fun planeLeaderboardKey(difficulty: PlaneDifficulty): String = PREF_PLANE_LEADERBOARD_PREFIX + difficulty.id + "_v1"
 
@@ -85,6 +107,7 @@ fun BearPlaneScreen(
             PlaneGame().also {
                 it.setWeather(sceneCode, isDay)
                 it.difficulty = PlaneDifficulty.fromId(prefs.getString(PREF_PLANE_DIFF, null))
+                it.startLives = planeStartLivesOf(prefs)
             }
         }
     val frameState = remember { PlaneFrameState() }
@@ -103,8 +126,11 @@ fun BearPlaneScreen(
 
     var difficultyState by remember { mutableStateOf(game.difficulty) }
     var best by remember { mutableIntStateOf(0) }
+    var bestWave by remember { mutableIntStateOf(0) }
+    var startLives by remember { mutableIntStateOf(planeStartLivesOf(prefs)) }
     var soundEnabled by remember { mutableStateOf(GameAudio.settings(context).enabled) }
     var isNewRecord by remember { mutableStateOf(false) }
+    var isNewWaveRecord by remember { mutableStateOf(false) }
     var showLeaderboard by remember { mutableStateOf(false) }
     var waveBannerToken by remember { mutableIntStateOf(0) }
     var waveBannerWave by remember { mutableIntStateOf(0) }
@@ -115,6 +141,8 @@ fun BearPlaneScreen(
     val lb = rememberLeaderboardState(prefs, planeLeaderboardKey(difficultyState), planeBestKey(difficultyState))
 
     fun bestOf(difficulty: PlaneDifficulty): Int = prefs.getInt(planeBestKey(difficulty), 0)
+
+    fun bestWaveOf(difficulty: PlaneDifficulty): Int = prefs.getInt(planeBestWaveKey(difficulty), 0)
 
     fun syncHud() {
         if (hudPhase != game.phase) hudPhase = game.phase
@@ -132,6 +160,13 @@ fun BearPlaneScreen(
         isNewRecord = game.score > prevBest && game.score > 0
         if (game.score > prevBest) prefs.edit { putInt(key, game.score) }
         best = max(prevBest, game.score)
+        // 无尽模式的正反馈：记录并刷新「历史最远波次」
+        val waveKey = planeBestWaveKey(difficultyState)
+        val prevBestWave = prefs.getInt(waveKey, 0)
+        val reachedWave = game.waveIndex.coerceAtLeast(1)
+        isNewWaveRecord = reachedWave > prevBestWave
+        if (isNewWaveRecord) prefs.edit { putInt(waveKey, reachedWave) }
+        bestWave = max(prevBestWave, reachedWave)
         if (game.score > 0) {
             lb.lastRank =
                 lb.store.submit(
@@ -157,10 +192,12 @@ fun BearPlaneScreen(
 
     fun startGame() {
         game.clearSnapshot(prefs)
+        game.startLives = startLives
         game.startGame()
         pause.resume()
         resultSubmitted = false
         isNewRecord = false
+        isNewWaveRecord = false
         bossWarningVisible = false
         waveBannerToken = 0
         waveBannerWave = 0
@@ -183,6 +220,7 @@ fun BearPlaneScreen(
         frameState.onRestore(game)
         waveBannerWave = game.waveIndex
         best = bestOf(game.difficulty)
+        bestWave = bestWaveOf(game.difficulty)
         syncHud()
         frame++
     }
@@ -303,23 +341,29 @@ fun BearPlaneScreen(
                         game.resize(it.width.toFloat(), it.height.toFloat())
                         frame++
                     }.pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                game.movePlayerTo(
-                                    game.toLogicalX(offset.x),
-                                    game.toLogicalY(offset.y) - PLANE_FINGER_OFFSET_LOGICAL,
-                                )
-                                frame++
-                            },
-                            onDrag = { change, _ ->
-                                game.movePlayerTo(
-                                    game.toLogicalX(change.position.x),
-                                    game.toLogicalY(change.position.y) - PLANE_FINGER_OFFSET_LOGICAL,
-                                )
-                                change.consume()
-                                frame++
-                            },
-                        )
+                        // 无 touch slop 的即时拖动：按下即跟手，逐事件更新（对齐 pool / hockey / star 的指针写法）。
+                        // 偏移固定为手指上方少量逻辑单位；非有限值由 movePlayerTo 忽略，边界由其钳制。
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            game.movePlayerTo(
+                                game.toLogicalX(down.position.x),
+                                planeTouchTargetY(game.toLogicalY(down.position.y)),
+                            )
+                            frame++
+                            down.consume()
+                            do {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+                                if (change.pressed) {
+                                    game.movePlayerTo(
+                                        game.toLogicalX(change.position.x),
+                                        planeTouchTargetY(game.toLogicalY(change.position.y)),
+                                    )
+                                    change.consume()
+                                    frame++
+                                }
+                            } while (event.changes.any { it.pressed })
+                        }
                     },
         ) {
             // 读取 Compose 帧状态只为在 draw 阶段注册重绘依赖：不触发任何重组
@@ -367,7 +411,7 @@ fun BearPlaneScreen(
                 Box(modifier = Modifier.weight(1f))
                 PlaneBottomBar(
                     lives = hudLives,
-                    maxLives = PlaneConfig.START_LIVES,
+                    maxLives = game.startLives,
                     bombs = hudBombs,
                     weaponLevel = hudWeapon,
                     bombEnabled = hudBombs > 0 && hudPhase == PlanePhase.PLAYING,
@@ -392,6 +436,8 @@ fun BearPlaneScreen(
                 PlaneReadyOverlay(
                     game = game,
                     best = best,
+                    bestWave = bestWave,
+                    startLives = startLives,
                     soundEnabled = soundEnabled,
                     frame = { frame },
                     isDay = day,
@@ -402,7 +448,18 @@ fun BearPlaneScreen(
                         game.difficulty = difficulty
                         prefs.edit { putString(PREF_PLANE_DIFF, difficulty.id) }
                         best = bestOf(difficulty)
+                        bestWave = bestWaveOf(difficulty)
                         frame++
+                    },
+                    onStartLivesChange = { value ->
+                        val clamped = planeClampStartLives(value)
+                        if (clamped != startLives) {
+                            GameAudio.play(GameCue.UI_CLICK)
+                            startLives = clamped
+                            game.startLives = clamped
+                            prefs.edit { putInt(PLANE_START_LIVES_KEY, clamped) }
+                            frame++
+                        }
                     },
                     onStart = {
                         GameAudio.play(GameCue.UI_CLICK)
@@ -423,6 +480,8 @@ fun BearPlaneScreen(
                 PlaneSettledOverlay(
                     game = game,
                     best = best,
+                    bestWave = bestWave,
+                    isNewWaveRecord = isNewWaveRecord,
                     rank = lb.lastRank,
                     isNewRecord = isNewRecord,
                     onRestart = {

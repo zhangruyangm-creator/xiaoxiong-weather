@@ -1,6 +1,5 @@
 package com.xiaoxiong.weather.ui.game
 
-import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -18,27 +17,9 @@ class PlaneSnapshotTest {
             resize(600f, 1080f)
         }
 
-    private fun playerBulletAt(
-        id: Int,
-        x: Float,
-        y: Float,
-        damage: Int,
-    ): PlaneBullet =
-        PlaneBullet(
-            id = id,
-            owner = PlaneBulletOwner.PLAYER,
-            shape = PlaneBulletShape.CIRCLE,
-            x = x,
-            y = y,
-            vx = 0f,
-            vy = 0f,
-            damage = damage,
-            radius = PlaneConfig.PLAYER_BULLET_RADIUS,
-        )
-
     @Test
     fun saveRestore_keepsStateAndEntities() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.setWeather(51, isDay = false)
         source.difficulty = PlaneDifficulty.CHALLENGE
@@ -81,7 +62,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoredGame_continuesIdentically() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 123L, startWave = 2)
         source.advanceTicks(300)
@@ -115,7 +96,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_playingSave_isPaused_andTicksDoNotAdvance() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 21L)
         source.advanceTicks(120)
@@ -135,7 +116,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_semanticBadSave_isSanitized() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 22L)
         source.advanceTicks(30)
@@ -186,7 +167,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_extremeCanvasAspect_rebuildsTransformAndClampsPlayer() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 31L)
         source.advanceTicks(200)
@@ -217,7 +198,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_beforeResize_keepsSavedFieldH_thenResizeRebuildsTransform() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 32L)
         source.advanceTicks(200)
@@ -238,9 +219,9 @@ class PlaneSnapshotTest {
 
     @Test
     fun saveRestore_preservesBossBulletFlag() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
-        source.startGame(seed = 25L, startWave = PLANE_TOTAL_WAVES)
+        source.startGame(seed = 25L, startWave = PLANE_BOSS_EVERY * 2)
         source.advanceTicks(PlaneConfig.WAVE_INTRO_TICKS + PlaneConfig.BOSS_WARNING_TICKS)
         source.advanceTicks(120)
         assertTrue("Boss 应已开火", source.enemyBullets.any { it.boss })
@@ -258,12 +239,12 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_empty_returnsFalse() {
-        assertFalse(newGame().restoreSnapshot(FakePrefs()))
+        assertFalse(newGame().restoreSnapshot(FakePlanePrefs()))
     }
 
     @Test
     fun restoreSnapshot_corrupt_returnsFalseAndClears() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         prefs.edit().putString(key, "这不是合法快照\nnot=valid").apply()
         val game = newGame()
         assertFalse("坏档不应崩溃，返回 false", game.restoreSnapshot(prefs))
@@ -273,15 +254,15 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_versionMismatch_rejectedAndCleared() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 9L)
         source.advanceTicks(60)
         source.saveSnapshot(prefs)
         val payload = prefs.getString(key, null)
         assertNotNull(payload)
-        assertTrue("新档应为 v=3: $payload", payload!!.startsWith("v=3"))
-        prefs.edit().putString(key, payload.replaceFirst("v=3", "v=2")).apply()
+        assertTrue("新档应为 v=4: $payload", payload!!.startsWith("v=4"))
+        prefs.edit().putString(key, payload.replaceFirst("v=4", "v=3")).apply()
 
         val restored = newGame()
         assertFalse("旧版本 payload 不应被恢复", restored.restoreSnapshot(prefs))
@@ -290,7 +271,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_zeroLives_rejectedAndCleared() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 24L)
         source.advanceTicks(60)
@@ -319,7 +300,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_missingPlayerLine_rejectedAndCleared() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 10L)
         source.advanceTicks(30)
@@ -336,7 +317,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun restoreSnapshot_nonPlayingPhase_rejected() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 11L)
         source.advanceTicks(30)
@@ -352,7 +333,7 @@ class PlaneSnapshotTest {
 
     @Test
     fun saveSnapshot_outsideActivePlay_clears() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val game = newGame()
         // READY：未开局不应有快照
         game.saveSnapshot(prefs)
@@ -361,14 +342,29 @@ class PlaneSnapshotTest {
 
     @Test
     fun settledMatch_save_clearsSnapshot() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val game = newGame()
-        game.startGame(seed = 12L, startWave = PLANE_TOTAL_WAVES)
-        game.advanceTicks(PlaneConfig.WAVE_INTRO_TICKS + PlaneConfig.BOSS_WARNING_TICKS)
-        game.advanceTicks(120)
-        val boss = game.enemies.first { it.isBoss }
-        game.playerBullets += playerBulletAt(990, boss.x, boss.y, damage = 99999)
-        game.advanceTicks(2)
+        game.startGame(seed = 12L)
+        game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 2)
+        // 无尽模式只有死亡结算：用贴脸敌弹打光命
+        repeat(game.player.lives) { index ->
+            game.enemies.clear()
+            game.enemyBullets.clear()
+            game.enemyBullets +=
+                PlaneBullet(
+                    id = 990 + index,
+                    owner = PlaneBulletOwner.ENEMY,
+                    shape = PlaneBulletShape.CIRCLE,
+                    x = game.player.x,
+                    y = game.player.y,
+                    vx = 0f,
+                    vy = 0f,
+                    damage = 1,
+                    radius = PlaneConfig.ENEMY_BULLET_RADIUS,
+                )
+            game.advanceTicks(1)
+            if (game.phase == PlanePhase.PLAYING) game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 2)
+        }
         assertEquals(PlanePhase.SETTLED, game.phase)
         game.saveSnapshot(prefs)
         assertFalse("结算后不应保留续玩快照", prefs.contains(key))
@@ -376,138 +372,62 @@ class PlaneSnapshotTest {
     }
 
     @Test
+    fun saveRestore_preservesStartLives_andNewEnemyTypes() {
+        val prefs = FakePlanePrefs()
+        val source = newGame()
+        source.startLives = 8
+        source.startGame(seed = 26L)
+        source.advanceTicks(1)
+        source.enemies.clear()
+        source.enemies +=
+            PlaneEnemy(
+                id = 7001,
+                type = PlaneEnemyType.HELI,
+                x = 30f,
+                y = PlaneLogic.HELI_HOVER_Y,
+                vx = 0f,
+                vy = 0f,
+                hp = 6,
+                maxHp = 6,
+                fireTimerTicks = 5,
+                ageTicks = 40,
+            )
+        source.enemies +=
+            PlaneEnemy(
+                id = 7002,
+                type = PlaneEnemyType.TANK,
+                x = 70f,
+                y = source.fieldH - PlaneLogic.TANK_GROUND_MARGIN,
+                vx = -12f,
+                vy = 0f,
+                hp = 9,
+                maxHp = 9,
+                fireTimerTicks = 7,
+                ageTicks = 60,
+            )
+        source.saveSnapshot(prefs)
+
+        val restored = newGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals("快照必须恢复本局的开局命数", 8, restored.startLives)
+        assertEquals(8, restored.player.lives)
+        val heli = restored.enemies.first { it.type == PlaneEnemyType.HELI }
+        val tank = restored.enemies.first { it.type == PlaneEnemyType.TANK }
+        assertEquals(7001, heli.id)
+        assertEquals(PlaneLogic.HELI_HOVER_Y, heli.y, 0f)
+        assertEquals(7002, tank.id)
+        assertEquals(-12f, tank.vx, 0f)
+        assertTrue("装甲车方向应随快照往返", tank.vx < 0f)
+    }
+
+    @Test
     fun clearSnapshot_removesPayload() {
-        val prefs = FakePrefs()
+        val prefs = FakePlanePrefs()
         val source = newGame()
         source.startGame(seed = 13L)
         source.saveSnapshot(prefs)
         assertTrue(prefs.contains(key))
         source.clearSnapshot(prefs)
         assertFalse(prefs.contains(key))
-    }
-
-    /** 覆盖 PlaneGame 用到的 SharedPreferences 子集（String / putString / remove）。 */
-    private class FakePrefs : SharedPreferences {
-        private val values = mutableMapOf<String, Any>()
-
-        override fun getAll(): MutableMap<String, *> = values.toMutableMap()
-
-        override fun getString(
-            key: String?,
-            defValue: String?,
-        ): String? = values[key] as? String ?: defValue
-
-        @Suppress("UNCHECKED_CAST")
-        override fun getStringSet(
-            key: String?,
-            defValues: MutableSet<String>?,
-        ): MutableSet<String>? = (values[key] as? MutableSet<String>)?.toMutableSet() ?: defValues
-
-        override fun getInt(
-            key: String?,
-            defValue: Int,
-        ): Int = values[key] as? Int ?: defValue
-
-        override fun getLong(
-            key: String?,
-            defValue: Long,
-        ): Long = values[key] as? Long ?: defValue
-
-        override fun getFloat(
-            key: String?,
-            defValue: Float,
-        ): Float = values[key] as? Float ?: defValue
-
-        override fun getBoolean(
-            key: String?,
-            defValue: Boolean,
-        ): Boolean = values[key] as? Boolean ?: defValue
-
-        override fun contains(key: String?): Boolean = key != null && values.containsKey(key)
-
-        override fun edit(): SharedPreferences.Editor = Editor()
-
-        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = Unit
-
-        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = Unit
-
-        private inner class Editor : SharedPreferences.Editor {
-            private val pending = mutableMapOf<String, Any?>()
-
-            override fun putString(
-                key: String?,
-                value: String?,
-            ): SharedPreferences.Editor {
-                if (key != null) pending[key] = value
-                return this
-            }
-
-            override fun putStringSet(
-                key: String?,
-                values: MutableSet<String>?,
-            ): SharedPreferences.Editor {
-                if (key != null) pending[key] = values?.toMutableSet()
-                return this
-            }
-
-            override fun putInt(
-                key: String?,
-                value: Int,
-            ): SharedPreferences.Editor {
-                if (key != null) pending[key] = value
-                return this
-            }
-
-            override fun putLong(
-                key: String?,
-                value: Long,
-            ): SharedPreferences.Editor {
-                if (key != null) pending[key] = value
-                return this
-            }
-
-            override fun putFloat(
-                key: String?,
-                value: Float,
-            ): SharedPreferences.Editor {
-                if (key != null) pending[key] = value
-                return this
-            }
-
-            override fun putBoolean(
-                key: String?,
-                value: Boolean,
-            ): SharedPreferences.Editor {
-                if (key != null) pending[key] = value
-                return this
-            }
-
-            override fun remove(key: String?): SharedPreferences.Editor {
-                if (key != null) pending[key] = null
-                return this
-            }
-
-            override fun clear(): SharedPreferences.Editor {
-                pending.clear()
-                values.clear()
-                return this
-            }
-
-            override fun commit(): Boolean {
-                apply()
-                return true
-            }
-
-            override fun apply() {
-                pending.forEach { (key, value) ->
-                    if (value == null) {
-                        values.remove(key)
-                    } else {
-                        values[key] = value
-                    }
-                }
-                pending.clear()
-            }
-        }
     }
 }

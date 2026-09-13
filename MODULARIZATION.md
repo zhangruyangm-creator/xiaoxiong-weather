@@ -317,7 +317,8 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 - `WeatherApp`/`MainActivity`/`AppContainer` 保留 `:app`；保留手动 DI（不引入 Hilt，体量小收益低）
 - 清理：
   - 删除空源码目录（`app/src/{full,lite,testFull}`、`core/network/src/main/res`）与 app 内空包目录
-  - app 残留 3 个测试（`WeatherCodesTest`/`WeatherLauncherIconMappingTest`/`AlertBearIconTest`）随代码分别迁入 `core:common` / `core:designsystem`；`app/src/test` 删除（app 不再有单元测试，装配层留薄）
+  - 迁移期 app 残留 3 个测试（`WeatherCodesTest`/`WeatherLauncherIconMappingTest`/`AlertBearIconTest`）随代码分别迁入 `core:common` / `core:designsystem`；此后 app 装配层单测已重新补齐，当前 app 已有 60+ 单测（7 个测试类 / 30 个用例，full/lite 双 flavor 各执行一遍）
+  - Baseline Profile 现状：`app/src/{fullRelease,liteRelease}/generated/baselineProfiles/baseline-prof.txt` 两份当前是**同一份旧内容**（生成器只覆盖冷启动 + 今日页首屏，游戏不在启动路径、从未被采集；full/lite 差异也尚未重生成），重生成需在真机 / GMD 模拟器上执行 `./gradlew :app:generate{Full,Lite}ReleaseBaselineProfile`（CI 只校验两份存在且包含足量自有类，不校验两份字节差异）
   - `mock-maker-inline` 配置删除（Mockito 5.14 默认内联，冗余）
 - 文档：README 项目结构/游戏裁剪改为动态依赖描述（9 个游戏 + ServiceLoader）；ENGINEERING CI 说明改为全量 `test`；CHANGELOG 新增「未发布」多模块重构记录；CI workflow 用 `./gradlew test` 覆盖全模块并把测试报告路径扩到 core/feature/game
 - 资源去重（`ic_sun_bear_*` 场景插画单一数据源）：

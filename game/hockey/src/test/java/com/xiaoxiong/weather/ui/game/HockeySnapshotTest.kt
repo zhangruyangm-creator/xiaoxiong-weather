@@ -361,6 +361,63 @@ class HockeySnapshotTest {
         assertFalse(restored.hasPendingRules)
     }
 
+    /**
+     * 坏档（球体组缺失）恢复失败时必须整档拒绝：旧实现先写 pending/主题、再校验球体组，
+     * 失败返回 false 时目标实例的暂存设置与主题已被坏档值污染。
+     */
+    @Test
+    fun restore_brokenBodyGroups_failureKeepsExistingPendingRulesAndTheme() {
+        val prefs = TestPrefs()
+        // 目标实例：先有一份「下一局生效」的暂存设置与非默认主题
+        val target = HockeyGame()
+        target.startMatch()
+        target.applySettings(
+            difficulty = Difficulty.MASTER,
+            customLevel = 8,
+            winScore = 9,
+            paddleScale = 1.4f,
+            paddleScaleBoth = false,
+            puckScale = 0.8f,
+            goalScale = 1.3f,
+            rinkTheme = RinkTheme.WOOD,
+        )
+        assertTrue(target.hasPendingRules)
+        assertEquals(RinkTheme.WOOD, target.rinkTheme)
+
+        // 坏档由另一局生成（暂存 3 / 主题 BEAR），再删掉第 3 个球体组制造
+        // 「表头合法、球体组非法」：旧实现会先在失败前写入这些值
+        val source = startedGame()
+        source.applySettings(
+            difficulty = Difficulty.HARD,
+            customLevel = 5,
+            winScore = 3,
+            paddleScale = 1.1f,
+            paddleScaleBoth = true,
+            puckScale = 1.0f,
+            goalScale = 1.0f,
+            rinkTheme = RinkTheme.BEAR,
+        )
+        assertTrue(source.hasPendingRules)
+        source.saveSnapshot(prefs)
+        val raw = prefs.getString(snapshotKey, null) ?: error("快照应已写入")
+        val parts = raw.split(";")
+        assertTrue("前置条件：快照至少包含表头 + 3 个球体组", parts.size > 4)
+        prefs
+            .edit()
+            .putString(snapshotKey, parts.filterIndexed { index, _ -> index != 3 }.joinToString(";"))
+            .apply()
+
+        assertFalse("缺球体组的坏档必须恢复失败", target.restoreSnapshot(prefs))
+        assertTrue("坏档失败后暂存设置必须保持原值", target.hasPendingRules)
+        assertEquals(9, target.displayWinScore())
+        assertEquals(1.4f, target.displayPaddleScale(), 1e-4f)
+        assertFalse(target.displayPaddleScaleBoth())
+        assertEquals(0.8f, target.displayPuckScale(), 1e-4f)
+        assertEquals(1.3f, target.displayGoalScale(), 1e-4f)
+        assertEquals("坏档失败后主题必须保持原值", RinkTheme.WOOD, target.rinkTheme)
+        assertEquals(RinkTheme.WOOD, target.displayRinkTheme())
+    }
+
     /** 旧档没有 pending 拖尾字段：恢复后不得凭空产生暂存设置（保持旧行为）。 */
     @Test
     fun restore_legacySnapshot_hasNoPendingRules() {

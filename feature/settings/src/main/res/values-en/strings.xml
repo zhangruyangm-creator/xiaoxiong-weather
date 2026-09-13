@@ -2,6 +2,7 @@
 <resources>
     <string name="cd_back">Back</string>
     <string name="cd_drag_reorder">Drag to reorder</string>
+    <string name="open_link_failed">No app available to open this link</string>
     <string name="privacy_gate_accept">Agree and continue</string>
     <string name="privacy_gate_bullet_location">• Location: current-city weather (optional; you can search instead)</string>
     <string name="privacy_gate_bullet_network">• Network: forecast, air quality, and radar</string>

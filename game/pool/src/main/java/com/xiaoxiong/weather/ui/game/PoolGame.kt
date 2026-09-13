@@ -25,6 +25,9 @@ internal const val POOL_LEGACY_REPLAY_KEY = "pool_last_replay_v1"
 internal const val POOL_RACE_TO_MIN = 1
 internal const val POOL_RACE_TO_MAX = 15
 
+/** 赛制局数统一钳制入口：设置保存 / 偏好读取 / 快照解码都走它，避免再出现 1..3 硬编码。 */
+internal fun clampRaceTo(value: Int): Int = value.coerceIn(POOL_RACE_TO_MIN, POOL_RACE_TO_MAX)
+
 /**
  * 小熊台球运行时：把「固定步长物理内核 + 八球规则 + AI + 输入/瞄准/杆法 + 计分」收口。
  *
@@ -96,6 +99,10 @@ class PoolGame {
     var aids by mutableStateOf(Aids.FULL)
     var mode by mutableStateOf(PoolMode.EIGHT_BALL)
     var raceTo by mutableIntStateOf(2)
+
+    /** 局中暂存的赛制/模式改动：下一场 [startMatch] 生效（避免局数变小当场判负）。 */
+    private var pendingRaceTo by mutableStateOf<Int?>(null)
+    private var pendingMode by mutableStateOf<PoolMode?>(null)
     var best by mutableIntStateOf(0)
     var resultSubmitted = false
 
@@ -323,6 +330,27 @@ class PoolGame {
     // 开局
     // ---------------------------------------------------------------------
 
+    /** 局中改赛制/模式：只暂存，下一场 [startMatch] 生效。 */
+    fun stageRuleChange(
+        newRaceTo: Int,
+        newMode: PoolMode,
+    ) {
+        pendingRaceTo = clampRaceTo(newRaceTo)
+        pendingMode = newMode
+    }
+
+    /** 清空暂存的赛制/模式（立即应用路径调用）。 */
+    fun clearPendingRules() {
+        pendingRaceTo = null
+        pendingMode = null
+    }
+
+    /** 界面展示用赛制（含暂存）：设置弹窗/READY 摘要显示下一场将生效的值。 */
+    fun displayRaceTo(): Int = pendingRaceTo ?: raceTo
+
+    /** 界面展示用模式（含暂存）。 */
+    fun displayMode(): PoolMode = pendingMode ?: mode
+
     fun startMatch(
         breaker: PoolSide = PoolSide.PLAYER,
         seed: Long = System.nanoTime(),
@@ -331,6 +359,15 @@ class PoolGame {
         challengeDate = 0L
         lesson = null
         lessonPassed = false
+        // 局中暂存的赛制/模式在真正开新一场时生效
+        pendingRaceTo?.let {
+            raceTo = it
+            pendingRaceTo = null
+        }
+        pendingMode?.let {
+            if (mode != PoolMode.CHALLENGE) mode = it
+            pendingMode = null
+        }
         // 关卡模式不会走普通开局；若误留则退回练习模式
         if (mode == PoolMode.CHALLENGE) mode = PoolMode.PRACTICE
         match =
@@ -1532,9 +1569,7 @@ private object PoolSnapshotCodec {
 
         val phase = enumOrNull<PoolGame.Phase>(values["phase"]) ?: return null
         val mode = enumOrNull<PoolMode>(values["mode"]) ?: return null
-        val raceTo =
-            (values["raceTo"]?.toIntOrNull() ?: return null)
-                .coerceIn(POOL_RACE_TO_MIN, POOL_RACE_TO_MAX)
+        val raceTo = clampRaceTo(values["raceTo"]?.toIntOrNull() ?: return null)
         val best = values["best"]?.toIntOrNull() ?: return null
         val shotCount = values["shotCount"]?.toIntOrNull() ?: return null
 

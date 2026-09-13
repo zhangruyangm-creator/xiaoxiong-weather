@@ -10,6 +10,7 @@ import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.DebugWeatherOverride
 import com.xiaoxiong.weather.data.DebugWeatherState
 import com.xiaoxiong.weather.data.DebugWeatherStore
+import com.xiaoxiong.weather.data.FavoriteCityStore
 import com.xiaoxiong.weather.data.HistoryRangeSummary
 import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.RadarMapRepository
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -305,7 +307,10 @@ class WeatherViewModel(
 
         val useLocation = fromLocation || city.isCurrentLocation
         val requestId = weatherRequestId.incrementAndGet()
-        val samePlace = roughlySameCity(_uiState.value.selectedCity, city)
+        val previousState = _uiState.value
+        val samePlace = roughlySameCity(previousState.selectedCity, city)
+        // 静默刷新时用户输入是否仍停留在旧城市名（未进行搜索）；是则跟随新城市名同步
+        val queryFollowsCity = previousState.query == previousState.selectedCity?.displayName
         // 手动选城：作废在途搜索，防止旧建议在选城后复活；静默刷新不动用户正在进行的搜索
         if (!quiet) {
             searchController.cancelPending()
@@ -316,8 +321,9 @@ class WeatherViewModel(
             val keepWeather = quiet || samePlace
             it.copy(
                 selectedCity = city,
-                query = city.displayName,
-                suggestions = emptyList(),
+                // 静默刷新保留用户正在输入的搜索词与联想；仅当输入还等于旧城市名时才同步城市名
+                query = if (quiet && !queryFollowsCity) it.query else city.displayName,
+                suggestions = if (quiet) it.suggestions else emptyList(),
                 weather = if (keepWeather) it.weather else null,
                 isOffline = if (keepWeather) it.isOffline else false,
                 // 换城后旧城市的更新时间不再显示（顶栏副标题），等新数据到达再写
@@ -339,6 +345,11 @@ class WeatherViewModel(
                 historyRangeNetworkFailed = if (samePlace) it.historyRangeNetworkFailed else false,
                 errorMessage = null,
             )
+        }
+        // UI query 被改成城市名时同步搜索基线（不触发重复搜索），
+        // 否则 queryFlow 仍停在旧输入，用户删回原词时不会再触发搜索
+        if (!quiet || queryFollowsCity) {
+            searchController.onCitySelected(city)
         }
         if (!samePlace) {
             // 换城即作废旧城市快照，避免退出调试模式时把上一城市天气回灌
@@ -501,6 +512,21 @@ class WeatherViewModel(
     fun toggleFavorite() {
         val city = _uiState.value.selectedCity ?: return
         viewModelScope.launch {
+            val favorites = favoriteStore.favorites.first()
+            val alreadyFavorite = favoriteStore.isFavorite(favorites, city)
+            // 收藏满额且本次是新增：给出提示而不是静默失败（底层 toggle 会拒绝新增）
+            if (!FavoriteCityStore.canAddFavorite(favorites.size, alreadyFavorite)) {
+                _uiState.update {
+                    it.copy(
+                        infoMessage =
+                            str(
+                                R.string.search_favorite_limit_reached,
+                                FavoriteCityStore.MAX_FAVORITES,
+                            ),
+                    )
+                }
+                return@launch
+            }
             favoriteStore.toggle(city.copy(isCurrentLocation = false))
         }
     }

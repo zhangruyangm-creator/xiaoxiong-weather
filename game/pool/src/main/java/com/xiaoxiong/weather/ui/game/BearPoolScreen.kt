@@ -123,7 +123,10 @@ private const val PREF_DAILY_BEST = "pool_daily_"
 
 // 新手教学 / 台呢主题
 private const val PREF_LESSON_DONE = "pool_lesson_done_"
-private const val PREF_POOL_CLOTH = "pool_cloth_theme"
+internal const val PREF_POOL_CLOTH = "pool_cloth_theme"
+
+/** 台呢主题档位数量：与 [CLOTH_THEME_RES] 一一对应，钳制入口见 [clampClothTheme]。 */
+internal const val CLOTH_THEME_COUNT = 4
 
 /** 精瞄按钮单步：0.1°（长按连续微调，点击单步）。 */
 private val FINE_AIM_STEP_RAD = PoolMath.radians(0.1f)
@@ -135,7 +138,21 @@ private val CLOTH_THEME_RES =
         R.string.bear_pool_cloth_honey,
         R.string.bear_pool_cloth_midnight,
         R.string.bear_pool_cloth_sakura,
-    )
+    ).also { require(it.size == CLOTH_THEME_COUNT) { "台呢主题档位数量与资源不一致" } }
+
+/** 台呢主题索引统一钳制入口：旧档 / 坏档 / 设置保存都走它。 */
+internal fun clampClothTheme(theme: Int): Int = theme.coerceIn(0, CLOTH_THEME_COUNT - 1)
+
+/** 读取持久化的台呢主题：旧键 `pool_cloth_theme` 无值回退 0（经典湖蓝），越界钳制。 */
+internal fun loadClothTheme(prefs: SharedPreferences): Int = clampClothTheme(prefs.getInt(PREF_POOL_CLOTH, 0))
+
+/** 保存台呢主题（点保存才写入，与其它设置一致）。 */
+internal fun saveClothTheme(
+    prefs: SharedPreferences,
+    theme: Int,
+) {
+    prefs.edit { putInt(PREF_POOL_CLOTH, clampClothTheme(theme)) }
+}
 
 /** 可选模式：关卡（CHALLENGE）只通过专门入口进入，不出现在普通模式选择器里。 */
 private val POOL_MODES = listOf(PoolMode.EIGHT_BALL, PoolMode.NINE_BALL, PoolMode.PRACTICE)
@@ -426,19 +443,40 @@ internal fun PoolProgress.advance(
     )
 }
 
+/** 对局类排行榜分数：净胜 = 胜局 - 负局（负净值也能入榜，展示仍用比分 label）。 */
+internal fun poolRaceScore(
+    playerFrames: Int,
+    aiFrames: Int,
+): Int = playerFrames - aiFrames
+
 private fun leaderboardKey(mode: PoolMode): String =
     when (mode) {
-        PoolMode.EIGHT_BALL -> "leaderboard_pool_eight_v1"
-        PoolMode.NINE_BALL -> "leaderboard_pool_nine_v1"
-        PoolMode.PRACTICE, PoolMode.CHALLENGE -> "leaderboard_pool_practice_v1"
+        PoolMode.EIGHT_BALL -> "leaderboard_pool_eight_v2"
+        PoolMode.NINE_BALL -> "leaderboard_pool_nine_v2"
+        PoolMode.PRACTICE, PoolMode.CHALLENGE -> "leaderboard_pool_practice_v2"
     }
 
 private fun bestModeKey(mode: PoolMode): String =
     when (mode) {
-        PoolMode.EIGHT_BALL -> "best_pool_eight"
-        PoolMode.NINE_BALL -> "best_pool_nine"
-        PoolMode.PRACTICE, PoolMode.CHALLENGE -> "best_pool_practice"
+        PoolMode.EIGHT_BALL -> "best_pool_eight_v2"
+        PoolMode.NINE_BALL -> "best_pool_nine_v2"
+        PoolMode.PRACTICE, PoolMode.CHALLENGE -> "best_pool_practice_v2"
     }
+
+/**
+ * 被 v2 取代的旧榜单 / 旧最高分 key：v1 记的是「赢下的局数」而 v2 是净胜，
+ * 语义不同无法迁移；旧最高分也是帧数口径，一并清理。
+ * 清理时机是用户首次向 v2 榜成功提交或主动清榜，避免一进游戏旧记录就永久消失。
+ */
+private val POOL_LEGACY_LEADERBOARD_KEYS =
+    listOf(
+        "leaderboard_pool_eight_v1",
+        "leaderboard_pool_nine_v1",
+        "leaderboard_pool_practice_v1",
+        "best_pool_eight",
+        "best_pool_nine",
+        "best_pool_practice",
+    )
 
 private fun modeKey(mode: PoolMode): String = mode.name.lowercase()
 
@@ -470,7 +508,7 @@ fun BearPoolScreen(
     var showTutorial by remember { mutableStateOf(false) }
     var showShotHistory by remember { mutableStateOf(false) }
     var doneLessons by remember { mutableStateOf(loadDoneLessons(prefs)) }
-    var clothTheme by remember { mutableIntStateOf(prefs.getInt(PREF_POOL_CLOTH, 0).coerceIn(0, CLOTH_THEME_RES.size - 1)) }
+    var clothTheme by remember { mutableIntStateOf(loadClothTheme(prefs)) }
     var reduceMotionPref by remember { mutableStateOf(prefs.getBoolean(PREF_POOL_REDUCE_MOTION, false)) }
     var storedReplay by remember { mutableStateOf(loadReplay(prefs)) }
     // 系统级「减弱动态效果」与游戏内设置任一开启即生效
@@ -496,10 +534,7 @@ fun BearPoolScreen(
             PoolGame().also {
                 it.difficulty = difficultyOf(prefs.getString(PREF_POOL_DIFF, "normal"))
                 it.aids = aidsOf(prefs.getString(PREF_POOL_AIDS, "full"))
-                it.raceTo =
-                    prefs
-                        .getInt(PREF_POOL_RACE, 2)
-                        .coerceIn(POOL_RACE_TO_MIN, POOL_RACE_TO_MAX)
+                it.raceTo = clampRaceTo(prefs.getInt(PREF_POOL_RACE, 2))
                 it.mode = modeOf(prefs.getString(PREF_POOL_MODE, null))
                 it.best = prefs.getInt(bestModeKey(it.mode), 0)
                 it.reduceMotion = reduceMotion
@@ -516,7 +551,10 @@ fun BearPoolScreen(
     // remember 初始化块：恢复会写 phase/balls 等 snapshot state，组合期写入会触发额外重组；
     // 且若该次组合被丢弃（如立即导航离开），组合期执行恢复的副作用不应生效。
     LaunchedEffect(Unit) {
-        game.restoreSnapshot(prefs)
+        if (game.restoreSnapshot(prefs)) {
+            // 快照里的 best 可能是旧计分口径（v1 帧数）：恢复后统一以当前模式的 v2 记录为准
+            game.best = prefs.getInt(bestModeKey(game.mode), 0)
+        }
     }
     // 明确退出（关闭/暂停菜单退出）时抑制 onDispose 的兜底落盘，避免退出后又能续玩
     val snapshotSuppressed = remember { mutableStateOf(false) }
@@ -657,7 +695,9 @@ fun BearPoolScreen(
         // 整场 / 练习结束：胜 WIN、负 LOSE（练习以是否清台计胜负）
         val playerWon = if (practice) cleared else won
         GameAudio.play(if (playerWon) GameCue.WIN else GameCue.LOSE)
-        val score = if (practice) game.practiceScore() else game.match.playerFrames
+        // 对局类排行榜按「净胜」排序（胜局-负局），而不是玩家赢下的总局数；
+        // 同净胜时失局少者靠前（3:0 优于 4:1）
+        val score = if (practice) game.practiceScore() else poolRaceScore(game.match.playerFrames, game.match.aiFrames)
         val label =
             if (practice) {
                 context.getString(R.string.bear_pool_shots_label, game.shots)
@@ -695,7 +735,7 @@ fun BearPoolScreen(
             game.best = score
             prefs.edit { putInt(bestModeKey(game.match.mode), score) }
         }
-        lb.lastRank =
+        val rank =
             lb.store.submit(
                 LeaderboardEntry(
                     score = score,
@@ -703,8 +743,12 @@ fun BearPoolScreen(
                     city = reportCity,
                     weather = leaderboardWeatherOf(context, reportScene),
                     label = label,
+                    tieBreak = if (practice) 0 else game.match.aiFrames,
                 ),
-            ) ?: 0
+                *POOL_LEGACY_LEADERBOARD_KEYS.toTypedArray(),
+            )
+        // 负净胜（如首局 0:5）不展示名次；榜单本身仍保留最近记录
+        lb.lastRank = leaderboardDisplayRank(score, rank)
         lb.entries = lb.store.load()
         // 持久化最近一场回放（足够冷启动重现最后一局）
         saveReplay(prefs, game)
@@ -715,6 +759,17 @@ fun BearPoolScreen(
         snapshotSuppressed.value = true
         game.clearSnapshot(prefs)
         onExit()
+    }
+
+    /**
+     * 新一场按最新设置开局：旧快照恢复后内存里可能还是旧赛制，
+     * 开新比赛时统一从 prefs 同步赛制/模式并清掉暂存，避免自定义设置不生效。
+     */
+    fun startFreshMatch() {
+        game.raceTo = clampRaceTo(prefs.getInt(PREF_POOL_RACE, 2))
+        game.mode = modeOf(prefs.getString(PREF_POOL_MODE, null))
+        game.clearPendingRules()
+        game.startMatch()
     }
 
     // 暂停菜单「重新开始」：优先重开当前教学 / 关卡 / 每日挑战，否则重开普通对局
@@ -733,7 +788,7 @@ fun BearPoolScreen(
                 }
             else -> {
                 lb.resetLastRank()
-                game.startMatch()
+                startFreshMatch()
             }
         }
     }
@@ -910,9 +965,10 @@ fun BearPoolScreen(
                     )
                     Spacer(Modifier.height(12.dp))
                     ModeSelector(
-                        mode = game.mode,
+                        mode = game.displayMode(),
                         onSelect = {
                             game.mode = it
+                            game.clearPendingRules()
                             prefs.edit { putString(PREF_POOL_MODE, modeKey(it)) }
                         },
                     )
@@ -926,7 +982,7 @@ fun BearPoolScreen(
                     Button(
                         onClick = {
                             lb.resetLastRank()
-                            game.startMatch()
+                            startFreshMatch()
                         },
                     ) {
                         Text(stringResource(R.string.bear_pool_start))
@@ -1104,7 +1160,7 @@ fun BearPoolScreen(
                         Button(
                             onClick = {
                                 lb.resetLastRank()
-                                game.startMatch()
+                                startFreshMatch()
                             },
                         ) {
                             Text(stringResource(R.string.bear_pool_rematch))
@@ -1210,8 +1266,8 @@ fun BearPoolScreen(
         PoolSettingsDialog(
             difficulty = game.difficulty,
             aids = game.aids,
-            raceTo = game.raceTo,
-            mode = game.mode,
+            raceTo = game.displayRaceTo(),
+            mode = game.displayMode(),
             reduceMotion = reduceMotionPref,
             clothTheme = clothTheme,
             dailyBest = dailyBest,
@@ -1226,16 +1282,20 @@ fun BearPoolScreen(
                 game.aids = a
                 // 对局进行中不改变赛制/模式（否则 raceTo 变小会当场判 matchOver，成就口径也被污染）
                 val canChangeRule = game.phase == Phase.READY || game.phase == Phase.MATCH_OVER
-                val race = r.coerceIn(POOL_RACE_TO_MIN, POOL_RACE_TO_MAX)
+                val race = clampRaceTo(r)
                 if (canChangeRule) {
                     game.raceTo = race
                     game.mode = m
+                    game.clearPendingRules()
+                } else {
+                    // 局中改动暂存，下一场生效（与冰球的规则暂存语义一致）
+                    game.stageRuleChange(race, m)
                 }
                 // 音效开关与其它设置一致：只有点保存才写入全局
                 GameAudio.setEnabled(context, s)
                 reduceMotionPref = rm
                 game.reduceMotion = rm || systemReduceMotion
-                clothTheme = cl.coerceIn(0, CLOTH_THEME_RES.size - 1)
+                clothTheme = clampClothTheme(cl)
                 game.clothTheme = clothTheme
                 prefs.edit {
                     putString(PREF_POOL_DIFF, difficultyKey(d))
@@ -1243,8 +1303,8 @@ fun BearPoolScreen(
                     putInt(PREF_POOL_RACE, race)
                     putString(PREF_POOL_MODE, modeKey(m))
                     putBoolean(PREF_POOL_REDUCE_MOTION, rm)
-                    putInt(PREF_POOL_CLOTH, clothTheme)
                 }
+                saveClothTheme(prefs, clothTheme)
                 showSettings = false
             },
         )
@@ -1255,7 +1315,7 @@ fun BearPoolScreen(
             title = stringResource(R.string.bear_pool_title),
             entries = lb.entries,
             onClear = {
-                lb.store.clear()
+                lb.store.clear(*POOL_LEGACY_LEADERBOARD_KEYS.toTypedArray())
                 lb.entries = emptyList()
                 lb.resetLastRank()
                 game.best = 0
@@ -2015,7 +2075,7 @@ private fun lessonGoalLabel(goal: Goal): String =
         Goal.BANK_SHOT -> stringResource(R.string.bear_pool_goal_bank_shot)
     }
 
-/** 设置弹窗：模式 3 档 / 难度 5 档 / 瞄准辅助 3 档 / 赛制先到 1、2、3 局 / 音效 / 减弱动画。 */
+/** 设置弹窗：模式 3 档 / 难度 5 档 / 瞄准辅助 3 档 / 赛制 1/2/3 快捷档 + 自定义 1–15 / 音效 / 减弱动画。 */
 @Composable
 private fun PoolSettingsDialog(
     difficulty: PoolAi.Difficulty,
@@ -2037,7 +2097,7 @@ private fun PoolSettingsDialog(
     // 音效开关：弹窗内只改本地状态，点保存才写全局 GameAudio（旧 pool_sound 仅由 GameAudio 首次迁移读取）
     var s by remember { mutableStateOf(GameAudio.settings(context).enabled) }
     var rm by remember(reduceMotion) { mutableStateOf(reduceMotion) }
-    var cl by remember(clothTheme) { mutableStateOf(clothTheme.coerceIn(0, CLOTH_THEME_RES.size - 1)) }
+    var cl by remember(clothTheme) { mutableStateOf(clampClothTheme(clothTheme)) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = RoundedCornerShape(22.dp), color = Color(0xFFFFF8EF)) {
             Column(
@@ -2150,10 +2210,10 @@ private fun PoolSettingsDialog(
                 Spacer(Modifier.height(14.dp))
                 Text(stringResource(R.string.bear_pool_cloth), color = Color(0xFF6D4C41))
                 Spacer(Modifier.height(8.dp))
-                CLOTH_THEME_RES.chunked(2).forEach { row ->
+                CLOTH_THEME_RES.chunked(2).forEachIndexed { rowIndex, row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { res ->
-                            val index = CLOTH_THEME_RES.indexOf(res)
+                        row.forEachIndexed { colIndex, res ->
+                            val index = rowIndex * 2 + colIndex
                             FilterChip(
                                 selected = cl == index,
                                 onClick = { cl = index },
@@ -2214,7 +2274,7 @@ private fun PoolSettingsDialog(
                         Text(stringResource(R.string.bear_pool_cancel))
                     }
                     Spacer(Modifier.width(4.dp))
-                    Button(onClick = { onSave(d, a, r.coerceIn(1, 3), m, s, rm, cl) }) {
+                    Button(onClick = { onSave(d, a, clampRaceTo(r), m, s, rm, cl) }) {
                         Text(stringResource(R.string.bear_pool_save))
                     }
                 }
@@ -2614,13 +2674,13 @@ private fun PoolDailyDialog(
 
 @Composable
 private fun configLine(game: PoolGame): String =
-    modeLabel(game.mode) +
+    modeLabel(game.displayMode()) +
         " · " +
         difficultyLabel(game.difficulty) +
         " · " +
         aidsLabel(game.aids) +
         " · " +
-        stringResource(R.string.bear_pool_race_to_value, game.raceTo)
+        stringResource(R.string.bear_pool_race_to_value, game.displayRaceTo())
 
 @Composable
 private fun groupLine(

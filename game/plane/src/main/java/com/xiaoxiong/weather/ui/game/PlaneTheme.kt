@@ -82,6 +82,20 @@ internal fun planeEnemyPalette(
                 accent = Color(0xFFFFD740),
                 dark = Color(0xFF6A6549),
             )
+        PlaneEnemyType.HELI ->
+            PlaneEnemyPalette(
+                body = Color(0xFF4E8C86),
+                panel = Color(0xFFA7D8D2),
+                accent = Color(0xFFFF7043),
+                dark = Color(0xFF234744),
+            )
+        PlaneEnemyType.TANK ->
+            PlaneEnemyPalette(
+                body = Color(0xFF6E7A5A),
+                panel = Color(0xFFB9C49B),
+                accent = Color(0xFFFFB300),
+                dark = Color(0xFF333B26),
+            )
         PlaneEnemyType.BOSS ->
             when (bossPhase.coerceIn(0, 2)) {
                 0 ->

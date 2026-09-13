@@ -14,6 +14,8 @@
     <string name="aq_title">空气质量</string>
     <string name="aq_us">美国AQI</string>
     <string name="aq_uv">紫外线 · %1$s</string>
+    <string name="cd_album_thumbnail">相册第 %1$d 张，%2$s</string>
+    <string name="cd_album_viewer">相册大图第 %1$d 张，共 %2$d 张</string>
     <string name="cd_back">返回</string>
     <string name="cd_basemap">地图底图</string>
     <string name="cd_clear">清除</string>

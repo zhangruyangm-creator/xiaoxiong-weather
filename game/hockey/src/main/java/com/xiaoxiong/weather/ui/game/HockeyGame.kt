@@ -471,6 +471,7 @@ class HockeyGame {
     }
 
     private fun applySnapshot(groups: List<FloatArray>): Boolean {
+        // ── 1. 解析：全部字段先读进局部变量，任何一步失败都直接 return false ──
         val header = groups.firstOrNull() ?: return false
         if (header.size < HOCKEY_HEADER_FIELDS) return false
         val savedPhase = Phase.entries.getOrNull(header[0].toInt()) ?: return false
@@ -490,24 +491,24 @@ class HockeyGame {
                 ?: savedDifficulty
         // 局中暂存设置：旧档（无这些字段）读回 null，保持「无暂存」的旧行为
         val pendingBase = trailing + 2
-        pendingWinScore =
+        val savedPendingWinScore =
             header
                 .getOrNull(pendingBase)
                 ?.takeIf { it >= 0f }
                 ?.toInt()
                 ?.coerceIn(HockeyLogic.WIN_SCORE_MIN, HockeyLogic.WIN_SCORE_MAX)
-        pendingPaddleScale =
+        val savedPendingPaddleScale =
             header
                 .getOrNull(pendingBase + 1)
                 ?.takeIf { it >= 0f }
                 ?.coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX)
-        pendingPaddleScaleBoth = header.getOrNull(pendingBase + 2)?.let { if (it < 0f) null else it != 0f }
-        pendingPuckScale =
+        val savedPendingPaddleScaleBoth = header.getOrNull(pendingBase + 2)?.let { if (it < 0f) null else it != 0f }
+        val savedPendingPuckScale =
             header
                 .getOrNull(pendingBase + 3)
                 ?.takeIf { it >= 0f }
                 ?.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX)
-        pendingGoalScale =
+        val savedPendingGoalScale =
             header
                 .getOrNull(pendingBase + 4)
                 ?.takeIf { it >= 0f }
@@ -517,12 +518,19 @@ class HockeyGame {
         // 恢复时把暂存主题折叠成当前主题并清空暂存，避免「设置里是木桌、场上还是冰面」。
         val (savedRinkTheme, afterRinkTheme) = readRinkThemeId(header, pendingBase + 5)
         val (savedPendingRinkTheme, _) = readRinkThemeId(header, afterRinkTheme)
-        rinkTheme = savedPendingRinkTheme ?: savedRinkTheme ?: RinkTheme.DEFAULT
-        pendingRinkTheme = null
+        val restoredRinkTheme = savedPendingRinkTheme ?: savedRinkTheme ?: RinkTheme.DEFAULT
+        // 球体组校验放在写入成员之前：旧实现先写 pending/主题再校验球体组，坏档返回 false
+        // 时内存里已残留半套恢复值（上层虽会清档停 READY，仍是反模式）。
         val playerG = groups.getOrNull(1)?.takeIf { it.size >= 5 } ?: return false
         val aiG = groups.getOrNull(2)?.takeIf { it.size >= 5 } ?: return false
         val puckG = groups.getOrNull(3)?.takeIf { it.size >= 5 } ?: return false
+        val restoredTrail = mutableListOf<Pair<Float, Float>>()
+        for (i in 4 until groups.size) {
+            val g = groups[i]
+            if (g.size >= 2) restoredTrail += g[0] to g[1]
+        }
 
+        // ── 2. 提交：校验全部通过后才写成员（resize 也在此之后） ──
         difficulty = savedDifficulty
         matchDifficulty = savedMatchDifficulty
         customLevel = header[6].toInt().coerceIn(HockeyLogic.CUSTOM_LEVEL_MIN, HockeyLogic.CUSTOM_LEVEL_MAX)
@@ -531,6 +539,14 @@ class HockeyGame {
         paddleScaleBoth = savedPaddleScaleBoth
         puckScale = header[9].coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX)
         goalScale = header[10].coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
+        pendingWinScore = savedPendingWinScore
+        pendingPaddleScale = savedPendingPaddleScale
+        pendingPaddleScaleBoth = savedPendingPaddleScaleBoth
+        pendingPuckScale = savedPendingPuckScale
+        pendingGoalScale = savedPendingGoalScale
+        // 主题是即时皮肤：旧档的 pending 主题折叠成当前主题，恢复后不再有暂存主题
+        rinkTheme = restoredRinkTheme
+        pendingRinkTheme = null
         invalidateParamsCache()
         // 球桌可能已由 Screen 的 resize 先建好，也可能尚未建立（恢复早于首次 onSizeChanged）：
         // 前者按存档倍率重建，后者用存档画布尺寸 layout，之后再套用坐标。
@@ -580,10 +596,7 @@ class HockeyGame {
         lastScorer = Scorer.entries.getOrNull(header[14].toInt())
         time = header[15]
         trail.clear()
-        for (i in 4 until groups.size) {
-            val g = groups[i]
-            if (g.size >= 2) trail.addLast(g[0] to g[1])
-        }
+        trail.addAll(restoredTrail)
         phase = savedPhase
         return true
     }

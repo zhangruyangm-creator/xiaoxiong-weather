@@ -2,7 +2,7 @@
 <resources>
     <string name="bear_game_best_label">最高</string>
     <string name="bear_game_exit">回到天气</string>
-    <string name="bear_game_restart">再来一局</string>
+    <string name="bear_star_restart">再来一局</string>
     <string name="bear_game_view_rank">查看排行榜</string>
     <string name="bear_jump_hint">按住左右拖动控制方向，踩云朵向上跳\n彩虹云跳更高，乌云一踩就碎</string>
     <string name="bear_jump_over">哎呀，掉下来了</string>

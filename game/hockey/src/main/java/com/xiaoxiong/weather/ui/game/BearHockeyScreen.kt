@@ -93,6 +93,9 @@ private const val PREF_PUCK = "hockey_puck_scale"
 private const val PREF_GOAL = "hockey_goal_scale"
 private const val PREF_RINK_THEME = "hockey_rink_theme"
 
+/** 被 v2 取代的旧榜 key：清理推迟到首次成功进榜或用户主动清榜时。 */
+private const val LEGACY_LEADERBOARD_KEY = "leaderboard_hockey"
+
 /** 发球倒数总时长（3 拍，每拍 0.5s）；超出部分显示「预备」。与 HockeyGame 的发球计时对应。 */
 private const val SERVE_COUNTDOWN_SECONDS = 1.5f
 
@@ -115,8 +118,10 @@ fun BearHockeyScreen(
     val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
     val characterState = rememberBearCharacterState()
-    // 排行榜 v2：每局按净胜分入榜并展示比分（v1 是「分数制」，对局语义不通，弃用旧数据）
-    val lb = rememberLeaderboardState(prefs, "leaderboard_hockey_v2", PREF_BEST, retainRecent = true)
+    // 排行榜 v2：每局按净胜分入榜并展示比分（v1 是「分数制」，对局语义不通，弃用旧数据）。
+    // bestKey 传 null：best_hockey 是「累计胜场」生涯数据，不能随清榜一起清零。
+    // v1 旧榜延迟到首次成功进榜或用户清榜时再清理，避免一进游戏旧记录就永久消失。
+    val lb = rememberLeaderboardState(prefs, "leaderboard_hockey_v2", retainRecent = true)
     val density = LocalDensity.current
     // 天气/场景样式：驱动冰面底色、场外氛围与整屏背景
     val day = isDay ?: true
@@ -249,16 +254,21 @@ fun BearHockeyScreen(
         // 胜负提示音：与击球 / 进球音区分（长提示音）
         GameAudio.play(if (won) GameCue.WIN else GameCue.LOSE)
         // 每局（含输局）都入榜：按净胜分排序，大胜在前、惨败在后；榜单展示真实比分
-        lb.lastRank =
+        val score = game.playerScore - game.aiScore
+        val rank =
             lb.store.submit(
                 LeaderboardEntry(
-                    score = game.playerScore - game.aiScore,
+                    score = score,
                     timestamp = System.currentTimeMillis(),
                     city = reportCity,
                     weather = leaderboardWeatherOf(context, reportScene),
                     label = "${game.playerScore} : ${game.aiScore}",
+                    tieBreak = game.aiScore,
                 ),
-            ) ?: 0
+                LEGACY_LEADERBOARD_KEY,
+            )
+        // 负净胜不展示名次；榜单本身仍保留最近记录
+        lb.lastRank = leaderboardDisplayRank(score, rank)
         lb.entries = lb.store.load()
     }
 
@@ -663,10 +673,9 @@ fun BearHockeyScreen(
             title = stringResource(R.string.bear_hockey_title),
             entries = lb.entries,
             onClear = {
-                lb.store.clear()
+                lb.store.clear(LEGACY_LEADERBOARD_KEY)
                 lb.entries = emptyList()
                 lb.resetLastRank()
-                game.bestWins = 0
             },
             onDismiss = { lb.show = false },
         )
