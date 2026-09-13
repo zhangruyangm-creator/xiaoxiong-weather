@@ -40,7 +40,7 @@ enum class PlaneDifficulty(
         id = "casual",
         enemyHpMul = 0.8f,
         enemySpeedMul = 0.85f,
-        bulletSpeedMul = 0.82f,
+        bulletSpeedMul = 0.85f,
         fireDensityMul = 0.8f,
         dropChanceMul = 1.3f,
         scoreMul = 0.8f,
@@ -58,7 +58,7 @@ enum class PlaneDifficulty(
         id = "challenge",
         enemyHpMul = 1.35f,
         enemySpeedMul = 1.12f,
-        bulletSpeedMul = 1.18f,
+        bulletSpeedMul = 1.12f,
         fireDensityMul = 1.2f,
         dropChanceMul = 0.85f,
         scoreMul = 1.5f,
@@ -86,22 +86,22 @@ enum class PlaneEnemyType(
     val baseBulletSpeed: Float,
 ) {
     /** 小兵：直线下行，按编号交替直射。 */
-    GRUNT(3, 22f, 100, 2.4f, 150, 34f),
+    GRUNT(3, 22f, 100, 2.4f, 180, 56f),
 
     /** 俯冲兵：短暂下坠后加速扑向玩家。 */
-    DIVER(4, 20f, 150, 2.6f, 200, 26f),
+    DIVER(4, 20f, 150, 2.6f, 235, 44f),
 
     /** 摆渡兵：正弦左右摆动并三连散射。 */
-    WEAVER(5, 16f, 180, 2.8f, 160, 30f),
+    WEAVER(5, 16f, 180, 2.8f, 190, 50f),
 
     /** 炮台：定点停靠后瞄准三向射击。 */
-    TURRET(8, 26f, 250, 3.0f, 110, 40f),
+    TURRET(8, 26f, 250, 3.0f, 135, 62f),
 
     /** 运输机：缓慢直线，击毁必掉道具。 */
     TRANSPORT(6, 14f, 220, 3.6f, 0, 0f),
 
     /** Boss（每 5 波）：三阶段弹幕。 */
-    BOSS(120, 20f, 3000, 9f, 75, 36f),
+    BOSS(120, 20f, 3000, 9f, 95, 58f),
 }
 
 /**
@@ -252,7 +252,7 @@ object PlaneConfig {
         if (type.baseFireIntervalTicks <= 0) {
             0
         } else {
-            (type.baseFireIntervalTicks / difficulty.fireDensityMul).roundToInt().coerceAtLeast(24)
+            (type.baseFireIntervalTicks / difficulty.fireDensityMul).roundToInt().coerceAtLeast(30)
         }
 
     /** 武器等级规格；越界自动钳制到 1..4。 */
@@ -266,7 +266,7 @@ object PlaneConfig {
                     count = 1,
                     spreadRad = 0f,
                     offsetX = 0f,
-                    speed = 95f,
+                    speed = 165f,
                 )
             2 ->
                 PlaneWeaponSpec(
@@ -276,7 +276,7 @@ object PlaneConfig {
                     count = 2,
                     spreadRad = 0f,
                     offsetX = 2.2f,
-                    speed = 95f,
+                    speed = 165f,
                 )
             3 ->
                 PlaneWeaponSpec(
@@ -286,7 +286,7 @@ object PlaneConfig {
                     count = 3,
                     spreadRad = 0.18f,
                     offsetX = 0f,
-                    speed = 92f,
+                    speed = 160f,
                 )
             else ->
                 PlaneWeaponSpec(
@@ -296,7 +296,7 @@ object PlaneConfig {
                     count = 1,
                     spreadRad = 0f,
                     offsetX = 0f,
-                    speed = 120f,
+                    speed = 205f,
                     piercing = true,
                 )
         }

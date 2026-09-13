@@ -24,9 +24,6 @@ class WeatherApp : Application() {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val postConsentInitialized = AtomicBoolean(false)
 
-    /** 前台天气发布触发的延迟合并任务；立即 flush（onStop）时会取消它。 */
-    private var launcherIconFlushJob: Job? = null
-
     /** 温度单位变化触发的桌面小组件合并刷新任务。 */
     private var widgetUnitRefreshJob: Job? = null
 
@@ -46,10 +43,9 @@ class WeatherApp : Application() {
 
         container = AppContainer(this)
 
-        // 主线程 schedule 只短锁排队；真正的 PackageManager 切换交给 appScope，
-        // 且做合并 + 延迟（见 scheduleLauncherIconFlush）：同一轮缓存发布 + 网络发布
-        // 只切一次，避免前台加载路径立即做 PM 全量切换造成图标闪烁/OEM 杀进程
-        WeatherLauncherIcon.flushScheduler = { scheduleLauncherIconFlush() }
+        // 桌面图标：前台只短锁排队 pending，绝不做 PackageManager 切换
+        // （前台切 alias 会在部分机型杀进程）；退后台由 MainActivity.onStop 立即应用，
+        // 后台由 Worker 应用，冷启动由 reconcile 对账兜底。
 
         // 启动后台准备：游戏入口预载与 PackageManager 对账并行，互不等待
         // （游戏入口优先可读，冷启动早期输口令/连点标题不会因对账耗时无响应）
@@ -108,21 +104,6 @@ class WeatherApp : Application() {
     }
 
     /**
-     * 前台天气发布触发的合并 + 延迟切换：1.5s 窗口内的多次 schedule 只 flush 一次，
-     * 且不在天气加载的主线程调用路径上直接做 PackageManager 全量切换。
-     * [flushLauncherIconPending]（onStop）会取消延迟任务并立即执行。
-     */
-    private fun scheduleLauncherIconFlush() {
-        launcherIconFlushJob?.cancel()
-        launcherIconFlushJob =
-            appScope.launch {
-                delay(LAUNCHER_ICON_FLUSH_DELAY_MS)
-                runCatching { WeatherLauncherIcon.flushPending(this@WeatherApp) }
-                    .onFailure { CrashReporting.record(it) }
-            }
-    }
-
-    /**
      * 温度单位变化触发的合并刷新：短时间内的连续切换取消上一个待执行任务，
      * 只对最终单位刷新一次桌面小组件。
      */
@@ -137,12 +118,10 @@ class WeatherApp : Application() {
     }
 
     /**
-     * Activity 退后台时调用：取消延迟合并任务，并立即执行排队中的桌面图标切换。
+     * Activity 退后台时调用：立即执行排队中的桌面图标切换。
      * `flushPending` 内含 PackageManager IPC 与 prefs 写盘，不在主线程做。
      */
     fun flushLauncherIconPending() {
-        launcherIconFlushJob?.cancel()
-        launcherIconFlushJob = null
         appScope.launch {
             runCatching { WeatherLauncherIcon.flushPending(this@WeatherApp) }
                 .onFailure { CrashReporting.record(it) }
@@ -170,9 +149,6 @@ class WeatherApp : Application() {
     }
 
     private companion object {
-        /** 前台 schedule 的合并窗口：同一轮天气发布只切一次图标。 */
-        const val LAUNCHER_ICON_FLUSH_DELAY_MS = 1_500L
-
         /** 温度单位切换的合并窗口：连续切换只刷新一次小组件。 */
         const val WIDGET_UNIT_REFRESH_DEBOUNCE_MS = 600L
     }

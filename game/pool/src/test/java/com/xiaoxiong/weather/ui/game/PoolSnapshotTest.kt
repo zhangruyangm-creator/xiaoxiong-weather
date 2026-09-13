@@ -65,6 +65,23 @@ class PoolSnapshotTest {
     }
 
     @Test
+    fun restoreSnapshot_outOfRangeRaceTo_isClamped() {
+        val prefs = FakePrefs()
+        val source = newGame()
+        source.mode = PoolMode.PRACTICE
+        source.startMatch(PoolSide.PLAYER, seed = 3L)
+        source.saveSnapshot(prefs)
+        val raw = prefs.getString(key, null)
+        assertNotNull(raw)
+        val tampered = raw!!.replace(Regex("raceTo=\\d+"), "raceTo=99")
+        prefs.edit().putString(key, tampered).apply()
+
+        val restored = newGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals("越界赛制应被钳制到上限", POOL_RACE_TO_MAX, restored.raceTo)
+    }
+
+    @Test
     fun saveRestore_shooting_resumesFlyingBallAndSettles() {
         val prefs = FakePrefs()
         val source = newGame()

@@ -295,9 +295,9 @@ object PlaneLogic {
             PlaneEnemyType.GRUNT, PlaneEnemyType.DIVER ->
                 aimedFan(enemy.x, enemy.y, playerX, playerY, count = 1, spreadRad = 0f, speed = speed)
             PlaneEnemyType.WEAVER ->
-                aimedFan(enemy.x, enemy.y, playerX, playerY, count = 3, spreadRad = 0.20f, speed = speed)
+                aimedFan(enemy.x, enemy.y, playerX, playerY, count = 2, spreadRad = 0.20f, speed = speed)
             PlaneEnemyType.TURRET ->
-                aimedFan(enemy.x, enemy.y, playerX, playerY, count = 3, spreadRad = 0.26f, speed = speed) +
+                aimedFan(enemy.x, enemy.y, playerX, playerY, count = 2, spreadRad = 0.26f, speed = speed) +
                     turretBarSpec(enemy.x, enemy.y, speed)
         }
     }
@@ -372,7 +372,7 @@ object PlaneLogic {
                     boss.y,
                     playerX,
                     playerY,
-                    count = 5,
+                    count = 4,
                     spreadRad = 0.32f,
                     speed = speed,
                     radius = PlaneConfig.BOSS_BULLET_RADIUS,
@@ -380,7 +380,7 @@ object PlaneLogic {
                     ring(
                         boss.x,
                         boss.y,
-                        count = 10,
+                        count = 8,
                         speed = speed * 0.9f,
                         phaseRad = spinPhaseRad,
                         radius = PlaneConfig.BOSS_BULLET_RADIUS,
@@ -389,7 +389,7 @@ object PlaneLogic {
                 ring(
                     boss.x,
                     boss.y,
-                    count = 14,
+                    count = 11,
                     speed = speed * 0.95f,
                     phaseRad = spinPhaseRad * 1.6f,
                     radius = PlaneConfig.BOSS_BULLET_RADIUS,

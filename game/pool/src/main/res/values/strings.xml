@@ -44,6 +44,9 @@
     <string name="bear_pool_race_1">1 局</string>
     <string name="bear_pool_race_2">2 局</string>
     <string name="bear_pool_race_3">3 局</string>
+    <string name="bear_pool_race_custom">自定义</string>
+    <string name="cd_pool_race_minus">减少局数</string>
+    <string name="cd_pool_race_plus">增加局数</string>
     <string name="bear_pool_place_hint">放置白球</string>
     <string name="bear_pool_leaderboard">排行榜</string>
     <string name="bear_pool_msg_open_table">开放球台：先进球者选定花色</string>

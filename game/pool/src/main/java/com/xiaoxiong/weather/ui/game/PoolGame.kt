@@ -21,6 +21,10 @@ internal const val POOL_SNAPSHOT_KEY = "pool_snapshot_v2"
 internal const val POOL_LEGACY_SNAPSHOT_KEY = "pool_snapshot_v1"
 internal const val POOL_LEGACY_REPLAY_KEY = "pool_last_replay_v1"
 
+/** 赛制局数范围：设置里 1/2/3 快捷档 + 自定义（1..15）。 */
+internal const val POOL_RACE_TO_MIN = 1
+internal const val POOL_RACE_TO_MAX = 15
+
 /**
  * 小熊台球运行时：把「固定步长物理内核 + 八球规则 + AI + 输入/瞄准/杆法 + 计分」收口。
  *
@@ -1528,7 +1532,9 @@ private object PoolSnapshotCodec {
 
         val phase = enumOrNull<PoolGame.Phase>(values["phase"]) ?: return null
         val mode = enumOrNull<PoolMode>(values["mode"]) ?: return null
-        val raceTo = values["raceTo"]?.toIntOrNull() ?: return null
+        val raceTo =
+            (values["raceTo"]?.toIntOrNull() ?: return null)
+                .coerceIn(POOL_RACE_TO_MIN, POOL_RACE_TO_MAX)
         val best = values["best"]?.toIntOrNull() ?: return null
         val shotCount = values["shotCount"]?.toIntOrNull() ?: return null
 

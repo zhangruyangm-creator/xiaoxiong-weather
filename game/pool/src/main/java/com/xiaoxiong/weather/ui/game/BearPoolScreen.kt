@@ -28,8 +28,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -494,7 +496,10 @@ fun BearPoolScreen(
             PoolGame().also {
                 it.difficulty = difficultyOf(prefs.getString(PREF_POOL_DIFF, "normal"))
                 it.aids = aidsOf(prefs.getString(PREF_POOL_AIDS, "full"))
-                it.raceTo = prefs.getInt(PREF_POOL_RACE, 2).coerceIn(1, 3)
+                it.raceTo =
+                    prefs
+                        .getInt(PREF_POOL_RACE, 2)
+                        .coerceIn(POOL_RACE_TO_MIN, POOL_RACE_TO_MAX)
                 it.mode = modeOf(prefs.getString(PREF_POOL_MODE, null))
                 it.best = prefs.getInt(bestModeKey(it.mode), 0)
                 it.reduceMotion = reduceMotion
@@ -1221,7 +1226,7 @@ fun BearPoolScreen(
                 game.aids = a
                 // 对局进行中不改变赛制/模式（否则 raceTo 变小会当场判 matchOver，成就口径也被污染）
                 val canChangeRule = game.phase == Phase.READY || game.phase == Phase.MATCH_OVER
-                val race = r.coerceIn(1, 3)
+                val race = r.coerceIn(POOL_RACE_TO_MIN, POOL_RACE_TO_MAX)
                 if (canChangeRule) {
                     game.raceTo = race
                     game.mode = m
@@ -1235,7 +1240,7 @@ fun BearPoolScreen(
                 prefs.edit {
                     putString(PREF_POOL_DIFF, difficultyKey(d))
                     putString(PREF_POOL_AIDS, aidsKey(a))
-                    putInt(PREF_POOL_RACE, r.coerceIn(1, 3))
+                    putInt(PREF_POOL_RACE, race)
                     putString(PREF_POOL_MODE, modeKey(m))
                     putBoolean(PREF_POOL_REDUCE_MOTION, rm)
                     putInt(PREF_POOL_CLOTH, clothTheme)
@@ -2027,7 +2032,7 @@ private fun PoolSettingsDialog(
     val context = LocalContext.current
     var d by remember(difficulty) { mutableStateOf(difficulty) }
     var a by remember(aids) { mutableStateOf(aids) }
-    var r by remember(raceTo) { mutableStateOf(raceTo) }
+    var r by remember(raceTo) { mutableStateOf(raceTo.coerceIn(POOL_RACE_TO_MIN, POOL_RACE_TO_MAX)) }
     var m by remember(mode) { mutableStateOf(mode) }
     // 音效开关：弹窗内只改本地状态，点保存才写全局 GameAudio（旧 pool_sound 仅由 GameAudio 首次迁移读取）
     var s by remember { mutableStateOf(GameAudio.settings(context).enabled) }
@@ -2103,6 +2108,43 @@ private fun PoolSettingsDialog(
                             onClick = { r = n },
                             label = { Text(raceLabel(n)) },
                         )
+                    }
+                    FilterChip(
+                        selected = r !in 1..3,
+                        onClick = { if (r in 1..3) r = 5 },
+                        label = { Text(stringResource(R.string.bear_pool_race_custom)) },
+                    )
+                }
+                if (r !in 1..3) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        IconButton(
+                            onClick = { r = (r - 1).coerceAtLeast(POOL_RACE_TO_MIN) },
+                            enabled = r > POOL_RACE_TO_MIN,
+                        ) {
+                            Icon(
+                                Icons.Filled.Remove,
+                                contentDescription = stringResource(R.string.cd_pool_race_minus),
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.bear_pool_race_to_value, r),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4E342E),
+                        )
+                        IconButton(
+                            onClick = { r = (r + 1).coerceAtMost(POOL_RACE_TO_MAX) },
+                            enabled = r < POOL_RACE_TO_MAX,
+                        ) {
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.cd_pool_race_plus),
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(14.dp))

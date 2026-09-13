@@ -12,7 +12,7 @@ import com.xiaoxiong.weather.R
  * 按天气切换桌面启动图标（activity-alias）。
  *
  * 前台立刻切换 alias 会在部分机型杀进程：前台 [scheduleForWeatherCode] 只排队，
- * 由注入的 [flushScheduler] 合并 + 延迟触发（见 WeatherApp），退后台/Worker 再立即执行。
+ * 退后台（MainActivity.onStop → [flushPending]）或后台 Worker（[applyForWeatherCode]）再应用。
  * applicationId 与 namespace 均为 com.xiaoxiong.weather。
  */
 object WeatherLauncherIcon {
@@ -26,14 +26,6 @@ object WeatherLauncherIcon {
 
     /** 只保护 PackageManager 应用与全量校正（长锁）；与 [pendingLock] 分开避免主线程被拖住。 */
     private val pmLock = Any()
-
-    /**
-     * 主线程排队后触发后台 flush 的钩子：App 启动时注入 appScope 实现（合并 + 延迟，
-     * 避免天气加载路径立即做 PM 全量切换、同一轮发布连切两次）；未注入时保持
-     * 「只排队、退后台再 flush」。
-     */
-    @Volatile
-    var flushScheduler: ((Context) -> Unit)? = null
 
     enum class Style(
         val aliasSimpleName: String,
@@ -203,7 +195,7 @@ object WeatherLauncherIcon {
             Style.HAIL -> R.drawable.ic_launcher_bear_hail
         }
 
-    /** 前台调用：短锁排队 pending，随后触发注入的合并延迟 flush（PM 操作不占主线程）。 */
+    /** 前台调用：短锁排队 pending，不做 PackageManager 操作；退后台/Worker 再应用（见 [flushPending]）。 */
     fun scheduleForWeatherCode(
         context: Context,
         weatherCode: Int?,
@@ -212,20 +204,16 @@ object WeatherLauncherIcon {
     ) {
         val app = context.applicationContext
         val style = fromWeather(weatherCode, precipMmPerHour, isDay)
-        val queued =
-            synchronized(pendingLock) {
-                val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                val current = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
-                if (current == style.aliasSimpleName) {
-                    prefs.edit { remove(KEY_PENDING) }
-                    false
-                } else {
-                    prefs.edit { putString(KEY_PENDING, style.aliasSimpleName) }
-                    Log.d(TAG, "queued launcher icon -> ${style.aliasSimpleName}")
-                    true
-                }
+        synchronized(pendingLock) {
+            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val current = prefs.getString(KEY_ALIAS, Style.SUNNY.aliasSimpleName)
+            if (current == style.aliasSimpleName) {
+                prefs.edit { remove(KEY_PENDING) }
+            } else {
+                prefs.edit { putString(KEY_PENDING, style.aliasSimpleName) }
+                Log.d(TAG, "queued launcher icon -> ${style.aliasSimpleName}")
             }
-        if (queued) flushScheduler?.invoke(app)
+        }
     }
 
     /** Activity onStop / 后台 Worker：执行排队中的图标切换。 */

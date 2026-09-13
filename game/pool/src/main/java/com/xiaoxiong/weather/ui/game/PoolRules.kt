@@ -313,6 +313,8 @@ object PoolRules {
                 when {
                     cuePotted -> PoolMessage.FOUL_CUE
                     outcome.firstContact == null -> PoolMessage.FOUL_MISS
+                    // 碰对了最低号但接触后无球碰库/落袋：属于「无库无袋」，不是碰错球
+                    legalFirst && !railOk -> PoolMessage.FOUL_NO_RAIL
                     else -> PoolMessage.FOUL_WRONG_BALL
                 }
             return PoolMatchUpdate(

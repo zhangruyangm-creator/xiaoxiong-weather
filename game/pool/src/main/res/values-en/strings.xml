@@ -44,6 +44,9 @@
     <string name="bear_pool_race_1">1 frame</string>
     <string name="bear_pool_race_2">2 frames</string>
     <string name="bear_pool_race_3">3 frames</string>
+    <string name="bear_pool_race_custom">Custom</string>
+    <string name="cd_pool_race_minus">Decrease frames</string>
+    <string name="cd_pool_race_plus">Increase frames</string>
     <string name="bear_pool_place_hint">Place cue ball</string>
     <string name="bear_pool_leaderboard">Leaderboard</string>
     <string name="bear_pool_msg_open_table">Open table: the first pot decides your group</string>

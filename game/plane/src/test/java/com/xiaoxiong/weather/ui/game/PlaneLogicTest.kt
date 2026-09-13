@@ -225,17 +225,17 @@ class PlaneLogicTest {
         boss.bossPhase = 0
         assertEquals(3, PlaneLogic.bossBulletSpecs(boss, 50f, 150f, 30f, 0f).size)
         boss.bossPhase = 1
-        assertEquals(15, PlaneLogic.bossBulletSpecs(boss, 50f, 150f, 30f, 0f).size)
+        assertEquals(12, PlaneLogic.bossBulletSpecs(boss, 50f, 150f, 30f, 0f).size)
         boss.bossPhase = 2
-        assertEquals(17, PlaneLogic.bossBulletSpecs(boss, 50f, 150f, 30f, 0f).size)
+        assertEquals(14, PlaneLogic.bossBulletSpecs(boss, 50f, 150f, 30f, 0f).size)
     }
 
     @Test
     fun turretBulletSpecs_includeRectBar() {
         val turret = enemy(PlaneEnemyType.TURRET, x = 30f, y = 32f, targetY = 32f)
         val specs = PlaneLogic.enemyBulletSpecs(turret, 50f, 150f, PlaneDifficulty.STANDARD, 0f)
-        assertEquals("三向瞄准 + 一根长条", 4, specs.size)
-        assertEquals(3, specs.count { it.shape == PlaneBulletShape.CIRCLE })
+        assertEquals("双向瞄准 + 一根长条", 3, specs.size)
+        assertEquals(2, specs.count { it.shape == PlaneBulletShape.CIRCLE })
         val bar = specs.single { it.shape == PlaneBulletShape.RECT }
         assertEquals(PlaneConfig.TURRET_BAR_HALF_WIDTH, bar.radius, 1e-4f)
         assertEquals(PlaneConfig.TURRET_BAR_HALF_HEIGHT, bar.halfLength, 1e-4f)

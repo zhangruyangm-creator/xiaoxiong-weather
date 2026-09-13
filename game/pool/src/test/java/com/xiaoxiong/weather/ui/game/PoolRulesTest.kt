@@ -235,6 +235,29 @@ class PoolRulesTest {
     }
 
     @Test
+    fun nineBall_legalFirstButNoRail_isNoRailFoul_notWrongBall() {
+        val update =
+            PoolRules.resolve(
+                nineState(),
+                PoolShotOutcome(
+                    firstContact = SOLID,
+                    railAfterContact = false,
+                    potted = emptyList(),
+                    cuePotted = false,
+                    shooterGroupClearedBefore = false,
+                    firstContactNumber = 1,
+                    lowestBefore = 1,
+                ),
+                PoolRules.RemainingBalls(solids = 4, stripes = 3, eight = 1),
+                isBreak = false,
+            )
+        assertTrue(update.foul)
+        assertTrue(update.ballInHand)
+        assertEquals(AI, update.state.turn)
+        assertEquals(FOUL_NO_RAIL, update.message)
+    }
+
+    @Test
     fun nineBall_legalNine_win() {
         val update =
             PoolRules.resolve(
