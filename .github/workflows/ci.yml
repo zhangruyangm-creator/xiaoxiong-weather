@@ -27,6 +27,23 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Crashlytics 可选：与 release.yml 同款注入，保证 CI 的 R8/provider 校验与线上变体一致；
+      # secret 缺失（如 fork）时 warning 后继续，不做强制
+      - name: Restore Firebase config (optional)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::warning::GOOGLE_SERVICES_JSON secret 未配置，本次 CI 构建不含 Crashlytics 上报"
+            exit 0
+          fi
+          if printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d > app/google-services.json 2>/dev/null; then
+            echo "Firebase config restored (base64)"
+          else
+            printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+            echo "Firebase config restored (plain JSON)"
+          fi
+
       # flavor 化后 profile 必须放在 src/<flavor><BuildType>/generated/baselineProfiles/，
       # 放在 src/release/ 不会参与合并（曾导致 Release 无 App 级 profile 且无人发现）。
       # full/lite 依赖不同（lite 无游戏模块），profile 本就应当不同，不做字节一致断言；
@@ -86,7 +103,8 @@ jobs:
             com.xiaoxiong.weather.ui.game.BearHomeEntryProvider \
             com.xiaoxiong.weather.ui.game.BearCatchEntryProvider \
             com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearPoolEntryProvider
+            com.xiaoxiong.weather.ui.game.BearPoolEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearPlaneEntryProvider
           do
             grep -qx "$provider" /tmp/game_providers.txt \
               || { echo "ServiceLoader registration missing: $provider"; exit 1; }
@@ -110,7 +128,8 @@ jobs:
             com.xiaoxiong.weather.ui.game.BearHomeEntryProvider \
             com.xiaoxiong.weather.ui.game.BearCatchEntryProvider \
             com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearPoolEntryProvider
+            com.xiaoxiong.weather.ui.game.BearPoolEntryProvider \
+            com.xiaoxiong.weather.ui.game.BearPlaneEntryProvider
           do
             # 全限定名转 dex 内部描述符：com.a.B -> Lcom/a/B;
             cls="L$(echo "$provider" | tr '.' '/');"
@@ -128,6 +147,20 @@ jobs:
             found=$((found + 1))
           done
           echo "Verified $found provider constructors in dex"
+
+      # -Pgames=plane 接线回归：小熊战机曾误嵌在 pool 分支，导致 -Pgames=plane 不打包、
+      # -Pgames=pool 反带 plane；用 debug 快速构建校验依赖选择与 provider 注册
+      - name: Build debug (full, games=plane) and verify only plane registers
+        run: |
+          ./gradlew :app:assembleFullDebug -Pgames=plane
+          unzip -p app/build/outputs/apk/full/debug/app-full-debug.apk \
+            META-INF/services/com.xiaoxiong.weather.game.GameEntryProvider > /tmp/plane_providers.txt
+          grep -qx "com.xiaoxiong.weather.ui.game.BearPlaneEntryProvider" /tmp/plane_providers.txt \
+            || { echo "plane provider missing with -Pgames=plane"; exit 1; }
+          if grep -q "BearPoolEntryProvider" /tmp/plane_providers.txt; then
+            echo "pool provider must not be packaged with -Pgames=plane"; exit 1
+          fi
+          echo "-Pgames=plane packs exactly the plane provider"
 
       - name: Build release (full, games=none)
         run: ./gradlew :app:assembleFullRelease -Pgames=none

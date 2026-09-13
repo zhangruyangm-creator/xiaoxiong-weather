@@ -35,6 +35,14 @@ enum class GameCue(
     WIN(R.raw.sfx_win, 0.85f),
     LOSE(R.raw.sfx_lose, 0.8f),
     WHISTLE(R.raw.sfx_whistle, 0.7f),
+
+    // 小熊战机（竖屏弹幕射击）
+    SHOT(R.raw.sfx_shot, 0.40f),
+    LASER(R.raw.sfx_laser, 0.45f),
+    EXPLOSION(R.raw.sfx_explosion, 0.70f),
+    POWERUP(R.raw.sfx_powerup, 0.65f),
+    BOMB(R.raw.sfx_bomb, 0.80f),
+    WARNING(R.raw.sfx_warning, 0.60f),
 }
 
 /** 全局游戏音效设置快照。 */
@@ -88,7 +96,10 @@ object GameAudio {
     /** 把任意音量收敛到 [MIN_VOLUME]..[MAX_VOLUME]，NaN 视为 0。 */
     fun coerceVolume(volume: Float): Float = if (volume.isNaN()) MIN_VOLUME else volume.coerceIn(MIN_VOLUME, MAX_VOLUME)
 
-    /** 读取全局设置；首次读取时按旧键 hockey_sound / pool_sound 迁移 enabled。 */
+    /**
+     * 读取全局设置；仅首次读取时触发一次旧键迁移（见 [migrateLegacyEnabledIfNeeded]），
+     * 之后 [settings] 只做内存键值读取，不再触碰 `bear_game`、不写盘。
+     */
     fun settings(context: Context): GameAudioSettings {
         val prefs = prefs(context)
         migrateLegacyEnabledIfNeeded(context, prefs)
@@ -195,7 +206,8 @@ object GameAudio {
         context.applicationContext.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
 
     /**
-     * 迁移：全局 enabled 尚未写入时，若旧游戏开关存在，则用其值初始化全局键。
+     * 迁移：全局 enabled 尚未写入时，若旧游戏开关存在，则用其值初始化全局键，否则写入默认 true。
+     * 无论是否有旧键都落一次 KEY_ENABLED，保证后续 [settings] 不再读取 `bear_game`（含农场存档等）。
      * 同时存在时以 hockey_sound 为准；旧键清理由各游戏接线时处理。
      */
     private fun migrateLegacyEnabledIfNeeded(
@@ -203,19 +215,23 @@ object GameAudio {
         prefs: SharedPreferences,
     ) {
         if (prefs.contains(KEY_ENABLED)) return
-        val migrated =
-            runCatching {
-                val legacy =
-                    context.applicationContext
-                        .getSharedPreferences(LEGACY_PREF_FILE, Context.MODE_PRIVATE)
-                when {
-                    legacy.contains(LEGACY_KEY_HOCKEY_SOUND) ->
-                        legacy.getBoolean(LEGACY_KEY_HOCKEY_SOUND, true)
-                    legacy.contains(LEGACY_KEY_POOL_SOUND) ->
-                        legacy.getBoolean(LEGACY_KEY_POOL_SOUND, true)
-                    else -> null
-                }
-            }.getOrNull() ?: return
-        runCatching { prefs.edit().putBoolean(KEY_ENABLED, migrated).apply() }
+        synchronized(lock) {
+            if (prefs.contains(KEY_ENABLED)) return
+            val migrated =
+                runCatching {
+                    val legacy =
+                        context.applicationContext
+                            .getSharedPreferences(LEGACY_PREF_FILE, Context.MODE_PRIVATE)
+                    when {
+                        legacy.contains(LEGACY_KEY_HOCKEY_SOUND) ->
+                            legacy.getBoolean(LEGACY_KEY_HOCKEY_SOUND, true)
+                        legacy.contains(LEGACY_KEY_POOL_SOUND) ->
+                            legacy.getBoolean(LEGACY_KEY_POOL_SOUND, true)
+                        // 无旧键写入默认值，迁移同样只做一次
+                        else -> true
+                    }
+                }.getOrDefault(true)
+            runCatching { prefs.edit().putBoolean(KEY_ENABLED, migrated).apply() }
+        }
     }
 }

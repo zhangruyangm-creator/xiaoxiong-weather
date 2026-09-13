@@ -167,9 +167,9 @@ class HockeyGameTest {
         assertFalse(game.hasPendingRules)
     }
 
-    /** 场地主题与尺寸同规则：局中只暂存，下一局开始时生效。 */
+    /** 场地主题是皮肤：局中切换也立即生效（视觉与摩擦同步），尺寸仍下一局生效。 */
     @Test
-    fun applySettings_midMatchDefersRinkTheme() {
+    fun applySettings_midMatchAppliesRinkThemeImmediately() {
         val game = startedGame()
         assertTrue(game.rulesLocked)
         assertEquals(RinkTheme.ICE, game.rinkTheme)
@@ -185,9 +185,8 @@ class HockeyGameTest {
             rinkTheme = RinkTheme.WOOD,
         )
 
-        assertEquals("局中当前主题保持不变", RinkTheme.ICE, game.rinkTheme)
-        assertEquals("设置弹窗展示下一局主题", RinkTheme.WOOD, game.displayRinkTheme())
-        assertTrue(game.hasPendingRules)
+        assertEquals("局中主题立即生效", RinkTheme.WOOD, game.rinkTheme)
+        assertEquals(RinkTheme.WOOD, game.displayRinkTheme())
 
         game.startMatch()
         assertEquals(RinkTheme.WOOD, game.rinkTheme)

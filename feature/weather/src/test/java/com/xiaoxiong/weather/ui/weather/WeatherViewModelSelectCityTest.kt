@@ -9,6 +9,7 @@ import com.xiaoxiong.weather.fixtures.WeatherFixtures
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -84,11 +85,15 @@ class WeatherViewModelSelectCityTest {
         }
 
     @Test
-    fun refresh_quietDedup_withinWindowSkipsDuplicate() =
+    fun refresh_quietDedup_withinWindowDefersAndReplaysOnce() =
         runTest {
             val city = WeatherFixtures.city("济南")
             val fetcher = RecordingFetcher()
-            val vm = createTestViewModel(fetcher).vm
+            val vm =
+                createTestViewModel(
+                    fetcher,
+                    nowEpochMs = { testScheduler.currentTime + 1_000_000L },
+                ).vm
 
             vm.selectCity(city)
             advanceUntilIdle()
@@ -101,15 +106,18 @@ class WeatherViewModelSelectCityTest {
             val callsAfterFirstQuiet = fetcher.weatherCallCount
             assertTrue(callsAfterFirstQuiet > callsAfterSelect)
 
-            // 紧接着第二次静默刷新（如网络恢复叠加）：落在去重窗口内，应被跳过
+            // 紧接着第二次静默刷新（如网络恢复叠加）：落在去重窗口内，
+            // 不立即执行（仍守 5s 节流），但登记补发；窗口过后只补一次
             vm.refresh(quiet = true)
-            advanceUntilIdle()
+            runCurrent()
             assertEquals(callsAfterFirstQuiet, fetcher.weatherCallCount)
+            advanceUntilIdle()
+            assertEquals(callsAfterFirstQuiet + 1, fetcher.weatherCallCount)
 
             // 手动下拉刷新不受窗口限制，总是执行
             vm.refresh(quiet = false)
             advanceUntilIdle()
-            assertTrue(fetcher.weatherCallCount > callsAfterFirstQuiet)
+            assertTrue(fetcher.weatherCallCount > callsAfterFirstQuiet + 1)
         }
 
     @Test

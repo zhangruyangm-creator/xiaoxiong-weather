@@ -19,10 +19,13 @@ import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -149,6 +152,13 @@ class WeatherViewModel(
 
     /** 静默刷新去重窗口：窗口内同城静默刷新直接跳过 */
     private val refreshDedupWindowMs = 5_000L
+
+    /**
+     * 被 loading / 去重窗口拦截的静默刷新信号：信号是边沿触发，丢一次不会重试，
+     * 因此拦截时置位，等 loading 结束或窗口过期后补发一次；连续多次信号只补一次。
+     */
+    private var pendingQuietRefresh = false
+    private var pendingQuietRefreshJob: Job? = null
     private val locationCoordinator = deps.locationSessionFactory.create(viewModelScope)
     private val presentationEffects = deps.presentationEffects
 
@@ -199,6 +209,32 @@ class WeatherViewModel(
         debugController.start()
         searchController.start()
         startNetworkRecoveryRefresh()
+        startQuietRefreshRequests()
+        startPendingQuietRefreshWatcher()
+    }
+
+    /**
+     * 应用内静默刷新信号（温度单位切换后预警文案按旧单位生成，需重拉）：
+     * 与网络恢复刷新同款入口 `refresh(quiet = true)`，不改变既有节流语义。
+     */
+    private fun startQuietRefreshRequests() {
+        val requests = deps.quietRefreshRequests ?: return
+        viewModelScope.launch {
+            requests.collect { refresh(quiet = true) }
+        }
+    }
+
+    /**
+     * 静默刷新补发观察者：`pendingQuietRefresh` 可能在可见 loading 期间置位
+     * （此时不能立即刷新，否则会清掉 spinner），在 loading 结束的边沿补发。
+     */
+    private fun startPendingQuietRefreshWatcher() {
+        viewModelScope.launch {
+            _uiState
+                .map { it.isLoadingWeather || it.isLocating }
+                .distinctUntilChanged()
+                .collect { loading -> if (!loading) flushPendingQuietRefresh() }
+        }
     }
 
     /** 断网期间失败后，网络一恢复就静默刷新，把界面拉回最新数据。 */
@@ -482,15 +518,29 @@ class WeatherViewModel(
 
     fun refresh(quiet: Boolean = false) {
         val state = _uiState.value
-        // 静默刷新不打断正在进行的可见加载，避免把 spinner 清掉导致短暂空白
-        if (quiet && (state.isLoadingWeather || state.isLocating)) return
+        // 静默刷新不打断正在进行的可见加载，避免把 spinner 清掉导致短暂空白；
+        // 但信号不能丢：置 pending，等 loading 结束再补发一次
+        if (quiet && (state.isLoadingWeather || state.isLocating)) {
+            markPendingQuietRefresh()
+            return
+        }
         val city = state.selectedCity
         // 既无城市也非定位模式（冷启动异常态）：无事可刷，别占用去重窗口
         if (city == null && !state.usingCurrentLocation) return
-        // 静默刷新去重：距上一次天气请求不足窗口则跳过。
+        // 静默刷新去重：距上一次天气请求不足窗口则本应跳过；
+        // 但单位切换等边沿信号丢一次不重试，改为挂起并在窗口过期后补发一次。
         // 下拉刷新 / 回前台 / 网络恢复等来源会叠加触发，统一收敛为最近一次
-        val now = System.currentTimeMillis()
-        if (quiet && now - lastRefreshAtEpochMs < refreshDedupWindowMs) return
+        val now = deps.nowEpochMs()
+        if (quiet && now - lastRefreshAtEpochMs < refreshDedupWindowMs) {
+            markPendingQuietRefresh()
+            return
+        }
+        // 本次静默刷新成功发起：pending 使命已达成，清位并取消待补发任务
+        if (quiet) {
+            pendingQuietRefresh = false
+            pendingQuietRefreshJob?.cancel()
+            pendingQuietRefreshJob = null
+        }
         lastRefreshAtEpochMs = now
         if (city != null) {
             // 下拉/自动刷新只重拉天气，复用已有坐标；完整 GPS 留给右上角「定位」
@@ -502,6 +552,37 @@ class WeatherViewModel(
         } else {
             loadCurrentLocationWeather(showRationale = !quiet, quiet = quiet)
         }
+    }
+
+    /** 静默刷新被拦截：置位 pending 并尝试补发（loading 中则等 loading 结束）。 */
+    private fun markPendingQuietRefresh() {
+        pendingQuietRefresh = true
+        flushPendingQuietRefresh()
+    }
+
+    /**
+     * 条件满足（不在 loading 且已超出 5s 去重窗口）时补发一次静默刷新；
+     * 否则留给 loading 结束观察者或窗口过期延迟任务触发。
+     */
+    private fun flushPendingQuietRefresh() {
+        if (!pendingQuietRefresh) return
+        val state = _uiState.value
+        if (state.isLoadingWeather || state.isLocating) return
+        val remainingMs = refreshDedupWindowMs - (deps.nowEpochMs() - lastRefreshAtEpochMs)
+        if (remainingMs > 0) {
+            if (pendingQuietRefreshJob?.isActive != true) {
+                pendingQuietRefreshJob =
+                    viewModelScope.launch {
+                        delay(remainingMs)
+                        pendingQuietRefreshJob = null
+                        flushPendingQuietRefresh()
+                    }
+            }
+            return
+        }
+        pendingQuietRefreshJob?.cancel()
+        pendingQuietRefreshJob = null
+        refresh(quiet = true)
     }
 
     fun clearError() {

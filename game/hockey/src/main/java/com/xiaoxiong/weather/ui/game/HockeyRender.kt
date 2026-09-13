@@ -1443,8 +1443,8 @@ private fun DrawScope.drawGoalRecess(
         Offset(x0 + t.goalWidth, lineY),
         strokeWidth = t.shortSide * 0.003f,
     )
-    // 门柱（圆头 + 高光）
-    val postR = max(depth * 0.40f, t.shortSide * 0.012f)
+    // 门柱（圆头 + 高光）：半径与 HockeyLogic 碰撞共用同一公式，保证判定与像素一致
+    val postR = HockeyLogic.goalPostRadius(t)
     for (sx in intArrayOf(-1, 1)) {
         val px = t.midX + sx * half
         drawCircle(Color.Black.copy(alpha = 0.30f), postR * 1.08f, Offset(px + postR * 0.10f, lineY + postR * 0.16f))

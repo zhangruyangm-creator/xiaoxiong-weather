@@ -6,6 +6,7 @@ import com.xiaoxiong.weather.ui.game.HockeyLogic.Scorer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.random.Random
@@ -89,6 +90,79 @@ class HockeyLogicTest {
             )
         val r = HockeyLogic.integratePuck(puck, t, dt = 1f / 30f, friction = 0f, minSpeedMul = 0f)
         assertEquals(Scorer.PLAYER, r.scored)
+    }
+
+    /** 门柱回归：正对门柱的射门应弹回，不得穿柱判进（修复前球心落在 goalHalf 内即算进）。 */
+    @Test
+    fun goalPost_shotAtPostCenter_bouncesWithoutGoal() {
+        val t = table()
+        val postX = t.midX + t.goalWidth * 0.5f
+        val puck = Body(postX, t.top + t.puckR * 0.5f, vx = 0f, vy = -400f, r = t.puckR)
+        val r = HockeyLogic.integratePuck(puck, t, dt = 1f / 60f, friction = 0f, minSpeedMul = 0f)
+        assertNull("正对门柱的球不得直接判进", r.scored)
+        assertTrue("撞柱应返回碰库反馈", r.hitWall)
+        assertTrue("撞柱后应停在门线外：y=${puck.y}", puck.y - puck.r >= t.top - 0.01f)
+    }
+
+    /** 门柱内缘与柱心之间：不触柱的贴柱射门仍可得分。 */
+    @Test
+    fun goalPost_insidePostClearance_scores() {
+        val t = table()
+        val postR = HockeyLogic.goalPostRadius(t)
+        val postX = t.midX + t.goalWidth * 0.5f
+        val puck =
+            Body(
+                x = postX - postR - t.puckR - 1f,
+                y = t.top + t.puckR * 0.5f,
+                vx = 0f,
+                vy = -400f,
+                r = t.puckR,
+            )
+        val r = HockeyLogic.integratePuck(puck, t, dt = 1f / 30f, friction = 0f, minSpeedMul = 0f)
+        assertEquals(Scorer.PLAYER, r.scored)
+    }
+
+    /** 擦柱内侧（轻微重叠柱身）的球应弹开后继续滑入门内。 */
+    @Test
+    fun goalPost_grazeInsidePost_stillSlidesIn() {
+        val t = table()
+        val postR = HockeyLogic.goalPostRadius(t)
+        val postX = t.midX + t.goalWidth * 0.5f
+        val puck =
+            Body(
+                x = postX - postR - t.puckR + 2f,
+                y = t.top + t.puckR * 2f,
+                vx = -20f,
+                vy = -300f,
+                r = t.puckR,
+            )
+        var scored: Scorer? = null
+        for (i in 0 until 30) {
+            if (scored != null) break
+            scored = HockeyLogic.integratePuck(puck, t, 1f / 120f, friction = 0f, minSpeedMul = 0f).scored
+        }
+        assertEquals("贴柱滑入应判进", Scorer.PLAYER, scored)
+        assertTrue("球应已越过门线：y=${puck.y}", puck.y < t.top + t.puckR)
+    }
+
+    /** 门柱外侧：既不算进球，也应被墙/柱弹回。 */
+    @Test
+    fun goalPost_outsidePost_noGoal() {
+        val t = table()
+        val postR = HockeyLogic.goalPostRadius(t)
+        val postX = t.midX + t.goalWidth * 0.5f
+        val puck =
+            Body(
+                x = postX + postR + t.puckR + 2f,
+                y = t.top + t.puckR + 4f,
+                vx = 0f,
+                vy = -400f,
+                r = t.puckR,
+            )
+        val r = HockeyLogic.integratePuck(puck, t, dt = 1f / 60f, friction = 0f, minSpeedMul = 0f)
+        assertNull("门柱外侧不得判进", r.scored)
+        assertTrue("应反弹（碰库或碰柱）", r.hitWall)
+        assertTrue("球应停在门线外：y=${puck.y}", puck.y - puck.r >= t.top - 0.01f)
     }
 
     @Test

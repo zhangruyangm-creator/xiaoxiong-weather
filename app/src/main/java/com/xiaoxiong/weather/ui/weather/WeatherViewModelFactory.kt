@@ -37,6 +37,7 @@ class WeatherViewModelFactory(
                         },
                     presentationEffects = DefaultWeatherPresentationEffects,
                     networkMonitor = c.networkMonitor,
+                    quietRefreshRequests = c.quietWeatherRefreshRequests,
                 ),
         ) as T
     }

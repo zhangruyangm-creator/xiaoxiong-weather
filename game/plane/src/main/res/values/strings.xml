@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bear_plane_title">小熊战机</string>
+    <string name="cd_plane_field">小熊战机战场</string>
+    <string name="cd_plane_score">得分 %1$d，最高分 %2$d</string>
+    <string name="cd_plane_hud_stats">生命 %1$d，炸弹 %2$d，火力等级 %3$d</string>
+    <string name="cd_plane_boss_hp">Boss 生命值</string>
+    <string name="bear_plane_start">开始战斗</string>
+    <string name="bear_plane_intro">拖动小熊战机躲避弹幕、自动开火；吃 P 升级武器，B 补充炸弹，闯过 10 波即可完成任务。</string>
+    <string name="bear_plane_best">最高分 %1$d</string>
+    <string name="bear_plane_score">得分 %1$d</string>
+    <string name="bear_plane_score_label">得分</string>
+    <string name="bear_plane_win">任务完成！</string>
+    <string name="bear_plane_lose">战机坠毁</string>
+    <string name="bear_plane_new_record">新纪录！</string>
+    <string name="bear_plane_kills">击毁 %1$d</string>
+    <string name="bear_plane_wave_reached">到达第 %1$d 波</string>
+    <string name="bear_plane_again">再来一局</string>
+    <string name="bear_plane_exit">退出游戏</string>
+    <string name="bear_plane_bomb_use">使用炸弹，剩余 %1$d</string>
+    <string name="bear_plane_weapon">火力 %1$d</string>
+    <string name="bear_plane_wave">第 %1$d 波</string>
+    <string name="bear_plane_boss">BOSS</string>
+    <string name="bear_plane_boss_warning">警告！Boss 来袭</string>
+    <string name="bear_plane_rank">排名 %1$d</string>
+    <string name="bear_plane_sound">音效</string>
+    <string name="bear_plane_leaderboard">排行榜</string>
+    <string name="bear_plane_diff_casual">轻松</string>
+    <string name="bear_plane_diff_standard">标准</string>
+    <string name="bear_plane_diff_challenge">挑战</string>
+</resources>

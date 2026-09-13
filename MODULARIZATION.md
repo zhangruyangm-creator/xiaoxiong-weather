@@ -61,7 +61,7 @@ xiaoxiong-weather/
 ├── :feature:settings        # 设置/隐私/卡片设置
 ├── :game:api                # GameEntry 接口 + GameEntryProvider（ServiceLoader 发现）+ 口令常量
 ├── :game:common             # 共享精灵表/排行榜/天气特效（GameBear/GameScaffold/GameLeaderboard/GameWeatherFx…）
-├── :game:jump|catch|star|maze|farm|home|hockey|pool   # 各游戏独立模块（各持 res/strings，provider 注册自身）
+├── :game:jump|catch|star|maze|farm|home|hockey|pool|plane   # 各游戏独立模块（各持 res/strings，provider 注册自身）
 ├── :baselineprofile         # 保留不动
 └── (阶段 5 已移除) app/src/gameXxx* 源码集、Empty 门面、-Pgames 源码集机制
 ```
@@ -290,11 +290,11 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 | `:game:farm` | `gameFarm/*`（Farm{…} 11 文件）+ 156 张插画 + 5 测试 |
 | `:game:home` | `gameHome/*`（BearHomeScreen/HomeRoutine/HomeMealDex）+ 90 张生活片刻插画 + 1 测试 |
 
-> 后续新增的 `:game:catch`（小熊接雨雪）、`:game:hockey`（小熊冰球）、`:game:pool`（小熊台球）按同一模式下沉为独立模块（各持 res/strings + `GameEntryProvider` + 测试），当前游戏模块共 8 个。
+> 后续新增的 `:game:catch`（小熊接雨雪）、`:game:hockey`（小熊冰球）、`:game:pool`（小熊台球）、`:game:plane`（小熊战机）按同一模式下沉为独立模块（各持 res/strings + `GameEntryProvider` + 测试），当前游戏模块共 9 个。
 
 **核心机制——`-Pgames` 退役，改动态依赖 + ServiceLoader 装配**：
 
-1. `:app` 依 `-Pgames`（默认 all、`none`、逗号列表）对八个游戏模块做 `fullImplementation` **条件动态依赖**；未选中的模块不参与编译，classpath 上不存在其字节码。
+1. `:app` 依 `-Pgames`（默认 all、`none`、逗号列表）对九个游戏模块做 `fullImplementation` **条件动态依赖**；未选中的模块不参与编译，classpath 上不存在其字节码。
 2. 各游戏模块通过 `META-INF/services/com.xiaoxiong.weather.game.GameEntryProvider` 注册 provider（`GameEntryProvider.entry` 暴露各自的 `GameEntry` object）。provider 必须是**普通 class**（public 无参构造器），不能用 Kotlin `object`——`ServiceLoader` 靠反射 `newInstance()` 实例化，`object` 构造器是 private 的，启动即抛 `ServiceConfigurationError`。
 3. `MainActivity` 用 `:game:api` 的 `loadGameEntryProviders()`（`ServiceLoader`）装配 `gameEntries`——比旧源码集机制更彻底：未选中的游戏**连字节码都不存在**，无需 Empty 门面。
 4. `gameXxxEmpty` 门面、`app/src/lite` 的游戏禁用 facade、`src/gameXxxTest` 测试源集全部删除；游戏测试随各模块走。
@@ -305,12 +305,12 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 2. **`GameWeatherFx` 的 DrawScope 特效改 public**——`drawStormLightning`/`drawRainLayered` 等被 jump/star 跨模块调用，从 internal 放开。
 3. **HomePlayroom 不再判 `DISABLED` 哨兵**——动态依赖下口令恒为真实值，游乐间四个入口恒展示；某游戏未装配时其入口无效由装配层（`onOpenGame` → overlay 注册表）兜底。
 4. ~~**生活片刻插画 85 张随 home 拷贝**~~（阶段 6 已取消）——`ic_sun_bear_{breakfast,lunch,dinner}_*` 已在 `:core:designsystem`，但 Android Library 编译期 `R` 只含自持资源，曾把 gameHome 所需插画按「代码引用 → 同步迁移」拷入 `:game:home` res；阶段 6 起统一收至 `:core:res-illustrations`，home 直接 `api` 依赖，插画处处只打一份。
-5. **lite 版零游戏实现**——动态游戏依赖仅挂 `fullImplementation`，lite 不含任何游戏实现模块（jump/star/catch/maze/farm/home/hockey/pool 字节码为零）。注意 `:game:api` 接口契约层仍由 `:app` 无条件依赖（MainActivity/WeatherGameOverlay 需引用 `GameEntry` 类型），lite 包保留约 1-2KB 接口字节码，属预期——「零痕迹」指零游戏实现，非零接口契约。
+5. **lite 版零游戏实现**——动态游戏依赖仅挂 `fullImplementation`，lite 不含任何游戏实现模块（jump/star/catch/maze/farm/home/hockey/pool/plane 字节码为零）。注意 `:game:api` 接口契约层仍由 `:app` 无条件依赖（MainActivity/WeatherGameOverlay 需引用 `GameEntry` 类型），lite 包保留约 1-2KB 接口字节码，属预期——「零痕迹」指零游戏实现，非零接口契约。
 
 **验收（已全部通过）**：
 - `-Pgames=all` / `jump` / `none` 三档编译 ✓
 - APK 实测：默认 all 45.7MB（含全部游戏）→ `-Pgames=none` 33.5MB（**零游戏类**）→ `-Pgames=jump` 仅注册 jump 入口 ✓
-- 全量 `test`（含 8 个游戏模块测试）+ `lintKotlin` + `:app:lint{Full,Lite}Debug` + `assemble{Lite,Full}{Debug,Release}` 全部通过 ✓
+- 全量 `test`（含 9 个游戏模块测试）+ `lintKotlin` + `:app:lint{Full,Lite}Debug` + `assemble{Lite,Full}{Debug,Release}` 全部通过 ✓
 
 ### 阶段 6（可选）：`:app` 薄壳收尾（已完成）
 
@@ -319,7 +319,7 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
   - 删除空源码目录（`app/src/{full,lite,testFull}`、`core/network/src/main/res`）与 app 内空包目录
   - app 残留 3 个测试（`WeatherCodesTest`/`WeatherLauncherIconMappingTest`/`AlertBearIconTest`）随代码分别迁入 `core:common` / `core:designsystem`；`app/src/test` 删除（app 不再有单元测试，装配层留薄）
   - `mock-maker-inline` 配置删除（Mockito 5.14 默认内联，冗余）
-- 文档：README 项目结构/游戏裁剪改为动态依赖描述（8 个游戏 + ServiceLoader）；ENGINEERING CI 说明改为全量 `test`；CHANGELOG 新增「未发布」多模块重构记录；CI workflow 用 `./gradlew test` 覆盖全模块并把测试报告路径扩到 core/feature/game
+- 文档：README 项目结构/游戏裁剪改为动态依赖描述（9 个游戏 + ServiceLoader）；ENGINEERING CI 说明改为全量 `test`；CHANGELOG 新增「未发布」多模块重构记录；CI workflow 用 `./gradlew test` 覆盖全模块并把测试报告路径扩到 core/feature/game
 - 资源去重（`ic_sun_bear_*` 场景插画单一数据源）：
   - 新建 `:core:res-illustrations` 纯资源模块，收纳全部 266 张 `ic_sun_bear_*`（designsystem 247 + 节日 19），删除 `game:home` 重复的 85 张与 `app`/`feature:weather` 的 fest 副本
   - `core:designsystem` 与 `game:home`/`feature:weather` 以 `api(project(":core:res-illustrations"))` 依赖；`nonTransitiveRClass=true` 下跨模块引用用 `import ...R as IllustR` 别名（ktlint 要求 alias 在 import 区末尾）

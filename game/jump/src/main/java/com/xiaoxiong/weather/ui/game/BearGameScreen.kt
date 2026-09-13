@@ -897,6 +897,9 @@ fun BearGameScreen(
         },
     )
 
+    // 浅色场景在渐变上叠纯黑暗角（与天气卡片同款兜底），保证白字标题/地面线可读；
+    // 深色场景 scrimAlpha=0 时整层跳过，不产生多余合成。
+    val scrimColor = remember(style.scrimAlpha) { Color.Black.copy(alpha = style.scrimAlpha) }
     Box(
         modifier =
             Modifier
@@ -910,6 +913,15 @@ fun BearGameScreen(
                     if (wasRunning && game.phase != GamePhase.RUNNING) game.clearSnapshot(prefs)
                 },
     ) {
+        if (style.scrimAlpha > 0f) {
+            Box(
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .background(scrimColor),
+            )
+        }
+
         Canvas(
             modifier =
                 Modifier

@@ -444,6 +444,8 @@ fun createTestViewModel(
     presentationEffects: RecordingPresentationEffects = RecordingPresentationEffects(),
     citySearch: CitySearchUseCase = Mockito.mock(CitySearchUseCase::class.java),
     debugWeatherStore: DebugWeatherSource = FakeDebugWeatherSource(),
+    quietRefreshRequests: Flow<Unit>? = null,
+    nowEpochMs: () -> Long = System::currentTimeMillis,
 ): ViewModelTestHarness {
     val app = mockApplication()
     val permissionSource = FakeLocationPermissionSource(locationPermission)
@@ -464,6 +466,8 @@ fun createTestViewModel(
             presentationEffects = presentationEffects,
             popularCitiesLoader = { emptyList() },
             networkMonitor = networkMonitor,
+            quietRefreshRequests = quietRefreshRequests,
+            nowEpochMs = nowEpochMs,
         )
     return ViewModelTestHarness(
         vm = WeatherViewModel(app, deps).also { TestViewModelRegistry.register(it) },

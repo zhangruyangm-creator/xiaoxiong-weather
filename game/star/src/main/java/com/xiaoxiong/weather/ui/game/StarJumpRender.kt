@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import kotlin.math.abs
 import kotlin.math.floor
@@ -28,35 +27,6 @@ internal val jumpTextPaint =
     }
 
 // ---------------- 世界绘制 ----------------
-
-private class SkyStop(
-    val alt: Float,
-    val top: Color,
-    val bottom: Color,
-)
-
-private val skyStops =
-    listOf(
-        SkyStop(0f, Color(0xFF2E6FB8), Color(0xFF9BDBF5)), // 白天
-        SkyStop(0.9f, Color(0xFF474A8C), Color(0xFFF79E5F)), // 黄昏
-        SkyStop(1.8f, Color(0xFF121B3E), Color(0xFF3D4E85)), // 夜空
-        SkyStop(2.8f, Color(0xFF04041A), Color(0xFF20123E)), // 太空
-    )
-
-private fun skyColors(alt: Float): Pair<Color, Color> {
-    if (alt <= skyStops.first().alt) {
-        return skyStops.first().top to skyStops.first().bottom
-    }
-    for (i in 0 until skyStops.size - 1) {
-        val a = skyStops[i]
-        val b = skyStops[i + 1]
-        if (alt <= b.alt) {
-            val t = (alt - a.alt) / (b.alt - a.alt)
-            return lerp(a.top, b.top, t) to lerp(a.bottom, b.bottom, t)
-        }
-    }
-    return skyStops.last().top to skyStops.last().bottom
-}
 
 /** 单位五角星（半径 1），绘制时 scale 复用，避免每帧 new Path。 */
 private val unitStarPath: Path =
@@ -81,6 +51,16 @@ private val springBandColors =
 /** 地面草坡渐变与位置/时间无关，缓存复用。 */
 private val jumpGroundBrush =
     Brush.verticalGradient(listOf(Color(0xFF8BC34A), Color(0xFF558B2F)))
+
+/**
+ * HUD 顶部暗角：全强度覆盖 HUD 后向下渐隐；参数见 StarSkyPalette.kt。
+ */
+private val jumpHudScrimBrush =
+    Brush.verticalGradient(
+        0f to Color.Black.copy(alpha = JUMP_HUD_SCRIM_ALPHA),
+        JUMP_HUD_SCRIM_PLATEAU to Color.Black.copy(alpha = JUMP_HUD_SCRIM_ALPHA),
+        1f to Color.Transparent,
+    )
 
 /**
  * 天空渐变缓存：颜色/天气压暗系数不变时复用；爬升期间颜色逐帧变化会自然重建，
@@ -318,6 +298,13 @@ internal fun DrawScope.drawJumpWorld(
 
     // 雨/雪粒子（视差 + 随风漂）
     drawJumpWeatherParticles(game, scene, reduceMotion)
+
+    // HUD 暗角：天空/云层/粒子之上、地面与平台等内容之下，保证顶部白字可读
+    drawRect(
+        jumpHudScrimBrush,
+        Offset.Zero,
+        Size(w, h * JUMP_HUD_SCRIM_BAND),
+    )
 
     // 地面（起点附近才可见）
     val groundTop = -cam

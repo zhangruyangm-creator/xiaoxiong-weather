@@ -13,17 +13,19 @@ import org.junit.Test
  * 卡片在动画层之上、内容之下叠加 [WeatherSceneStyle.scrimAlpha] 纯黑暗角：
  *
  * - 背景按「渐变每个 stop 复合 scrim」计算，模拟卡片实际绘制顺序（渐变 → 动画 → 暗角）；
- * - [WeatherSceneStyle.contentColor]（城市/温度/描述）与 [WeatherSceneStyle.mutedContentColor]
- *   （次级/标签）对复合后背景至少 [MIN_LARGE_TEXT]。
- *
- * 阈值从 4.5 调整为 3:1 的原因：白字对亮色渐变即便整体加深 + 暗角，个别最亮 stop 也难
- * 达到 4.5:1；而这些关键文字全部是大号/粗体天气排版（displaySmall/titleLarge/titleMedium），
- * 适用 WCAG 大号文本 3:1 口径，且文字叠加柔和黑阴影（blur 6dp）进一步强化边缘可读性，
- * 因此 3:1 是本视觉方案的合理下限。
+ * - 断言口径：[WeatherSceneStyle.contentColor]（城市/温度/描述，displaySmall/titleLarge
+ *   等大号排版）按 WCAG 大号文本 3:1；[WeatherSceneStyle.mutedContentColor]（次级/标签
+ *   小字号）在浅色场景按小号文本 AA 4.5:1，深色场景因 muted 为有意着色的次色
+ *   （如 #BBDEFB），沿用大号 3:1 底线。
  *
  * 修复前（最低值）：CLEAR 白天白字 1.67:1、PARTLY 白天 1.67:1、DRIZZLE 2.20:1；
- * 修复后白字对复合 scrim 后最差 stop：CLEAR 4.80:1、PARTLY 4.88:1、DRIZZLE 5.26:1、
- * FOG 4.56:1、SNOW 3.97:1（muted 0.9 白字分别 4.23/4.30/4.62/4.04/3.55:1）。
+ * 上一版加深 + scrim 后最亮 stop 的 content/muted：CLEAR 4.80/4.23、PARTLY 4.88/4.30、
+ * DRIZZLE 5.26/4.62、FOG 4.56/4.04、SNOW 3.97/3.55 —— FOG/SNOW 以及 CLEAR/PARTLY 的
+ * muted 小字号均低于 4.5:1。
+ *
+ * 本次调整（scrim 与 muted alpha 微调，色相/渐变不变）后最亮 stop 的 content/muted：
+ * CLEAR 5.16/4.64、PARTLY 5.24/4.72、DRIZZLE 5.26/4.62、FOG 5.55/4.86、SNOW 5.25/4.62，
+ * 浅色场景 content/muted 均 ≥4.5:1（content 超出大号口径，仍统一实测）。
  */
 class WeatherSceneContrastTest {
     private data class Case(
@@ -56,13 +58,37 @@ class WeatherSceneContrastTest {
             Case("UNKNOWN", 999, isDay = true, appDark = false, lightScene = false),
         )
 
+    /** content 为大号/粗体排版：所有场景对复合后每个渐变 stop ≥3:1（大号 AA）。 */
     @Test
-    fun contentAndMuted_meetLargeTextFloorOnEveryScrimmedStop() {
+    fun allScenes_content_meetLargeTextFloor() {
         cases.forEach { case ->
             val style = weatherSceneStyle(case.code, case.isDay, case.appDark)
             style.gradient.forEach { stop ->
                 val background = scrimmedBackground(stop, style.scrimAlpha)
                 assertContrast(case, "content", style.contentColor, background, MIN_LARGE_TEXT)
+            }
+        }
+    }
+
+    /** 浅色场景 muted 为白字小号标签：对复合 scrim 后每个渐变 stop ≥4.5:1（小号 AA）。 */
+    @Test
+    fun lightScenes_muted_meetSmallTextFloor() {
+        cases.filter { it.lightScene }.forEach { case ->
+            val style = weatherSceneStyle(case.code, case.isDay, case.appDark)
+            style.gradient.forEach { stop ->
+                val background = scrimmedBackground(stop, style.scrimAlpha)
+                assertContrast(case, "muted", style.mutedContentColor, background, MIN_SMALL_TEXT)
+            }
+        }
+    }
+
+    /** 深色场景 muted 为有意着色的次色，沿用既有 3:1 底线（不在浅色白字修复口径内）。 */
+    @Test
+    fun darkScenes_muted_meetLargeTextFloor() {
+        cases.filterNot { it.lightScene }.forEach { case ->
+            val style = weatherSceneStyle(case.code, case.isDay, case.appDark)
+            style.gradient.forEach { stop ->
+                val background = scrimmedBackground(stop, style.scrimAlpha)
                 assertContrast(case, "muted", style.mutedContentColor, background, MIN_LARGE_TEXT)
             }
         }
@@ -138,6 +164,7 @@ class WeatherSceneContrastTest {
 
     private companion object {
         const val MIN_LARGE_TEXT = 3.0
+        const val MIN_SMALL_TEXT = 4.5
         const val EPSILON = 1e-9
     }
 }

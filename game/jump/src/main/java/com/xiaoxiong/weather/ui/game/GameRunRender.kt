@@ -317,7 +317,7 @@ private fun DrawScope.drawGround(
         size = Size(size.width, size.height - groundY),
     )
     drawLine(
-        color = contentColor.copy(alpha = 0.45f),
+        color = contentColor,
         start = Offset(0f, groundY),
         end = Offset(size.width, groundY),
         strokeWidth = 2f * s,

@@ -6,11 +6,11 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Spacer
@@ -95,12 +95,15 @@ fun WeatherAtmosphereCard(
     val reduceMotion = LocalReduceMotion.current
     val animateScene = !reduceMotion && !paused
     val day = isDay != false
-    // 渐变过渡与场景淡入淡出共用 650ms；颜色 State 只在 draw 阶段读，避免卡片每帧重组
+    // 渐变过渡与场景淡入淡出共用 650ms；颜色/暗角 State 只在 draw 阶段读，避免卡片每帧重组
     val colorSpec: AnimationSpec<Color> = if (animateScene) tween(SCENE_FADE_MILLIS) else snap()
+    val scrimSpec: AnimationSpec<Float> = if (animateScene) tween(SCENE_FADE_MILLIS) else snap()
     val gradient = style.gradient
     val topColor = animateColorAsState(gradient[0], colorSpec, label = "atmosphere-top")
     val midColor = animateColorAsState(gradient.getOrElse(1) { gradient[0] }, colorSpec, label = "atmosphere-mid")
     val bottomColor = animateColorAsState(gradient.getOrElse(2) { gradient.last() }, colorSpec, label = "atmosphere-bottom")
+    // scrim 与渐变同步过渡，避免浅/深场景切换时对比度/亮度瞬间跳变
+    val scrimAlpha = animateFloatAsState(style.scrimAlpha, scrimSpec, label = "atmosphere-scrim")
 
     Box(
         modifier =
@@ -135,16 +138,17 @@ fun WeatherAtmosphereCard(
                 modifier = Modifier.matchParentSize(),
             )
         }
-        if (style.scrimAlpha > 0f) {
-            // 浅色渐变场景在动画层上叠纯黑暗角，保证白字/muted 对复合后背景 ≥3:1；
-            // Brush 随 scrimAlpha 缓存，绘制阶段不重复分配
-            val scrim =
-                remember(style.scrimAlpha) {
-                    val color = Color.Black.copy(alpha = style.scrimAlpha)
-                    Brush.verticalGradient(listOf(color, color))
-                }
-            Box(modifier = Modifier.matchParentSize().background(scrim))
-        }
+        // 浅色渐变场景在动画层上叠纯黑暗角，保证白字/muted 对复合后背景达标；
+        // alpha 在 draw 阶段读取（动画帧只重绘不重组），归零时跳过绘制
+        Box(
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .drawBehind {
+                        val alpha = scrimAlpha.value
+                        if (alpha > 0f) drawRect(Color.Black, alpha = alpha)
+                    },
+        )
         content(style)
     }
 }

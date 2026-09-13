@@ -21,8 +21,12 @@ import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
 import com.xiaoxiong.weather.domain.CitySearchUseCase
 import com.xiaoxiong.weather.game.GameEntry
 import com.xiaoxiong.weather.game.loadGameEntryProviders
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -127,6 +131,21 @@ class AppContainer(
      */
     suspend fun preloadGameEntries() {
         _gameEntries.value = loadGameEntryProviders()
+    }
+
+    /**
+     * 应用内静默天气刷新信号：温度单位切换后预警文案等派生字符串按旧单位生成，
+     * 需重新拉取（`refresh(quiet = true)`，保留已有界面数据、不打断 loading）。
+     * 由 [com.xiaoxiong.weather.WeatherApp] 在检测到单位真实变化后触发，
+     * WeatherViewModel 订阅；无订阅者（无天气页存活）时信号自然丢弃，下次拉取本就用新单位。
+     */
+    private val _quietWeatherRefreshRequests =
+        MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    val quietWeatherRefreshRequests: SharedFlow<Unit> = _quietWeatherRefreshRequests.asSharedFlow()
+
+    fun requestQuietWeatherRefresh() {
+        _quietWeatherRefreshRequests.tryEmit(Unit)
     }
 }
 

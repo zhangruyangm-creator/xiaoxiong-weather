@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -54,6 +55,9 @@ object HockeyLogic {
 
     /** 墙角解脱球速（相对短边/秒）：足够脱离挡板，又不至于像开球那么冲。 */
     private const val ESCAPE_SPEED_MUL = 1.15f
+
+    /** 门柱反弹系数（1+e）：柱视为固定圆柱，略带回弹损耗。 */
+    private const val POST_RESTITUTION = 1.7f
 
     fun params(
         difficulty: Difficulty,
@@ -206,6 +210,17 @@ object HockeyLogic {
         val scored: Scorer? = null,
     )
 
+    /**
+     * 门柱半径（与渲染同一公式）：外框 frame 取桌边距推导（layoutTable 下即 min(padH, padV)），
+     * 渲染层 HockeyRender.kt 画柱时直接调用本函数，保证碰撞与像素一致。
+     */
+    fun goalPostRadius(table: Table): Float {
+        val short = table.shortSide
+        val margin = min(table.left, table.top)
+        val frame = min(short * 0.075f, margin * 0.86f).coerceAtLeast(2f)
+        return max(frame * 0.92f * 0.40f, short * 0.012f)
+    }
+
     fun clampPaddle(
         table: Table,
         x: Float,
@@ -261,6 +276,8 @@ object HockeyLogic {
         maxSpeedMul: Float = 2.35f,
     ): CollisionResult {
         var hitWall = false
+        val prevX = puck.x
+        val prevY = puck.y
         puck.x += puck.vx * dt
         puck.y += puck.vy * dt
 
@@ -284,10 +301,24 @@ object HockeyLogic {
             hitWall = true
         }
 
+        // 门柱：半径与渲染一致，先于进球判定；正对柱心的球会被弹回（vy 反号），不会算进
         val goalHalf = table.goalWidth * 0.5f
+        val postR = goalPostRadius(table)
+        val leftPostX = table.midX - goalHalf
+        val rightPostX = table.midX + goalHalf
+        var hitPost = collideGoalPost(puck, leftPostX, table.top, postR, prevX, prevY, rinkSign = 1f)
+        hitPost = collideGoalPost(puck, rightPostX, table.top, postR, prevX, prevY, rinkSign = 1f) || hitPost
+        hitPost = collideGoalPost(puck, leftPostX, table.bottom, postR, prevX, prevY, rinkSign = -1f) || hitPost
+        hitPost = collideGoalPost(puck, rightPostX, table.bottom, postR, prevX, prevY, rinkSign = -1f) || hitPost
+        if (hitPost) {
+            hitWall = true
+            clampSpeed(puck, minSp, maxSp)
+        }
+
         val inGoalX = puck.x in (table.midX - goalHalf)..(table.midX + goalHalf)
 
-        // 上下：球门进球，否则弹墙
+        // 上下：球门进球，否则弹墙。正对门柱的球在碰撞里已被弹回（vy 反向），
+        // 擦柱内侧的球仍朝门内飞，按正常进球处理（贴柱滑入）。
         if (puck.y - puck.r < table.top) {
             if (inGoalX && puck.vy < 0f) {
                 return CollisionResult(hitWall = hitWall, scored = Scorer.PLAYER)
@@ -305,6 +336,50 @@ object HockeyLogic {
         }
 
         return CollisionResult(hitWall = hitWall)
+    }
+
+    /**
+     * 单个门柱的圆-圆碰撞：从台面侧飞来的球与柱分离并反弹（柱视为固定圆柱）；
+     * 已越过门线的球不再被柱拦截，保证贴柱滑入的球能判进。
+     * 快球单帧跨过柱心时用法线取移动前方向，避免把球继续往门里推。
+     * 返回本帧是否触柱。
+     */
+    private fun collideGoalPost(
+        puck: Body,
+        postX: Float,
+        lineY: Float,
+        postR: Float,
+        prevX: Float,
+        prevY: Float,
+        rinkSign: Float,
+    ): Boolean {
+        // 移动前已在门内的球不参与柱碰撞
+        if ((prevY - lineY) * rinkSign < 0f) return false
+        val dx = puck.x - postX
+        val dy = puck.y - lineY
+        val dist = hypot(dx, dy)
+        val minDist = postR + puck.r
+        if (dist >= minDist || dist < 1e-4f) return false
+        var nx = dx / dist
+        var ny = dy / dist
+        if (dy * rinkSign < 0f) {
+            // 这一帧跨过了门线：改用移动前位置定法线，把球弹回台面侧
+            val pdx = prevX - postX
+            val pdy = prevY - lineY
+            val pd = hypot(pdx, pdy)
+            if (pd < 1e-4f) return false
+            nx = pdx / pd
+            ny = pdy / pd
+        }
+        val overlap = minDist - dist
+        puck.x += nx * overlap
+        puck.y += ny * overlap
+        val vn = puck.vx * nx + puck.vy * ny
+        if (vn < 0f) {
+            puck.vx -= POST_RESTITUTION * vn * nx
+            puck.vy -= POST_RESTITUTION * vn * ny
+        }
+        return true
     }
 
     fun collidePaddle(

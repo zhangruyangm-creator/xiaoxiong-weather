@@ -137,22 +137,6 @@ private val unitLightningPath: Path =
         close()
     }
 
-private fun cachedSkyBrush(
-    top: Long,
-    bottom: Long,
-): Brush = Brush.verticalGradient(skyGradient(Color(top), Color(bottom)))
-
-/** 天空/地面渐变与时间、位置无关，按场景缓存复用，避免每帧新建 Brush。 */
-private val catchSkySunnyDay = cachedSkyBrush(0xFF4FC3F7, 0xFFB3E5FC)
-private val catchSkySunnyNight = cachedSkyBrush(0xFF1A237E, 0xFF3F51B5)
-private val catchSkyCloudy = cachedSkyBrush(0xFF92A1AD, 0xFFCAD1D8)
-private val catchSkyRainLight = cachedSkyBrush(0xFF7C94A8, 0xFFB4C7D2)
-private val catchSkyRain = cachedSkyBrush(0xFF5D7B94, 0xFF9DB4C3)
-private val catchSkyRainHeavy = cachedSkyBrush(0xFF47657F, 0xFF8198AC)
-private val catchSkySnow = cachedSkyBrush(0xFFBEC7D3, 0xFFE8EDF2)
-private val catchSkyStorm = cachedSkyBrush(0xFF33414F, 0xFF6B7B8A)
-private val catchSkyFreezingRain = cachedSkyBrush(0xFF5A6E86, 0xFFA7BCC8)
-private val catchSkyHail = cachedSkyBrush(0xFF3D5568, 0xFF8BA2B5)
 private val catchGroundBrush =
     Brush.verticalGradient(listOf(Color(0xFF8BC34A), Color(0xFF558B2F)))
 
@@ -821,6 +805,9 @@ private fun DrawScope.drawCatchWorld(
     // 天气氛围粒子（作为背景层，与跑酷/摘星/迷宫共用渲染）
     drawCatchWeatherBackdrop(scene, game.time, s, w, h, reduceMotion)
 
+    // HUD 暗角：天空/云层之上、掉落物等内容之下，只影响背景不压暗玩法元素
+    drawCatchHudScrim(catchSceneSky(scene, isDay), w, h)
+
     // 掉落物
     for (it in game.items) {
         drawCatchItem(it, game.time)
@@ -870,52 +857,23 @@ private fun DrawScope.drawCatchSky(
     w: Float,
     h: Float,
 ) {
-    val brush: Brush
-    val bottom: Color
-    when (scene) {
-        CatchScene.SUNNY ->
-            if (isDay) {
-                brush = catchSkySunnyDay
-                bottom = Color(0xFFB3E5FC)
-            } else {
-                brush = catchSkySunnyNight
-                bottom = Color(0xFF3F51B5)
-            }
-        CatchScene.CLOUDY -> {
-            brush = catchSkyCloudy
-            bottom = Color(0xFFCAD1D8)
-        }
-        CatchScene.RAIN_LIGHT -> {
-            brush = catchSkyRainLight
-            bottom = Color(0xFFB4C7D2)
-        }
-        CatchScene.RAIN -> {
-            brush = catchSkyRain
-            bottom = Color(0xFF9DB4C3)
-        }
-        CatchScene.RAIN_HEAVY -> {
-            brush = catchSkyRainHeavy
-            bottom = Color(0xFF8198AC)
-        }
-        CatchScene.SNOW -> {
-            brush = catchSkySnow
-            bottom = Color(0xFFE8EDF2)
-        }
-        CatchScene.STORM -> {
-            brush = catchSkyStorm
-            bottom = Color(0xFF6B7B8A)
-        }
-        CatchScene.FREEZING_RAIN -> {
-            brush = catchSkyFreezingRain
-            bottom = Color(0xFFA7BCC8)
-        }
-        CatchScene.HAIL -> {
-            brush = catchSkyHail
-            bottom = Color(0xFF8BA2B5)
-        }
-    }
-    drawRect(brush)
-    drawHorizonGlow(h * 0.95f, midColor(bottom, Color.White), h * 0.16f)
+    val sky = catchSceneSky(scene, isDay)
+    drawRect(sky.skyBrush)
+    drawHorizonGlow(h * 0.95f, midColor(sky.bottom, Color.White), h * 0.16f)
+}
+
+/** 顶部暗角：压暗 HUD 身后的天空/云层，浅色场景按 HUD 区间最亮色保证白字 ≥4.5:1。 */
+private fun DrawScope.drawCatchHudScrim(
+    sky: CatchSkyStyle,
+    w: Float,
+    h: Float,
+) {
+    if (sky.hudScrimAlpha <= 0f) return
+    drawRect(
+        sky.hudScrimBrush,
+        topLeft = Offset.Zero,
+        size = Size(w, h * CATCH_HUD_SCRIM_BAND),
+    )
 }
 
 private fun DrawScope.drawCatchBgClouds(game: BearCatchGame) {

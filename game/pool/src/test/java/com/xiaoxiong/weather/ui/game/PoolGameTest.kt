@@ -1,12 +1,17 @@
 package com.xiaoxiong.weather.ui.game
 
 import com.xiaoxiong.weather.ui.game.PoolBallKind.CUE
+import com.xiaoxiong.weather.ui.game.PoolBallKind.EIGHT
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.sin
 
 class PoolGameTest {
     private fun newGame(): PoolGame =
@@ -32,6 +37,53 @@ class PoolGameTest {
         assertTrue("break should settle, simulated=$simulated", simulated < 60f)
         assertNotEquals(PoolGame.Phase.SHOOTING, game.phase)
         assertTrue("cue ball should still be on table", cue.onTable)
+    }
+
+    /**
+     * 开球进 8 触发重摆（rerack）时，本杆在物理过程中产生的落袋反馈标志必须保留到
+     * UI 在 tick 返回后消费，不能被内部重摆复位清掉。
+     */
+    @Test
+    fun eightOnBreak_rerack_keepsPendingPotFeedbackForUi() {
+        val game = newGame()
+        game.startMatch(PoolSide.PLAYER, seed = 3L)
+        val cue = game.cueBall()!!
+        val eight = game.balls.first { it.kind == EIGHT }
+        // 清场：只留白球与 8 号，按「幽灵球」切球瞄准左上角袋
+        game.balls.filter { it !== cue && it !== eight }.forEach { it.onTable = false }
+        val table = game.table
+        val pocket = table.pockets.first()
+        val radius = PoolConfig.BALL_RADIUS
+        val ux = table.centerX - pocket.x
+        val uy = table.centerY - pocket.y
+        val ul = hypot(ux, uy)
+        val nx = ux / ul
+        val ny = uy / ul
+        val bx = pocket.x + nx * 0.5f
+        val by = pocket.y + ny * 0.5f
+        val ghostX = bx + nx * radius * 2f
+        val ghostY = by + ny * radius * 2f
+        val cueAngle = atan2(by - ghostY, bx - ghostX) + 0.35f
+        cue.stop()
+        cue.x = ghostX - cos(cueAngle) * 0.4f
+        cue.y = ghostY - sin(cueAngle) * 0.4f
+        eight.stop()
+        eight.x = bx
+        eight.y = by
+        val aim = atan2(ghostY - cue.y, ghostX - cue.x)
+        game.shoot(aim, 0.6f)
+        var simulated = 0f
+        while (game.phase == PoolGame.Phase.SHOOTING && simulated < 30f) {
+            game.tick(1f / 60f)
+            simulated += 1f / 60f
+        }
+        // 重摆：不计分、不进下一局
+        assertEquals(0, game.match.playerFrames + game.match.aiFrames)
+        // 本杆的落袋反馈仍在，等待 UI 消费
+        assertTrue("rerack 不得清掉本杆的落袋反馈", game.pendingHapticPot)
+        // 普通重开才清掉残留反馈，避免上一杆音效串到新局
+        game.startMatch(PoolSide.PLAYER, seed = 4L)
+        assertFalse("新开对局必须清掉上一杆反馈", game.pendingHapticPot)
     }
 
     @Test

@@ -126,6 +126,23 @@ fun BearMazeScreen(
         val before = game.phase
         val wasMoving = game.moving
         val event = game.tick(dt)
+        // 落地事件反馈：每个落地 tick 都处理一次（冰面滑行途经的格子同样各计一次；
+        // 事件本身每次落地只产生一次，不会在同一格刷屏）。
+        when (event) {
+            MazeStepEvent.HONEY, MazeStepEvent.KEY, MazeStepEvent.LOCK -> {
+                GameAudio.play(GameCue.KEY)
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            }
+            MazeStepEvent.PORTAL -> {
+                GameAudio.play(GameCue.PORTAL)
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            }
+            MazeStepEvent.EXIT_LOCKED -> {
+                GameAudio.play(GameCue.BUMP)
+                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            }
+            MazeStepEvent.NONE, MazeStepEvent.CLEAR -> Unit
+        }
         if (wasMoving && !game.moving) {
             if (game.phase == MazePhase.CLEAR && before != MazePhase.CLEAR) {
                 // 结算音效/触感 + 落盘进度；结算即清掉落盘会话，避免选关页出现已结算的旧档
@@ -142,24 +159,9 @@ fun BearMazeScreen(
                         if (game.dailyDate == today) dailyBest = game.moves
                     }
                 }
-            } else {
-                // 按落地事件类型区分音效/触感（落地只响一次，滑行经过的格子同样各计一次）
-                when (event) {
-                    MazeStepEvent.HONEY, MazeStepEvent.KEY, MazeStepEvent.LOCK ->
-                        GameAudio.play(GameCue.KEY)
-                    MazeStepEvent.PORTAL -> GameAudio.play(GameCue.PORTAL)
-                    MazeStepEvent.EXIT_LOCKED -> GameAudio.play(GameCue.BUMP)
-                    else -> Unit
-                }
-                val haptic =
-                    when (event) {
-                        MazeStepEvent.HONEY, MazeStepEvent.KEY, MazeStepEvent.LOCK ->
-                            HapticFeedbackConstants.VIRTUAL_KEY
-                        MazeStepEvent.PORTAL -> HapticFeedbackConstants.KEYBOARD_TAP
-                        MazeStepEvent.EXIT_LOCKED -> HapticFeedbackConstants.LONG_PRESS
-                        else -> HapticFeedbackConstants.CLOCK_TICK
-                    }
-                view.performHapticFeedback(haptic)
+            } else if (event == MazeStepEvent.NONE) {
+                // 普通落地（含滑行结束在非事件格）：保留原来的轻触感
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
             }
         }
         frame.longValue = now

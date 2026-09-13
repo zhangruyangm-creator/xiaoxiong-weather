@@ -37,8 +37,9 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
-    // 设置页「游戏音效」分区需要写入 game_audio prefs 并试听 UI_CLICK
-    implementation(project(":game:common"))
+    // 仅依赖游戏入口契约层判断是否存在游戏（loadGameEntryProviders），不依赖游戏实现模块：
+    // 设置页直接读写 game_audio prefs，避免 lite 版被拖入 :game:common 的音效资源
+    implementation(project(":game:api"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

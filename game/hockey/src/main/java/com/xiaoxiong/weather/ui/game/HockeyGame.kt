@@ -269,8 +269,8 @@ class HockeyGame {
     /**
      * 应用设置：
      * - 难度 / 自定义等级随时生效（仅影响之后的 AI 行为）；
-     * - 对局进行中（[rulesLocked]）获胜分数、场地主题与挡板 / 球 / 门尺寸改动暂存，
-     *   下一局 [startMatch] 生效；
+     * - 场地主题是外观/手感「皮肤」，随时立即生效（局中切换也立刻换场地与摩擦）；
+     * - 对局进行中（[rulesLocked]）获胜分数与挡板 / 球 / 门尺寸改动暂存，下一局 [startMatch] 生效；
      * - 非对局期间立即生效；最后重建球桌并把球钳回新桌内。
      */
     fun applySettings(
@@ -296,7 +296,9 @@ class HockeyGame {
             pendingPaddleScaleBoth = paddleScaleBoth
             pendingPuckScale = pu
             pendingGoalScale = go
-            pendingRinkTheme = rinkTheme
+            // 主题是皮肤，局中也立即生效（视觉与摩擦同步切换）
+            this.rinkTheme = rinkTheme
+            pendingRinkTheme = null
         } else {
             this.winScore = w
             this.paddleScale = ps
@@ -438,7 +440,8 @@ class HockeyGame {
             header += pendingPuckScale ?: -1f
             header += pendingGoalScale ?: -1f
             // 场地主题：按稳定 id 字符串落盘（长度 + 字符码）。旧档缺这两段时
-            // 读回默认 ICE / 无暂存，保持旧档可恢复。
+            // 读回默认 ICE。pending 主题槽位保留以兼容旧 1.10 格式（新版恒写 -1，
+            // 恢复时会把旧档的 pending 折叠成当前主题）。
             header += rinkTheme.id.length
             rinkTheme.id.forEach { header += it.code }
             header += pendingRinkTheme?.id?.length ?: -1
@@ -509,11 +512,13 @@ class HockeyGame {
                 .getOrNull(pendingBase + 4)
                 ?.takeIf { it >= 0f }
                 ?.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
-        // 场地主题（可选拖尾）：旧档没有该字段时回退默认 ICE / 无暂存
+        // 场地主题（可选拖尾）：旧档没有该字段时回退默认 ICE。
+        // 1.10 旧档可能带 pendingRinkTheme（当时语义是「下一局生效」）；新版主题是即时皮肤，
+        // 恢复时把暂存主题折叠成当前主题并清空暂存，避免「设置里是木桌、场上还是冰面」。
         val (savedRinkTheme, afterRinkTheme) = readRinkThemeId(header, pendingBase + 5)
-        rinkTheme = savedRinkTheme ?: RinkTheme.DEFAULT
         val (savedPendingRinkTheme, _) = readRinkThemeId(header, afterRinkTheme)
-        pendingRinkTheme = savedPendingRinkTheme
+        rinkTheme = savedPendingRinkTheme ?: savedRinkTheme ?: RinkTheme.DEFAULT
+        pendingRinkTheme = null
         val playerG = groups.getOrNull(1)?.takeIf { it.size >= 5 } ?: return false
         val aiG = groups.getOrNull(2)?.takeIf { it.size >= 5 } ?: return false
         val puckG = groups.getOrNull(3)?.takeIf { it.size >= 5 } ?: return false

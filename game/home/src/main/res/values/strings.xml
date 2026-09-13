@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="bear_farm_title">小熊农场</string>
-    <string name="bear_game_title">小熊跳跳</string>
     <string name="bear_home_back">返回客厅</string>
     <string name="bear_home_cuisine_arabic">阿拉伯 / 中东</string>
     <string name="bear_home_cuisine_chinese">中式</string>
@@ -262,7 +260,5 @@
     <string name="bear_home_summary_now_doing">此刻 · %1$s</string>
     <string name="bear_home_summary_timeline_title">一天的足迹</string>
     <string name="bear_home_title">小熊的家</string>
-    <string name="bear_jump_title">小熊摘星</string>
-    <string name="bear_maze_title">小熊迷宫</string>
     <string name="cd_close_game">退出游戏</string>
 </resources>

@@ -199,9 +199,18 @@ class PoolGame {
     /** 上一局胜者，用于「胜者开球」。 */
     private var lastFrameWinner: PoolSide? = null
 
+    /**
+     * 清掉提示消息（新局/重摆时调用）。不含 pendingHaptic*：这些标志是「本杆待消费」
+     * 反馈，UI 在 tick 返回后才会消费；rerack 重摆发生在同一 tick 内，清掉会丢失开球
+     * 的落袋/首碰反馈。统一在出杆 [shoot] 时清理，开局/恢复快照另由 [clearPendingFeedback] 兜底。
+     */
     private fun resetTransientIndicators() {
         message = PoolMessage.NONE
         messageT = 0f
+    }
+
+    /** 清掉尚未被 UI 消费的本杆反馈标志（开局/恢复快照/下一杆出杆前调用）。 */
+    private fun clearPendingFeedback() {
         pendingHapticCue = false
         pendingHapticHit = false
         pendingHapticPot = false
@@ -333,6 +342,7 @@ class PoolGame {
         potsThisMatch = 0
         bestShotPots = 0
         resetTransientIndicators()
+        clearPendingFeedback()
         aiRng = Random(seed)
         startFrame(breaker, seed)
     }
@@ -389,6 +399,7 @@ class PoolGame {
         shotHistoryList.clear()
         lessonPassed = false
         resetTransientIndicators()
+        clearPendingFeedback()
         aimAngle = -(Math.PI / 2).toFloat()
         power = 0f
         spin = Spin()
@@ -468,6 +479,8 @@ class PoolGame {
             return
         }
         frameWinner = null
+        // 上一局未消费完的反馈不应串到新一局
+        clearPendingFeedback()
         // 上一局赢家开球（无记录时玩家开球）
         val breaker = lastFrameWinner ?: PoolSide.PLAYER
         startFrame(breaker, System.nanoTime() xor (framesPlayed * 7919L))
@@ -597,6 +610,8 @@ class PoolGame {
         accumulator = 0f
         phase = Phase.SHOOTING
         shotCount++
+        // 上一杆未消费完的反馈不应串到本杆；本杆反馈从击球音开始重新累积
+        clearPendingFeedback()
         pendingHapticCue = true
     }
 
@@ -1217,6 +1232,7 @@ class PoolGame {
         savedFrameWinner = null
         effects.clear()
         resetTransientIndicators()
+        clearPendingFeedback()
         // AI 回合恢复后稍作停顿再出杆，避免恢复瞬间立刻出杆
         if (phase == Phase.AIMING) scheduleAiIfNeeded()
     }

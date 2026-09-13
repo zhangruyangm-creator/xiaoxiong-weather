@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bear_plane_title">Bear Fighter</string>
+    <string name="cd_plane_field">Bear Fighter battlefield</string>
+    <string name="cd_plane_score">Score %1$d, best %2$d</string>
+    <string name="cd_plane_hud_stats">Lives %1$d, bombs %2$d, power level %3$d</string>
+    <string name="cd_plane_boss_hp">Boss health</string>
+    <string name="bear_plane_start">Start mission</string>
+    <string name="bear_plane_intro">Drag the bear fighter to dodge bullets and auto-fire; grab P to upgrade, B for bombs, and clear all 10 waves to finish the mission.</string>
+    <string name="bear_plane_best">Best %1$d</string>
+    <string name="bear_plane_score">Score %1$d</string>
+    <string name="bear_plane_score_label">Score</string>
+    <string name="bear_plane_win">Mission complete!</string>
+    <string name="bear_plane_lose">Fighter down</string>
+    <string name="bear_plane_new_record">New record!</string>
+    <string name="bear_plane_kills">Kills %1$d</string>
+    <string name="bear_plane_wave_reached">Reached wave %1$d</string>
+    <string name="bear_plane_again">Play again</string>
+    <string name="bear_plane_exit">Exit game</string>
+    <string name="bear_plane_bomb_use">Use bomb, %1$d left</string>
+    <string name="bear_plane_weapon">Power %1$d</string>
+    <string name="bear_plane_wave">Wave %1$d</string>
+    <string name="bear_plane_boss">BOSS</string>
+    <string name="bear_plane_boss_warning">Warning! Boss incoming</string>
+    <string name="bear_plane_rank">Rank %1$d</string>
+    <string name="bear_plane_sound">Sound</string>
+    <string name="bear_plane_leaderboard">Leaderboard</string>
+    <string name="bear_plane_diff_casual">Casual</string>
+    <string name="bear_plane_diff_standard">Standard</string>
+    <string name="bear_plane_diff_challenge">Challenge</string>
+</resources>

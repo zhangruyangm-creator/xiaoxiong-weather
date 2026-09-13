@@ -50,6 +50,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -76,13 +77,14 @@ import com.xiaoxiong.weather.data.BackgroundRefreshInterval
 import com.xiaoxiong.weather.data.DebugWeatherStore
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.ThemeMode
-import com.xiaoxiong.weather.ui.game.GameAudio
-import com.xiaoxiong.weather.ui.game.GameCue
+import com.xiaoxiong.weather.game.loadGameEntryProviders
 import com.xiaoxiong.weather.ui.weather.AppScreenBackground
 import com.xiaoxiong.weather.ui.weather.SectionHeader
 import com.xiaoxiong.weather.ui.weather.SoftCard
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,7 +106,18 @@ fun SettingsScreen(
     )
     val context = LocalContext.current
     var aboutTapCount by remember { mutableIntStateOf(0) }
-    var gameAudioSettings by remember(context) { mutableStateOf(GameAudio.settings(context)) }
+    // 游戏音效分区仅在 classpath 存在游戏实现时展示（lite 版 ServiceLoader 为空 → 隐藏）；
+    // prefs 读取放 LaunchedEffect（IO 线程），组合期不读盘，写入仍由用户操作触发
+    val showGameAudio =
+        remember(context) {
+            runCatching { loadGameEntryProviders().isNotEmpty() }.getOrDefault(false)
+        }
+    var gameAudioSettings by remember(context) { mutableStateOf(GameAudioPrefs.default) }
+    LaunchedEffect(context, showGameAudio) {
+        if (showGameAudio) {
+            gameAudioSettings = withContext(Dispatchers.IO) { GameAudioPrefs.read(context) }
+        }
+    }
 
     // Android 13+ 通知开关必须先拿到 POST_NOTIFICATIONS；授权状态以系统为准，
     // 用户从系统设置返回时在 ON_RESUME 重新读取
@@ -339,55 +352,57 @@ fun SettingsScreen(
                         )
                     }
                 }
-                item {
-                    SoftCard(modifier = Modifier.fillMaxWidth()) {
-                        SectionHeader(
-                            title = stringResource(R.string.settings_game_audio),
-                            subtitle = stringResource(R.string.settings_game_audio_sub),
-                            icon = Icons.Filled.MusicNote,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        SettingsSwitchRow(
-                            title = stringResource(R.string.settings_game_audio_toggle),
-                            subtitle = stringResource(R.string.settings_game_audio_toggle_sub),
-                            checked = gameAudioSettings.enabled,
-                            onCheckedChange = { enabled ->
-                                GameAudio.setEnabled(context, enabled)
-                                gameAudioSettings = GameAudio.settings(context)
-                                if (enabled) GameAudio.play(context, GameCue.UI_CLICK)
-                            },
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_game_audio_volume),
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                if (showGameAudio) {
+                    item {
+                        SoftCard(modifier = Modifier.fillMaxWidth()) {
+                            SectionHeader(
+                                title = stringResource(R.string.settings_game_audio),
+                                subtitle = stringResource(R.string.settings_game_audio_sub),
+                                icon = Icons.Filled.MusicNote,
                             )
-                            Text(
-                                text =
-                                    stringResource(
-                                        R.string.settings_game_audio_volume_percent,
-                                        (gameAudioSettings.volume * 100).roundToInt(),
-                                    ),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.settings_game_audio_toggle),
+                                subtitle = stringResource(R.string.settings_game_audio_toggle_sub),
+                                checked = gameAudioSettings.enabled,
+                                // 音效试听需要 game 依赖，设置页改为静默：只落 prefs，游戏内自然生效
+                                onCheckedChange = { enabled ->
+                                    GameAudioPrefs.setEnabled(context, enabled)
+                                    gameAudioSettings = gameAudioSettings.copy(enabled = enabled)
+                                },
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_game_audio_volume),
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text =
+                                        stringResource(
+                                            R.string.settings_game_audio_volume_percent,
+                                            (gameAudioSettings.volume * 100).roundToInt(),
+                                        ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Slider(
+                                value = gameAudioSettings.volume,
+                                onValueChange = { volume ->
+                                    GameAudioPrefs.setVolume(context, volume)
+                                    gameAudioSettings =
+                                        gameAudioSettings.copy(volume = GameAudioPrefs.coerceVolume(volume))
+                                },
+                                valueRange = GameAudioPrefs.MIN_VOLUME..GameAudioPrefs.MAX_VOLUME,
                             )
                         }
-                        Slider(
-                            value = gameAudioSettings.volume,
-                            onValueChange = { volume ->
-                                GameAudio.setVolume(context, volume)
-                                gameAudioSettings = GameAudio.settings(context)
-                            },
-                            onValueChangeFinished = { GameAudio.play(context, GameCue.UI_CLICK) },
-                            valueRange = GameAudio.MIN_VOLUME..GameAudio.MAX_VOLUME,
-                        )
                     }
                 }
                 item {

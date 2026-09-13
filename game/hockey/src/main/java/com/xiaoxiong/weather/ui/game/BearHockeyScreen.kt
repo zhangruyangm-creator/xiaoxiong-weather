@@ -628,8 +628,10 @@ fun BearHockeyScreen(
                 showCareer = true
             },
             onDismiss = { showSettings = false },
-            onSave = { d, level, w, paddle, paddleBoth, puck, goal, theme ->
+            onSave = { d, level, w, paddle, paddleBoth, puck, goal, theme, sound ->
                 game.applySettings(d, level, w, paddle, paddleBoth, puck, goal, theme)
+                // 音效开关与其它设置一致：只在保存路径写入全局，取消 / 返回不生效
+                GameAudio.setEnabled(context, sound)
                 prefs.edit {
                     putString(
                         PREF_DIFF,
@@ -701,9 +703,9 @@ private fun ServeBanner(game: HockeyGame) {
         derivedStateOf { ceil(game.serveTimer / (SERVE_COUNTDOWN_SECONDS / 3f)).toInt().coerceIn(1, 3) }
     }
     val ready by remember { derivedStateOf { game.serveTimer > SERVE_COUNTDOWN_SECONDS } }
-    // 倒数每跳一拍给一声轻点，提示发球节拍
-    LaunchedEffect(countdown) {
-        GameAudio.play(GameCue.UI_CLICK)
+    // 发球哨：每次进入发球倒数只吹一声（低频一次），替代原来的逐拍点击音
+    LaunchedEffect(Unit) {
+        GameAudio.play(GameCue.WHISTLE)
     }
     // 发球方向提示：失球方接发球（球飞向失球一侧）
     val hint =
@@ -785,7 +787,7 @@ private fun HockeySettingsDialog(
     rulesLocked: Boolean,
     onOpenCareer: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (Difficulty, Int, Int, Float, Boolean, Float, Float, RinkTheme) -> Unit,
+    onSave: (Difficulty, Int, Int, Float, Boolean, Float, Float, RinkTheme, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     var d by remember(difficulty) { mutableStateOf(difficulty) }
@@ -796,7 +798,7 @@ private fun HockeySettingsDialog(
     var puck by remember(puckScale) { mutableStateOf(puckScale) }
     var goal by remember(goalScale) { mutableStateOf(goalScale) }
     var theme by remember(rinkTheme) { mutableStateOf(rinkTheme) }
-    // 音效开关：读写全局 GameAudio 设置（旧 hockey_sound 仅由 GameAudio 首次迁移读取）
+    // 音效开关：只改本地状态，点「保存」才随 onSave 写入全局 GameAudio（旧 hockey_sound 仅由 GameAudio 首次迁移读取）
     var sound by remember { mutableStateOf(GameAudio.settings(context).enabled) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -968,10 +970,7 @@ private fun HockeySettingsDialog(
                     )
                     Switch(
                         checked = sound,
-                        onCheckedChange = {
-                            sound = it
-                            GameAudio.setEnabled(context, it)
-                        },
+                        onCheckedChange = { sound = it },
                     )
                 }
                 Spacer(Modifier.height(6.dp))
@@ -1018,6 +1017,7 @@ private fun HockeySettingsDialog(
                                 puck.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX),
                                 goal.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX),
                                 theme,
+                                sound,
                             )
                         },
                     ) {

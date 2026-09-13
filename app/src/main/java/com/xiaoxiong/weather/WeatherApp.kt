@@ -62,13 +62,16 @@ class WeatherApp : Application() {
                 .onFailure { CrashReporting.record(it) }
         }
 
-        // 温度单位切换后重绘桌面小组件：设置流首次发射是初值，跳过；
-        // 短时间连续切换由 scheduleWidgetRefreshForUnitChange 合并
+        // 温度单位切换后：重绘桌面小组件，并触发一次静默天气刷新
+        // （预警文案等派生字符串按旧单位生成，需重新拉取；静默保留界面数据，
+        // 刷新节流由 WeatherViewModel.refresh(quiet=true) 自身的去重窗口兜底）。
+        // 设置流首次发射是初值，跳过；短时间连续切换由 scheduleWidgetRefreshForUnitChange 合并
         appScope.launch {
             val unitChanges = TemperatureUnitChangeDetector()
             container.settingsStore.settings.collect { settings ->
                 if (unitChanges.onUnit(settings.temperatureUnit)) {
                     scheduleWidgetRefreshForUnitChange()
+                    container.requestQuietWeatherRefresh()
                 }
             }
         }

@@ -9,7 +9,8 @@ data class WeatherSceneStyle(
     val mutedContentColor: Color,
     /**
      * 浅色渐变场景在白字下叠加的黑色暗角透明度（0 = 不叠加，深色场景默认）。
-     * 卡片在动画层之上、内容之下按此值铺一层纯黑，保证白字对复合后背景 ≥3:1。
+     * 卡片在动画层之上、内容之下按此值铺一层纯黑：content（大号排版）对复合后最亮
+     * stop ≥3:1、muted（小号标签）≥4.5:1；浅色场景实测均已 ≥4.5:1，见 WeatherSceneContrastTest。
      */
     val scrimAlpha: Float = 0f,
 )
@@ -28,12 +29,12 @@ fun weatherSceneStyle(
             if (day) {
                 WeatherSceneStyle(
                     scene = scene,
-                    // 亮蓝渐变整体加深（保持蓝青色相）再叠 0.30 黑scrim：
-                    // 白字对复合后最亮 stop 4.80:1、muted 0.9 白字 4.23:1，均是白字方案
+                    // 亮蓝渐变整体加深（保持蓝青色相）再叠 0.33 黑scrim：
+                    // 白字对复合后最亮 stop 5.16:1、muted 0.92 白字 4.64:1，小号 AA 达标
                     gradient = listOf(Color(0xFF2B8FD0), Color(0xFF1C64B8), Color(0xFF43AEDF)),
                     contentColor = Color.White,
-                    mutedContentColor = Color.White.copy(alpha = 0.9f),
-                    scrimAlpha = 0.30f,
+                    mutedContentColor = Color.White.copy(alpha = 0.92f),
+                    scrimAlpha = 0.33f,
                 )
             } else {
                 WeatherSceneStyle(
@@ -50,12 +51,12 @@ fun weatherSceneStyle(
             if (day) {
                 WeatherSceneStyle(
                     scene = scene,
-                    // 亮堇紫渐变整体加深（保持色相）再叠 0.30 黑scrim：
-                    // 白字对复合后最亮 stop 4.88:1、muted 0.9 白字 4.30:1
+                    // 亮堇紫渐变整体加深（保持色相）再叠 0.33 黑scrim：
+                    // 白字对复合后最亮 stop 5.24:1、muted 0.92 白字 4.72:1，小号 AA 达标
                     gradient = listOf(Color(0xFF5FA9DB), Color(0xFF5570D6), Color(0xFF8296E8)),
                     contentColor = Color.White,
-                    mutedContentColor = Color.White.copy(alpha = 0.9f),
-                    scrimAlpha = 0.30f,
+                    mutedContentColor = Color.White.copy(alpha = 0.92f),
+                    scrimAlpha = 0.33f,
                 )
             } else {
                 WeatherSceneStyle(
@@ -85,12 +86,12 @@ fun weatherSceneStyle(
             } else {
                 WeatherSceneStyle(
                     scene = scene,
-                    // 浅灰蓝雾天加深为石板灰（保持色相）再叠 0.30 黑scrim：
-                    // 白字对复合后最亮 stop 4.56:1、muted 0.9 白字 4.04:1
+                    // 浅灰蓝雾天加深为石板灰（保持色相）再叠 0.38 黑scrim：
+                    // 白字对复合后最亮 stop 5.55:1、muted 0.9 白字 4.86:1，小号 AA 达标
                     gradient = listOf(Color(0xFF7E939E), Color(0xFF647A86), Color(0xFF9AABB4)),
                     contentColor = Color.White,
                     mutedContentColor = Color.White.copy(alpha = 0.9f),
-                    scrimAlpha = 0.30f,
+                    scrimAlpha = 0.38f,
                 )
             }
 
@@ -157,12 +158,12 @@ fun weatherSceneStyle(
             } else {
                 WeatherSceneStyle(
                     scene = scene,
-                    // 浅雪蓝渐变适度加深（保持色相）再叠 0.35 黑scrim：
-                    // 白字对复合后最亮 stop 3.97:1、muted 0.9 白字 3.55:1
+                    // 浅雪蓝渐变适度加深（保持色相）再叠 0.45 黑scrim：
+                    // 白字对复合后最亮 stop 5.25:1、muted 0.9 白字 4.62:1，小号 AA 达标
                     gradient = listOf(Color(0xFFA9C9DE), Color(0xFF86B0CC), Color(0xFF679BC6)),
                     contentColor = Color.White,
                     mutedContentColor = Color.White.copy(alpha = 0.9f),
-                    scrimAlpha = 0.35f,
+                    scrimAlpha = 0.45f,
                 )
             }
 

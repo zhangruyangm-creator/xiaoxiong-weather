@@ -94,6 +94,55 @@ class HockeySnapshotTest {
         return SnapshotCodec.encodeGroups(groups)
     }
 
+    /** 手工拼一份 1.10 旧格式快照：当前主题与「局中暂存主题」分别落盘。 */
+    private fun snapshotPayloadWithPendingTheme(
+        current: RinkTheme,
+        pending: RinkTheme,
+    ): String {
+        val header =
+            mutableListOf<Number>(
+                Phase.PLAYING.ordinal,
+                3,
+                2,
+                1.5f,
+                0.4f,
+                0.7f,
+                9,
+                7,
+                1.3f,
+                0.75f,
+                1.2f,
+                4,
+                -1,
+                0,
+                0,
+                42f,
+                400f,
+                800f,
+                20f,
+                40f,
+            )
+        header += Difficulty.HARD.name.length
+        Difficulty.HARD.name.forEach { header += it.code }
+        // 拖尾：paddleScaleBoth + matchDifficulty + 5 个非主题 pending（均无暂存）
+        header += 1f
+        header += Difficulty.HARD.ordinal
+        repeat(5) { header += -1f }
+        // 当前主题 + 旧语义的「下一局主题」
+        header += current.id.length
+        current.id.forEach { header += it.code }
+        header += pending.id.length
+        pending.id.forEach { header += it.code }
+        val groups =
+            listOf(
+                header,
+                listOf<Number>(100f, 650f, 10f, -20f, 35.1f),
+                listOf<Number>(300f, 150f, 5f, 6f, 35.1f),
+                listOf<Number>(200f, 400f, -30f, 40f, 35.1f),
+            )
+        return SnapshotCodec.encodeGroups(groups)
+    }
+
     @Test
     fun saveRestore_keepsRunningState() {
         val prefs = TestPrefs()
@@ -324,9 +373,9 @@ class HockeySnapshotTest {
         assertFalse(restored.hasPendingRules)
     }
 
-    /** 场地主题（当前 + 局中暂存）随快照往返；暂存主题在下一局生效。 */
+    /** 场地主题是皮肤：局中切换立即生效，随快照按「当前主题」往返。 */
     @Test
-    fun saveRestore_keepsRinkThemeAndPending() {
+    fun saveRestore_keepsRinkTheme() {
         val prefs = TestPrefs()
         val source = startedGame()
         source.rinkTheme = RinkTheme.BEAR
@@ -341,18 +390,42 @@ class HockeySnapshotTest {
             rinkTheme = RinkTheme.CONCRETE,
         )
         assertTrue(source.rulesLocked)
+        assertEquals("局中主题立即生效", RinkTheme.CONCRETE, source.rinkTheme)
         source.saveSnapshot(prefs)
 
         val restored = HockeyGame()
         restored.resize(400f, 800f, 20f, 40f)
         assertTrue(restored.restoreSnapshot(prefs))
-        assertEquals("当前主题随快照保留", RinkTheme.BEAR, restored.rinkTheme)
-        assertEquals("局中暂存主题随快照保留", RinkTheme.CONCRETE, restored.displayRinkTheme())
+        assertEquals("主题随快照保留", RinkTheme.CONCRETE, restored.rinkTheme)
+        assertEquals(RinkTheme.CONCRETE, restored.displayRinkTheme())
 
         restored.startMatch()
         assertEquals(RinkTheme.CONCRETE, restored.rinkTheme)
         assertEquals(RinkTheme.CONCRETE, restored.displayRinkTheme())
         assertFalse(restored.hasPendingRules)
+    }
+
+    /**
+     * 1.10 旧档带「下一局主题」：新版主题是即时皮肤，恢复时把暂存主题
+     * 折叠为当前主题并清空暂存，避免设置弹窗显示木桌、场上却还是冰面。
+     */
+    @Test
+    fun restore_legacySnapshotFoldsPendingRinkTheme() {
+        val prefs = TestPrefs()
+        prefs
+            .edit()
+            .putString(snapshotKey, snapshotPayloadWithPendingTheme(RinkTheme.BEAR, RinkTheme.WOOD))
+            .apply()
+
+        val restored = HockeyGame()
+        restored.resize(400f, 800f, 20f, 40f)
+        assertTrue("旧档必须仍可恢复", restored.restoreSnapshot(prefs))
+        assertEquals("旧档暂存主题折叠为当前主题", RinkTheme.WOOD, restored.rinkTheme)
+        assertEquals(RinkTheme.WOOD, restored.displayRinkTheme())
+        assertFalse("主题暂存应被折叠清空", restored.hasPendingRules)
+
+        restored.startMatch()
+        assertEquals("下一局不再套用旧暂存", RinkTheme.WOOD, restored.rinkTheme)
     }
 
     /** 旧档没有主题拖尾字段：回退默认 ICE、无暂存主题。 */

@@ -1216,7 +1216,7 @@ fun BearPoolScreen(
                 showDaily = true
             },
             onDismiss = { showSettings = false },
-            onSave = { d, a, r, m, rm, cl ->
+            onSave = { d, a, r, m, s, rm, cl ->
                 game.difficulty = d
                 game.aids = a
                 // 对局进行中不改变赛制/模式（否则 raceTo 变小会当场判 matchOver，成就口径也被污染）
@@ -1226,6 +1226,8 @@ fun BearPoolScreen(
                     game.raceTo = race
                     game.mode = m
                 }
+                // 音效开关与其它设置一致：只有点保存才写入全局
+                GameAudio.setEnabled(context, s)
                 reduceMotionPref = rm
                 game.reduceMotion = rm || systemReduceMotion
                 clothTheme = cl.coerceIn(0, CLOTH_THEME_RES.size - 1)
@@ -2020,14 +2022,14 @@ private fun PoolSettingsDialog(
     dailyBest: Int,
     onOpenDaily: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (PoolAi.Difficulty, Aids, Int, PoolMode, Boolean, Int) -> Unit,
+    onSave: (PoolAi.Difficulty, Aids, Int, PoolMode, Boolean, Boolean, Int) -> Unit,
 ) {
     val context = LocalContext.current
     var d by remember(difficulty) { mutableStateOf(difficulty) }
     var a by remember(aids) { mutableStateOf(aids) }
     var r by remember(raceTo) { mutableStateOf(raceTo) }
     var m by remember(mode) { mutableStateOf(mode) }
-    // 音效开关：读写全局 GameAudio 设置（旧 pool_sound 仅由 GameAudio 首次迁移读取）
+    // 音效开关：弹窗内只改本地状态，点保存才写全局 GameAudio（旧 pool_sound 仅由 GameAudio 首次迁移读取）
     var s by remember { mutableStateOf(GameAudio.settings(context).enabled) }
     var rm by remember(reduceMotion) { mutableStateOf(reduceMotion) }
     var cl by remember(clothTheme) { mutableStateOf(clothTheme.coerceIn(0, CLOTH_THEME_RES.size - 1)) }
@@ -2150,10 +2152,7 @@ private fun PoolSettingsDialog(
                     )
                     Switch(
                         checked = s,
-                        onCheckedChange = {
-                            s = it
-                            GameAudio.setEnabled(context, it)
-                        },
+                        onCheckedChange = { s = it },
                     )
                 }
                 Row(
@@ -2173,7 +2172,7 @@ private fun PoolSettingsDialog(
                         Text(stringResource(R.string.bear_pool_cancel))
                     }
                     Spacer(Modifier.width(4.dp))
-                    Button(onClick = { onSave(d, a, r.coerceIn(1, 3), m, rm, cl) }) {
+                    Button(onClick = { onSave(d, a, r.coerceIn(1, 3), m, s, rm, cl) }) {
                         Text(stringResource(R.string.bear_pool_save))
                     }
                 }

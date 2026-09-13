@@ -9,10 +9,10 @@ plugins {
     alias(libs.plugins.androidx.baselineprofile)
 }
 
-// 彩蛋游戏可选编译：把 jump/star/catch/maze/farm/home/hockey/pool 依 -Pgames 动态接入（默认 all）。
+// 彩蛋游戏可选编译：把 jump/star/catch/maze/farm/home/hockey/pool/plane 依 -Pgames 动态接入（默认 all）。
 // 与旧「源码集裁剪」不同：未选中的游戏模块不参与编译与打包，classpath 上不存在其字节码，
 // 装配侧用 ServiceLoader（:game:api 的 loadGameEntryProviders()）发现已在 classpath 的入口，天然更彻底。
-val gameIds = listOf("jump", "star", "catch", "maze", "farm", "home", "hockey", "pool")
+val gameIds = listOf("jump", "star", "catch", "maze", "farm", "home", "hockey", "pool", "plane")
 
 val gamesRaw = (project.findProperty("games") as String?)?.trim()?.lowercase()
 val enabledGames: Set<String> =
@@ -159,6 +159,10 @@ dependencies {
     }
     if ("pool" in enabledGames) {
         "fullImplementation"(project(":game:pool"))
+    }
+    if ("plane" in enabledGames) {
+        // 小熊战机
+        "fullImplementation"(project(":game:plane"))
     }
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

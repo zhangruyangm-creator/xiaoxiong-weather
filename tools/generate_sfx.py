@@ -67,6 +67,20 @@ def env_ar(t: np.ndarray, attack: float, release: float) -> np.ndarray:
     return rise * np.exp(-local / max(release, 1e-4)) * (t >= 0.0)
 
 
+def env_gate(
+    t: np.ndarray,
+    start: float,
+    duration: float,
+    attack: float = 0.004,
+    release: float = 0.02,
+) -> np.ndarray:
+    """矩形门包络：起音 / 释音线性过渡，区间外为 0（用于警报等断续音）。"""
+    local = t - start
+    rise = np.clip(local / max(attack, 1e-4), 0.0, 1.0)
+    fall = np.clip((duration - local) / max(release, 1e-4), 0.0, 1.0)
+    return rise * fall
+
+
 def note(
     t: np.ndarray,
     freq: float,
@@ -251,6 +265,69 @@ def sfx_whistle(rng: np.random.Generator) -> np.ndarray:
     return tone * env_ar(t, attack=0.008, release=0.09)
 
 
+# ---------- 小熊战机（竖屏弹幕射击） ----------
+
+
+def sfx_shot(rng: np.random.Generator) -> np.ndarray:
+    """玩家射击：900Hz 三角为主 + 少量方波，低通软化高频，极快衰减。"""
+    t = _time(0.06)
+    tone = 0.7 * triangle(t, 900.0) + 0.3 * square(t, 900.0)
+    body = lowpass(tone, 4500.0) * env_decay(t, 0.012, attack=0.0005)
+    spark = bandpass(rng.standard_normal(t.size), 1000.0, 3000.0) * env_decay(t, 0.004, attack=0.0003)
+    return body + spark * 0.18
+
+
+def sfx_laser(rng: np.random.Generator) -> np.ndarray:
+    """激光：1400→600Hz 下滑，双振荡器轻微失谐增加厚度，叠加少量噪声。"""
+    t = _time(0.12)
+    lead = log_sweep(t, 1400.0, 600.0)
+    layer = log_sweep(t, 1425.0, 615.0)
+    body = (lead + 0.45 * layer) * env_decay(t, 0.05, attack=0.002)
+    air = lowpass(rng.standard_normal(t.size), 2600.0) * env_decay(t, 0.03, attack=0.001)
+    return body + air * 0.16
+
+
+def sfx_explosion(rng: np.random.Generator) -> np.ndarray:
+    """爆炸：低通白噪 + 80Hz 低音，30ms 起音后指数衰减，少量碎片噪声。"""
+    t = _time(0.30)
+    boom = sine(t, 80.0) * env_decay(t, 0.12, attack=0.03)
+    blast = lowpass(rng.standard_normal(t.size), 1100.0) * env_decay(t, 0.10, attack=0.03)
+    debris = bandpass(rng.standard_normal(t.size), 600.0, 2500.0) * env_decay(t, 0.05, attack=0.01)
+    return boom + blast * 0.85 + debris * 0.08
+
+
+def sfx_powerup(rng: np.random.Generator) -> np.ndarray:
+    """升级：740 / 988 / 1245Hz 三连上行三角音，轻快顺滑。"""
+    t = _time(0.22)
+    out = np.zeros_like(t)
+    for i, freq in enumerate((740.0, 988.0, 1245.0)):
+        out += note(t, freq, i * 0.055, 0.10, 0.05, wave="triangle", attack=0.002)
+    return out
+
+
+def sfx_bomb(rng: np.random.Generator) -> np.ndarray:
+    """炸弹：60→40Hz 轰鸣 + 三段白噪向下滚落 + 低频尾部余响。"""
+    t = _time(0.50)
+    rumble = log_sweep(t, 60.0, 40.0) * env_decay(t, 0.20, attack=0.008)
+    sweep_noise = (
+        bandpass(rng.standard_normal(t.size), 1200.0, 4000.0) * env_decay(t, 0.03, attack=0.002)
+        + bandpass(rng.standard_normal(t.size), 400.0, 1400.0) * env_decay(t, 0.07, attack=0.004)
+        + lowpass(rng.standard_normal(t.size), 400.0) * env_decay(t, 0.12, attack=0.008)
+    )
+    tail = lowpass(rng.standard_normal(t.size), 320.0) * env_ar(t - 0.16, attack=0.02, release=0.18)
+    return rumble + sweep_noise * 0.55 + tail * 0.5
+
+
+def sfx_warning(rng: np.random.Generator) -> np.ndarray:
+    """Boss 警报：440Hz 方波低通后两短一长（0.10 / 0.10 / 0.15s），紧迫不刺耳。"""
+    t = _time(0.45)
+    tone = lowpass(square(t, 440.0), 1600.0)
+    first = tone * env_gate(t, 0.00, 0.10)
+    second = tone * env_gate(t, 0.15, 0.10)
+    third = tone * env_gate(t, 0.30, 0.15)
+    return first + second + third
+
+
 # (文件名, 配方, 淡出秒数)
 CUES: Dict[str, Tuple[Callable[[np.random.Generator], np.ndarray], float]] = {
     "sfx_ui_click": (sfx_ui_click, 0.005),
@@ -271,6 +348,13 @@ CUES: Dict[str, Tuple[Callable[[np.random.Generator], np.ndarray], float]] = {
     "sfx_win": (sfx_win, 0.010),
     "sfx_lose": (sfx_lose, 0.010),
     "sfx_whistle": (sfx_whistle, 0.008),
+    # 小熊战机（追加在末尾，保证既有 18 个音效的随机序列与输出不变）
+    "sfx_shot": (sfx_shot, 0.005),
+    "sfx_laser": (sfx_laser, 0.008),
+    "sfx_explosion": (sfx_explosion, 0.010),
+    "sfx_powerup": (sfx_powerup, 0.008),
+    "sfx_bomb": (sfx_bomb, 0.012),
+    "sfx_warning": (sfx_warning, 0.008),
 }
 
 

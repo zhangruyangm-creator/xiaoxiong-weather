@@ -53,7 +53,7 @@
     <string name="bear_hockey_serve_to_you">开球飞向你的半场</string>
     <string name="bear_hockey_serve_to_rival">开球飞向对手半场</string>
     <string name="bear_hockey_serve_random">开球方向随机</string>
-    <string name="bear_hockey_rules_locked">对局进行中，获胜分数、场地主题与尺寸改动将在下一局生效</string>
+    <string name="bear_hockey_rules_locked">对局进行中，获胜分数与尺寸改动将在下一局生效（场地主题立即生效）</string>
     <string name="bear_hockey_sound">音效</string>
     <string name="bear_hockey_career">生涯 / 成就</string>
     <string name="bear_hockey_unlock_title">解锁成就！</string>

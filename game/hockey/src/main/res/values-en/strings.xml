@@ -53,7 +53,7 @@
     <string name="bear_hockey_serve_to_you">Serve flies into your half</string>
     <string name="bear_hockey_serve_to_rival">Serve flies into the rival\'s half</string>
     <string name="bear_hockey_serve_random">Serve direction is random</string>
-    <string name="bear_hockey_rules_locked">Match in progress — win score, rink theme, and size changes apply next match</string>
+    <string name="bear_hockey_rules_locked">Match in progress — win score and size changes apply next match (rink theme applies instantly)</string>
     <string name="bear_hockey_sound">Sound</string>
     <string name="bear_hockey_career">Career / Achievements</string>
     <string name="bear_hockey_unlock_title">Achievement unlocked!</string>
