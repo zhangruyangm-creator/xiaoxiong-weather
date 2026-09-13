@@ -367,6 +367,8 @@ fun BearHockeyScreen(
             )
         }
 
+        // 比分放进顶部按钮栏中间：不占据冰面/球门进攻路线，也不再是显眼的深色浮层。
+        val scoreA11y = stringResource(R.string.bear_hockey_a11y_score, game.playerScore, game.aiScore)
         Row(
             modifier =
                 Modifier
@@ -385,14 +387,35 @@ fun BearHockeyScreen(
                     tint = Color.White,
                 )
             }
-            Text(
-                text = stringResource(R.string.bear_hockey_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center,
-            )
+            Row(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .semantics {
+                            liveRegion = LiveRegionMode.Polite
+                            contentDescription = scoreA11y
+                        },
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.bear_hockey_you),
+                    color = HockeyUi.accentWarm,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    text = "${game.playerScore} : ${game.aiScore}",
+                    modifier = Modifier.padding(horizontal = 10.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = stringResource(R.string.bear_hockey_rival),
+                    color = HockeyUi.accentCool,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             if (game.phase != Phase.READY && game.phase != Phase.MATCH_OVER) {
                 GamePauseButton(onClick = { pause.open() })
             }
@@ -409,50 +432,6 @@ fun BearHockeyScreen(
                     lb.show = true
                 },
             )
-        }
-
-        val scoreA11y = stringResource(R.string.bear_hockey_a11y_score, game.playerScore, game.aiScore)
-        Column(
-            modifier =
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 52.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Surface(
-                modifier =
-                    Modifier.semantics {
-                        liveRegion = LiveRegionMode.Polite
-                        contentDescription = scoreA11y
-                    },
-                shape = RoundedCornerShape(20.dp),
-                color = HockeyUi.glass,
-                border = BorderStroke(1.dp, HockeyUi.iceBorder),
-                shadowElevation = 8.dp,
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    ScorePill(
-                        label = stringResource(R.string.bear_hockey_you),
-                        score = game.playerScore,
-                        accent = HockeyUi.accentWarm,
-                    )
-                    Text(
-                        text = stringResource(R.string.bear_hockey_first_to, game.winScore),
-                        color = HockeyUi.textSecondary,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                    ScorePill(
-                        label = stringResource(R.string.bear_hockey_rival),
-                        score = game.aiScore,
-                        accent = HockeyUi.accentCool,
-                    )
-                }
-            }
         }
 
         when (game.phase) {
@@ -692,31 +671,6 @@ fun BearHockeyScreen(
         HockeyUnlockDialog(
             achievements = pendingUnlocks,
             onDismiss = { pendingUnlocks = emptyList() },
-        )
-    }
-}
-
-@Composable
-private fun ScorePill(
-    label: String,
-    score: Int,
-    accent: Color,
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = accent.copy(alpha = 0.9f), style = MaterialTheme.typography.labelMedium)
-        Text(
-            "$score",
-            color = Color.White,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Black,
-        )
-        Box(
-            modifier =
-                Modifier
-                    .padding(top = 1.dp)
-                    .width(22.dp)
-                    .height(2.dp)
-                    .background(accent.copy(alpha = 0.8f), RoundedCornerShape(1.dp)),
         )
     }
 }
