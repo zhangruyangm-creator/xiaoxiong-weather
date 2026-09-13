@@ -188,6 +188,7 @@ fun BearCatchScreen(
         }
     // 进程重建（如旋转/被系统回收后重进）时恢复局中快照；坏档/无档保持标题
     LaunchedEffect(Unit) {
+        GameAudio.preload(context)
         game.restoreSnapshot(prefs)
     }
     // 退出流程（HUD 关闭 / 暂停退出 / 返回键）：先清档并置标记，
@@ -214,7 +215,10 @@ fun BearCatchScreen(
     }
     // 死亡结算后清档：重进应从标题开始，而不是续到已结束的对局
     LaunchedEffect(game.phase) {
-        if (game.phase == GamePhase.OVER) game.clearSnapshot(prefs)
+        if (game.phase == GamePhase.OVER) {
+            game.clearSnapshot(prefs)
+            GameAudio.play(GameCue.LOSE)
+        }
     }
     val texts = remember { mutableListOf<CatchFloatText>() }
     // 飘字在非组合的帧回调里生成，提前在组合期解析文案
@@ -258,10 +262,26 @@ fun BearCatchScreen(
                         t.y = t.y - 46f * game.s * worldDt
                     }
                 }
+                var caughtSoundPlayed = false
+                var powerUpSoundPlayed = false
                 game.tick(
                     worldDt,
                     onCaught = { kind ->
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        when (kind) {
+                            ItemKind.GIFT, ItemKind.BUBBLE -> {
+                                if (!powerUpSoundPlayed) {
+                                    powerUpSoundPlayed = true
+                                    GameAudio.play(GameCue.STAR)
+                                }
+                            }
+                            else -> {
+                                if (!caughtSoundPlayed) {
+                                    caughtSoundPlayed = true
+                                    GameAudio.play(GameCue.CATCH)
+                                }
+                            }
+                        }
                         // 护盾泡泡不加分：跳过 "+0" 飘字，避免误导
                         if (kind != ItemKind.BUBBLE) {
                             texts.add(
@@ -277,6 +297,7 @@ fun BearCatchScreen(
                     },
                     onHit = { kind ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        GameAudio.play(GameCue.HIT)
                         texts.add(
                             CatchFloatText(
                                 text = "-${BearCatchLogic.damageOf(kind)}",
@@ -290,6 +311,7 @@ fun BearCatchScreen(
                     onBlocked = {
                         // 护盾挡下：青色「格挡」飘字 + 轻震，不再飘红字「-N」
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        GameAudio.play(GameCue.BLOCK)
                         texts.add(
                             CatchFloatText(
                                 text = blockedText,

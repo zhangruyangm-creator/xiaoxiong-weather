@@ -201,6 +201,7 @@ class HockeyGame {
     val sparks = mutableListOf<HockeySpark>()
 
     var pendingHapticHit = false
+    var pendingHapticWall = false
     var pendingHapticGoal = false
 
     fun resize(
@@ -349,6 +350,7 @@ class HockeyGame {
         hitFeedbackCooldown = 0f
         time = 0f
         pendingHapticHit = false
+        pendingHapticWall = false
         pendingHapticGoal = false
         invalidateParamsCache()
         // phase 仍是旧值（READY/MATCH_OVER）：relayout 内部会复位，随后再按发球态摆位
@@ -754,7 +756,7 @@ class HockeyGame {
         } else if (wallContact && hitFeedbackCooldown <= 0f) {
             hitFeedbackCooldown = HIT_FEEDBACK_INTERVAL
             // 碰库：轻短反馈（与击球共用节流）
-            pendingHapticHit = true
+            pendingHapticWall = true
             spawnHitSparks(puck.x, puck.y, count = 4, muted = true)
         }
 

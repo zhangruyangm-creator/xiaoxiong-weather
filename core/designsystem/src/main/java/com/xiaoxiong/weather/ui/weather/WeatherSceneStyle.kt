@@ -7,6 +7,11 @@ data class WeatherSceneStyle(
     val gradient: List<Color>,
     val contentColor: Color,
     val mutedContentColor: Color,
+    /**
+     * 浅色渐变场景在白字下叠加的黑色暗角透明度（0 = 不叠加，深色场景默认）。
+     * 卡片在动画层之上、内容之下按此值铺一层纯黑，保证白字对复合后背景 ≥3:1。
+     */
+    val scrimAlpha: Float = 0f,
 )
 
 fun weatherSceneStyle(
@@ -23,11 +28,12 @@ fun weatherSceneStyle(
             if (day) {
                 WeatherSceneStyle(
                     scene = scene,
-                    gradient = listOf(Color(0xFF56CCF2), Color(0xFF2F80ED), Color(0xFF6DD5FA)),
-                    // 亮蓝渐变改用深海军蓝（同色相）：白字最差仅 1.67:1，
-                    // 深字对最亮 stop 7.66:1、对品牌蓝 3.32:1（大号/图标可辨）
-                    contentColor = Color(0xFF0A3550),
-                    mutedContentColor = Color(0xFF0E3A5B),
+                    // 亮蓝渐变整体加深（保持蓝青色相）再叠 0.30 黑scrim：
+                    // 白字对复合后最亮 stop 4.80:1、muted 0.9 白字 4.23:1，均是白字方案
+                    gradient = listOf(Color(0xFF2B8FD0), Color(0xFF1C64B8), Color(0xFF43AEDF)),
+                    contentColor = Color.White,
+                    mutedContentColor = Color.White.copy(alpha = 0.9f),
+                    scrimAlpha = 0.30f,
                 )
             } else {
                 WeatherSceneStyle(
@@ -44,10 +50,12 @@ fun weatherSceneStyle(
             if (day) {
                 WeatherSceneStyle(
                     scene = scene,
-                    gradient = listOf(Color(0xFF89CFF0), Color(0xFF7F9CF5), Color(0xFFB8C6FF)),
-                    // 亮堇紫渐变：深靛蓝正文/次级（白字最低仅 1.67:1）
-                    contentColor = Color(0xFF1A237E),
-                    mutedContentColor = Color(0xFF283593),
+                    // 亮堇紫渐变整体加深（保持色相）再叠 0.30 黑scrim：
+                    // 白字对复合后最亮 stop 4.88:1、muted 0.9 白字 4.30:1
+                    gradient = listOf(Color(0xFF5FA9DB), Color(0xFF5570D6), Color(0xFF8296E8)),
+                    contentColor = Color.White,
+                    mutedContentColor = Color.White.copy(alpha = 0.9f),
+                    scrimAlpha = 0.30f,
                 )
             } else {
                 WeatherSceneStyle(
@@ -77,20 +85,24 @@ fun weatherSceneStyle(
             } else {
                 WeatherSceneStyle(
                     scene = scene,
-                    gradient = listOf(Color(0xFFB0BEC5), Color(0xFF90A4AE), Color(0xFFCFD8DC)),
-                    contentColor = Color(0xFF263238),
-                    // 次级文字从 #37474F 加深：原值对中间灰 3.72:1，大号尚可但不够稳
-                    mutedContentColor = Color(0xFF2E3B42),
+                    // 浅灰蓝雾天加深为石板灰（保持色相）再叠 0.30 黑scrim：
+                    // 白字对复合后最亮 stop 4.56:1、muted 0.9 白字 4.04:1
+                    gradient = listOf(Color(0xFF7E939E), Color(0xFF647A86), Color(0xFF9AABB4)),
+                    contentColor = Color.White,
+                    mutedContentColor = Color.White.copy(alpha = 0.9f),
+                    scrimAlpha = 0.30f,
                 )
             }
 
         WeatherScene.DRIZZLE ->
             WeatherSceneStyle(
                 scene = scene,
-                gradient = listOf(Color(0xFF74A9CF), Color(0xFF5C8DB8), Color(0xFF89B4D4)),
-                // 亮蓝灰渐变：深石板蓝正文/次级（白字最低仅 2.20:1）
-                contentColor = Color(0xFF14364A),
-                mutedContentColor = Color(0xFF1B3A4B),
+                // 蓝灰渐变加深（保持色相）再叠 0.25 黑scrim：
+                // 白字对复合后最亮 stop 5.26:1、muted 0.9 白字 4.62:1
+                gradient = listOf(Color(0xFF4F86AE), Color(0xFF3B6D95), Color(0xFF6096BB)),
+                contentColor = Color.White,
+                mutedContentColor = Color.White.copy(alpha = 0.9f),
+                scrimAlpha = 0.25f,
             )
 
         WeatherScene.RAIN ->
@@ -145,9 +157,12 @@ fun weatherSceneStyle(
             } else {
                 WeatherSceneStyle(
                     scene = scene,
-                    gradient = listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB), Color(0xFF90CAF9)),
-                    contentColor = Color(0xFF1A237E),
-                    mutedContentColor = Color(0xFF283593),
+                    // 浅雪蓝渐变适度加深（保持色相）再叠 0.35 黑scrim：
+                    // 白字对复合后最亮 stop 3.97:1、muted 0.9 白字 3.55:1
+                    gradient = listOf(Color(0xFFA9C9DE), Color(0xFF86B0CC), Color(0xFF679BC6)),
+                    contentColor = Color.White,
+                    mutedContentColor = Color.White.copy(alpha = 0.9f),
+                    scrimAlpha = 0.35f,
                 )
             }
 

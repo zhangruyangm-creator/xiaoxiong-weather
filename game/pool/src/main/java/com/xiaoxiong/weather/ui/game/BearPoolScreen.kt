@@ -1,8 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
@@ -113,7 +111,6 @@ private const val PREF_STAT_NINE_WINS = "pool_nine_wins"
 private const val PREF_STAT_PRACTICE_CLEARS = "pool_practice_clears"
 private const val PREF_STAT_BEST_PRACTICE = "pool_best_practice"
 private const val PREF_STAT_ACH_SEEN = "pool_ach_seen"
-private const val PREF_POOL_SOUND = "pool_sound"
 private const val PREF_POOL_REDUCE_MOTION = "pool_reduce_motion"
 private const val PREF_POOL_REPLAY = "pool_last_replay_v2"
 
@@ -458,6 +455,10 @@ fun BearPoolScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    // 全局音效：入口预加载，事件处直接 play；开关 / 音量为全局设置（GameAudio 管理）
+    LaunchedEffect(Unit) {
+        GameAudio.preload(context)
+    }
     val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
     val characterState = rememberBearCharacterState()
@@ -468,18 +469,15 @@ fun BearPoolScreen(
     var showShotHistory by remember { mutableStateOf(false) }
     var doneLessons by remember { mutableStateOf(loadDoneLessons(prefs)) }
     var clothTheme by remember { mutableIntStateOf(prefs.getInt(PREF_POOL_CLOTH, 0).coerceIn(0, CLOTH_THEME_RES.size - 1)) }
-    var soundOn by remember { mutableStateOf(prefs.getBoolean(PREF_POOL_SOUND, true)) }
     var reduceMotionPref by remember { mutableStateOf(prefs.getBoolean(PREF_POOL_REDUCE_MOTION, false)) }
     var storedReplay by remember { mutableStateOf(loadReplay(prefs)) }
     // 系统级「减弱动态效果」与游戏内设置任一开启即生效
     val systemReduceMotion = LocalReduceMotion.current
     val reduceMotion = reduceMotionPref || systemReduceMotion
 
-    // 短促提示音：惰性创建，退出时释放；创建 / 播放失败静默忽略
-    val toneGen = remember { runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }.getOrNull() }
+    // 退出时释放静态台面层的全屏位图缓存；音效对象由全局 GameAudio 管理，无需 release
     DisposableEffect(Unit) {
         onDispose {
-            runCatching { toneGen?.release() }
             // 退出对局时释放静态台面层的两张全屏 Bitmap；二次进入按需重建
             clearPoolTableLayerCache()
         }
@@ -599,6 +597,7 @@ fun BearPoolScreen(
         // 教学不与排行榜 / 生涯统计挂钩
         if (game.lesson != null) {
             game.resultSubmitted = true
+            GameAudio.play(if (game.lessonPassed) GameCue.WIN else GameCue.LOSE)
             return
         }
         game.resultSubmitted = true
@@ -607,6 +606,8 @@ fun BearPoolScreen(
         val challenge = game.challenge
         if (challenge != null) {
             val cleared = game.match.playerFrames > 0
+            // 清台即胜（WIN），未清台为未通过（LOSE）
+            GameAudio.play(if (cleared) GameCue.WIN else GameCue.LOSE)
             if (!cleared) return
             val shots = game.shots
             val score = game.challengeScore()
@@ -648,6 +649,9 @@ fun BearPoolScreen(
         val won = game.match.playerFrames > game.match.aiFrames
         val practice = game.match.mode == PoolMode.PRACTICE
         val cleared = practice && game.match.playerFrames > 0
+        // 整场 / 练习结束：胜 WIN、负 LOSE（练习以是否清台计胜负）
+        val playerWon = if (practice) cleared else won
+        GameAudio.play(if (playerWon) GameCue.WIN else GameCue.LOSE)
         val score = if (practice) game.practiceScore() else game.match.playerFrames
         val label =
             if (practice) {
@@ -756,17 +760,31 @@ fun BearPoolScreen(
                 if (game.pendingHapticCue) {
                     game.pendingHapticCue = false
                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    if (soundOn && !reduceMotion) playTone(toneGen, ToneGenerator.TONE_PROP_BEEP, 60)
+                    // 出杆：短促击打音
+                    GameAudio.play(GameCue.CUE)
+                }
+                if (game.pendingHapticHit) {
+                    game.pendingHapticHit = false
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    // 球-球碰撞：只在每杆首次白球接触时响一次
+                    GameAudio.play(GameCue.HIT)
                 }
                 if (game.pendingHapticPot) {
                     game.pendingHapticPot = false
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                    if (soundOn && !reduceMotion) playTone(toneGen, ToneGenerator.TONE_PROP_ACK, 80)
+                    // 落袋：带下坠尾音的进袋音
+                    GameAudio.play(GameCue.POT)
                 }
                 if (game.pendingHapticRail) {
                     game.pendingHapticRail = false
                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    if (soundOn && !reduceMotion) playTone(toneGen, ToneGenerator.TONE_PROP_BEEP2, 40)
+                    // 碰库：轻碰木音
+                    GameAudio.play(GameCue.RAIL)
+                }
+                if (game.pendingHapticFoul) {
+                    game.pendingHapticFoul = false
+                    // 犯规：低哑提示音（无震动，避免与击球反馈混淆）
+                    GameAudio.play(GameCue.FOUL)
                 }
                 frame = now
             }
@@ -1189,7 +1207,6 @@ fun BearPoolScreen(
             aids = game.aids,
             raceTo = game.raceTo,
             mode = game.mode,
-            soundOn = soundOn,
             reduceMotion = reduceMotionPref,
             clothTheme = clothTheme,
             dailyBest = dailyBest,
@@ -1199,7 +1216,7 @@ fun BearPoolScreen(
                 showDaily = true
             },
             onDismiss = { showSettings = false },
-            onSave = { d, a, r, m, s, rm, cl ->
+            onSave = { d, a, r, m, rm, cl ->
                 game.difficulty = d
                 game.aids = a
                 // 对局进行中不改变赛制/模式（否则 raceTo 变小会当场判 matchOver，成就口径也被污染）
@@ -1209,7 +1226,6 @@ fun BearPoolScreen(
                     game.raceTo = race
                     game.mode = m
                 }
-                soundOn = s
                 reduceMotionPref = rm
                 game.reduceMotion = rm || systemReduceMotion
                 clothTheme = cl.coerceIn(0, CLOTH_THEME_RES.size - 1)
@@ -1219,7 +1235,6 @@ fun BearPoolScreen(
                     putString(PREF_POOL_AIDS, aidsKey(a))
                     putInt(PREF_POOL_RACE, r.coerceIn(1, 3))
                     putString(PREF_POOL_MODE, modeKey(m))
-                    putBoolean(PREF_POOL_SOUND, s)
                     putBoolean(PREF_POOL_REDUCE_MOTION, rm)
                     putInt(PREF_POOL_CLOTH, clothTheme)
                 }
@@ -2000,19 +2015,20 @@ private fun PoolSettingsDialog(
     aids: Aids,
     raceTo: Int,
     mode: PoolMode,
-    soundOn: Boolean,
     reduceMotion: Boolean,
     clothTheme: Int,
     dailyBest: Int,
     onOpenDaily: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (PoolAi.Difficulty, Aids, Int, PoolMode, Boolean, Boolean, Int) -> Unit,
+    onSave: (PoolAi.Difficulty, Aids, Int, PoolMode, Boolean, Int) -> Unit,
 ) {
+    val context = LocalContext.current
     var d by remember(difficulty) { mutableStateOf(difficulty) }
     var a by remember(aids) { mutableStateOf(aids) }
     var r by remember(raceTo) { mutableStateOf(raceTo) }
     var m by remember(mode) { mutableStateOf(mode) }
-    var s by remember(soundOn) { mutableStateOf(soundOn) }
+    // 音效开关：读写全局 GameAudio 设置（旧 pool_sound 仅由 GameAudio 首次迁移读取）
+    var s by remember { mutableStateOf(GameAudio.settings(context).enabled) }
     var rm by remember(reduceMotion) { mutableStateOf(reduceMotion) }
     var cl by remember(clothTheme) { mutableStateOf(clothTheme.coerceIn(0, CLOTH_THEME_RES.size - 1)) }
     Dialog(onDismissRequest = onDismiss) {
@@ -2132,7 +2148,13 @@ private fun PoolSettingsDialog(
                         color = Color(0xFF6D4C41),
                         modifier = Modifier.weight(1f),
                     )
-                    Switch(checked = s, onCheckedChange = { s = it })
+                    Switch(
+                        checked = s,
+                        onCheckedChange = {
+                            s = it
+                            GameAudio.setEnabled(context, it)
+                        },
+                    )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -2151,7 +2173,7 @@ private fun PoolSettingsDialog(
                         Text(stringResource(R.string.bear_pool_cancel))
                     }
                     Spacer(Modifier.width(4.dp))
-                    Button(onClick = { onSave(d, a, r.coerceIn(1, 3), m, s, rm, cl) }) {
+                    Button(onClick = { onSave(d, a, r.coerceIn(1, 3), m, rm, cl) }) {
                         Text(stringResource(R.string.bear_pool_save))
                     }
                 }
@@ -2737,16 +2759,6 @@ private fun DrawScope.drawSpinPad(spin: Spin) {
     val dotY = center.y - spin.vertical * r * 0.72f
     drawCircle(Color(0xFFE53935), r * 0.14f, Offset(dotX, dotY))
     drawCircle(Color(0xFFB71C1C), r * 0.14f, Offset(dotX, dotY), style = Stroke(width = 2f))
-}
-
-/** 播放短提示音；生成器为空或播放失败时静默忽略，不影响游戏。 */
-private fun playTone(
-    gen: ToneGenerator?,
-    tone: Int,
-    durationMs: Int,
-) {
-    if (gen == null) return
-    runCatching { gen.startTone(tone, durationMs) }
 }
 
 private fun difficultyKey(d: PoolAi.Difficulty): String = d.name.lowercase()

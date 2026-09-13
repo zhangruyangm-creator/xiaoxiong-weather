@@ -1,8 +1,10 @@
 package com.xiaoxiong.weather.ui.weather
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WeatherSceneTest {
@@ -68,10 +70,23 @@ class WeatherSceneTest {
         assertEquals(clearNight.gradient, partlyNight.gradient)
         assertEquals(clearNight.contentColor, partlyNight.contentColor)
         assertNotEquals(partlyDay.gradient, partlyNight.gradient)
-        // 白天少云不受影响
+        // 白天少云保持堇紫渐变加深版（白字 + scrim）
         assertEquals(
-            listOf(Color(0xFF89CFF0), Color(0xFF7F9CF5), Color(0xFFB8C6FF)),
+            listOf(Color(0xFF5FA9DB), Color(0xFF5570D6), Color(0xFF8296E8)),
             partlyDay.gradient,
         )
+        assertEquals(Color.White, partlyDay.contentColor)
+        assertTrue(partlyDay.scrimAlpha > 0f)
+        assertEquals(0f, partlyNight.scrimAlpha, 0f)
+    }
+
+    @Test
+    fun clearScene_restoresWhiteText_withScrimOnDayOnly() {
+        val clearDay = weatherSceneStyle(0, isDay = true)
+        val clearNight = weatherSceneStyle(0, isDay = false)
+        assertEquals(Color.White, clearDay.contentColor)
+        assertTrue(clearNight.contentColor.luminance() >= 0.5f)
+        assertTrue(clearDay.scrimAlpha > 0f)
+        assertEquals(0f, clearNight.scrimAlpha, 0f)
     }
 }

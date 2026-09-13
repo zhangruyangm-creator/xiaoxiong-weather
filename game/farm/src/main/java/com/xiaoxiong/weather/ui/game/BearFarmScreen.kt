@@ -70,6 +70,8 @@ fun BearFarmScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    // 入口预加载全部音效样本，消除首次播放的加载延迟
+    LaunchedEffect(Unit) { GameAudio.preload(context) }
     val appContext = remember(context) { context.applicationContext }
     val farm = remember(appContext) { BearFarm(appContext).also { it.load() } }
     val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }

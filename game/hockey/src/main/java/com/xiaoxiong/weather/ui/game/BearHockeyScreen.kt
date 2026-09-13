@@ -1,7 +1,5 @@
 package com.xiaoxiong.weather.ui.game
 
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -94,7 +92,6 @@ private const val PREF_PADDLE_BOTH = "hockey_paddle_scale_both"
 private const val PREF_PUCK = "hockey_puck_scale"
 private const val PREF_GOAL = "hockey_goal_scale"
 private const val PREF_RINK_THEME = "hockey_rink_theme"
-private const val PREF_SOUND = "hockey_sound"
 
 /** 发球倒数总时长（3 拍，每拍 0.5s）；超出部分显示「预备」。与 HockeyGame 的发球计时对应。 */
 private const val SERVE_COUNTDOWN_SECONDS = 1.5f
@@ -111,6 +108,10 @@ fun BearHockeyScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    // 全局音效：入口预加载，事件处直接 play；开关 / 音量为全局设置（GameAudio 管理）
+    LaunchedEffect(Unit) {
+        GameAudio.preload(context)
+    }
     val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
     val characterState = rememberBearCharacterState()
@@ -165,8 +166,7 @@ fun BearHockeyScreen(
         }
     var showSettings by remember { mutableStateOf(false) }
     var showCareer by remember { mutableStateOf(false) }
-    var soundOn by remember { mutableStateOf(prefs.getBoolean(PREF_SOUND, true)) }
-    // 系统「减弱动态效果」开启时静音（提示音与减动效偏好联动）
+    // 系统「减弱动态效果」开启时冻结装饰动画（音效由全局 GameAudio 独立管理）
     val systemReduceMotion = LocalReduceMotion.current
     // 同步进游戏：冻结装饰用 time（蜜罐滚动 / 发球脉冲 / 场外天气），物理 dt 不受影响
     LaunchedEffect(systemReduceMotion) {
@@ -174,11 +174,8 @@ fun BearHockeyScreen(
     }
     var progress by remember { mutableStateOf(loadHockeyProgress(prefs)) }
     var pendingUnlocks by remember { mutableStateOf<List<HockeyAchievement>>(emptyList()) }
-    // 短促提示音：惰性创建，退出时释放；创建 / 播放失败静默忽略
-    val toneGen = remember { runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }.getOrNull() }
     DisposableEffect(Unit) {
         onDispose {
-            runCatching { toneGen?.release() }
             // 退出即释放两张全屏静态层位图与精灵缓存，避免常驻
             clearHockeyRenderCaches()
         }
@@ -250,13 +247,7 @@ fun BearHockeyScreen(
         progress = withUnlocks
         saveHockeyProgress(prefs, withUnlocks)
         // 胜负提示音：与击球 / 进球音区分（长提示音）
-        if (soundOn && !systemReduceMotion) {
-            playTone(
-                toneGen,
-                if (won) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_NACK,
-                200,
-            )
-        }
+        GameAudio.play(if (won) GameCue.WIN else GameCue.LOSE)
         // 每局（含输局）都入榜：按净胜分排序，大胜在前、惨败在后；榜单展示真实比分
         lb.lastRank =
             lb.store.submit(
@@ -299,14 +290,20 @@ fun BearHockeyScreen(
                 if (game.pendingHapticHit) {
                     game.pendingHapticHit = false
                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    // 击球 / 碰库：轻短提示音
-                    if (soundOn && !systemReduceMotion) playTone(toneGen, ToneGenerator.TONE_PROP_BEEP, 45)
+                    // 挡板击球：短促实心音
+                    GameAudio.play(GameCue.HIT)
+                }
+                if (game.pendingHapticWall) {
+                    game.pendingHapticWall = false
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    // 库边反弹：更轻的碰木音
+                    GameAudio.play(GameCue.BUMP)
                 }
                 if (game.pendingHapticGoal) {
                     game.pendingHapticGoal = false
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                    // 进球：较长提示音
-                    if (soundOn && !systemReduceMotion) playTone(toneGen, ToneGenerator.TONE_PROP_ACK, 90)
+                    // 进球：自己得分用庆祝音，对方得分用下行音（不刺耳）
+                    GameAudio.play(if (game.lastScorer == Scorer.PLAYER) GameCue.GOAL else GameCue.LOSE)
                 }
                 frame++
             }
@@ -626,15 +623,13 @@ fun BearHockeyScreen(
             goalScale = game.displayGoalScale(),
             rinkTheme = game.displayRinkTheme(),
             rulesLocked = game.rulesLocked,
-            soundOn = soundOn,
             onOpenCareer = {
                 showSettings = false
                 showCareer = true
             },
             onDismiss = { showSettings = false },
-            onSave = { d, level, w, paddle, paddleBoth, puck, goal, theme, sound ->
+            onSave = { d, level, w, paddle, paddleBoth, puck, goal, theme ->
                 game.applySettings(d, level, w, paddle, paddleBoth, puck, goal, theme)
-                soundOn = sound
                 prefs.edit {
                     putString(
                         PREF_DIFF,
@@ -655,7 +650,6 @@ fun BearHockeyScreen(
                     putFloat(PREF_PUCK, puck)
                     putFloat(PREF_GOAL, goal)
                     putString(PREF_RINK_THEME, theme.id)
-                    putBoolean(PREF_SOUND, sound)
                 }
                 showSettings = false
             },
@@ -707,6 +701,10 @@ private fun ServeBanner(game: HockeyGame) {
         derivedStateOf { ceil(game.serveTimer / (SERVE_COUNTDOWN_SECONDS / 3f)).toInt().coerceIn(1, 3) }
     }
     val ready by remember { derivedStateOf { game.serveTimer > SERVE_COUNTDOWN_SECONDS } }
+    // 倒数每跳一拍给一声轻点，提示发球节拍
+    LaunchedEffect(countdown) {
+        GameAudio.play(GameCue.UI_CLICK)
+    }
     // 发球方向提示：失球方接发球（球飞向失球一侧）
     val hint =
         when (game.serveTowardPlayer) {
@@ -785,11 +783,11 @@ private fun HockeySettingsDialog(
     goalScale: Float,
     rinkTheme: RinkTheme,
     rulesLocked: Boolean,
-    soundOn: Boolean,
     onOpenCareer: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (Difficulty, Int, Int, Float, Boolean, Float, Float, RinkTheme, Boolean) -> Unit,
+    onSave: (Difficulty, Int, Int, Float, Boolean, Float, Float, RinkTheme) -> Unit,
 ) {
+    val context = LocalContext.current
     var d by remember(difficulty) { mutableStateOf(difficulty) }
     var levelText by remember(customLevel) { mutableStateOf(customLevel.toString()) }
     var winText by remember(winScore) { mutableStateOf(winScore.toString()) }
@@ -798,7 +796,8 @@ private fun HockeySettingsDialog(
     var puck by remember(puckScale) { mutableStateOf(puckScale) }
     var goal by remember(goalScale) { mutableStateOf(goalScale) }
     var theme by remember(rinkTheme) { mutableStateOf(rinkTheme) }
-    var sound by remember(soundOn) { mutableStateOf(soundOn) }
+    // 音效开关：读写全局 GameAudio 设置（旧 hockey_sound 仅由 GameAudio 首次迁移读取）
+    var sound by remember { mutableStateOf(GameAudio.settings(context).enabled) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
@@ -967,7 +966,13 @@ private fun HockeySettingsDialog(
                         color = HockeyUi.textSecondary,
                         modifier = Modifier.weight(1f),
                     )
-                    Switch(checked = sound, onCheckedChange = { sound = it })
+                    Switch(
+                        checked = sound,
+                        onCheckedChange = {
+                            sound = it
+                            GameAudio.setEnabled(context, it)
+                        },
+                    )
                 }
                 Spacer(Modifier.height(6.dp))
                 TextButton(
@@ -1013,7 +1018,6 @@ private fun HockeySettingsDialog(
                                 puck.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX),
                                 goal.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX),
                                 theme,
-                                sound,
                             )
                         },
                     ) {
@@ -1233,16 +1237,6 @@ private fun HockeyUnlockDialog(
             }
         }
     }
-}
-
-/** 播放短提示音；生成器为空或播放失败时静默忽略，不影响游戏。 */
-private fun playTone(
-    gen: ToneGenerator?,
-    tone: Int,
-    durationMs: Int,
-) {
-    if (gen == null) return
-    runCatching { gen.startTone(tone, durationMs) }
 }
 
 /** 尺寸设置行：标题 + 当前倍率 + 连续滑块（挡板/冰球/球门共用）。 */

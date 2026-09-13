@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -102,7 +103,14 @@ fun ShareWeatherCard(
             modifier
                 .clip(RoundedCornerShape(24.dp))
                 .background(Brush.verticalGradient(style.gradient))
-                .padding(20.dp),
+                .then(
+                    if (style.scrimAlpha > 0f) {
+                        // 浅色场景白字必须走暗角：与首页卡片同一套复合对比度保障
+                        Modifier.background(Color.Black.copy(alpha = style.scrimAlpha))
+                    } else {
+                        Modifier
+                    },
+                ).padding(20.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),

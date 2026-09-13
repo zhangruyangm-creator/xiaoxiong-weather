@@ -217,7 +217,13 @@ private fun MazeGlassButton(
                     1.dp,
                     Color.White.copy(alpha = if (enabled) 0.32f else 0.14f),
                     CircleShape,
-                ).clickable(enabled = enabled, onClick = onClick),
+                ).clickable(
+                    enabled = enabled,
+                    onClick = {
+                        GameAudio.play(GameCue.UI_CLICK)
+                        onClick()
+                    },
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -529,14 +535,22 @@ internal fun MazeResultOverlay(
                 }
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TextButton(onClick = onExitSelect) {
+                    TextButton(
+                        onClick = {
+                            GameAudio.play(GameCue.UI_CLICK)
+                            onExitSelect()
+                        },
+                    ) {
                         Text(
                             text = stringResource(R.string.bear_maze_levels),
                             color = style.hudInk.copy(alpha = 0.85f),
                         )
                     }
                     Button(
-                        onClick = onRestart,
+                        onClick = {
+                            GameAudio.play(GameCue.UI_CLICK)
+                            onRestart()
+                        },
                         colors =
                             ButtonDefaults.buttonColors(
                                 containerColor = style.accent,
@@ -550,7 +564,10 @@ internal fun MazeResultOverlay(
                         (game.endless || game.levelIndex + 1 < MAZE_CAMPAIGN_SIZE)
                     ) {
                         Button(
-                            onClick = onNext,
+                            onClick = {
+                                GameAudio.play(GameCue.UI_CLICK)
+                                onNext()
+                            },
                             colors =
                                 ButtonDefaults.buttonColors(
                                     containerColor = mazeLighten(style.accent, 0.25f),

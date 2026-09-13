@@ -10,6 +10,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Spacer
@@ -110,15 +111,39 @@ fun WeatherAtmosphereCard(
                 },
     ) {
         if (animateScene) {
+            // matchParentSize：动画层随卡片 Box 尺寸测量。直接 fillMaxSize 会在
+            // LazyColumn 无界高度下先被量成 0 高，导致太阳/云/雨雪从未绘制
             Crossfade(
                 targetState = style.scene to day,
                 animationSpec = tween(SCENE_FADE_MILLIS),
+                modifier = Modifier.matchParentSize(),
                 label = "weather-atmosphere-scene",
             ) { (scene, sceneDay) ->
-                WeatherAtmosphereOverlay(scene = scene, isDay = sceneDay, paused = false)
+                // Crossfade 已撑满卡片，此处约束有界，fillMaxSize 拿到卡片真实尺寸
+                WeatherAtmosphereOverlay(
+                    scene = scene,
+                    isDay = sceneDay,
+                    paused = false,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         } else {
-            WeatherAtmosphereOverlay(scene = style.scene, isDay = day, paused = true)
+            WeatherAtmosphereOverlay(
+                scene = style.scene,
+                isDay = day,
+                paused = true,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
+        if (style.scrimAlpha > 0f) {
+            // 浅色渐变场景在动画层上叠纯黑暗角，保证白字/muted 对复合后背景 ≥3:1；
+            // Brush 随 scrimAlpha 缓存，绘制阶段不重复分配
+            val scrim =
+                remember(style.scrimAlpha) {
+                    val color = Color.Black.copy(alpha = style.scrimAlpha)
+                    Brush.verticalGradient(listOf(color, color))
+                }
+            Box(modifier = Modifier.matchParentSize().background(scrim))
         }
         content(style)
     }
@@ -129,6 +154,7 @@ private fun WeatherAtmosphereOverlay(
     scene: WeatherScene,
     isDay: Boolean,
     paused: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val particles = remember(scene) { atmosphereParticles(scene, seed = scene.ordinal * 131 + 17) }
     // 闪电路径跨帧复用：只在轮次变化时 reset 重建，不在每帧新建 Path
@@ -145,9 +171,10 @@ private fun WeatherAtmosphereOverlay(
             flash = { 0f },
             drift = { 0f },
             cycle = { 0f },
+            modifier = modifier,
         )
     } else {
-        AnimatedAtmosphereCanvas(scene, isDay, particles, lightning)
+        AnimatedAtmosphereCanvas(scene, isDay, particles, lightning, modifier)
     }
 }
 
@@ -157,6 +184,7 @@ private fun AnimatedAtmosphereCanvas(
     isDay: Boolean,
     particles: List<Particle>,
     lightning: LightningPaths,
+    modifier: Modifier = Modifier,
 ) {
     val transition = rememberInfiniteTransition(label = "weather-atmosphere")
     // 不用 `by`：State 只在 draw 阶段读取，只重绘 Canvas，避免整卡每帧重组
@@ -199,6 +227,7 @@ private fun AnimatedAtmosphereCanvas(
         flash = { flash.value },
         drift = { drift.value },
         cycle = { cycle.value },
+        modifier = modifier,
     )
 }
 
@@ -212,14 +241,15 @@ private fun AtmosphereCanvas(
     flash: () -> Float,
     drift: () -> Float,
     cycle: () -> Float,
+    modifier: Modifier = Modifier,
 ) {
     // 纯装饰背景：clearAndSetSemantics 让 TalkBack 跳过，天气信息由上层 Text 朗读。
-    // 随尺寸构建的 Brush/Path/Stroke 都在 drawWithCache 的 cache 段完成；
+    // 尺寸由调用方（matchParentSize/fillMaxSize）决定，保证 drawWithCache 的 cache
+    // 段拿到卡片真实尺寸；随尺寸构建的 Brush/Path/Stroke 都在 cache 段完成，
     // onDrawBehind 只读取动画 State，绘制阶段零 Path/Brush/listOf 新建。
     Spacer(
         modifier =
-            Modifier
-                .fillMaxSize()
+            modifier
                 .clearAndSetSemantics {}
                 .drawWithCache {
                     val art = atmosphereArt(scene, isDay, size)

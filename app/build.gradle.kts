@@ -94,6 +94,11 @@ android {
         buildConfig = true
     }
 
+    // SoundPool 需要直接读取未压缩的 WAV（游戏音效全部为 res/raw/sfx_*.wav）
+    androidResources {
+        noCompress += "wav"
+    }
+
     // full：默认版，含小熊彩蛋游戏；lite：游戏编译为空实现，包里零痕迹
     flavorDimensions += "edition"
     productFlavors {

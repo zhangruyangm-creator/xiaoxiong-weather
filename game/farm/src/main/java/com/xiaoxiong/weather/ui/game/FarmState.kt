@@ -101,6 +101,40 @@ internal val FARM_SHOP_ITEMS =
         FarmShopItem("weed_killer", R.string.bear_farm_item_weed_killer, "🧹", WEED_KILLER_COST),
     )
 
+/** 非收获类成功操作的提示文案 → UI_CLICK。 */
+private val FARM_SUCCESS_TOASTS =
+    setOf(
+        R.string.bear_farm_toast_planted,
+        R.string.bear_farm_toast_watered,
+        R.string.bear_farm_toast_weeded,
+        R.string.bear_farm_toast_debugged,
+        R.string.bear_farm_toast_cleared,
+        R.string.bear_farm_toast_fertilize,
+        R.string.bear_farm_toast_item_rain,
+        R.string.bear_farm_toast_item_bug,
+        R.string.bear_farm_toast_item_weed,
+        R.string.bear_farm_care_all_summary,
+        R.string.bear_farm_toast_harvest,
+    )
+
+/** 无效操作的提示文案 → BUMP。 */
+private val FARM_FAILURE_TOASTS =
+    setOf(
+        R.string.bear_farm_toast_occupied,
+        R.string.bear_farm_toast_locked_seed,
+        R.string.bear_farm_toast_need_coins,
+        R.string.bear_farm_toast_nothing_water,
+        R.string.bear_farm_toast_no_weed,
+        R.string.bear_farm_toast_no_bug,
+        R.string.bear_farm_toast_already_empty,
+        R.string.bear_farm_toast_not_ripe,
+        R.string.bear_farm_toast_fertilize_target,
+        R.string.bear_farm_toast_fertilize_blocked,
+        R.string.bear_farm_toast_unlock_need,
+        R.string.bear_farm_toast_sell_nothing,
+        R.string.bear_farm_care_all_nothing,
+    )
+
 internal val farmJson =
     Json {
         ignoreUnknownKeys = true
@@ -245,13 +279,38 @@ internal class BearFarm(
         applyEffect(effect)
     }
 
-    /** 把规则产出的反馈翻译成 UI：toast / 飘字 / 解锁弹卡。 */
+    /** 把规则产出的反馈翻译成 UI：toast / 飘字 / 解锁弹卡 / 音效。 */
     private fun applyEffect(effect: FarmEffect) {
+        playEffectCue(effect)
         effect.toastRes?.let { res ->
             toast(str(res, *effect.toastArgs.toTypedArray()))
         }
         effect.rewards.forEach { addReward(it.label, it.plotIndex) }
         effect.unlockCropIds.forEach { enqueueUnlockCard(it) }
+    }
+
+    /**
+     * 一次用户操作结束后播放对应音效：收获/卖出进账 COIN，解锁新作物 STAR，
+     * 换季 GOAL，其余成功操作 UI_CLICK，失败 BUMP。
+     * 仅由 [applyEffect] 调用（每次点击至多一次），后台 tick/离线追赶不会触发。
+     */
+    private fun playEffectCue(effect: FarmEffect) {
+        val cue =
+            when {
+                effect.rewards.isNotEmpty() -> GameCue.COIN
+                effect.toastRes == R.string.bear_farm_toast_sell ||
+                    effect.toastRes == R.string.bear_farm_toast_sell_all -> GameCue.COIN
+                effect.toastRes == R.string.bear_farm_toast_unlocked -> GameCue.STAR
+                effect.toastRes == R.string.bear_farm_new_season_started -> GameCue.GOAL
+                effect.toastRes in FARM_SUCCESS_TOASTS -> GameCue.UI_CLICK
+                effect.toastRes in FARM_FAILURE_TOASTS -> GameCue.BUMP
+                else -> null
+            }
+        cue?.let { GameAudio.play(appContext, it) }
+        // 收获同时解锁新作物：在金币音上再补一声升调提示
+        if (effect.unlockCropIds.isNotEmpty() && cue != GameCue.STAR) {
+            GameAudio.play(appContext, GameCue.STAR)
+        }
     }
 
     /** 解锁弹卡逐个展示：已有卡在显示时先排队，关闭当前卡后再弹下一张。 */
@@ -304,7 +363,10 @@ internal class BearFarm(
             plot.stage == 4 -> runAction { FarmSimulator.harvest(state, index) }
             plot.stage in 1..4 && plot.moisture < 0.35f -> runAction { FarmSimulator.water(state, index) }
             plot.stage == 5 -> runAction { FarmSimulator.clear(state, index) }
-            plot.stage == 0 -> toast(str(R.string.bear_farm_toast_use_plant))
+            plot.stage == 0 -> {
+                toast(str(R.string.bear_farm_toast_use_plant))
+                GameAudio.play(appContext, GameCue.BUMP)
+            }
             else -> showInfo(plot)
         }
     }

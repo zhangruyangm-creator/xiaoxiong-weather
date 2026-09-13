@@ -220,7 +220,12 @@ private fun MazeSelectHeader(
                     .background(Color(0x33FFFFFF)),
             contentAlignment = Alignment.Center,
         ) {
-            IconButton(onClick = onExit) {
+            IconButton(
+                onClick = {
+                    GameAudio.play(GameCue.UI_CLICK)
+                    onExit()
+                },
+            ) {
                 Icon(
                     Icons.Default.Close,
                     contentDescription = stringResource(R.string.cd_close_game),
@@ -243,7 +248,10 @@ private fun MazeSelectHeader(
             )
         }
         GameCharacterButton(
-            onClick = onCharacter,
+            onClick = {
+                GameAudio.play(GameCue.UI_CLICK)
+                onCharacter()
+            },
             tint = Color(0xFF12324F),
         )
     }
@@ -369,8 +377,12 @@ private fun MazeModeCard(
                 .shadow(6.dp, RoundedCornerShape(18.dp), clip = false)
                 .clip(RoundedCornerShape(18.dp))
                 .background(Brush.linearGradient(colors))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .clickable(
+                    onClick = {
+                        GameAudio.play(GameCue.UI_CLICK)
+                        onClick()
+                    },
+                ).padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = emoji, fontSize = 24.sp)
@@ -453,7 +465,13 @@ private fun MazeLevelNode(
                 .clip(shape)
                 .background(Brush.verticalGradient(listOf(cardTop, cardBottom)))
                 .border(if (isNext) 2.dp else 1.dp, borderColor, shape)
-                .clickable(enabled = open, onClick = onClick),
+                .clickable(
+                    enabled = open,
+                    onClick = {
+                        GameAudio.play(GameCue.UI_CLICK)
+                        onClick()
+                    },
+                ),
     ) {
         // 顶部主题横幅 + 主题图标
         Box(

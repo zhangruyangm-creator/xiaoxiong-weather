@@ -80,7 +80,13 @@ fun BearStarJumpScreen(
     // 进程重建（旋转/被杀）后恢复局中对局：放 LaunchedEffect 而非 remember 初始化块，
     // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。
     LaunchedEffect(Unit) {
+        GameAudio.preload(context)
+    }
+    LaunchedEffect(Unit) {
         game.restoreSnapshot(prefs)
+    }
+    LaunchedEffect(game.phase) {
+        if (game.phase == GamePhase.OVER) GameAudio.play(GameCue.LOSE)
     }
     // 组合销毁（切屏/旋转重建）时落盘，按 Home 等 ON_STOP 也落盘，避免进程被回收丢档；
     // 只有 RUNNING 才写（clearSnapshot 后置位的 discarded 会抑制兜底落盘）。
@@ -130,15 +136,19 @@ fun BearStarJumpScreen(
                     worldDt,
                     onBounce = {
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        GameAudio.play(GameCue.JUMP)
                     },
                     onStar = {
                         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        GameAudio.play(GameCue.STAR)
                     },
                     onSpring = {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        GameAudio.play(GameCue.JUMP)
                     },
                     onDeath = { score ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        GameAudio.play(GameCue.HIT)
                         // 对局结束：清除快照，避免下次重进续上已死的一局
                         game.clearSnapshot(prefs)
                         if (score > game.best) {

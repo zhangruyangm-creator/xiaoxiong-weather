@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.edit
@@ -34,7 +35,10 @@ fun BearMazeScreen(
     isDay: Boolean?,
     onExit: () -> Unit,
 ) {
+    val context = LocalContext.current
     val view = LocalView.current
+    // 入口预加载全部音效样本，消除首次播放的加载延迟
+    LaunchedEffect(Unit) { GameAudio.preload(context) }
     val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
     val characterState = rememberBearCharacterState()
@@ -124,7 +128,8 @@ fun BearMazeScreen(
         val event = game.tick(dt)
         if (wasMoving && !game.moving) {
             if (game.phase == MazePhase.CLEAR && before != MazePhase.CLEAR) {
-                // 结算触感 + 落盘进度；结算即清掉落盘会话，避免选关页出现已结算的旧档
+                // 结算音效/触感 + 落盘进度；结算即清掉落盘会话，避免选关页出现已结算的旧档
+                GameAudio.play(if (game.failed) GameCue.LOSE else GameCue.GOAL)
                 view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 game.saveProgress(prefs)
                 game.saveSession(prefs)
@@ -138,7 +143,14 @@ fun BearMazeScreen(
                     }
                 }
             } else {
-                // 按落地事件类型区分触感（落地只响一次，按键本身不再响）
+                // 按落地事件类型区分音效/触感（落地只响一次，滑行经过的格子同样各计一次）
+                when (event) {
+                    MazeStepEvent.HONEY, MazeStepEvent.KEY, MazeStepEvent.LOCK ->
+                        GameAudio.play(GameCue.KEY)
+                    MazeStepEvent.PORTAL -> GameAudio.play(GameCue.PORTAL)
+                    MazeStepEvent.EXIT_LOCKED -> GameAudio.play(GameCue.BUMP)
+                    else -> Unit
+                }
                 val haptic =
                     when (event) {
                         MazeStepEvent.HONEY, MazeStepEvent.KEY, MazeStepEvent.LOCK ->
@@ -225,13 +237,14 @@ fun BearMazeScreen(
                         }
                     },
                     onMove = { dir ->
-                        // 按键本身不给触感；成功移动的反馈在落地事件里统一给，
-                        // 被墙/锁挡住时给一次 REJECT，避免与落地音重复
+                        // 按键本身不给音效/触感；成功移动的反馈在落地事件里统一给，
+                        // 被墙/锁挡住时给一次 BUMP + REJECT，避免与落地音重复
                         if (!game.tryMove(dir) &&
                             game.phase == MazePhase.PLAYING &&
                             !game.moving &&
                             !game.cleared
                         ) {
+                            GameAudio.play(GameCue.BUMP)
                             view.performHapticFeedback(HapticFeedbackConstants.REJECT)
                         }
                     },
@@ -316,11 +329,19 @@ private fun OverwriteSessionDialog(
             is SavedSessionInfo.Daily -> stringResource(R.string.bear_maze_overwrite_text_daily)
         }
     AlertDialog(
-        onDismissRequest = onCancel,
+        onDismissRequest = {
+            GameAudio.play(GameCue.UI_CLICK)
+            onCancel()
+        },
         title = { Text(stringResource(R.string.bear_maze_overwrite_title)) },
         text = { Text(message) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(
+                onClick = {
+                    GameAudio.play(GameCue.UI_CLICK)
+                    onConfirm()
+                },
+            ) {
                 Text(
                     stringResource(R.string.bear_maze_overwrite_confirm),
                     color = MaterialTheme.colorScheme.error,
@@ -328,7 +349,12 @@ private fun OverwriteSessionDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onCancel) {
+            TextButton(
+                onClick = {
+                    GameAudio.play(GameCue.UI_CLICK)
+                    onCancel()
+                },
+            ) {
                 Text(stringResource(R.string.bear_maze_overwrite_cancel))
             }
         },
@@ -344,20 +370,33 @@ private fun AbandonEndlessDialog(
     onAbandon: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onContinue,
+        onDismissRequest = {
+            GameAudio.play(GameCue.UI_CLICK)
+            onContinue()
+        },
         title = {
             Text(stringResource(R.string.bear_maze_abandon_title, wave))
         },
         text = {
             Column {
                 Text(stringResource(R.string.bear_maze_abandon_text, wave))
-                TextButton(onClick = onSaveAndExit) {
+                TextButton(
+                    onClick = {
+                        GameAudio.play(GameCue.UI_CLICK)
+                        onSaveAndExit()
+                    },
+                ) {
                     Text(stringResource(R.string.bear_maze_abandon_keep))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onAbandon) {
+            TextButton(
+                onClick = {
+                    GameAudio.play(GameCue.UI_CLICK)
+                    onAbandon()
+                },
+            ) {
                 Text(
                     stringResource(R.string.bear_maze_abandon_discard),
                     color = MaterialTheme.colorScheme.error,
@@ -365,7 +404,12 @@ private fun AbandonEndlessDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onContinue) {
+            TextButton(
+                onClick = {
+                    GameAudio.play(GameCue.UI_CLICK)
+                    onContinue()
+                },
+            ) {
                 Text(stringResource(R.string.bear_maze_abandon_cancel))
             }
         },

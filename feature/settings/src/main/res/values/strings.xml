@@ -32,6 +32,12 @@
     <string name="settings_fahrenheit">华氏度 ℉</string>
     <string name="settings_font">字体大小</string>
     <string name="settings_font_sub">仅本 App 生效；系统字过大可选「标准」或「较小」</string>
+    <string name="settings_game_audio">游戏音效</string>
+    <string name="settings_game_audio_sub">所有小游戏通用；音效为程序合成，轻量不占空间</string>
+    <string name="settings_game_audio_toggle">游戏音效开关</string>
+    <string name="settings_game_audio_toggle_sub">关闭后所有小游戏静音</string>
+    <string name="settings_game_audio_volume">音量</string>
+    <string name="settings_game_audio_volume_percent">%1$d%%</string>
     <string name="settings_hourly_cards">小时页卡片</string>
     <string name="settings_hourly_cards_hint">长按左侧手柄拖动排序；关闭后该卡片不显示</string>
     <string name="settings_hourly_cards_locked">小时走势始终显示</string>

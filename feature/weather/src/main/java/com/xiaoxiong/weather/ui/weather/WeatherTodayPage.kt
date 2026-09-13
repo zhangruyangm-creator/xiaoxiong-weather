@@ -44,8 +44,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -350,7 +352,15 @@ internal fun CurrentWeatherCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = snapshot.city.displayName,
-                        style = MaterialTheme.typography.titleLarge,
+                        style =
+                            MaterialTheme.typography.titleLarge.copy(
+                                shadow =
+                                    Shadow(
+                                        color = Color.Black.copy(alpha = 0.35f),
+                                        offset = Offset(0f, 1.5f),
+                                        blurRadius = 6f,
+                                    ),
+                            ),
                         fontWeight = FontWeight.Bold,
                         color = style.contentColor,
                         maxLines = 1,
@@ -376,13 +386,29 @@ internal fun CurrentWeatherCard(
             val tempUnit = LocalTemperatureUnit.current
             Text(
                 text = formatTemperature(current.temperatureC, tempUnit),
-                style = MaterialTheme.typography.displaySmall,
+                style =
+                    MaterialTheme.typography.displaySmall.copy(
+                        shadow =
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.35f),
+                                offset = Offset(0f, 1.5f),
+                                blurRadius = 6f,
+                            ),
+                    ),
                 fontWeight = FontWeight.Bold,
                 color = style.contentColor,
             )
             Text(
                 text = weatherCodeDescription(displayCode, precipRate),
-                style = MaterialTheme.typography.titleMedium,
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        shadow =
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.35f),
+                                offset = Offset(0f, 1.5f),
+                                blurRadius = 6f,
+                            ),
+                    ),
                 color = style.contentColor,
             )
             val today = snapshot.daily.firstOrNull()
@@ -394,7 +420,15 @@ internal fun CurrentWeatherCard(
                         formatTemperature(today?.tempMaxC, tempUnit),
                         formatTemperature(today?.tempMinC, tempUnit),
                     ),
-                style = MaterialTheme.typography.titleMedium,
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        shadow =
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.35f),
+                                offset = Offset(0f, 1.5f),
+                                blurRadius = 6f,
+                            ),
+                    ),
                 fontWeight = FontWeight.Medium,
                 color = style.contentColor,
             )

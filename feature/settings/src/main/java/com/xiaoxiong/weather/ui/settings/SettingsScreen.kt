@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -41,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,11 +76,14 @@ import com.xiaoxiong.weather.data.BackgroundRefreshInterval
 import com.xiaoxiong.weather.data.DebugWeatherStore
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.ThemeMode
+import com.xiaoxiong.weather.ui.game.GameAudio
+import com.xiaoxiong.weather.ui.game.GameCue
 import com.xiaoxiong.weather.ui.weather.AppScreenBackground
 import com.xiaoxiong.weather.ui.weather.SectionHeader
 import com.xiaoxiong.weather.ui.weather.SoftCard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,6 +104,7 @@ fun SettingsScreen(
     )
     val context = LocalContext.current
     var aboutTapCount by remember { mutableIntStateOf(0) }
+    var gameAudioSettings by remember(context) { mutableStateOf(GameAudio.settings(context)) }
 
     // Android 13+ 通知开关必须先拿到 POST_NOTIFICATIONS；授权状态以系统为准，
     // 用户从系统设置返回时在 ON_RESUME 重新读取
@@ -330,6 +336,57 @@ fun SettingsScreen(
                             onCheckedChange = {
                                 scope.launch { settingsStore.setReduceMotion(it) }
                             },
+                        )
+                    }
+                }
+                item {
+                    SoftCard(modifier = Modifier.fillMaxWidth()) {
+                        SectionHeader(
+                            title = stringResource(R.string.settings_game_audio),
+                            subtitle = stringResource(R.string.settings_game_audio_sub),
+                            icon = Icons.Filled.MusicNote,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SettingsSwitchRow(
+                            title = stringResource(R.string.settings_game_audio_toggle),
+                            subtitle = stringResource(R.string.settings_game_audio_toggle_sub),
+                            checked = gameAudioSettings.enabled,
+                            onCheckedChange = { enabled ->
+                                GameAudio.setEnabled(context, enabled)
+                                gameAudioSettings = GameAudio.settings(context)
+                                if (enabled) GameAudio.play(context, GameCue.UI_CLICK)
+                            },
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_game_audio_volume),
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.settings_game_audio_volume_percent,
+                                        (gameAudioSettings.volume * 100).roundToInt(),
+                                    ),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Slider(
+                            value = gameAudioSettings.volume,
+                            onValueChange = { volume ->
+                                GameAudio.setVolume(context, volume)
+                                gameAudioSettings = GameAudio.settings(context)
+                            },
+                            onValueChangeFinished = { GameAudio.play(context, GameCue.UI_CLICK) },
+                            valueRange = GameAudio.MIN_VOLUME..GameAudio.MAX_VOLUME,
                         )
                     }
                 }

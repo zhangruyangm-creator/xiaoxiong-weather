@@ -37,6 +37,8 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
+    // 设置页「游戏音效」分区需要写入 game_audio prefs 并试听 UI_CLICK
+    implementation(project(":game:common"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

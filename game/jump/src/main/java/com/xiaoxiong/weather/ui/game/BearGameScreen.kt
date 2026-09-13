@@ -75,6 +75,9 @@ private const val JUMP_SNAPSHOT_KEY = "jump_snapshot_v1"
 /** 快照 meta 段的字段数，用于坏档校验。 */
 private const val JUMP_SNAPSHOT_META_FIELDS = 22
 
+/** 金币音效最小间隔（纳秒）：同帧/连续吃多枚只响一次，避免爆音。 */
+private const val COIN_SOUND_GAP_NANOS = 60_000_000L
+
 private fun runSceneFromWeather(
     weather: FarmWeather,
     sceneCode: Int?,
@@ -297,7 +300,7 @@ class BearGame {
         speed = 340f * s
     }
 
-    fun tap() {
+    fun tap(onJump: () -> Unit = {}) {
         when (phase) {
             GamePhase.READY -> start()
             GamePhase.RUNNING ->
@@ -309,6 +312,7 @@ class BearGame {
                         airTime = 0f
                         jumpBufferT = 0f
                         burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+                        onJump()
                     }
                     BearGameLogic.JumpIntent.SECOND -> {
                         bearVY = jumpV2
@@ -318,6 +322,7 @@ class BearGame {
                         jumpBufferT = 0f
                         flipT = 0f
                         burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+                        onJump()
                     }
                     // 空中且没有剩余跳跃：缓存这次点按，落地时立即消费（跳跃缓冲）
                     BearGameLogic.JumpIntent.NONE -> jumpBufferT = BearGameLogic.JUMP_BUFFER_SEC
@@ -470,6 +475,7 @@ class BearGame {
         dt: Float,
         onCoin: () -> Unit,
         onDeath: (score: Int) -> Unit,
+        onJump: () -> Unit = {},
     ) {
         if (size == IntSize.Zero) return
         time += dt
@@ -525,6 +531,7 @@ class BearGame {
                 jumpsLeft = 1
                 grounded = false
                 burst(bearX + bearSize / 2, groundY, count = 3, spread = 140f * s)
+                onJump()
             }
         }
         if (grounded) {
@@ -787,7 +794,13 @@ fun BearGameScreen(
     // 进程重建（旋转/被杀）后恢复局中对局：放 LaunchedEffect 而非 remember 初始化块，
     // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。
     LaunchedEffect(Unit) {
+        GameAudio.preload(context)
+    }
+    LaunchedEffect(Unit) {
         game.restoreSnapshot(prefs)
+    }
+    LaunchedEffect(game.phase) {
+        if (game.phase == GamePhase.OVER) GameAudio.play(GameCue.LOSE)
     }
     // 组合销毁（切屏/旋转重建）时落盘，按 Home 等 ON_STOP 也落盘，避免进程被回收丢档；
     // 只有 RUNNING 才写（clearSnapshot 后置位的 discarded 会抑制兜底落盘）。
@@ -835,6 +848,7 @@ fun BearGameScreen(
     // 节流帧的 dt 不能直接用单帧值：否则非对局动画会以真实速度的 1/5 慢动作运行。
     // 这里按真实帧累计 animDt，整笔提交给 tick（对齐 farm 的写法）。
     var animDt by remember { mutableFloatStateOf(0f) }
+    var lastCoinSoundAt by remember { mutableLongStateOf(0L) }
     GameFrameLoop(
         paused = { lb.show || showCharacterPicker || pause.paused },
         onTick = { dt, now ->
@@ -849,9 +863,14 @@ fun BearGameScreen(
                     worldDt,
                     onCoin = {
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        if (now - lastCoinSoundAt >= COIN_SOUND_GAP_NANOS) {
+                            lastCoinSoundAt = now
+                            GameAudio.play(GameCue.COIN)
+                        }
                     },
                     onDeath = { score ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        GameAudio.play(GameCue.HIT)
                         // 对局结束：清除快照，避免下次重进续上已死的一局
                         game.clearSnapshot(prefs)
                         if (score > game.best) {
@@ -870,6 +889,7 @@ fun BearGameScreen(
                                 ) ?: 0
                         }
                     },
+                    onJump = { GameAudio.play(GameCue.JUMP) },
                 )
                 frame = now
             }
@@ -898,7 +918,7 @@ fun BearGameScreen(
                         detectTapGestures {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             if (game.phase == GamePhase.READY) lb.resetLastRank()
-                            game.tap()
+                            game.tap(onJump = { GameAudio.play(GameCue.JUMP) })
                         }
                     },
         ) {

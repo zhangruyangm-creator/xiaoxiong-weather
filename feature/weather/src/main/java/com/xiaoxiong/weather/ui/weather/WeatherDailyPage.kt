@@ -203,7 +203,14 @@ private fun DailyDayCard(
                     spotColor = style.gradient.last().copy(alpha = 0.4f),
                 ).clip(shape)
                 .background(cardBrush)
-                .border(
+                .then(
+                    if (style.scrimAlpha > 0f) {
+                        // 浅色场景白字必须走暗角：与首页卡片同一套复合对比度保障
+                        Modifier.background(Color.Black.copy(alpha = style.scrimAlpha))
+                    } else {
+                        Modifier
+                    },
+                ).border(
                     width = if (isToday) 1.5.dp else 1.dp,
                     color = Color.White.copy(alpha = if (isToday) 0.42f else 0.22f),
                     shape = shape,

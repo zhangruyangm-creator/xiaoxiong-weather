@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -88,6 +89,9 @@ fun BearHomeScreen(
     otherGames: List<GameEntry> = emptyList(),
     onOpenGame: (GameEntry) -> Unit = {},
 ) {
+    val context = LocalContext.current
+    // 入口预加载全部音效样本，消除首次播放的加载延迟
+    LaunchedEffect(Unit) { GameAudio.preload(context) }
     var room by remember { mutableStateOf(HomeRoom.HUB) }
 
     /** 从阳台/枢纽进街后，返回时回到来处。 */
@@ -120,7 +124,14 @@ fun BearHomeScreen(
     val bearRes = remember(moment, today) { moment.bearResFor(today) }
     val narration = stringResource(homeMomentNarrationRes(moment))
 
+    /** 房间跳转统一入口：每次点击至多播一次低频 UI_CLICK。 */
+    fun openRoom(target: HomeRoom) {
+        GameAudio.play(GameCue.UI_CLICK)
+        room = target
+    }
+
     fun openStreet(from: HomeRoom) {
+        GameAudio.play(GameCue.UI_CLICK)
         streetReturn = from
         streetSpot = null
         room = HomeRoom.STREET
@@ -148,29 +159,32 @@ fun BearHomeScreen(
                     bearRes = bearRes,
                     narration = narration,
                     isDay = isDayTheme,
-                    onOpenBedroom = { room = HomeRoom.BEDROOM },
-                    onOpenKitchen = { room = HomeRoom.KITCHEN },
-                    onOpenPlayroom = { room = HomeRoom.PLAYROOM },
-                    onOpenCloset = { room = HomeRoom.CLOSET },
-                    onOpenBalcony = { room = HomeRoom.BALCONY },
-                    onOpenLiving = { room = HomeRoom.LIVING },
+                    onOpenBedroom = { openRoom(HomeRoom.BEDROOM) },
+                    onOpenKitchen = { openRoom(HomeRoom.KITCHEN) },
+                    onOpenPlayroom = { openRoom(HomeRoom.PLAYROOM) },
+                    onOpenCloset = { openRoom(HomeRoom.CLOSET) },
+                    onOpenBalcony = { openRoom(HomeRoom.BALCONY) },
+                    onOpenLiving = { openRoom(HomeRoom.LIVING) },
                     onOpenStreet = { openStreet(HomeRoom.HUB) },
-                    onOpenSummary = { room = HomeRoom.SUMMARY },
+                    onOpenSummary = { openRoom(HomeRoom.SUMMARY) },
                 )
             HomeRoom.LIVING ->
                 HomeLiving(
                     bearRes = bearRes,
                     narration = narration,
-                    onOpenBalcony = { room = HomeRoom.BALCONY },
+                    onOpenBalcony = { openRoom(HomeRoom.BALCONY) },
                     onOpenStreet = { openStreet(HomeRoom.LIVING) },
-                    onOpenSummary = { room = HomeRoom.SUMMARY },
+                    onOpenSummary = { openRoom(HomeRoom.SUMMARY) },
                 )
             HomeRoom.BEDROOM -> HomeBedroom(date = today, time = now)
             HomeRoom.KITCHEN -> HomeKitchen()
             HomeRoom.PLAYROOM ->
                 HomePlayroom(
                     games = otherGames,
-                    onOpenGame = onOpenGame,
+                    onOpenGame = { game ->
+                        GameAudio.play(GameCue.UI_CLICK)
+                        onOpenGame(game)
+                    },
                 )
             HomeRoom.CLOSET -> HomeCloset()
             HomeRoom.BALCONY ->
@@ -184,7 +198,10 @@ fun BearHomeScreen(
                 HomeStreet(
                     isDay = isDay,
                     selected = streetSpot,
-                    onSelect = { streetSpot = it },
+                    onSelect = { spot ->
+                        GameAudio.play(GameCue.UI_CLICK)
+                        streetSpot = spot
+                    },
                 )
             HomeRoom.SUMMARY -> HomeSummary(sceneCode = sceneCode, isDay = isDay, date = today, time = now)
         }
@@ -210,13 +227,17 @@ fun BearHomeScreen(
                 },
             showBack = room != HomeRoom.HUB,
             onBack = {
+                GameAudio.play(GameCue.UI_CLICK)
                 when {
                     room == HomeRoom.STREET && streetSpot != null -> streetSpot = null
                     room == HomeRoom.STREET -> room = streetReturn
                     else -> room = HomeRoom.HUB
                 }
             },
-            onClose = onExit,
+            onClose = {
+                GameAudio.play(GameCue.UI_CLICK)
+                onExit()
+            },
             modifier =
                 Modifier
                     .align(Alignment.TopCenter)
@@ -783,7 +804,10 @@ private fun HomeKitchen() {
                             modifier =
                                 Modifier
                                     .weight(1f)
-                                    .clickable { slot = s },
+                                    .clickable {
+                                        GameAudio.play(GameCue.UI_CLICK)
+                                        slot = s
+                                    },
                         ) {
                             Text(
                                 text = stringResource(s.titleRes),

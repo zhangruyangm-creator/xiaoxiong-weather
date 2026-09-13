@@ -32,6 +32,12 @@
     <string name="settings_fahrenheit">Fahrenheit ℉</string>
     <string name="settings_font">Font size</string>
     <string name="settings_font_sub">App-only. If system text is huge, try Standard or Small.</string>
+    <string name="settings_game_audio">Game audio</string>
+    <string name="settings_game_audio_sub">Shared by all mini games; effects are synthesized and lightweight</string>
+    <string name="settings_game_audio_toggle">Sound effects</string>
+    <string name="settings_game_audio_toggle_sub">Mutes all mini games when off</string>
+    <string name="settings_game_audio_volume">Volume</string>
+    <string name="settings_game_audio_volume_percent">%1$d%%</string>
     <string name="settings_hourly_cards">Hourly page cards</string>
     <string name="settings_hourly_cards_hint">Long-press the handle to reorder; turn off to hide a card</string>
     <string name="settings_hourly_cards_locked">Hourly chart always shown</string>

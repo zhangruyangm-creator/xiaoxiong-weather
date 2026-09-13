@@ -162,8 +162,10 @@ class PoolGame {
     var frameWinner by mutableStateOf<PoolSide?>(null)
         private set
     var pendingHapticCue = false
+    var pendingHapticHit = false
     var pendingHapticPot = false
     var pendingHapticRail = false
+    var pendingHapticFoul = false
     val effects = mutableListOf<PoolEffect>()
 
     private var accumulator = 0f
@@ -201,8 +203,10 @@ class PoolGame {
         message = PoolMessage.NONE
         messageT = 0f
         pendingHapticCue = false
+        pendingHapticHit = false
         pendingHapticPot = false
         pendingHapticRail = false
+        pendingHapticFoul = false
     }
 
     private var shotFirstContact: PoolBallKind? = null
@@ -231,11 +235,12 @@ class PoolGame {
                     shotFirstContact = other.kind
                     shotFirstContactNumber = other.number
                     shotContactHappened = true
+                    // 球-球碰撞：只在每杆的首次白球接触时响一次，避免开球连击刷屏
+                    pendingHapticHit = true
                     spawnBurst((a.x + b.x) / 2f, (a.y + b.y) / 2f, 6, 0xFFFFF3C4.toInt())
                 } else if (shotContactHappened) {
                     spawnBurst((a.x + b.x) / 2f, (a.y + b.y) / 2f, 4, 0xFFE8EAF6.toInt())
                 }
-                pendingHapticRail = pendingHapticRail || (a.kind == PoolBallKind.CUE || b.kind == PoolBallKind.CUE)
             }
 
             override fun onRail(ball: PoolBall) {
@@ -772,6 +777,8 @@ class PoolGame {
         match = update.state
         message = update.message
         messageT = 2.4f
+        // 犯规提示音：本杆判定为犯规时给一声（结算后由 Screen 消费）
+        if (update.foul) pendingHapticFoul = true
         recordShotSummary(shooter, update)
 
         // 教学：达成目标即结束本局（通过），不再走普通胜负/犯规流程
