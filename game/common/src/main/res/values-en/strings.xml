@@ -23,4 +23,8 @@
     <string name="bear_pause_exit">Quit game</string>
     <string name="cd_bear_pause">Pause</string>
     <string name="share_card_cancel">Cancel</string>
+    <string name="game_best_label">Best</string>
+    <string name="game_exit">Back to weather</string>
+    <string name="game_restart">Play again</string>
+    <string name="game_view_rank">View leaderboard</string>
 </resources>

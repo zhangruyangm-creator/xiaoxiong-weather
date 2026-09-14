@@ -3,7 +3,7 @@
     <string name="bear_plane_title">小熊战机</string>
     <string name="cd_plane_field">小熊战机战场</string>
     <string name="cd_plane_score">得分 %1$d，最高分 %2$d</string>
-    <string name="cd_plane_hud_stats">生命 %1$d，炸弹 %2$d，火力等级 %3$d</string>
+    <string name="cd_plane_hud_stats">生命 %1$d/%2$d，炸弹 %3$d，火力等级 %4$d</string>
     <string name="cd_plane_boss_hp">Boss 生命值</string>
     <string name="bear_plane_start">开始战斗</string>
     <string name="bear_plane_intro">拖动小熊战机躲避弹幕、自动开火；吃 P 升级武器，B 补充炸弹。无尽波次，Boss 每 5 波来袭，坚持越久分数越高！</string>

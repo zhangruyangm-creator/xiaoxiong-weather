@@ -89,6 +89,41 @@ class PlaneGameTest {
     }
 
     @Test
+    fun startLivesOne_settlesOnFirstHit_withoutShieldLeak() {
+        val game = newGame()
+        game.startLives = 1
+        game.startGame(seed = 104L)
+        assertEquals(1, game.player.lives)
+        game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 2)
+        game.enemies.clear()
+        game.enemyBullets.clear()
+        game.enemyBullets += enemyBulletAtPlayer(game, 995)
+        game.advanceTicks(1)
+        assertEquals(0, game.player.lives)
+        assertFalse(game.player.alive)
+        assertEquals("命数 0 必须立即结算", PlanePhase.SETTLED, game.phase)
+    }
+
+    @Test
+    fun startLivesNine_keepsFullHealthPool() {
+        val game = newGame()
+        game.startLives = 9
+        game.startGame(seed = 105L)
+        assertEquals(9, game.player.lives)
+        game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 2)
+        repeat(8) { index ->
+            game.enemies.clear()
+            game.enemyBullets.clear()
+            game.enemyBullets += enemyBulletAtPlayer(game, 1000 + index)
+            game.advanceTicks(1)
+            game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 2)
+        }
+        assertEquals("9 条命应能承受 8 次受击仍存活", 1, game.player.lives)
+        assertTrue(game.player.alive)
+        assertEquals(PlanePhase.PLAYING, game.phase)
+    }
+
+    @Test
     fun startGame_clearsPreviousEventFlags() {
         val game = newGame()
         game.pendingHapticLose = true
@@ -366,6 +401,29 @@ class PlaneGameTest {
         val boss = game.enemies.firstOrNull { it.isBoss }
         assertNotNull("Boss 应在警告结束后出现", boss)
         assertTrue(game.bossActive)
+    }
+
+    @Test
+    fun boss_sweepCoversBothSidesOfSpawnWithinAmplitude() {
+        val game = newGame()
+        game.startGame(seed = 106L, startWave = PLANE_BOSS_EVERY)
+        game.advanceTicks(PlaneConfig.WAVE_INTRO_TICKS + PlaneConfig.BOSS_WARNING_TICKS)
+        val boss = game.enemies.first { it.isBoss }
+        val spawnX = boss.x
+        var minX = boss.x
+        var maxX = boss.x
+        repeat(60 * 20) {
+            // 压住玩家火力，避免 20 秒内把 Boss 打死导致采样停止
+            game.player.fireCooldownTicks = 99999
+            game.player.invulnTicks = 99999
+            game.enemyBullets.clear()
+            game.advanceTicks(1)
+            minX = minOf(minX, boss.x)
+            maxX = maxOf(maxX, boss.x)
+        }
+        val amplitude = PlaneLogic.BOSS_SWEEP_SPEED / PlaneLogic.BOSS_SWEEP_OMEGA
+        assertTrue("Boss 必须扫到出生点左侧（minX=$minX spawn=$spawnX）", minX < spawnX - 10f)
+        assertTrue("Boss 扫射幅度应受速度约束（maxX=$maxX）", maxX <= spawnX + amplitude + 1f)
     }
 
     @Test

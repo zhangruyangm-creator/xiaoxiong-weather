@@ -16,6 +16,7 @@ import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.WeatherCacheStore
 import com.xiaoxiong.weather.data.WeatherSnapshot
+import com.xiaoxiong.weather.data.isSamePlace
 import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -308,7 +309,7 @@ class WeatherViewModel(
         val useLocation = fromLocation || city.isCurrentLocation
         val requestId = weatherRequestId.incrementAndGet()
         val previousState = _uiState.value
-        val samePlace = roughlySameCity(previousState.selectedCity, city)
+        val samePlace = previousState.selectedCity?.isSamePlace(city) == true
         // 静默刷新时用户输入是否仍停留在旧城市名（未进行搜索）；是则跟随新城市名同步
         val queryFollowsCity = previousState.query == previousState.selectedCity?.displayName
         // 手动选城：作废在途搜索，防止旧建议在选城后复活；静默刷新不动用户正在进行的搜索
@@ -491,12 +492,16 @@ class WeatherViewModel(
 
     /** 逆地理完成后只改地名，不重拉天气。 */
     private fun updateCurrentLocationLabel(city: City) {
+        var labelApplied = false
         _uiState.update { state ->
+            // update 的 lambda 可能因 CAS 失败重跑：每次先复位，避免上一轮的标记泄漏
+            labelApplied = false
             if (!state.usingCurrentLocation) return@update state
             val current = state.selectedCity ?: return@update state
-            if (!roughlySameCity(current, city)) return@update state
+            if (!current.isSamePlace(city)) return@update state
+            labelApplied = true
             val weather =
-                state.weather?.takeIf { roughlySameCity(it.city, city) }?.copy(city = city)
+                state.weather?.takeIf { it.city.isSamePlace(city) }?.copy(city = city)
                     ?: state.weather
             state.copy(
                 selectedCity = city,
@@ -504,6 +509,9 @@ class WeatherViewModel(
                 weather = weather,
             )
         }
+        // UI query 总是被改写成精化后的地名：同步搜索基线，避免 queryFlow 停在旧地名，
+        // 用户退格一位后 StateFlow 值未变、搜索不再触发（与 onCitySelected 同一约定）。
+        if (labelApplied) searchController.onCitySelected(city)
         viewModelScope.launch {
             selectedCityStore.save(city, useLocation = true)
         }
@@ -631,13 +639,13 @@ class WeatherViewModel(
         val base = _baseWeather.value ?: return
         // 快照属于旧城市时不回灌（如换城后新城市尚未成功拉取）
         val selectedCity = _uiState.value.selectedCity ?: return
-        if (!roughlySameCity(base.city, selectedCity)) return
+        if (!base.city.isSamePlace(selectedCity)) return
         val presented = presentWeather(base)
         // presentWeather 会挂起读 DataStore：恢复后在同一同步段复核快照与城市，
         // 期间换城或新一轮刷新已发布时直接丢弃，旧快照不得回灌覆盖新数据。
         if (_baseWeather.value !== base) return
         val currentCity = _uiState.value.selectedCity ?: return
-        if (!roughlySameCity(base.city, currentCity)) return
+        if (!base.city.isSamePlace(currentCity)) return
         _uiState.update {
             it.copy(
                 weather = presented.snapshot,
@@ -699,7 +707,7 @@ class WeatherViewModel(
             // 同 requestId 下缓存发布可能晚于网络发布返回：较旧快照不得反向覆盖新数据
             if (publishSeq != weatherPublishSeq.get()) return@launch
             // 发布目标已不是当前选中城市（切城取消不到本协程）时直接丢弃
-            if (!roughlySameCity(_uiState.value.selectedCity, selectedCity)) return@launch
+            if (_uiState.value.selectedCity?.isSamePlace(selectedCity) != true) return@launch
             val shown = presented.snapshot
             if (updateIcon) {
                 presentationEffects.scheduleLauncherIcon(
@@ -715,7 +723,7 @@ class WeatherViewModel(
                 val cityToShow =
                     if (it.usingCurrentLocation &&
                         it.selectedCity != null &&
-                        roughlySameCity(it.selectedCity, selectedCity)
+                        it.selectedCity.isSamePlace(selectedCity)
                     ) {
                         it.selectedCity
                     } else {
@@ -723,7 +731,7 @@ class WeatherViewModel(
                     }
                 val weatherToShow =
                     if (cityToShow != null &&
-                        roughlySameCity(shown.city, cityToShow) &&
+                        shown.city.isSamePlace(cityToShow) &&
                         (
                             shown.city.name != cityToShow.name ||
                                 shown.city.admin1 != cityToShow.admin1 ||
@@ -748,15 +756,6 @@ class WeatherViewModel(
                 presentationEffects.refreshWidgets(getApplication())
             }
         }
-    }
-
-    private fun roughlySameCity(
-        a: City?,
-        b: City,
-    ): Boolean {
-        if (a == null) return false
-        return kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
-            kotlin.math.abs(a.longitude - b.longitude) < 0.01
     }
 
     private fun nowText(): String = LocalDateTime.now().format(NowTimeFormatter)

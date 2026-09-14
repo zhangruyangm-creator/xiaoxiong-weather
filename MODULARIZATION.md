@@ -9,7 +9,7 @@
 
 ## 1. 背景与动机
 
-当前 `:app` 单模块承载全部代码（约 39k 行 Kotlin、514 张插画、316 个测试），已在单模块内通过源码集、控制器拆分、手动 DI 做到了较好的组织。但仍存在：
+当前 `:app` 单模块承载全部代码（约 39k 行 Kotlin、456 张插画、316 个测试），已在单模块内通过源码集、控制器拆分、手动 DI 做到了较好的组织。但仍存在：
 
 - **无编译期边界**：`ui.weather` 可以直接触碰 `data` 内部，无依赖方向约束
 - **widget / worker 反向依赖 app**（引用 `MainActivity`），是循环依赖隐患
@@ -29,8 +29,8 @@
 | R 资源引用 | 60 个文件 `import com.xiaoxiong.weather.R` | 字符串/插画绑定 | 资源随代码迁移 |
 | gameHome → `ui.weather.SunPathMath` | `SunPathPhase`/`sunPathBearMoment`/`SunPathBearMoment`/`isWeekend` | UI 反向被游戏依赖 | SunPathMath 下沉 `core:designsystem` |
 | gameCommon → `util.WeatherCodes` | 天气码转降水强度 | 领域逻辑 | 迁入 `core:common` |
-| widget → `MainActivity` | `actionStartActivity(Intent(...))` | 循环依赖隐患 | `getLaunchIntentForPackage`（已改造 ✓） |
-| worker → `MainActivity` + `widget.WeatherWidgetUpdater` | PendingIntent / 刷新 | 循环依赖隐患 | `getLaunchIntentForPackage`（已改造 ✓） |
+| widget → `MainActivity` | `Intent(context, MainActivity::class.java)` 直接启动 | 同模块引用（widget/worker 驻留 `:app`） | 保留现状：动态图标会禁用 activity-alias，`getLaunchIntentForPackage` 反而解析失效 |
+| worker → `MainActivity` + `widget.WeatherWidgetUpdater` | 通知 PendingIntent 启动 / 刷新 | 同模块引用 | 同上（`WeatherRefreshWorker` 注释已记录 alias 坑） |
 | `WeatherGameOverlay` → 全部游戏 | `main/ui/weather/WeatherGameOverlay.kt` | 编译期硬引用 | 阶段 5 接口反转为 `GameEntry` |
 | 游戏源码集裁剪 | `app/build.gradle.kts` sourceSet 动态切换 | 单模块专属机制 | 阶段 5 改为动态依赖，机制退役 |
 
@@ -60,7 +60,7 @@ xiaoxiong-weather/
 ├── :feature:weather         # WeatherViewModel/各页面/雷达/分享（WeatherScreen 由 :app 装配）
 ├── :feature:settings        # 设置/隐私/卡片设置
 ├── :game:api                # GameEntry 接口 + GameEntryProvider（ServiceLoader 发现）+ 口令常量
-├── :game:common             # 共享精灵表/排行榜/天气特效（GameBear/GameScaffold/GameLeaderboard/GameWeatherFx…）
+├── :game:common             # 共享精灵表/排行榜/天气特效/快照会话/卡片/渲染原语（GameBear/GameScaffold/GameLeaderboard/GameWeatherFx/GameSnapshotSession/GameCards/GameRenderPrimitives…）
 ├── :game:jump|catch|star|maze|farm|home|hockey|pool|plane   # 各游戏独立模块（各持 res/strings，provider 注册自身）
 ├── :baselineprofile         # 保留不动
 └── (阶段 5 已移除) app/src/gameXxx* 源码集、Empty 门面、-Pgames 源码集机制
@@ -74,13 +74,13 @@ xiaoxiong-weather/
 :core:network      ← :core:model, :core:common
 :core:domain       ← :core:model, :core:common
 :core:data         ← :core:model, :core:common, :core:domain, :core:network
-:core:designsystem ← :core:model, :core:common, :core:domain, :core:res-illustrations（api，资源透传）
+:core:designsystem ← :core:model, :core:common, :core:res-illustrations（api，资源透传）
 :core:res-illustrations ← 无依赖（纯 res）
 :core:test-fixtures← :core:model
 :feature:weather   ← core:{model,network,domain,data,designsystem,common,res-illustrations}（不依赖 :game:api，游戏装配由 :app 承载）
-:feature:settings  ← core:{model,data,designsystem,common}
-:game:common       ← :game:api, core:{designsystem,common,model}
-:game:xxx          ← :game:api, :game:common, core:{designsystem,common}
+:feature:settings  ← core:{model,domain,data,designsystem}, :game:api
+:game:common       ← :game:api（api）, :core:common
+:game:xxx          ← :game:api, :game:common, :core:designsystem
 :game:home         ← 另显式依赖 :core:res-illustrations（三餐插画直接用）
 :app               ← 全部 feature / game / widget* / worker*（游戏装配经 ServiceLoader 发现，:app 仅依赖 :game:api 接口）
 ```
@@ -109,7 +109,7 @@ WeatherViewModel 刷新
 
 **关键约束**：
 1. 游戏侧不 import 任何 `feature:weather` 类型；只消费 `sceneCode`/`isDay`/`cityName` 三个值
-2. 天气码映射逻辑（`FarmWeather.kt` 的 `farmWeatherFromScene`/`rainStrengthOf`）留在 `:game:common`，随游戏走——新增游戏类型改映射只影响游戏模块
+2. 天气码映射逻辑（`FarmWeatherCommon.kt` 的 `farmWeatherFromScene`/`rainStrengthOf`）留在 `:game:common`，随游戏走——新增游戏类型改映射只影响游戏模块
 3. `WeatherCodes` 自带的 `R.string`（排行榜天气文本）随代码迁入 `:core:common`
 4. 天气层只负责"把复杂天气归一化成场景码"，不关心游戏如何渲染——分工不变，只是固化为编译边界
 
@@ -143,24 +143,24 @@ interface GameEntry {
 
 ### 4.2 SunPathMath 下沉（阶段 3）
 
-`SunPathMath.kt` 含两个职责：日弧数学（天气页）+ 小熊生活片刻枚举（200+ 插画，gameHome 依赖）。整体迁入 `:core:designsystem`；其专属插画收在 `:core:res-illustrations`，SunPathMath 经 `IllustR` 引用。
+原 SunPathMath 文件（现拆为 `SunPath.kt`/`SunPathBearMoment.kt`/`SunPathBearDrawables.kt`）含两个职责：日弧数学（天气页）+ 小熊生活片刻枚举（200+ 插画，gameHome 依赖）。整体迁入 `:core:designsystem`；其专属插画收在 `:core:res-illustrations`，SunPathMath 经 `IllustR` 引用。
 
-### 4.3 widget/worker 循环依赖（阶段 4）
+### 4.3 widget/worker 与 `MainActivity`（阶段 4 复盘）
 
-去掉对 `MainActivity` 类的直接引用：
+初稿计划让 widget/worker 改用 `getLaunchIntentForPackage` 解除对 `MainActivity` 的引用，**实际未实施**——widget/worker 一直驻留 `:app`，保持直接构造 Intent：
 
 ```kotlin
-val intent = context.packageManager
-    .getLaunchIntentForPackage(context.packageName)
-    ?.apply { flags = FLAG_ACTIVITY_NEW_TASK or FLAG_ACTIVITY_CLEAR_TOP }
+val intent = Intent(context, MainActivity::class.java).apply {
+    flags = FLAG_ACTIVITY_NEW_TASK or FLAG_ACTIVITY_CLEAR_TOP or FLAG_ACTIVITY_SINGLE_TOP
+}
 ```
 
-worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层，`:app` 不再是其编译依赖。
+原因是本项目用 20 个 `activity-alias` 做动态图标，切换天气时会禁用当前 alias，`getLaunchIntentForPackage` 解析出的入口可能失效；显式指向 `MainActivity` 才稳定（`WeatherRefreshWorker.showNotification` 注释即记录此坑）。widget/worker 与 `MainActivity` 同属 `:app`，本就不构成跨模块环，该改造无必要。
 
 ### 4.4 字符串迁移策略
 
 - **跟随代码**：generator 引用的 `R.string.*` 与 strings 块一起迁入所属模块
-- **共享字符串**：阶段 3 建立 `:core:res` 模块（`resourcePrefix` 约束）收编跨模块公共字符串
+- **各模块自持**：generator/UI 引用的 `R.string.*` 与 strings 块一起迁入所属模块（Android Library 编译期只认自持资源）；跨模块公共字符串未再抽 `:core:res`，而是按消费方各自持有，场景插画统一收 `:core:res-illustrations`
 - **迁移顺序**：strings 迁移在代码迁移**同一步**完成，避免拆完编译不过
 
 ---
@@ -229,14 +229,14 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 | 目标模块 | 文件（帷幕） |
 |---|---|
 | `:core:data` | Store 层 8 个（`AppSettingsStore`/`FavoriteCityStore`/`RecentCityStore`/`SelectedCityStore`/`WeatherCacheStore`/`PhenologyCacheStore`/`DebugWeatherStore`/`WeatherNotifyDedupStore`）+ `LocationHelper`/`NetworkMonitor`/`ChinaCityCatalog`（`china_cities.json` 随迁）+ `CitySearchFetcher`/`ForecastFetcher`/`HistoryFetcher` + `WeatherRepository` 门面 + `WeatherPorts` 数据接口 + `CardLayoutModel`/`TodayCardLayout`/`HourlyCardLayout`/`DailyCardLayout`（卡片偏好协议，含 12 个 card 字符串）+ 对应 7 个测试 |
-| `:core:designsystem` | `ui/theme/*`（Color/Theme/Type）、`ui/weather/SunPathMath.kt`、`ui/weather/WeatherIcon.kt`、`util/AlertBearIcon.kt`、`util/WeatherLauncherIcon.kt`、新增 `ui/weather/WeatherScene.kt`（从 `WeatherAtmosphere.kt` 抽出 `WeatherScene`enum + `weatherSceneOf`）+ 286 张 `ic_sun_bear_*`/`ic_alert_bear_*`/`ic_launcher_bear_*` 插画 + 101 个生活片刻字符串 + `SunPathMathTest`（注：`ic_sun_bear_*` 场景插画后续再抽出至 `:core:res-illustrations`，见阶段 6） |
+| `:core:designsystem` | `ui/theme/*`（Color/Theme/Type）、`ui/weather/SunPath.kt`/`SunPathBearMoment.kt`/`SunPathBearDrawables.kt`、`ui/weather/WeatherIcon.kt`、`util/AlertBearIcon.kt`、`util/WeatherLauncherIcon.kt`、新增 `ui/weather/WeatherScene.kt`（从 `WeatherAtmosphere.kt` 抽出 `WeatherScene`enum + `weatherSceneOf`）+ 286 张 `ic_sun_bear_*`/`ic_alert_bear_*`/`ic_launcher_bear_*` 插画 + 101 个生活片刻字符串 + `SunPathMathTest`（注：`ic_sun_bear_*` 场景插画后续再抽出至 `:core:res-illustrations`，见阶段 6） |
 
 **关键决策（偏离初稿）**：
 
 1. **卡片布局归 `:core:data`**——`CardLayoutModel`/三个 CardLayout 是卡片偏好协议（含 `@StringRes` 但纯 Kotlin，无 Compose UI），被 `AppSettingsStore` 依赖，放 data 避免 data→designsystem 反向依赖。
 2. **`WeatherPorts` 拆文件**——数据端口（WeatherFetcher/Store 源/定位会话等）迁 data；`WeatherPresentationEffects`（呈现副作用，依赖 `WeatherLauncherIcon`/`WeatherWidgetUpdater`）留在 app 独立文件，阶段 4 处理。
 3. **`WeatherScene`+`weatherSceneOf` 从 `WeatherAtmosphere` 抽出下沉**——`WeatherIcon`（designsystem）强依赖场景分类，动画保留 app。
-4. **`:core:designsystem` 必须带 `kotlin.compose` 插件**——缺它 `@Composable` 默认参数编译报 `ERROR_EXPR 'Default Stub'`。`SunPathMath.dailyVariantIndex` 从 internal 改 public（跨模块可见）。
+4. **`:core:designsystem` 必须带 `kotlin.compose` 插件**——缺它 `@Composable` 默认参数编译报 `ERROR_EXPR 'Default Stub'`。`SunPath.kt` 的 `dailyVariantIndex` 从 internal 改 public（跨模块可见）。
 5. **插画 286 张全部随迁**——生活片刻/预警/启动图标插画是 SunPathMath/AlertBearIcon/WeatherLauncherIcon 的资源，gameHome 也依赖 SunPathMath，必须全量迁移。app 剩 26 张（游戏/天气页专属）。
 
 **已处理依赖**：
@@ -255,7 +255,7 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 |---|---|
 | `:feature:weather` | `ui/weather/*` 全部（ViewModel/控制器/雷达/分享/历史/Atmosphere）、`ui/debug/*`、`domain/CitySearchUseCase` + 8 个测试 |
 | `:feature:settings` | `ui/settings/*` 全部 |
-| widget/worker（驻留 `:app`） | `widget/*`、`worker/*`；MainActivity 引用改 `getLaunchIntentForPackage` |
+| widget/worker（驻留 `:app`） | `widget/*`、`worker/*`；保留 `Intent(context, MainActivity::class.java)`（未改 `getLaunchIntentForPackage`） |
 
 **已完成的阶段 4 前置（为阶段 5 铺路）**：
 - 建立 `:game:api` 模块（已编译接入），定义 `GameEntry` 接口（口令/titleRes/Content/onOpenGame）
@@ -267,13 +267,13 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 1. **`:feature:weather`**——`WeatherViewModel`/`WeatherViewModelDeps`（`presentationEffects` 默认改为 `NoOp`）/`CitySearchUseCase`/全部 `ui.weather` 组件（Atmosphere、Today/Hourly/Daily/History 页、雷达、分享、SunPathArc、PrecipitationBarChart 等 34 文件）迁移；`WeatherPresentationEffects` 接口下沉 `:core:data`（`NoOp` 驻 data），`Default` 实现驻 `:app` 绑定 `WeatherLauncherIcon`/`WeatherWidgetUpdater`；`ui/debug/*` 随迁。测试源集随迁（`BearHolidayTest` 等 8 个）。
 2. **`:feature:settings`**——`ui/settings/*` 8 文件迁移；`SettingsScreen` 用 `onBackgroundRefreshIntervalChanged` 回调替换对 `WeatherRefreshWorker` 的直接依赖（保持 feature 无 worker 依赖）。
 3. **字符串/插画随迁**——按「代码引用 → 同步提取」脚本迁移各 feature 所需 `R.string`/`R.array`/`R.drawable`（含 `humidity_short`、`debug_*` 等 60+ 项，zh+en）。
-4. **widget/worker 去 `MainActivity` 引用**——小组件与刷新通知均改用 `getLaunchIntentForPackage`，不再 import `MainActivity`；`WeatherAppWidget` 保留 `R` 资源。
+4. **widget/worker 保留对 `MainActivity` 的直接引用**——小组件与刷新通知仍 `Intent(context, MainActivity::class.java)`，未改用 `getLaunchIntentForPackage`（动态图标会禁用 activity-alias，alias 的 launch intent 会失效）；二者与 `MainActivity` 同在 `:app` 内，不构成跨模块依赖环，`WeatherAppWidget` 保留 `R` 资源。
 
 **关键决策（偏离初稿）**：
 
 1. **`WeatherScreen` 驻留 `:app` 作装配壳**——`WeatherScreen` 同时编排天气（feature:weather）、设置（feature:settings）、隐私门、debug、游戏入口，跨 3 个 feature。按依赖方向规则 feature 间不允许互相引用，故由 `:app` 装配层组合。feature:weather 提供天气主体（Welcome 页/今天/小时/天/历史/雷达）+ `WeatherViewModel`；`:app` 的 `WeatherViewModelFactory` 注入 `DefaultWeatherPresentationEffects` 与 DI 容器。
 2. **`:game:api` 的 `GameEntry.Content` 增设可选 `onOpenGame`**——`BearHomeEntry` 枢纽内切换其它游戏口令所需，由装配方统一路由。
-3. **widget/worker 不拆独立模块（精简）**——拆 `:feature:widget`/`:feature:worker` 收益有限（widget 强依赖 app 资源与 DI 容器），阶段 6 薄壳再评估；本阶段将 `MainActivity` 反向引用全部消除，解除循环依赖隐患。
+3. **widget/worker 不拆独立模块（精简）**——拆 `:feature:widget`/`:feature:worker` 收益有限（widget 强依赖 app 资源与 DI 容器），阶段 6 薄壳再评估；因二者驻留 `:app` 且直接引用 `MainActivity`（动态图标 alias 使 launch-intent 方案不适用），本就不存在跨模块反向依赖，保留现状即可。
 4. **内部可见性放宽**——feature:weather 的 key composable（`HistoryWeatherScreen`、`TodayPage`、`HourlyPage` 等）因 WeatherScreen（app）跨模块调用改 public；收紧封装留待阶段 6 整理 API。
 
 **验收**：全量单测（`test`）+ `lintKotlin` + `lintFullDebug` + `:app:compile{Lite,Full}{Debug,Release}Kotlin` 全部通过 ✓；真机回归（图标切换/小组件/通知）待验证。
@@ -283,7 +283,7 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 | 目标模块 | 文件 |
 |---|---|
 | `:game:api`（前置完成） | `GameEntry` 接口 + `GameEntryProvider`（ServiceLoader 发现）+ 口令常量 `EasterEggPasswords` |
-| `:game:common` | `app/src/gameCommon/*`（GameBear/GameScaffold/GameLeaderboard/GameWeatherFx/GameSkyFx/GameTypes/FarmWeatherCommon）+ 11 张精灵表 + 排行榜字符串 |
+| `:game:common` | `app/src/gameCommon/*`（GameBear/GameScaffold/GameLeaderboard/GameWeatherFx/GameSkyFx/GameTypes/FarmWeatherCommon）+ 11 张精灵表 + 排行榜字符串；后续拆分新增 `GameSnapshotSession.kt`/`GameCards.kt`/`GameRenderPrimitives.kt` |
 | `:game:jump` | `gameJump/*`（BearGameScreen/GameRunRender/BearGameEntry）+ 3 测试 |
 | `:game:star` | `gameStar/*`（BearStarJumpScreen） |
 | `:game:maze` | `gameMaze/*`（BearMazeScreen/Maze{Generator,Levels,Solvability}）+ 2 测试 |
@@ -291,6 +291,8 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 | `:game:home` | `gameHome/*`（BearHomeScreen/HomeRoutine/HomeMealDex）+ 90 张生活片刻插画 + 1 测试 |
 
 > 后续新增的 `:game:catch`（小熊接雨雪）、`:game:hockey`（小熊冰球）、`:game:pool`（小熊台球）、`:game:plane`（小熊战机）按同一模式下沉为独立模块（各持 res/strings + `GameEntryProvider` + 测试），当前游戏模块共 9 个。
+
+> 1.13.0 后各游戏模块又做了一轮机械拆分：`jump` 拆出 `BearGame.kt`/`GameRunHud.kt`，`catch` 拆出 `CatchRender.kt`/`CatchHud.kt`，`pool` 拆出 `PoolSnapshot.kt`/`PoolRenderCache.kt`/`PoolTableStatic.kt`/`PoolBalls.kt`/`PoolAim.kt`/`PoolWeather.kt`/`PoolHud.kt`/`PoolDialogs.kt`/`PoolPrefsStore.kt`，`hockey` 拆出 `HockeyRenderCache.kt`/`HockeyTableStatic.kt`/`HockeyMarkings.kt`/`HockeyArt.kt`/`HockeyAmbient.kt`/`HockeyDialogs.kt`/`HockeyFormControls.kt`，`plane` 拆出 `PlaneSnapshot.kt`/`PlaneSpriteArt.kt`；同时 jump/star/catch/hockey/pool/plane/maze 的 Screen 快照生命周期统一迁移到 `:game:common` 的 `GameSnapshotLifecycle`（`GameSnapshotSession.kt`），jump/star/catch 的 READY/结算卡改用 `GameCards.kt`，公共层新增 `GameRenderPrimitives.kt`（`BakedLayerLru`/`strokeOf`/`gameHash01`）供各游戏渲染复用。
 
 **核心机制——`-Pgames` 退役，改动态依赖 + ServiceLoader 装配**：
 
@@ -322,9 +324,9 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
   - `mock-maker-inline` 配置删除（Mockito 5.14 默认内联，冗余）
 - 文档：README 项目结构/游戏裁剪改为动态依赖描述（9 个游戏 + ServiceLoader）；ENGINEERING CI 说明改为全量 `test`；CHANGELOG 新增「未发布」多模块重构记录；CI workflow 用 `./gradlew test` 覆盖全模块并把测试报告路径扩到 core/feature/game
 - 资源去重（`ic_sun_bear_*` 场景插画单一数据源）：
-  - 新建 `:core:res-illustrations` 纯资源模块，收纳全部 266 张 `ic_sun_bear_*`（designsystem 247 + 节日 19），删除 `game:home` 重复的 85 张与 `app`/`feature:weather` 的 fest 副本
+  - 新建 `:core:res-illustrations` 纯资源模块，收纳全部 456 张 `ic_sun_bear_*`，删除 `game:home` 重复的 85 张与 `app`/`feature:weather` 的 fest 副本
   - `core:designsystem` 与 `game:home`/`feature:weather` 以 `api(project(":core:res-illustrations"))` 依赖；`nonTransitiveRClass=true` 下跨模块引用用 `import ...R as IllustR` 别名（ktlint 要求 alias 在 import 区末尾）
-  - 验证：全量 `test`/`lintKotlin`/`assembleFullRelease` 通过，APK 内 `ic_sun_bear_*` 仅 266 个唯一条目（每张只打一份）
+  - 验证：全量 `test`/`lintKotlin`/`assembleFullRelease` 通过，APK 内 `ic_sun_bear_*` 仅 456 个唯一条目（每张只打一份）
 
 ---
 
@@ -355,8 +357,8 @@ worker 的 `PendingIntent` 同理。改造后 widget/worker 仅依赖 core 层�
 |---|---|---|
 | D1 | 游戏模块化（阶段 5）确认执行 | 用户决策：换取游戏独立编译/测试/发布能力与长期更干净的入口架构；`-Pgames` 裁剪能力由动态依赖接棒，未选中模块直接不编译 |
 | D2 | SunPathMath 整体迁入 designsystem | 同时被 weather 与 game:home 依赖的唯一无环位置 |
-| D3 | 引入 `:core:res` 共享资源模块 | 收编跨模块公共字符串，避免 string 散落各模块 |
-| D4 | widget/worker 用 packageManager 启动入口 | 打破对 `MainActivity` 的循环依赖，代价可忽略 |
+| D3 | 不引入 `:core:res` 共享资源模块 | 跨模块公共字符串由各模块自持 res（Android Library 编译期只认自持资源），场景插画统一收 `:core:res-illustrations`，避免多一层资源合并 |
+| D4 | widget/worker 保留直接引用 `MainActivity` | 动态图标禁用 activity-alias 会使 `getLaunchIntentForPackage` 失效；同模块内引用不构成循环依赖 |
 | D5 | 手动 DI 保留（阶段 6 再评估 Hilt） | 先拆分再换框架，避免两件事同时变 |
 
 ---

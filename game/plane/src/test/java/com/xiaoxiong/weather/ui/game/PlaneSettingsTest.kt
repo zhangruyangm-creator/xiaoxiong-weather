@@ -81,6 +81,36 @@ class PlaneSettingsTest {
     }
 
     @Test
+    fun fingerOffset_keepsPlaneClearOfFingerAtFieldBottom() {
+        assertTrue(
+            "贴底拖动时偏移应大于机身视觉半径（offset=$PLANE_FINGER_OFFSET_LOGICAL visual=$PLANE_PLAYER_VISUAL_RADIUS）",
+            PLANE_FINGER_OFFSET_LOGICAL >= PLANE_PLAYER_VISUAL_RADIUS,
+        )
+    }
+
+    @Test
+    fun rapidExtremeDrags_stayFinite_andClamped_onWideAndTallCanvases() {
+        for ((width, height) in listOf(3200f to 480f, 480f to 3200f)) {
+            val game = PlaneGame().apply { resize(width, height) }
+            game.startGame(seed = 9L)
+            repeat(200) { i ->
+                val x = if (i % 2 == 0) -1e9f else 1e9f
+                val y = if (i % 3 == 0) 1e9f else -1e9f
+                game.movePlayerTo(game.toLogicalX(x), planeTouchTargetY(game.toLogicalY(y)))
+                assertTrue("玩家坐标必须有限", game.player.x.isFinite() && game.player.y.isFinite())
+                assertTrue(
+                    "玩家 x 越界: ${game.player.x}",
+                    game.player.x in PlaneConfig.PLAYER_RADIUS..(PLANE_LOGICAL_WIDTH - PlaneConfig.PLAYER_RADIUS),
+                )
+                assertTrue(
+                    "玩家 y 越界: ${game.player.y}",
+                    game.player.y in PlaneConfig.PLAYER_RADIUS * 2f..(game.fieldH - PlaneConfig.PLAYER_RADIUS * 2f),
+                )
+            }
+        }
+    }
+
+    @Test
     fun touchTargetY_clampsInsideField_whenNearTopAndBottomEdges() {
         val game = PlaneGame().apply { resize(600f, 1080f) }
         game.startGame(seed = 7L)

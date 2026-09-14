@@ -62,6 +62,26 @@ class WeatherCacheDailyFreshnessTest {
     }
 
     @Test
+    fun dropStaleDaily_crossYear_dropsPreviousYearKeepsNewYear() {
+        val result =
+            dropStaleDaily(
+                snapshot(listOf("2025-12-31", "2026-01-01", "2026-01-02")),
+                LocalDate.of(2026, 1, 1),
+            )
+        assertEquals(listOf("2026-01-01", "2026-01-02"), result.daily.map { it.date })
+    }
+
+    @Test
+    fun dropStaleDaily_crossYearAllStale_keepsLastEntry() {
+        val result =
+            dropStaleDaily(
+                snapshot(listOf("2025-12-30", "2025-12-31")),
+                LocalDate.of(2026, 1, 1),
+            )
+        assertEquals(listOf("2025-12-31"), result.daily.map { it.date })
+    }
+
+    @Test
     fun todayInSnapshotZone_missingTimezone_fallsBackToProvidedZone() {
         val zone = ZoneId.of("Pacific/Kiritimati")
         assertEquals(LocalDate.now(zone), todayInSnapshotZone(null, zone))

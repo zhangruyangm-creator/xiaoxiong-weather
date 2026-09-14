@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import com.xiaoxiong.weather.ui.weather.WeatherSceneStyle
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
 import org.junit.Assert.assertEquals
@@ -95,6 +96,35 @@ class PoolClothThemeTest {
             assertTrue("织纹长度应保持短线: $len", len in 0.5f..(ballR * 0.5f))
             assertTrue("织纹线宽应保持细线: $width", width in 0.1f..(ballR * 0.1f))
         }
+    }
+
+    @Test
+    fun coldOverlay_blendsEachThemeByExactBoundedAmount() {
+        val rain = weatherSceneStyle(61, isDay = true, appDark = true)
+        val clear = weatherSceneStyle(0, isDay = true, appDark = true)
+        for (theme in 0 until CLOTH_THEME_COUNT) {
+            val base = clothThemeFeltColor(theme, true)
+            assertEquals(
+                "雨天台呢应为『主题色 16% 冷色』的确定叠加",
+                lerp(base, feltColdTint, FELT_COLD_BLEND),
+                feltBase(rain, true, theme),
+            )
+            assertEquals("晴/多云场景不得叠加冷色", base, feltBase(clear, true, theme))
+        }
+    }
+
+    @Test
+    fun clothWeave_worstCaseCoverage_staysSubtle() {
+        // 以 1080p 竖屏（球半径约 23px）估算：即使所有短线取最长值，墨迹面积也 < 0.2% 台面，
+        // 不可能把主题色「洗灰」；同时线宽保持可见量级，避免过疏到完全看不见。
+        val ballR = 23f
+        val tableW = 1.27f * 810f
+        val tableH = 2.54f * 810f
+        val worstLen = clothWeaveLength(ballR, rnd = 1f)
+        val width = clothWeaveWidth(ballR)
+        val coverage = 240f * worstLen * width / (tableW * tableH)
+        assertTrue("织纹覆盖面积应保持微妙: $coverage", coverage < 0.002f)
+        assertTrue("织纹线宽应有可见量级: $width", width >= 0.5f)
     }
 
     @Test

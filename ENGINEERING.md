@@ -9,8 +9,38 @@
 - `lintKotlin`（ktlint 静态检查）
 - `test`（全模块单元测试：core / feature / game / app）
 - `lintFullDebug`（Android Lint）
+- `python3 tools/check_duplicate_game_strings.py`（游戏模块重名资源）
+- `python3 tools/check_r8_dex_keep.py`（full release APK 的 R8 keep 守卫，见下）
+- ServiceLoader provider / `-Pgames` 接线与 dex 构造器校验
 
 无需额外配置即可生效（私有仓库免费额度内）。
+
+## R8 收窄与 dex keep 守卫
+
+`app/proguard-rules.pro` 已删除 `com.xiaoxiong.weather.data.**`、`.data.remote.**` 两条宽泛
+keep，仅保留通用 kotlinx.serialization 规则（`**$$serializer` / `Companion` / `serializer(...)`）
+与最小的 ServiceLoader / WebView 规则；R8 seeds 从 6631 降到 2162，APK 约 28.4 MB。
+
+收窄后由 `tools/check_r8_dex_keep.py` 在 full release 构建产物上做兜底守卫（纯 Python 解析
+dex，无需 dexdump），失败即 CI 变红：
+
+- 源码每个 `@Serializable` 非枚举类都有 `X` 与 `X$$serializer`（当前 51 类 = 47 数据类 + 4 枚举，
+  枚举不生成 `$$serializer`，改为校验其常量名仍在 dex 字符串池）；
+- 9 个 `GameEntryProvider` 类、`<init>()V` 与 `META-INF/services` 注册一一对应；
+- WorkManager 按类名反射实例化的 `WeatherRefreshWorker` 保持原名与 `(Context, WorkerParameters)` 构造器；
+- 持久化枚举（`TemperatureUnit` / `ThemeMode` / `AppFontScale` / 游戏难度等）常量名未被裁剪；
+- 配置了 `app/google-services.json` 时，`Class.forName` + `getMethod` 反射的
+  `FirebaseApp.initializeApp(Context)` 与 `FirebaseCrashlytics.getInstance()/setCrashlyticsCollectionEnabled/
+  recordException` 保名存在（firebase-crashlytics 19.4.4 不带 consumer keep 规则，故在
+  `proguard-rules.pro` 中以 `-if` 条件规则精确保留；未接入 Firebase 时规则自动失效）。
+
+本地用法：
+
+```bash
+./gradlew :app:assembleFullRelease
+python3 tools/check_r8_dex_keep.py                    # 默认读 app/build/outputs/apk/full/release/app-full-release.apk
+python3 tools/check_r8_dex_keep.py --expect-firebase  # 强制校验 Firebase 反射面
+```
 
 ## 静态检查（ktlint）
 
@@ -54,6 +84,11 @@ git push origin v1.5.0
 `release.sh` 与 `release.yml` 现在都会在构建签名 APK 之前先运行 `./gradlew test lintKotlin`
 （全模块单元测试 + ktlint），失败即中止、不产出 Release；本地应急发布可用
 `SKIP_TESTS=1 ./release.sh <tag>` 跳过，CI 无跳过开关。
+
+`release.yml` 的 `build-and-publish` 超时已从 40 分钟提高到 60 分钟，覆盖冷缓存下
+test + lintKotlin + R8 + 签名 APK 全量构建。tag push 不触发 `ci.yml`，因此发布流程里额外串了
+`tools/check_duplicate_game_strings.py`（构建前）与 `tools/check_r8_dex_keep.py`（APK 构建后），
+保证「被发布的 APK 自己」经过资源重名与 R8 keep 守卫，而不是只看过 main 分支的 CI 结果。
 
 ## 崩溃监控（Crashlytics）
 

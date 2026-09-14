@@ -66,27 +66,37 @@ fun BearMazeScreen(
             savedSession = game.peekSavedSession(prefs)
         }
     }
-    // 组合销毁（切屏/旋转重建）时把局中对局落盘，供下次恢复；
-    // 按 Home 等切入后台（ON_STOP）时也落盘一次，避免进程被系统回收丢档；
+    // 局中会话的 ON_STOP/onDispose 落盘与 CLEAR 阶段清档迁移到公共 GameSnapshotLifecycle；
+    // restoreOnEnter = false：本作保持「进入先回选关、点『继续』才恢复」的既有交互，
+    // 手动恢复仍走选关页 onResume。SELECT 阶段不清档由 MazeGame.saveSession 内部门槛保证。
+    val snapshotSession =
+        remember(game) {
+            gameSnapshotSession(
+                save = game::saveSession,
+                restore = game::restoreSession,
+                clear = game::abandonSession,
+            )
+        }
+    val snapshotGuard =
+        GameSnapshotLifecycle(
+            session = snapshotSession,
+            prefs = prefs,
+            phase = game.phase,
+            shouldClear = { it == MazePhase.CLEAR },
+            restoreOnEnter = false,
+        )
     // 回到前台（ON_RESUME）时刷新「今天」，跨零点后选关页展示新每日图与新纪录
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
-                when (event) {
-                    Lifecycle.Event.ON_STOP -> game.saveSession(prefs)
-                    Lifecycle.Event.ON_RESUME -> {
-                        val now = LocalDate.now().toEpochDay()
-                        if (now != today) today = now
-                    }
-                    else -> Unit
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    val now = LocalDate.now().toEpochDay()
+                    if (now != today) today = now
                 }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            game.saveSession(prefs)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val sprites = rememberBearSprites(characterState.selected)
     // 帧时间以 State 形式传入绘制层：只有 Canvas 的 draw lambda 读它，
@@ -97,12 +107,14 @@ fun BearMazeScreen(
     var showOverwriteDialog by remember { mutableStateOf(false) }
     var pendingStart by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    // 有存档时先确认再开新局；确认后丢弃旧会话
+    // 有存档时先确认再开新局；确认后丢弃旧会话。
+    // 开始新局即解除此前的退出抑制（放弃/覆盖确认），让兜底落盘重新生效
     fun guardedStart(action: () -> Unit) {
         if (savedSession != null) {
             pendingStart = action
             showOverwriteDialog = true
         } else {
+            snapshotGuard.reset()
             action()
         }
     }
@@ -272,9 +284,9 @@ fun BearMazeScreen(
                     game.openSelect()
                 },
                 onAbandon = {
-                    // 彻底放弃本次对局：删除落盘会话并清除续玩标记，
-                    // 避免 onDispose 的兜底 saveSession 把已放弃的对局重新写回复活
-                    game.abandonSession(prefs)
+                    // 彻底放弃本次对局：清档并抑制兜底落盘，
+                    // 避免 onDispose 的 saveSession 把已放弃的对局重新写回复活
+                    snapshotGuard.exit(snapshotSession, prefs)
                     showAbandonDialog = false
                     game.openSelect()
                 },
@@ -290,12 +302,14 @@ fun BearMazeScreen(
                     pendingStart = null
                 },
                 onConfirm = {
-                    game.abandonSession(prefs)
+                    // 覆盖旧档同样先清档 + 抑制，随后立即开新局并解除抑制
+                    snapshotGuard.exit(snapshotSession, prefs)
                     savedSession = null
                     showOverwriteDialog = false
                     val action = pendingStart
                     pendingStart = null
                     action?.invoke()
+                    snapshotGuard.reset()
                 },
             )
         }

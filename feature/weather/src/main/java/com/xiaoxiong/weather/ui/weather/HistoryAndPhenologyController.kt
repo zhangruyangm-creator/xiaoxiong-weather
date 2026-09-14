@@ -5,6 +5,7 @@ import com.xiaoxiong.weather.data.HistoryRangeSummary
 import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.PhenologyCache
 import com.xiaoxiong.weather.data.WeatherFetcher
+import com.xiaoxiong.weather.data.isSamePlace
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -66,7 +67,7 @@ class HistoryAndPhenologyController(
         val city = currentCity() ?: return
         if (phenologyJob?.isActive == true) {
             // 同城在途才复用；换城后旧 job 的结果已无意义，取消并重新发起
-            if (roughlySameCity(phenologyCity, city)) return
+            if (phenologyCity?.isSamePlace(city) == true) return
             phenologyJob?.cancel()
         }
         phenologyCity = city
@@ -274,15 +275,5 @@ class HistoryAndPhenologyController(
         historyCache[key] = value
     }
 
-    private fun stillOnCity(city: City): Boolean = roughlySameCity(currentCity(), city)
-}
-
-/** 异步查询携带的 [city] 是否仍是当前选中城市；非本城市的结果应在写回前丢弃。 */
-internal fun roughlySameCity(
-    a: City?,
-    b: City?,
-): Boolean {
-    if (a == null || b == null) return false
-    return kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
-        kotlin.math.abs(a.longitude - b.longitude) < 0.01
+    private fun stillOnCity(city: City): Boolean = currentCity()?.isSamePlace(city) == true
 }

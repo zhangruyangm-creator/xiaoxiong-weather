@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
+import com.xiaoxiong.weather.game.GameAudioPrefsContract
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -7,32 +8,36 @@ import org.junit.Test
 class GameAudioTest {
     @Test
     fun `coerceVolume clamps negative to min`() {
-        assertEquals(GameAudio.MIN_VOLUME, GameAudio.coerceVolume(-1f), 0f)
+        assertEquals(GameAudioPrefsContract.MIN_VOLUME, GameAudioPrefsContract.coerceVolume(-1f), 0f)
     }
 
     @Test
     fun `coerceVolume clamps values above max`() {
-        assertEquals(GameAudio.MAX_VOLUME, GameAudio.coerceVolume(0.61f), 0f)
-        assertEquals(GameAudio.MAX_VOLUME, GameAudio.coerceVolume(1f), 0f)
+        assertEquals(GameAudioPrefsContract.MAX_VOLUME, GameAudioPrefsContract.coerceVolume(0.61f), 0f)
+        assertEquals(GameAudioPrefsContract.MAX_VOLUME, GameAudioPrefsContract.coerceVolume(1f), 0f)
     }
 
     @Test
     fun `coerceVolume keeps in-range value untouched`() {
-        assertEquals(0.3f, GameAudio.coerceVolume(0.3f), 0f)
-        assertEquals(GameAudio.MAX_VOLUME, GameAudio.coerceVolume(GameAudio.MAX_VOLUME), 0f)
+        assertEquals(0.3f, GameAudioPrefsContract.coerceVolume(0.3f), 0f)
+        assertEquals(
+            GameAudioPrefsContract.MAX_VOLUME,
+            GameAudioPrefsContract.coerceVolume(GameAudioPrefsContract.MAX_VOLUME),
+            0f,
+        )
     }
 
     @Test
     fun `coerceVolume maps NaN to min`() {
-        assertEquals(GameAudio.MIN_VOLUME, GameAudio.coerceVolume(Float.NaN), 0f)
+        assertEquals(GameAudioPrefsContract.MIN_VOLUME, GameAudioPrefsContract.coerceVolume(Float.NaN), 0f)
     }
 
     @Test
     fun `default master volume is quiet and inside the effective range`() {
-        assertEquals(0.3f, GameAudio.DEFAULT_VOLUME, 0f)
-        assertTrue(GameAudio.DEFAULT_VOLUME >= GameAudio.MIN_VOLUME)
-        assertTrue(GameAudio.DEFAULT_VOLUME <= GameAudio.MAX_VOLUME)
-        assertTrue(GameAudio.MAX_VOLUME <= 0.6f)
+        assertEquals(0.3f, GameAudioPrefsContract.DEFAULT_VOLUME, 0f)
+        assertTrue(GameAudioPrefsContract.DEFAULT_VOLUME >= GameAudioPrefsContract.MIN_VOLUME)
+        assertTrue(GameAudioPrefsContract.DEFAULT_VOLUME <= GameAudioPrefsContract.MAX_VOLUME)
+        assertTrue(GameAudioPrefsContract.MAX_VOLUME <= 0.6f)
     }
 
     @Test

@@ -12,7 +12,21 @@ plugins {
 // 彩蛋游戏可选编译：把 jump/star/catch/maze/farm/home/hockey/pool/plane 依 -Pgames 动态接入（默认 all）。
 // 与旧「源码集裁剪」不同：未选中的游戏模块不参与编译与打包，classpath 上不存在其字节码，
 // 装配侧用 ServiceLoader（:game:api 的 loadGameEntryProviders()）发现已在 classpath 的入口，天然更彻底。
-val gameIds = listOf("jump", "star", "catch", "maze", "farm", "home", "hockey", "pool", "plane")
+val gameProjects =
+    mapOf(
+        "jump" to ":game:jump",
+        "star" to ":game:star",
+        "catch" to ":game:catch",
+        "maze" to ":game:maze",
+        "farm" to ":game:farm",
+        "home" to ":game:home",
+        "hockey" to ":game:hockey",
+        "pool" to ":game:pool",
+        "plane" to ":game:plane", // 小熊战机
+    )
+
+// gameIds 作为顺序与校验来源：未知 id 只告警、不作为依赖接入。
+val gameIds = gameProjects.keys.toList()
 
 val gamesRaw = (project.findProperty("games") as String?)?.trim()?.lowercase()
 val enabledGames: Set<String> =
@@ -136,33 +150,10 @@ dependencies {
     if (enabledGames.isNotEmpty()) {
         "fullImplementation"(project(":game:common"))
     }
-    if ("jump" in enabledGames) {
-        "fullImplementation"(project(":game:jump"))
-    }
-    if ("star" in enabledGames) {
-        "fullImplementation"(project(":game:star"))
-    }
-    if ("catch" in enabledGames) {
-        "fullImplementation"(project(":game:catch"))
-    }
-    if ("maze" in enabledGames) {
-        "fullImplementation"(project(":game:maze"))
-    }
-    if ("farm" in enabledGames) {
-        "fullImplementation"(project(":game:farm"))
-    }
-    if ("home" in enabledGames) {
-        "fullImplementation"(project(":game:home"))
-    }
-    if ("hockey" in enabledGames) {
-        "fullImplementation"(project(":game:hockey"))
-    }
-    if ("pool" in enabledGames) {
-        "fullImplementation"(project(":game:pool"))
-    }
-    if ("plane" in enabledGames) {
-        // 小熊战机
-        "fullImplementation"(project(":game:plane"))
+    gameProjects.forEach { (id, path) ->
+        if (id in enabledGames) {
+            "fullImplementation"(project(path))
+        }
     }
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

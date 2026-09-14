@@ -47,8 +47,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.FavoriteCityStore
+import com.xiaoxiong.weather.data.isSamePlace
 import java.util.Locale
-import kotlin.math.abs
 
 @Composable
 fun SearchHeader(
@@ -284,7 +284,7 @@ private fun CityChipRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         cities.forEach { city ->
-            val selected = isSameFavoriteCity(city, selectedCity)
+            val selected = selectedCity?.isSamePlace(city) == true
             FilterChip(
                 selected = selected,
                 onClick = { onSelectCity(city) },
@@ -317,15 +317,6 @@ private fun CityChipRow(
             )
         }
     }
-}
-
-private fun isSameFavoriteCity(
-    favorite: City,
-    selected: City?,
-): Boolean {
-    if (selected == null) return false
-    return abs(favorite.latitude - selected.latitude) < 0.01 &&
-        abs(favorite.longitude - selected.longitude) < 0.01
 }
 
 private fun approxKey(city: City): String = String.format(Locale.US, "%.2f,%.2f", city.latitude, city.longitude)

@@ -3,31 +3,23 @@ package com.xiaoxiong.weather.ui.game
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -50,12 +42,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import kotlin.random.Random
+
+/** 快照清档条件：只有结算态不可续玩（与既有死亡清档时机一致）。 */
+internal fun starSnapshotShouldClear(phase: GamePhase): Boolean = phase == GamePhase.OVER
 
 @Composable
 fun BearStarJumpScreen(
@@ -77,30 +69,29 @@ fun BearStarJumpScreen(
             StarJumpGame().also { it.best = prefs.getInt("best_jump", 0) }
         }
     val jumpWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
-    // 进程重建（旋转/被杀）后恢复局中对局：放 LaunchedEffect 而非 remember 初始化块，
+    // 进程重建（旋转/被杀）后恢复局中对局：由 GameSnapshotLifecycle 在进入时恢复，
     // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。
     LaunchedEffect(Unit) {
         GameAudio.preload(context)
     }
-    LaunchedEffect(Unit) {
-        game.restoreSnapshot(prefs)
-    }
+    // 快照生命周期统一交给公共件：进入恢复 → OVER 清档 → ON_STOP/onDispose 兜底落盘 → 退出抑制。
+    val session =
+        remember(game, prefs) {
+            gameSnapshotSession(
+                save = game::saveSnapshot,
+                restore = game::restoreSnapshot,
+                clear = game::clearSnapshot,
+            )
+        }
+    val guard =
+        GameSnapshotLifecycle(
+            session = session,
+            prefs = prefs,
+            phase = game.phase,
+            shouldClear = ::starSnapshotShouldClear,
+        )
     LaunchedEffect(game.phase) {
         if (game.phase == GamePhase.OVER) GameAudio.play(GameCue.LOSE)
-    }
-    // 组合销毁（切屏/旋转重建）时落盘，按 Home 等 ON_STOP 也落盘，避免进程被回收丢档；
-    // 只有 RUNNING 才写（clearSnapshot 后置位的 discarded 会抑制兜底落盘）。
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP) game.saveSnapshot(prefs)
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            game.saveSnapshot(prefs)
-        }
     }
     // 天气/城市变化时实时更新上报所用值，避免 LaunchedEffect(Unit) 闭包捕获开局时的旧值
     val reportSceneCode by rememberUpdatedState(sceneCode)
@@ -113,9 +104,9 @@ fun BearStarJumpScreen(
     // 减弱动画：跳过雨雪/雷电粒子，只保留静态天空
     val reduceMotion = LocalReduceMotion.current
     var frame by remember { mutableLongStateOf(0L) }
-    // 主动退出视为放弃本局：清档后再导航，onDispose 的兜底落盘不会复活它。
+    // 主动退出视为放弃本局：guard 先清档再抑制兜底落盘，随后导航离开不会被 onDispose 复活。
     val exitGame: () -> Unit = {
-        game.clearSnapshot(prefs)
+        guard.exit(session, prefs)
         onExit()
     }
 
@@ -275,120 +266,39 @@ fun BearStarJumpScreen(
 
         when (game.phase) {
             GamePhase.READY -> {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.Center)
-                            .padding(32.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    tonalElevation = 4.dp,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.bear_jump_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.bear_jump_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Button(onClick = {
-                            lb.resetLastRank()
-                            game.start()
-                        }) {
-                            Text(stringResource(R.string.bear_jump_start))
-                        }
-                    }
-                }
+                GameReadyCard(
+                    title = stringResource(R.string.bear_jump_title),
+                    hint = stringResource(R.string.bear_jump_hint),
+                    startText = stringResource(R.string.bear_jump_start),
+                    onStart = {
+                        lb.resetLastRank()
+                        game.start()
+                    },
+                )
             }
             GamePhase.OVER -> {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.35f))
-                            .pointerInput(Unit) {
-                                // 吞掉底层 Canvas 的按下转向 / 点击
-                                awaitEachGesture {
-                                    awaitFirstDown(requireUnconsumed = false)
-                                    do {
-                                        val event = awaitPointerEvent()
-                                        event.changes.forEach { it.consume() }
-                                    } while (event.changes.any { it.pressed })
-                                }
-                            },
-                )
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.Center)
-                            .padding(32.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    tonalElevation = 4.dp,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.bear_jump_over),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "${game.score}",
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text =
-                                stringResource(R.string.bear_game_best_label) +
-                                    " ${game.best}",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                GameOverCard(
+                    overTitle = stringResource(R.string.bear_jump_over),
+                    scoreLine = "${game.score}",
+                    bestLine = gameBestLabel() + " ${game.best}",
+                    restartText = stringResource(R.string.bear_star_restart),
+                    onRestart = {
+                        lb.resetLastRank()
+                        game.clearSnapshot(prefs)
+                        game.start()
+                    },
+                    onViewRank = {
+                        lb.entries = lb.store.load()
+                        lb.show = true
+                    },
+                    onExit = exitGame,
+                    rankLine =
                         if (lb.lastRank > 0) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text =
-                                    stringResource(R.string.bear_leaderboard_rank_label, lb.lastRank),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(18.dp))
-                        TextButton(
-                            onClick = {
-                                lb.entries = lb.store.load()
-                                lb.show = true
-                            },
-                        ) {
-                            Text(stringResource(R.string.bear_game_view_rank))
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TextButton(onClick = exitGame) {
-                                Text(stringResource(R.string.bear_game_exit))
-                            }
-                            Button(onClick = {
-                                lb.resetLastRank()
-                                game.clearSnapshot(prefs)
-                                game.start()
-                            }) {
-                                Text(stringResource(R.string.bear_star_restart))
-                            }
-                        }
-                    }
-                }
+                            stringResource(R.string.bear_leaderboard_rank_label, lb.lastRank)
+                        } else {
+                            null
+                        },
+                )
             }
             GamePhase.RUNNING -> Unit
         }

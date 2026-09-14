@@ -82,4 +82,37 @@ class PoolProgressTest {
         assertEquals(1, p.nineBallWins)
         assertEquals(1, p.wins)
     }
+
+    @Test
+    fun customRaceToShutout_countsOncePerMatchRegardlessOfFrameCount() {
+        // 先到 15 且 15:0 横扫：仍只算一次零封、一场胜利、15 局
+        val p =
+            PoolProgress().advance(
+                won = true,
+                framesPlayed = 15,
+                aiFrames = 0,
+                potsThisMatch = 24,
+                bestShotThisMatch = 3,
+                breakAndRun = false,
+                mode = PoolMode.EIGHT_BALL,
+                difficulty = PoolAi.Difficulty.MASTER,
+                practiceCleared = false,
+                practiceScore = 0,
+            )
+        assertEquals(1, p.games)
+        assertEquals(1, p.wins)
+        assertEquals(15, p.frames)
+        assertEquals(1, p.cleanSheets)
+        assertEquals(1, p.masterWins)
+        assertTrue(PoolAchievement.SHUTOUT.isUnlocked(p))
+    }
+
+    @Test
+    fun competitiveLossResetsStreak_butPracticeKeepsIt() {
+        val afterLoss = advance(won = false, aiFrames = 3, mode = PoolMode.EIGHT_BALL)
+        assertEquals(0, afterLoss.winStreak)
+        val practice = advance(won = false, aiFrames = 0, mode = PoolMode.PRACTICE, practiceCleared = true, practiceScore = 90)
+        assertEquals("练习不清零连胜", 0, practice.winStreak)
+        assertEquals(0, practice.wins)
+    }
 }

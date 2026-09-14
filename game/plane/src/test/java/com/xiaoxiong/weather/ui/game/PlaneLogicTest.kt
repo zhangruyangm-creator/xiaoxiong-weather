@@ -5,6 +5,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.PI
+import kotlin.math.roundToInt
 
 /**
  * [PlaneLogic] / [PlaneConfig] 纯逻辑单测：武器、碰撞、弹幕模式、难度 / 天气缩放、RNG。
@@ -231,6 +233,18 @@ class PlaneLogicTest {
     }
 
     @Test
+    fun boss_sweepVelocity_isSymmetricAroundSpawn() {
+        // 速度取 cos 才能积分为围绕出生点的对称往返；取 sin 会变成单侧漂移
+        val halfPeriodTicks = ((PI / PlaneLogic.BOSS_SWEEP_OMEGA) * 60).roundToInt()
+        val start = enemy(PlaneEnemyType.BOSS, x = 50f, y = PlaneLogic.BOSS_HOLD_Y, ageTicks = 0)
+        val (vx0, _) = PlaneLogic.enemyVelocity(start, 50f, 180f, 1f)
+        assertEquals("起始向右扫", PlaneLogic.BOSS_SWEEP_SPEED, vx0, 1e-3f)
+        start.ageTicks = halfPeriodTicks
+        val (vxHalf, _) = PlaneLogic.enemyVelocity(start, 50f, 180f, 1f)
+        assertEquals("半周期后反向（对称）", -PlaneLogic.BOSS_SWEEP_SPEED, vxHalf, 5e-2f)
+    }
+
+    @Test
     fun turretBulletSpecs_includeRectBar() {
         val turret = enemy(PlaneEnemyType.TURRET, x = 30f, y = 32f, targetY = 32f)
         val specs = PlaneLogic.enemyBulletSpecs(turret, 50f, 150f, PlaneDifficulty.STANDARD, 0f)
@@ -412,6 +426,41 @@ class PlaneLogicTest {
         assertEquals("直射弹竖直向上", 0f, mortar.vx, 1e-4f)
         assertTrue(mortar.vy < 0f)
         assertTrue("CAPSULE 半长不小于半径", mortar.halfLength >= mortar.radius)
+    }
+
+    @Test
+    fun tank_onlyFiresOnGroundLine_notWhileClimbingOrOutsideField() {
+        val fieldH = 180f
+        val groundY = fieldH - PlaneLogic.TANK_GROUND_MARGIN
+        // 从屏幕下方进场（fieldH+4）时禁止开火：否则炮弹从画面外冒出
+        assertFalse(
+            "坦克未爬升到地面线（画面外）不得开火",
+            PlaneLogic.enemyWantsFire(enemy(PlaneEnemyType.TANK, y = fieldH + 4f), fieldH),
+        )
+        assertFalse(
+            "坦克仍在屏幕下方爬升时不得开火",
+            PlaneLogic.enemyWantsFire(enemy(PlaneEnemyType.TANK, y = fieldH - 1f), fieldH),
+        )
+        assertFalse(
+            "坦克悬浮在地面线上方（resize 后）不得开火",
+            PlaneLogic.enemyWantsFire(enemy(PlaneEnemyType.TANK, y = groundY - 5f), fieldH),
+        )
+        assertTrue(
+            "贴地后才开火",
+            PlaneLogic.enemyWantsFire(enemy(PlaneEnemyType.TANK, y = groundY), fieldH),
+        )
+    }
+
+    @Test
+    fun tank_velocityConvergesToGroundLine_fromBothSides() {
+        val fieldH = 180f
+        val groundY = fieldH - PlaneLogic.TANK_GROUND_MARGIN
+        val below = PlaneLogic.enemyVelocity(enemy(PlaneEnemyType.TANK, y = fieldH + 4f), 50f, fieldH, 1f)
+        assertTrue("地面线下方应向上爬升", below.second < 0f)
+        val above = PlaneLogic.enemyVelocity(enemy(PlaneEnemyType.TANK, y = groundY - 20f), 50f, fieldH, 1f)
+        assertTrue("地面线上方（场高变大）应下降归位", above.second > 0f)
+        val onLine = PlaneLogic.enemyVelocity(enemy(PlaneEnemyType.TANK, y = groundY), 50f, fieldH, 1f)
+        assertEquals("到达地面线后停住", 0f, onLine.second, 1e-4f)
     }
 
     // ---------------------------------------------------------------------

@@ -31,9 +31,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.core.content.edit
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
@@ -73,6 +70,9 @@ private fun planeBestKey(difficulty: PlaneDifficulty): String = PREF_PLANE_BEST_
 private fun planeBestWaveKey(difficulty: PlaneDifficulty): String = PREF_PLANE_BEST_WAVE_PREFIX + difficulty.id
 
 private fun planeLeaderboardKey(difficulty: PlaneDifficulty): String = PREF_PLANE_LEADERBOARD_PREFIX + difficulty.id + "_v1"
+
+/** SETTLED（结算）无法续玩：快照生命周期在该阶段清档。 */
+internal fun planeShouldClearSnapshot(phase: PlanePhase): Boolean = phase == PlanePhase.SETTLED
 
 /**
  * 小熊战机：1942 风格竖屏卷轴弹幕射击。
@@ -137,8 +137,32 @@ fun BearPlaneScreen(
     var bossWarningVisible by remember { mutableStateOf(false) }
     var frame by remember { mutableLongStateOf(0L) }
     var resultSubmitted by remember { mutableStateOf(false) }
-    var exiting by remember { mutableStateOf(false) }
     val lb = rememberLeaderboardState(prefs, planeLeaderboardKey(difficultyState), planeBestKey(difficultyState))
+
+    // 快照生命周期统一走公共件：进入恢复（坏档退回标题）→ ON_STOP 落盘 →
+    // onDispose 兜底 → 退出抑制 → SETTLED 结算清档。
+    val snapshotSession =
+        remember(game, prefs) {
+            gameSnapshotSession(
+                save = game::saveSnapshot,
+                restore = game::restoreSnapshot,
+                clear = game::clearSnapshot,
+            )
+        }
+    val snapshotExitGuard =
+        GameSnapshotLifecycle(
+            session = snapshotSession,
+            prefs = prefs,
+            phase = hudPhase,
+            shouldClear = ::planeShouldClearSnapshot,
+            onRestored = {
+                // 逻辑层把 PLAYING 恢复统一降级为 PAUSED：只要恢复成功就拉起暂停菜单，避免后台挨打
+                if (game.phase == PlanePhase.PAUSED) pause.open()
+                // 快照难度可能与 prefs 不同：同步状态与最高分 key，避免读写错档
+                difficultyState = game.difficulty
+                bossWarningVisible = game.bossWarningTicks > 0
+            },
+        )
 
     fun bestOf(difficulty: PlaneDifficulty): Int = prefs.getInt(planeBestKey(difficulty), 0)
 
@@ -185,8 +209,7 @@ fun BearPlaneScreen(
     }
 
     fun exitGame() {
-        exiting = true
-        game.clearSnapshot(prefs)
+        snapshotExitGuard.exit(snapshotSession, prefs)
         onExit()
     }
 
@@ -207,16 +230,8 @@ fun BearPlaneScreen(
         frame++
     }
 
-    // 进程重建（旋转 / 被系统回收后重进）恢复局中快照；坏档退回标题
+    // 恢复后（无论成败）对齐视觉基线，避免把恢复瞬间的波次 / 擦弹误判成新事件
     LaunchedEffect(Unit) {
-        if (game.restoreSnapshot(prefs)) {
-            // 逻辑层把 PLAYING 恢复统一降级为 PAUSED：只要恢复成功就拉起暂停菜单，避免后台挨打
-            if (game.phase == PlanePhase.PAUSED) pause.open()
-            // 快照难度可能与 prefs 不同：同步状态与最高分 key，避免读写错档
-            difficultyState = game.difficulty
-            bossWarningVisible = game.bossWarningTicks > 0
-        }
-        // 恢复后对齐视觉基线，避免把恢复瞬间的波次 / 擦弹误判成新事件
         frameState.onRestore(game)
         waveBannerWave = game.waveIndex
         best = bestOf(game.difficulty)
@@ -224,19 +239,9 @@ fun BearPlaneScreen(
         syncHud()
         frame++
     }
-    // ON_STOP 与组合销毁时落盘，避免进程被回收丢档
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP && !exiting) game.saveSnapshot(prefs)
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            if (!exiting) game.saveSnapshot(prefs)
-            clearPlaneRenderCaches()
-        }
+    // 退出对局时释放天空 / 精灵等烘焙缓存，二次进入按需重建
+    DisposableEffect(Unit) {
+        onDispose { clearPlaneRenderCaches() }
     }
 
     GameFrameLoop(

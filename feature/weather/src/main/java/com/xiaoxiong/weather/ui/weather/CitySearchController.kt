@@ -69,7 +69,9 @@ internal class CitySearchController(
     }
 
     fun onQueryChange(value: String) {
-        syncedCityQuery = null
+        // 同值输入（IME 重复提交等）不会改变 queryFlow，也不应作废选城跳过标记：
+        // 否则待防抖消费的同步值会被当成用户输入，选城后自动搜一轮城市全名。
+        if (value != syncedCityQuery) syncedCityQuery = null
         onState {
             // 仅在用户真正改动了定位城市文案时才退出「当前位置」模式，避免误触
             val keepLocation =

@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlin.math.abs
 
 private val Context.phenologyDataStore by preferencesDataStore(
     name = "phenology_cache_v1",
@@ -88,7 +87,7 @@ class PhenologyCacheStore(
         val shiftDays: Int?,
         val fetchedAtEpochMs: Long,
     ) {
-        fun sameCity(city: City): Boolean = abs(cityLat - city.latitude) < 0.01 && abs(cityLon - city.longitude) < 0.01
+        fun sameCity(city: City): Boolean = isSamePlace(cityLat, cityLon, city.latitude, city.longitude)
 
         /**
          * 当日有效：年龄必须落在 `[0, 24h]`（与 [isWithinFreshnessWindow] 同口径）。

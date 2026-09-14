@@ -77,7 +77,7 @@ class WeatherRepository(
         fun nearSamePlace(
             a: City,
             b: City,
-        ): Boolean = CitySearchFetcher.nearSamePlace(a, b)
+        ): Boolean = a.isNearSamePlace(b)
 
         fun mergeCityResults(
             preferred: List<City>,

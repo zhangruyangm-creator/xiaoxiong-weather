@@ -63,6 +63,41 @@ class GameLeaderboardStoreTest {
     }
 
     @Test
+    fun retainRecent_keepsTwentyMostRecent_butDisplaysByNet() {
+        val store = GameLeaderboardStore(FakePrefs(), key, retainRecent = true)
+        for (i in 0 until 25) {
+            store.submit(
+                LeaderboardEntry(
+                    score = (i % 7) - 3,
+                    timestamp = i.toLong(),
+                    label = "x : y",
+                ),
+            )
+        }
+        val entries = store.load()
+        assertEquals("对局榜只保留最近 20 条", 20, entries.size)
+        assertTrue("最老的 5 条应被挤出榜外", entries.none { it.timestamp < 5L })
+        assertEquals("展示仍按净胜降序 → 失局升序 → 新者在前", entries.sortedWith(leaderboardEntryOrder), entries)
+    }
+
+    @Test
+    fun dailyShotScores_sortByScoreAndAreNotMistakenForTieBreak() {
+        val prefs = FakePrefs()
+        val store = GameLeaderboardStore(prefs, "leaderboard_pool_daily_1_v1")
+        store.submit(LeaderboardEntry(score = 60, timestamp = 1L, label = "20 杆"))
+        store.submit(LeaderboardEntry(score = 100, timestamp = 2L, label = "10 杆"))
+        assertEquals(listOf(100, 60), store.load().map { it.score })
+        assertEquals("杆数文本不应被当比分反推 tieBreak", 0, store.load().first { it.score == 60 }.tieBreak)
+    }
+
+    @Test
+    fun displayRank_negativeFifteenOrFive_isHidden() {
+        assertEquals(0, leaderboardDisplayRank(score = -5, rank = 1))
+        assertEquals(0, leaderboardDisplayRank(score = -15, rank = 3))
+        assertEquals(0, leaderboardDisplayRank(score = 0, rank = 2))
+    }
+
+    @Test
     fun purgeLegacyKeys_removesOnlyListedKeys() {
         val prefs = FakePrefs()
         prefs

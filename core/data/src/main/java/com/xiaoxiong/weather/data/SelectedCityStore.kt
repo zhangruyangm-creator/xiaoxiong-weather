@@ -14,7 +14,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlin.math.abs
 
 private val Context.selectedCityDataStore by preferencesDataStore(
     name = "weather_selected_city",
@@ -161,8 +160,6 @@ fun isSameSelection(
     current: SelectedCityStore.PersistedSelection?,
 ): Boolean {
     if (expected == null || current == null) return expected == null && current == null
-    val sameCoords =
-        abs(expected.city.latitude - current.city.latitude) < 0.01 &&
-            abs(expected.city.longitude - current.city.longitude) < 0.01
+    val sameCoords = expected.city.isSamePlace(current.city)
     return expected.useLocation == current.useLocation && sameCoords
 }

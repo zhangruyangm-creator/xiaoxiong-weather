@@ -32,6 +32,8 @@ kotlin {
 }
 
 dependencies {
+    // GameAudio 的公开签名暴露 game:api 的 GameAudioSettings / 音效 prefs 契约，故用 api 再导出
+    api(project(":game:api"))
     implementation(project(":core:common"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

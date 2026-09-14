@@ -33,12 +33,12 @@ kotlin {
 
 dependencies {
     implementation(project(":core:model"))
-    implementation(project(":core:common"))
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
-    // 仅依赖游戏入口契约层判断是否存在游戏（loadGameEntryProviders），不依赖游戏实现模块：
-    // 设置页直接读写 game_audio prefs，避免 lite 版被拖入 :game:common 的音效资源
+    // 仅依赖游戏契约层（GameAudioPrefsContract）：设置页与游戏实现读写同一份音效 prefs 契约。
+    // 游戏入口是否存在由装配层从 AppContainer.gameEntries 派生布尔参数传入，本模块不再调用
+    // loadGameEntryProviders()；lite 版不会被拖入 :game:common 的音效资源与实现。
     implementation(project(":game:api"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

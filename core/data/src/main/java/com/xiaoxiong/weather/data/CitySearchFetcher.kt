@@ -143,20 +143,13 @@ class CitySearchFetcher(
 
         fun toPinyinQuery(text: String): String = Pinyin.toPinyin(text, "").lowercase().filter { it.isLetter() }
 
-        fun nearSamePlace(
-            a: City,
-            b: City,
-        ): Boolean =
-            kotlin.math.abs(a.latitude - b.latitude) < 0.08 &&
-                kotlin.math.abs(a.longitude - b.longitude) < 0.08
-
         fun mergeCityResults(
             preferred: List<City>,
             extras: List<City>,
         ): List<City> {
             val merged = preferred.toMutableList()
             extras.forEach { candidate ->
-                if (merged.none { nearSamePlace(it, candidate) }) {
+                if (merged.none { it.isNearSamePlace(candidate) }) {
                     merged += candidate
                 }
             }

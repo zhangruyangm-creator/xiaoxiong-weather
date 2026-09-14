@@ -53,6 +53,16 @@ class PoolLayerKeyTest {
     }
 
     @Test
+    fun weatherSceneChange_notReusable() {
+        // style 里含天气场景：雨/雪/晴的静态层氛围不同，不得互相复用
+        val rain = weatherSceneStyle(61, isDay = true, appDark = true)
+        val snow = weatherSceneStyle(71, isDay = true, appDark = true)
+        assertFalse(poolLayerKeyReusable(key(style = dayStyle), key(style = rain)))
+        assertFalse(poolLayerKeyReusable(key(style = rain), key(style = snow)))
+        assertTrue(poolLayerKeyReusable(key(style = rain), key(style = rain)))
+    }
+
+    @Test
     fun tableGeometryShift_notReusable() {
         // 球桌几何是固定常量，换台（尺寸变化）必须整层重建，避免错位残留
         assertFalse(poolLayerKeyReusable(key(), key(tableLeft = 2f)))

@@ -1,11 +1,12 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.media.AudioAttributes
 import android.media.SoundPool
 import androidx.annotation.RawRes
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.GameAudioPrefsContract
+import com.xiaoxiong.weather.game.GameAudioSettings
 
 /**
  * 全局游戏音效 cue。每个 cue 对应一个程序合成的 WAV（`res/raw/sfx_*.wav`）。
@@ -45,14 +46,11 @@ enum class GameCue(
     WARNING(R.raw.sfx_warning, 0.60f),
 }
 
-/** 全局游戏音效设置快照。 */
-data class GameAudioSettings(
-    val enabled: Boolean,
-    val volume: Float,
-)
-
 /**
  * 全局游戏音效管理器：统一开关 + 主音量，全部程序合成、不依赖音乐文件。
+ *
+ * 偏好读写统一走 :game:api 的 [GameAudioPrefsContract]（键名 / 范围 / 默认值 / 旧键迁移
+ * 的唯一实现），本对象只保留 SoundPool 加载与播放逻辑。
  *
  * 与动画设置无关（不读取 reduceMotion）；所有公开方法都不抛异常，
  * 关闭、样本未就绪或加载失败时静默返回。
@@ -65,22 +63,6 @@ data class GameAudioSettings(
  * 未预加载时可改用带 context 的重载 [play]，其会记录 applicationContext。
  */
 object GameAudio {
-    /** 全局设置 SharedPreferences 文件名。 */
-    const val PREF_FILE = "game_audio"
-
-    const val KEY_ENABLED = "enabled"
-    const val KEY_VOLUME = "volume"
-
-    /** 默认主音量：用户要求「声音不要太大」。 */
-    const val DEFAULT_VOLUME = 0.3f
-    const val MIN_VOLUME = 0f
-    const val MAX_VOLUME = 0.6f
-
-    /** 旧版单游戏音效开关所在的 prefs（迁移用，读取后不改写、不删除）。 */
-    private const val LEGACY_PREF_FILE = "bear_game"
-    private const val LEGACY_KEY_HOCKEY_SOUND = "hockey_sound"
-    private const val LEGACY_KEY_POOL_SOUND = "pool_sound"
-
     private const val MAX_STREAMS = 6
 
     private val lock = Any()
@@ -93,34 +75,24 @@ object GameAudio {
 
     private val sampleIds = HashMap<GameCue, Int>()
 
-    /** 把任意音量收敛到 [MIN_VOLUME]..[MAX_VOLUME]，NaN 视为 0。 */
-    fun coerceVolume(volume: Float): Float = if (volume.isNaN()) MIN_VOLUME else volume.coerceIn(MIN_VOLUME, MAX_VOLUME)
-
     /**
-     * 读取全局设置；仅首次读取时触发一次旧键迁移（见 [migrateLegacyEnabledIfNeeded]），
-     * 之后 [settings] 只做内存键值读取，不再触碰 `bear_game`、不写盘。
+     * 读取全局设置；仅首次读取时触发一次旧键迁移，之后只做内存键值读取，
+     * 不再触碰 `bear_game`、不写盘（同 `GameAudioPrefsContract.read`）。
      */
-    fun settings(context: Context): GameAudioSettings {
-        val prefs = prefs(context)
-        migrateLegacyEnabledIfNeeded(context, prefs)
-        return GameAudioSettings(
-            enabled = prefs.getBoolean(KEY_ENABLED, true),
-            volume = coerceVolume(prefs.getFloat(KEY_VOLUME, DEFAULT_VOLUME)),
-        )
-    }
+    fun settings(context: Context): GameAudioSettings = GameAudioPrefsContract.read(context)
 
     fun setEnabled(
         context: Context,
         enabled: Boolean,
     ) {
-        runCatching { prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply() }
+        GameAudioPrefsContract.setEnabled(context, enabled)
     }
 
     fun setVolume(
         context: Context,
         volume: Float,
     ) {
-        runCatching { prefs(context).edit().putFloat(KEY_VOLUME, coerceVolume(volume)).apply() }
+        GameAudioPrefsContract.setVolume(context, volume)
     }
 
     /** 预加载全部样本（游戏入口调用可消除首次播放的加载延迟）；幂等、线程安全。 */
@@ -201,37 +173,4 @@ object GameAudio {
             .getOrNull()
             ?.takeIf { it > 0 }
             ?.also { sampleIds[cue] = it }
-
-    private fun prefs(context: Context): SharedPreferences =
-        context.applicationContext.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
-
-    /**
-     * 迁移：全局 enabled 尚未写入时，若旧游戏开关存在，则用其值初始化全局键，否则写入默认 true。
-     * 无论是否有旧键都落一次 KEY_ENABLED，保证后续 [settings] 不再读取 `bear_game`（含农场存档等）。
-     * 同时存在时以 hockey_sound 为准；旧键清理由各游戏接线时处理。
-     */
-    private fun migrateLegacyEnabledIfNeeded(
-        context: Context,
-        prefs: SharedPreferences,
-    ) {
-        if (prefs.contains(KEY_ENABLED)) return
-        synchronized(lock) {
-            if (prefs.contains(KEY_ENABLED)) return
-            val migrated =
-                runCatching {
-                    val legacy =
-                        context.applicationContext
-                            .getSharedPreferences(LEGACY_PREF_FILE, Context.MODE_PRIVATE)
-                    when {
-                        legacy.contains(LEGACY_KEY_HOCKEY_SOUND) ->
-                            legacy.getBoolean(LEGACY_KEY_HOCKEY_SOUND, true)
-                        legacy.contains(LEGACY_KEY_POOL_SOUND) ->
-                            legacy.getBoolean(LEGACY_KEY_POOL_SOUND, true)
-                        // 无旧键写入默认值，迁移同样只做一次
-                        else -> true
-                    }
-                }.getOrDefault(true)
-            runCatching { prefs.edit().putBoolean(KEY_ENABLED, migrated).apply() }
-        }
-    }
 }

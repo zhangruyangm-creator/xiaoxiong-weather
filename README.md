@@ -41,8 +41,8 @@
 # Android 仪器测试（需连接设备/模拟器）
 ./gradlew connectedAndroidTest
 
-# 生成 Baseline Profile
-./gradlew :baselineprofile:generateBaselineProfile
+# 生成 Baseline Profile（full/lite flavor 各自生成，需真机或 GMD 模拟器）
+./gradlew :app:generateFullReleaseBaselineProfile :app:generateLiteReleaseBaselineProfile
 ```
 
 ## Flavor 区别
@@ -156,6 +156,29 @@ xiaoxiong-weather/
 - **资源归属**：各模块自持所需 `R.string` / `R.drawable`（Android Library 编译期只认自己 res）；`ic_sun_bear_*` 场景插画统一收在 `:core:res-illustrations`，消费方经 `R as IllustR` 别名引用
 - **依赖方向铁律**：`feature:*` 不得互依；`game:*` 不得依赖 `feature:*`；任何模块不得依赖 `:app`
 - **游戏裁剪**：`:app` 依 `-Pgames` 对 `:game:*` 建条件动态依赖，未选模块不编译
+
+## 技术文档
+
+`docs/` 下按主题记录关键实现与取舍（常量、算法、测试用例名均与代码核对）：
+
+**架构与平台**
+
+- [多模块架构与手动依赖注入](docs/多模块架构与手动依赖注入.md)
+- [天气数据管线与物候映射](docs/天气数据管线与物候映射.md)
+- [网络层拦截器缓存与离线降级](docs/网络层拦截器缓存与离线降级.md)
+- [性能监控与零开销设计](docs/性能监控与零开销设计.md)
+
+**小游戏**
+
+- [小熊跳跳：2D 物理引擎与帧渲染](docs/小熊跳跳2D物理引擎与帧渲染.md)
+- [小熊摘星：程序化平台与跳跃物理](docs/小熊摘星程序化平台与跳跃物理.md)
+- [小熊接雨雪：难度与坏档策略](docs/小熊接雨雪难度与坏档策略.md)
+- [迷宫生成与可解性算法](docs/迷宫生成与可解性算法.md)
+- [小熊农场：离线模拟与存档](docs/小熊农场离线模拟与存档.md)
+- [小熊回家：作息与房间系统](docs/小熊回家作息与房间系统.md)
+- [小熊冰球：AI 与场地主题](docs/小熊冰球AI与场地主题.md)
+- [小熊台球：物理引擎与 AI](docs/小熊台球物理引擎与AI.md)
+- [小熊战机：卷轴弹幕与无尽波次](docs/小熊战机卷轴弹幕与无尽波次.md)
 
 ## 数据源
 

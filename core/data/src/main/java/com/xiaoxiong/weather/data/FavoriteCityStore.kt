@@ -43,9 +43,9 @@ class FavoriteCityStore(
                     }.orEmpty()
                     .toMutableList()
 
-            val exists = current.any { sameCity(it.toCity(), city) }
+            val exists = current.any { it.toCity().isSamePlace(city) }
             when {
-                exists -> current.removeAll { sameCity(it.toCity(), city) }
+                exists -> current.removeAll { it.toCity().isSamePlace(city) }
                 canAddFavorite(current.size, isAlreadyFavorite = false) ->
                     current.add(0, FavoriteCityDto.from(city))
                 // 达到上限：拒绝新增，而不是静默丢弃最旧收藏
@@ -60,17 +60,10 @@ class FavoriteCityStore(
         city: City?,
     ): Boolean {
         if (city == null) return false
-        return favorites.any { sameCity(it, city) }
+        return favorites.any { it.isSamePlace(city) }
     }
 
     override suspend fun firstOrNull(): City? = favorites.first().firstOrNull()
-
-    private fun sameCity(
-        a: City,
-        b: City,
-    ): Boolean =
-        kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
-            kotlin.math.abs(a.longitude - b.longitude) < 0.01
 
     companion object {
         /** 收藏城市上限：达到后拒绝新增，避免静默丢弃旧收藏。 */

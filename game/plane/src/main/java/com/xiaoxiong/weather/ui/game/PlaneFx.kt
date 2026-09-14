@@ -392,11 +392,12 @@ internal fun DrawScope.drawGrazeRing(
     )
 }
 
-/** 道具拾取光：金色扩散环 + 八向短光刺，与擦弹环区分。 */
+/** 道具拾取光：金色扩散环 + 八向短光刺，与擦弹环区分；[reduceMotion] 时冻结光刺朝向。 */
 internal fun DrawScope.drawPickupBurst(
     game: PlaneGame,
     state: PlaneFrameState,
     playerRadius: Float,
+    reduceMotion: Boolean,
 ) {
     if (state.pickupTicks <= 0) return
     val scale = game.viewScale
@@ -414,8 +415,9 @@ internal fun DrawScope.drawPickupBurst(
         blendMode = BlendMode.Plus,
     )
     val outer = r * (1.1f + (1f - p) * 1.9f)
+    val spin = if (reduceMotion) 0f else state.visualTick * 0.03f
     for (k in 0 until 8) {
-        val a = k * 0.7854f + state.visualTick * 0.03f
+        val a = k * 0.7854f + spin
         val ca = cos(a)
         val sa = sin(a)
         drawLine(

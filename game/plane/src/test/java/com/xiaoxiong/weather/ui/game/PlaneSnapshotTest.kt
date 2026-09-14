@@ -95,6 +95,42 @@ class PlaneSnapshotTest {
     }
 
     @Test
+    fun restoredGame_continuesIdentically_atHighWaveWithNewEnemies() {
+        val prefs = FakePlanePrefs()
+        val source = newGame()
+        source.difficulty = PlaneDifficulty.CHALLENGE
+        source.startGame(seed = 424242L, startWave = 12)
+        // 挂机玩家在高波次会秒死；用短无敌（<= 快照清洗上限）保证能采集到含 TANK/HELI 的状态
+        repeat(60 * 60) {
+            source.player.invulnTicks = 60
+            source.advanceTicks(1)
+        }
+        source.saveSnapshot(prefs)
+
+        val restored = newGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals(PlanePhase.PAUSED, restored.phase)
+        source.advanceTicks(600)
+        restored.resume()
+        restored.advanceTicks(600)
+        assertEquals(source.phase, restored.phase)
+        assertEquals(source.waveIndex, restored.waveIndex)
+        assertEquals(source.score, restored.score)
+        assertEquals(source.kills, restored.kills)
+        assertEquals(source.enemies.size, restored.enemies.size)
+        source.enemies.zip(restored.enemies).forEach { (left, right) ->
+            assertEquals(left.id, right.id)
+            assertEquals(left.type, right.type)
+            assertEquals(left.x, right.x, 0f)
+            assertEquals(left.y, right.y, 0f)
+            assertEquals(left.hp, right.hp)
+            assertEquals(left.ageTicks, right.ageTicks)
+        }
+        assertEquals(source.enemyBullets.size, restored.enemyBullets.size)
+        assertEquals(source.powerUps.size, restored.powerUps.size)
+    }
+
+    @Test
     fun restoreSnapshot_playingSave_isPaused_andTicksDoNotAdvance() {
         val prefs = FakePlanePrefs()
         val source = newGame()
@@ -421,6 +457,91 @@ class PlaneSnapshotTest {
     }
 
     @Test
+    fun saveRestore_preservesStartLivesBounds_oneAndNine() {
+        val prefs = FakePlanePrefs()
+        for (lives in listOf(PlaneConfig.START_LIVES_MIN, PlaneConfig.START_LIVES_MAX)) {
+            val source = newGame()
+            source.startLives = lives
+            source.startGame(seed = 50L + lives)
+            source.saveSnapshot(prefs)
+            val restored = newGame()
+            assertTrue("startLives=$lives 应能恢复", restored.restoreSnapshot(prefs))
+            assertEquals("快照应保留开局命数边界 $lives", lives, restored.startLives)
+            assertEquals("玩家命数应与开局命数一致", lives, restored.player.lives)
+        }
+    }
+
+    @Test
+    fun decode_startLivesOutOfRange_isClampedToBounds() {
+        val prefs = FakePlanePrefs()
+        val source = newGame()
+        source.startLives = 5
+        source.startGame(seed = 55L)
+        source.saveSnapshot(prefs)
+        val payload = prefs.getString(key, null)
+        assertNotNull(payload)
+        for ((raw, expected) in listOf("0" to PlaneConfig.START_LIVES_MIN, "99" to PlaneConfig.START_LIVES_MAX)) {
+            val broken = payload!!.lineSequence().map { if (it.startsWith("start=")) "start=$raw" else it }.joinToString("\n")
+            prefs.edit().putString(key, broken).apply()
+            val restored = newGame()
+            assertTrue("start=$raw 坏档仍应清洗恢复", restored.restoreSnapshot(prefs))
+            assertEquals("start=$raw 应夹到 $expected", expected, restored.startLives)
+        }
+    }
+
+    @Test
+    fun restoreSnapshot_bossActiveWithoutBoss_isCleared() {
+        val prefs = FakePlanePrefs()
+        val source = newGame()
+        source.startGame(seed = 41L, startWave = 2)
+        source.advanceTicks(120)
+        source.saveSnapshot(prefs)
+        val payload = prefs.getString(key, null)
+        assertNotNull(payload)
+        val broken =
+            payload!!
+                .lineSequence()
+                .map { line ->
+                    if (line.startsWith("wave=")) {
+                        val f = line.removePrefix("wave=").split(',').toMutableList()
+                        f[4] = "1" // bossActive=true，但快照里没有 Boss（状态残留坏档）
+                        "wave=" + f.joinToString(",")
+                    } else {
+                        line
+                    }
+                }.joinToString("\n")
+        prefs.edit().putString(key, broken).apply()
+
+        val restored = newGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertFalse("没有 Boss 实体时不得残留 bossActive", restored.bossActive)
+    }
+
+    @Test
+    fun restoreSnapshot_deadEnemyLine_droppedWithoutKillCredit() {
+        val prefs = FakePlanePrefs()
+        val source = newGame()
+        source.startGame(seed = 42L)
+        source.advanceTicks(30)
+        source.saveSnapshot(prefs)
+        val payload = prefs.getString(key, null)
+        assertNotNull(payload)
+        // hp=0 的实体（如坏档）恢复后不应在首个 tick 被当成击杀计分
+        val broken = payload!! + "\nenemy=9999,GRUNT,50,50,0,0,0,3,100,0,0,50,0,0,0"
+        prefs.edit().putString(key, broken).apply()
+
+        val restored = newGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertTrue("hp<=0 实体不应被恢复", restored.enemies.none { it.id == 9999 })
+        val kills = restored.kills
+        val score = restored.score
+        restored.resume()
+        restored.advanceTicks(1)
+        assertEquals("恢复后不应产生免费击杀", kills, restored.kills)
+        assertEquals("恢复后不应产生免费分数", score, restored.score)
+    }
+
+    @Test
     fun clearSnapshot_removesPayload() {
         val prefs = FakePlanePrefs()
         val source = newGame()
@@ -429,5 +550,14 @@ class PlaneSnapshotTest {
         assertTrue(prefs.contains(key))
         source.clearSnapshot(prefs)
         assertFalse(prefs.contains(key))
+    }
+
+    /** shouldClear 谓词：仅 SETTLED（结算）清档，标题 / 进行中 / 暂停保留（可续玩）。 */
+    @Test
+    fun shouldClearSnapshot_onlySettled() {
+        assertFalse(planeShouldClearSnapshot(PlanePhase.READY))
+        assertFalse(planeShouldClearSnapshot(PlanePhase.PLAYING))
+        assertFalse(planeShouldClearSnapshot(PlanePhase.PAUSED))
+        assertTrue(planeShouldClearSnapshot(PlanePhase.SETTLED))
     }
 }

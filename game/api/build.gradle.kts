@@ -34,4 +34,5 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.annotation)
+    testImplementation(libs.junit)
 }

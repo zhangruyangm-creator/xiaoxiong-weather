@@ -75,6 +75,10 @@ jobs:
       - name: Lint (full debug)
         run: ./gradlew lintFullDebug
 
+      # 只编译仪器测试源集、不跑设备：确保 androidTestFull 与 lite 的 instrument 源集不腐烂
+      - name: Compile androidTest sources (full + lite)
+        run: ./gradlew :app:assembleFullDebugAndroidTest :app:assembleLiteDebugAndroidTest
+
       # 各游戏模块 namespace 相同，同名资源会被资源合并静默覆盖；值不一致必须修
       - name: Check duplicate game string resources
         run: python3 tools/check_duplicate_game_strings.py
@@ -99,20 +103,17 @@ jobs:
           unzip -p app/build/outputs/apk/full/release/app-full-release.apk \
             META-INF/services/com.xiaoxiong.weather.game.GameEntryProvider \
             > /tmp/game_providers.txt
-          for provider in \
-            com.xiaoxiong.weather.ui.game.BearGameEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearStarJumpEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearMazeEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearFarmEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearHomeEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearCatchEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearPoolEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearPlaneEntryProvider
-          do
+          # provider 清单从 game/*/META-INF/services 运行时枚举（与 tools/check_r8_dex_keep.py 同源），
+          # 新增游戏模块自动纳入校验，不再维护硬编码列表；缺注册即失败。
+          python3 tools/check_r8_dex_keep.py --list-providers > /tmp/expected_providers.txt
+          if [ ! -s /tmp/expected_providers.txt ]; then
+            echo "no expected providers discovered under game/*/META-INF/services"; exit 1
+          fi
+          while IFS= read -r provider; do
             grep -qx "$provider" /tmp/game_providers.txt \
               || { echo "ServiceLoader registration missing: $provider"; exit 1; }
-          done
+          done < /tmp/expected_providers.txt
+          echo "ServiceLoader registrations OK: $(wc -l < /tmp/expected_providers.txt | tr -d ' ') providers"
 
       # R8 后 provider 类与 <init>() 必须在 dex 中真实存在，否则运行期抛
       # ServiceConfigurationError（见 1.6.5 闪退）。dexdump 来自 build-tools。
@@ -123,18 +124,9 @@ jobs:
           rm -rf /tmp/apk_dex && mkdir -p /tmp/apk_dex
           unzip -q app/build/outputs/apk/full/release/app-full-release.apk \
             'classes*.dex' -d /tmp/apk_dex
+          python3 tools/check_r8_dex_keep.py --list-providers > /tmp/expected_providers.txt
           found=0
-          for provider in \
-            com.xiaoxiong.weather.ui.game.BearGameEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearStarJumpEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearMazeEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearFarmEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearHomeEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearCatchEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearPoolEntryProvider \
-            com.xiaoxiong.weather.ui.game.BearPlaneEntryProvider
-          do
+          while IFS= read -r provider; do
             # 全限定名转 dex 内部描述符：com.a.B -> Lcom/a/B;
             cls="L$(echo "$provider" | tr '.' '/');"
             class_ok=0
@@ -149,8 +141,15 @@ jobs:
               echo "Provider class or <init> missing in dex: $provider"; exit 1
             fi
             found=$((found + 1))
-          done
+          done < /tmp/expected_providers.txt
           echo "Verified $found provider constructors in dex"
+
+      # R8 收窄（删除 data.** 宽泛 keep）后的兜底守卫：从 dex 解析已定义类/方法，
+      # 断言源码每个 @Serializable 类都有 $$serializer、provider/Worker 构造器、
+      # 持久化枚举常量名、Firebase 反射面仍在。源码新增 @Serializable 而通用规则
+      # 未覆盖（或 R8 改名/裁剪反射面）时此步失败。
+      - name: Verify R8 keep coverage in dex (serializers / reflection)
+        run: python3 tools/check_r8_dex_keep.py
 
       # -Pgames=plane 接线回归：小熊战机曾误嵌在 pool 分支，导致 -Pgames=plane 不打包、
       # -Pgames=pool 反带 plane；用 debug 快速构建校验依赖选择与 provider 注册

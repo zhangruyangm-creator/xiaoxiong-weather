@@ -42,7 +42,7 @@ class RecentCityStore(
                         runCatching { json.decodeFromString(serializer, it) }.getOrDefault(emptyList())
                     }.orEmpty()
                     .toMutableList()
-            current.removeAll { sameCity(it.toCity(), city) }
+            current.removeAll { it.toCity().isSamePlace(city) }
             current.add(0, RecentCityDto.from(city.copy(isCurrentLocation = false)))
             prefs[key] = json.encodeToString(serializer, current.take(MAX_RECENT))
         }
@@ -53,13 +53,6 @@ class RecentCityStore(
             prefs.remove(key)
         }
     }
-
-    private fun sameCity(
-        a: City,
-        b: City,
-    ): Boolean =
-        kotlin.math.abs(a.latitude - b.latitude) < 0.01 &&
-            kotlin.math.abs(a.longitude - b.longitude) < 0.01
 
     @Serializable
     internal data class RecentCityDto(

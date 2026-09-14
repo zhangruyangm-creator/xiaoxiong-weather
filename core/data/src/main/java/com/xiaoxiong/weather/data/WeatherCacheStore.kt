@@ -15,7 +15,6 @@ import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
-import kotlin.math.abs
 
 private val Context.weatherCacheDataStore by preferencesDataStore(
     name = "weather_cache_v1",
@@ -170,8 +169,6 @@ internal const val CACHE_HOURLY_PAST_HOURS = 6
 /** 保存时保留当前小时之后的小时数；缓存可存活 24h，仍能覆盖回退时的未来 24h。 */
 internal const val CACHE_HOURLY_FUTURE_HOURS = 48
 
-internal const val CACHE_SAME_CITY_TOLERANCE = 0.01
-
 private val CACHE_CITY_KEY_REGEX =
     Regex("""^${CACHE_CITY_KEY_PREFIX}(\d+)_(-?\d+(?:\.\d+)?)_(-?\d+(?:\.\d+)?)$""")
 
@@ -195,14 +192,14 @@ internal fun parseCacheEntryKey(name: String): CachedCityKey? {
 internal fun sameCacheCity(
     a: City,
     b: City,
-): Boolean = sameCacheCity(a.latitude, a.longitude, b.latitude, b.longitude)
+): Boolean = a.isSamePlace(b)
 
 internal fun sameCacheCity(
     latA: Double,
     lonA: Double,
     latB: Double,
     lonB: Double,
-): Boolean = abs(latA - latB) < CACHE_SAME_CITY_TOLERANCE && abs(lonA - lonB) < CACHE_SAME_CITY_TOLERANCE
+): Boolean = isSamePlace(latA, lonA, latB, lonB)
 
 /** 落盘前裁剪 hourly：只保留当前小时前 [CACHE_HOURLY_PAST_HOURS] 到后 [CACHE_HOURLY_FUTURE_HOURS]。 */
 internal fun trimSnapshotForCache(snapshot: WeatherSnapshot): WeatherSnapshot {

@@ -34,7 +34,6 @@ dependencies {
     implementation(project(":game:api"))
     implementation(project(":game:common"))
     implementation(project(":core:designsystem"))
-    implementation(project(":core:common"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)

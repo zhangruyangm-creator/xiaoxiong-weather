@@ -4,12 +4,12 @@ import android.content.Context
 import android.util.Log
 import androidx.annotation.DrawableRes
 import com.xiaoxiong.weather.R
-import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.LifeIndexLevel
 import com.xiaoxiong.weather.data.SelectedCityStore
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.WeatherRefreshPolicy
 import com.xiaoxiong.weather.data.WeatherSnapshot
+import com.xiaoxiong.weather.data.isSamePlace
 import com.xiaoxiong.weather.di.AppContainer
 import com.xiaoxiong.weather.di.appContainer
 import com.xiaoxiong.weather.util.CrashReporting
@@ -26,7 +26,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.abs
 
 /** 线程安全的「更新时间」格式：DateTimeFormatter 不可变，避免每次渲染重复创建。 */
 private val WIDGET_UPDATED_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
@@ -102,7 +101,7 @@ object WeatherWidgetData {
 
         val cached = cacheStore.get(city)
         val now = System.currentTimeMillis()
-        val moved = selection.useLocation && !roughlySameCity(selection.city, city)
+        val moved = selection.useLocation && !selection.city.isSamePlace(city)
         val stale =
             cached == null ||
                 now - cached.savedAtEpochMs >= WeatherRefreshPolicy.WIDGET_STALE_MS ||
@@ -156,11 +155,6 @@ object WeatherWidgetData {
             unit = unit,
         )
     }
-
-    private fun roughlySameCity(
-        a: City,
-        b: City,
-    ): Boolean = abs(a.latitude - b.latitude) < 0.01 && abs(a.longitude - b.longitude) < 0.01
 
     private fun toUi(
         context: Context,

@@ -757,6 +757,10 @@ class LocationHelper(
         return trimmed
     }
 
+    /**
+     * 按规范化后的地名比较「同一地点」；与 core:model 的 [isSamePlace]（经纬度阈值）语义不同：
+     * 这里只用于拼装展示名（区/市/省去重），不做坐标同城判定，故保留独立实现。
+     */
     private fun samePlace(
         a: String?,
         b: String?,

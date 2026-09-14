@@ -57,7 +57,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -96,12 +95,6 @@ import com.xiaoxiong.weather.worker.WeatherRefreshWorker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
-
-/** 连点标题打开游戏枢纽所需的连续点击次数。 */
-private const val SECRET_TITLE_TAPS = 4
-
-/** 连点标题的计时窗口（毫秒）：窗口内点击计数，超时清零。 */
-private const val SECRET_TITLE_WINDOW_MS = 2_000L
 
 /** 从 Compose 的 [Context] 沿包装链找到宿主 Activity；找不到返回 null。 */
 private tailrec fun Context.findHostActivity(): Activity? =
@@ -174,24 +167,14 @@ private fun WeatherScreenContent(
     }
 
     // ── 标题连点彩蛋：2s 内连点 4 次打开游戏枢纽（小熊的家）──
-    val lastTitleTapAt = remember { mutableLongStateOf(0L) }
-    var titleTapCount by remember { mutableIntStateOf(0) }
+    // 计数器逻辑抽到 feature:weather 的 SecretTitleTapCounter（纯逻辑，可单测）。
+    // 统一用 elapsedRealtime：uptimeMillis 不计深睡时间，旧机型上窗口会被睡眠拉长。
+    val secretTapCounter = remember { SecretTitleTapCounter() }
     // nonce 自增保证退出枢纽后再次连点仍能重新触发
     var secretRequest by remember { mutableStateOf<Pair<Int, String>?>(null) }
     var secretNonce by remember { mutableIntStateOf(0) }
     val onTitleSecretTap: () -> Unit = {
-        val now =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                SystemClock.elapsedRealtime()
-            } else {
-                SystemClock.uptimeMillis()
-            }
-        // 窗口外再点 = 重新开一轮
-        if (now - lastTitleTapAt.longValue > SECRET_TITLE_WINDOW_MS) titleTapCount = 0
-        lastTitleTapAt.longValue = now
-        titleTapCount++
-        if (titleTapCount >= SECRET_TITLE_TAPS) {
-            titleTapCount = 0
+        if (secretTapCounter.onTap(SystemClock.elapsedRealtime())) {
             secretNonce++
             secretRequest = secretNonce to EASTER_EGG_BEAR_HOME
             scope.launch {
@@ -281,6 +264,9 @@ private fun WeatherScreenContent(
                         policy = ExistingPeriodicWorkPolicy.REPLACE,
                     )
                 },
+                // 游戏音效分区由装配层派生：AppContainer 已预载游戏入口（full 非空、lite 为空），
+                // SettingsScreen 不再自行 ServiceLoader 扫描
+                showGameAudio = gameEntries.isNotEmpty(),
             )
             return
         }

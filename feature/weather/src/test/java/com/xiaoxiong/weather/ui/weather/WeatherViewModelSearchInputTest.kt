@@ -104,6 +104,92 @@ class WeatherViewModelSearchInputTest {
         }
 
     @Test
+    fun placeRefined_thenBackspaceToOldLabel_triggersSearch() =
+        runTest {
+            val initial = WeatherFixtures.city("北京", lat = 39.9, lon = 116.4)
+            val refined = initial.copy(name = "北京市")
+            val queries = mutableListOf<String>()
+            val session = RecordingLocationSession()
+            val vm =
+                createTestViewModel(
+                    session = session,
+                    citySearch = recordingSearch(queries),
+                    locationPermission = true,
+                ).vm
+
+            vm.loadCurrentLocationWeather(showRationale = false)
+            session.emitResolved(initial)
+            advanceUntilIdle()
+            session.emitPlaceUpdated(refined)
+            advanceUntilIdle()
+            assertEquals(refined.displayName, vm.uiState.value.query)
+
+            // 地名精化把 UI query 改成新地名：queryFlow 应一并同步，
+            // 用户退格回旧地名（单次文本变化）时才会重新触发搜索
+            queries.clear()
+            vm.onQueryChange(initial.displayName)
+            advanceUntilIdle()
+            assertEquals(listOf(initial.displayName), queries)
+        }
+
+    @Test
+    fun clearQueryKeepLocation_preservesLocationMode_quietRefreshKeepsEmptyQuery() =
+        runTest {
+            val city = WeatherFixtures.city("北京")
+            val vm = createTestViewModel().vm
+
+            vm.selectCity(city, fromLocation = true)
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.usingCurrentLocation)
+
+            vm.clearQueryKeepLocation()
+            advanceUntilIdle()
+            assertEquals("", vm.uiState.value.query)
+            assertTrue(
+                vm.uiState.value.suggestions
+                    .isEmpty(),
+            )
+            assertTrue(
+                "清空搜索不应退出「当前位置」模式",
+                vm.uiState.value.usingCurrentLocation,
+            )
+
+            // 清空后静默刷新：空查询/定位模式都不被覆盖
+            vm.selectCity(city, fromLocation = true, quiet = true)
+            advanceUntilIdle()
+            assertEquals("", vm.uiState.value.query)
+            assertTrue(vm.uiState.value.usingCurrentLocation)
+        }
+
+    @Test
+    fun selectCity_sameTextReenteredBeforeDebounce_doesNotSearchCityFullName() =
+        runTest {
+            val city =
+                City(
+                    id = 1,
+                    name = "上海",
+                    latitude = 31.23,
+                    longitude = 121.47,
+                    country = "中国",
+                    admin1 = "上海市",
+                )
+            val queries = mutableListOf<String>()
+            val vm = createTestViewModel(citySearch = recordingSearch(queries)).vm
+
+            vm.onQueryChange("上海")
+            advanceUntilIdle()
+            queries.clear()
+
+            // 选城同步值还未被防抖消费（<200ms），此时 IME 以相同文本回调一次
+            vm.selectCity(city)
+            vm.onQueryChange(city.displayName)
+            advanceUntilIdle()
+
+            // 同值输入未改变 queryFlow，不应把选城跳过标记作废，否则会误搜一遍城市全名
+            assertEquals(emptyList<String>(), queries)
+        }
+
+    @Test
     fun selectCity_thenRetypePreviousQuery_triggersSearchAgain() =
         runTest {
             val city = WeatherFixtures.city("济南")

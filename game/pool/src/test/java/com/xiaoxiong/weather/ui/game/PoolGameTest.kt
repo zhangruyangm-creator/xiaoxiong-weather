@@ -425,4 +425,200 @@ class PoolGameTest {
         val ballsAfter = game.balls.map { listOf(it.id, it.x, it.y) }
         assertEquals(ballsBefore, ballsAfter)
     }
+
+    // ---------------------------------------------------------------------
+    // 回放状态残留 / 结算幂等
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun startMatchDuringReplay_cancelsReplayAndDoesNotRestoreOldMatch() {
+        val game = recordPracticeShots(1)
+        assertTrue(game.startReplay())
+        game.startMatch(PoolSide.PLAYER, seed = 77L)
+        assertFalse("新开对局必须取消回放态", game.replaying)
+        // 若回放态残留，tick 会在空回放记录上触发 stopReplay 把旧局恢复回来
+        game.tick(1f / 60f)
+        assertFalse(game.replaying)
+        assertEquals(PoolGame.Phase.AIMING, game.phase)
+    }
+
+    @Test
+    fun stopReplay_afterSettledMatch_keepsResultSubmitted() {
+        val game = newGame()
+        game.mode = PoolMode.NINE_BALL
+        game.raceTo = 1
+        game.startMatch(PoolSide.PLAYER, seed = 31L)
+        winNineBallFrame(game)
+        assertEquals(PoolGame.Phase.MATCH_OVER, game.phase)
+        game.resultSubmitted = true
+
+        assertTrue(game.startReplay())
+        game.stopReplay()
+        assertEquals(PoolGame.Phase.MATCH_OVER, game.phase)
+        assertTrue(
+            "停止回放不得把已结算标记复位（否则会重复提交榜单/生涯统计）",
+            game.resultSubmitted,
+        )
+    }
+
+    // ---------------------------------------------------------------------
+    // 自定义局数边界 / 暂存规则
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun raceToOne_firstFrameEndsMatch() {
+        val game = newGame()
+        game.mode = PoolMode.NINE_BALL
+        game.raceTo = 1
+        game.startMatch(PoolSide.PLAYER, seed = 31L)
+        winNineBallFrame(game)
+        assertEquals(1, game.match.playerFrames)
+        assertEquals(PoolGame.Phase.MATCH_OVER, game.phase)
+        assertTrue(game.matchOver())
+    }
+
+    @Test
+    fun raceToFifteen_fourteenthFrameDoesNotEndMatch() {
+        val game = newGame()
+        game.mode = PoolMode.NINE_BALL
+        game.raceTo = POOL_RACE_TO_MAX
+        game.startMatch(PoolSide.PLAYER, seed = 31L)
+        repeat(POOL_RACE_TO_MAX - 1) { round ->
+            winNineBallFrame(game)
+            assertEquals("第 ${round + 1} 局应正常结算", PoolGame.Phase.FRAME_OVER, game.phase)
+            assertFalse("赢 ${round + 1} 局（先到 $POOL_RACE_TO_MAX）不应结束整场", game.matchOver())
+            game.nextFrame()
+        }
+        winNineBallFrame(game)
+        assertEquals(POOL_RACE_TO_MAX, game.match.playerFrames)
+        assertEquals(PoolGame.Phase.MATCH_OVER, game.phase)
+    }
+
+    @Test
+    fun startMatch_appliesPendingModeEvenWhenCurrentModeIsChallenge() {
+        val game = newGame()
+        // 旧 prefs 可能留下 CHALLENGE；此时暂存的新模式不得被吞掉
+        game.mode = PoolMode.CHALLENGE
+        game.stageRuleChange(3, PoolMode.NINE_BALL)
+        game.startMatch(PoolSide.PLAYER, seed = 1L)
+        assertEquals(PoolMode.NINE_BALL, game.mode)
+        assertEquals(3, game.raceTo)
+        assertEquals(PoolMode.NINE_BALL, game.match.mode)
+    }
+
+    @Test
+    fun pendingRulesAfterSnapshotRestore_sameRules_returnsNull() {
+        assertNull(
+            pendingRulesAfterSnapshotRestore(
+                snapshotRaceTo = 5,
+                snapshotMode = PoolMode.EIGHT_BALL,
+                prefsRaceTo = 5,
+                prefsMode = PoolMode.EIGHT_BALL,
+            ),
+        )
+    }
+
+    @Test
+    fun pendingRulesAfterSnapshotRestore_differencesRebuildPendingAndClamp() {
+        assertEquals(
+            "局中改的赛制/模式应作为下一场暂存恢复",
+            7 to PoolMode.NINE_BALL,
+            pendingRulesAfterSnapshotRestore(
+                snapshotRaceTo = 2,
+                snapshotMode = PoolMode.EIGHT_BALL,
+                prefsRaceTo = 7,
+                prefsMode = PoolMode.NINE_BALL,
+            ),
+        )
+        assertEquals(
+            "越界 prefs 赛制应钳制",
+            POOL_RACE_TO_MAX to PoolMode.PRACTICE,
+            pendingRulesAfterSnapshotRestore(
+                snapshotRaceTo = 2,
+                snapshotMode = PoolMode.EIGHT_BALL,
+                prefsRaceTo = 99,
+                prefsMode = PoolMode.PRACTICE,
+            ),
+        )
+    }
+
+    @Test
+    fun legacyPurgeList_doesNotTouchDailyLeaderboardKeys() {
+        assertTrue(
+            "每日挑战榜/最佳是杆数计分，不得被净胜改版的旧 key 清理误删",
+            POOL_LEGACY_LEADERBOARD_KEYS.none { it.contains("daily") || it.startsWith("pool_daily") },
+        )
+    }
+
+    @Test
+    fun matchDifficulty_lockKeepsAchievementAccountingStable() {
+        val game = newGame()
+        game.difficulty = PoolAi.Difficulty.MASTER
+        game.mode = PoolMode.PRACTICE
+        game.startMatch(PoolSide.PLAYER, seed = 1L)
+        assertEquals("开局锁定本场难度", PoolAi.Difficulty.MASTER, game.matchDifficulty)
+        // 局中改难度只影响之后的 AI
+        game.difficulty = PoolAi.Difficulty.NOVICE
+        assertEquals(PoolAi.Difficulty.NOVICE, game.difficulty)
+        assertEquals("本场记账难度不得被局中改动污染", PoolAi.Difficulty.MASTER, game.matchDifficulty)
+
+        game.startMatch(PoolSide.PLAYER, seed = 2L)
+        assertEquals("下一场按最新难度重新锁定", PoolAi.Difficulty.NOVICE, game.matchDifficulty)
+    }
+
+    @Test
+    fun lessonAndChallengeKeepClothTheme() {
+        val game = newGame()
+        game.clothTheme = 2
+        game.startLesson(PoolTutorial.lessons().first())
+        assertEquals("教学不得重置台呢主题", 2, game.clothTheme)
+        game.startChallenge(PoolChallenges.daily(20_000L), 20_000L)
+        assertEquals("每日挑战不得重置台呢主题", 2, game.clothTheme)
+    }
+
+    @Test
+    fun poolLeaderboardEntry_netAndTieBreakConventions() {
+        val loss =
+            poolLeaderboardEntry(
+                practice = false,
+                playerFrames = 0,
+                aiFrames = 5,
+                practiceScore = 0,
+                label = "0 : 5",
+                timestamp = 1L,
+                city = null,
+                weather = null,
+            )
+        assertEquals("负净胜照样入榜，score 为净胜", -5, loss.score)
+        assertEquals("tieBreak 为失局", 5, loss.tieBreak)
+        assertEquals(0, leaderboardDisplayRank(loss.score, rank = 1))
+
+        val win =
+            poolLeaderboardEntry(
+                practice = false,
+                playerFrames = 5,
+                aiFrames = 3,
+                practiceScore = 0,
+                label = "5 : 3",
+                timestamp = 2L,
+                city = null,
+                weather = null,
+            )
+        assertEquals(2, win.score)
+        assertEquals(3, win.tieBreak)
+
+        val practice =
+            poolLeaderboardEntry(
+                practice = true,
+                playerFrames = 1,
+                aiFrames = 0,
+                practiceScore = 108,
+                label = "6 杆",
+                timestamp = 3L,
+                city = null,
+                weather = null,
+            )
+        assertEquals("练习按清台得分，不受净胜口径影响", 108, practice.score)
+        assertEquals(0, practice.tieBreak)
+    }
 }

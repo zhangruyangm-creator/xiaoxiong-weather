@@ -18,27 +18,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,14 +56,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.core.content.edit
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Difficulty
@@ -96,8 +80,31 @@ private const val PREF_RINK_THEME = "hockey_rink_theme"
 /** 被 v2 取代的旧榜 key：清理推迟到首次成功进榜或用户主动清榜时。 */
 private const val LEGACY_LEADERBOARD_KEY = "leaderboard_hockey"
 
+/**
+ * 冰球排行榜条目（纯函数，便于对净胜 / tieBreak 口径做单测）：
+ * score = 净胜球，tieBreak = 失球数（同为净胜 +2 时 3:1 排在 4:2 前）。[label] 仅展示。
+ */
+internal fun hockeyLeaderboardEntry(
+    playerScore: Int,
+    aiScore: Int,
+    timestamp: Long,
+    city: String?,
+    weather: String?,
+): LeaderboardEntry =
+    LeaderboardEntry(
+        score = playerScore - aiScore,
+        timestamp = timestamp,
+        city = city,
+        weather = weather,
+        label = "$playerScore : $aiScore",
+        tieBreak = aiScore,
+    )
+
 /** 发球倒数总时长（3 拍，每拍 0.5s）；超出部分显示「预备」。与 HockeyGame 的发球计时对应。 */
 private const val SERVE_COUNTDOWN_SECONDS = 1.5f
+
+/** MATCH_OVER 无法续玩：快照生命周期在该阶段清档（重进从标题开始）。 */
+internal fun hockeyShouldClearSnapshot(phase: Phase): Boolean = phase == Phase.MATCH_OVER
 
 /**
  * 小熊冰球：竖屏空气壁球。下方玩家 / 上方 AI；设置内调难度与先赢几分。
@@ -189,36 +196,30 @@ fun BearHockeyScreen(
     val reportScene by rememberUpdatedState(sceneCode)
     val reportCity by rememberUpdatedState(cityName)
 
-    // 进程重建（旋转/被系统回收后重进）时恢复局中快照；坏档/无档保持标题。
+    // 快照生命周期统一走公共件：进入恢复（坏档/无档保持标题）→ ON_STOP 落盘 →
+    // onDispose 兜底 → 退出抑制 → MATCH_OVER 清档。
     // restore 可能早于首次 resize：restoreSnapshot 会用存档画布尺寸先建球桌再套坐标。
-    LaunchedEffect(Unit) {
-        game.restoreSnapshot(prefs)
-    }
-    // 退出流程（HUD 关闭 / 暂停退出 / 返回键）：先清档并置标记，
-    // 避免随后的 onDispose 兜底把已退出的对局重新落盘
-    var exiting by remember { mutableStateOf(false) }
-
-    fun exitGame() {
-        exiting = true
-        game.clearSnapshot(prefs)
-        onExit()
-    }
-    // ON_STOP（按 Home 等切后台）与组合销毁时落盘，避免进程被系统回收丢档
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP && !exiting) game.saveSnapshot(prefs)
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            if (!exiting) game.saveSnapshot(prefs)
+    val snapshotSession =
+        remember(game, prefs) {
+            gameSnapshotSession(
+                save = game::saveSnapshot,
+                restore = game::restoreSnapshot,
+                clear = game::clearSnapshot,
+            )
         }
-    }
-    // 结算后清档：重进应从标题开始，而不是续到已结束的对局
-    LaunchedEffect(game.phase) {
-        if (game.phase == Phase.MATCH_OVER) game.clearSnapshot(prefs)
+    val snapshotExitGuard =
+        GameSnapshotLifecycle(
+            session = snapshotSession,
+            prefs = prefs,
+            phase = game.phase,
+            shouldClear = ::hockeyShouldClearSnapshot,
+        )
+
+    // 退出流程（HUD 关闭 / 暂停退出 / 返回键）：先清档并抑制兜底落盘，
+    // 避免随后的 onDispose 兜底把已退出的对局重新落盘
+    fun exitGame() {
+        snapshotExitGuard.exit(snapshotSession, prefs)
+        onExit()
     }
 
     // 结算落盘 + 提交排行榜（幂等）。BackHandler/onExit 进入时也调用，
@@ -257,13 +258,12 @@ fun BearHockeyScreen(
         val score = game.playerScore - game.aiScore
         val rank =
             lb.store.submit(
-                LeaderboardEntry(
-                    score = score,
+                hockeyLeaderboardEntry(
+                    playerScore = game.playerScore,
+                    aiScore = game.aiScore,
                     timestamp = System.currentTimeMillis(),
                     city = reportCity,
                     weather = leaderboardWeatherOf(context, reportScene),
-                    label = "${game.playerScore} : ${game.aiScore}",
-                    tieBreak = game.aiScore,
                 ),
                 LEGACY_LEADERBOARD_KEY,
             )
@@ -769,7 +769,7 @@ private fun CenterBanner(
 }
 
 @Composable
-private fun difficultyLabel(
+internal fun difficultyLabel(
     d: Difficulty,
     customLevel: Int = 5,
 ): String =
@@ -782,603 +782,3 @@ private fun difficultyLabel(
         Difficulty.MASTER -> stringResource(R.string.bear_hockey_diff_master)
         Difficulty.CUSTOM -> stringResource(R.string.bear_hockey_diff_custom_level, customLevel)
     }
-
-@Composable
-private fun HockeySettingsDialog(
-    difficulty: Difficulty,
-    customLevel: Int,
-    winScore: Int,
-    paddleScale: Float,
-    paddleScaleBoth: Boolean,
-    puckScale: Float,
-    goalScale: Float,
-    rinkTheme: RinkTheme,
-    rulesLocked: Boolean,
-    onOpenCareer: () -> Unit,
-    onDismiss: () -> Unit,
-    onSave: (Difficulty, Int, Int, Float, Boolean, Float, Float, RinkTheme, Boolean) -> Unit,
-) {
-    val context = LocalContext.current
-    var d by remember(difficulty) { mutableStateOf(difficulty) }
-    var levelText by remember(customLevel) { mutableStateOf(customLevel.toString()) }
-    var winText by remember(winScore) { mutableStateOf(winScore.toString()) }
-    var scale by remember(paddleScale) { mutableStateOf(paddleScale) }
-    var scaleBoth by remember(paddleScaleBoth) { mutableStateOf(paddleScaleBoth) }
-    var puck by remember(puckScale) { mutableStateOf(puckScale) }
-    var goal by remember(goalScale) { mutableStateOf(goalScale) }
-    var theme by remember(rinkTheme) { mutableStateOf(rinkTheme) }
-    // 音效开关：只改本地状态，点「保存」才随 onSave 写入全局 GameAudio（旧 hockey_sound 仅由 GameAudio 首次迁移读取）
-    var sound by remember { mutableStateOf(GameAudio.settings(context).enabled) }
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = HockeyUi.glassDeep,
-            border = BorderStroke(1.dp, HockeyUi.iceBorder),
-            shadowElevation = 14.dp,
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .padding(20.dp)
-                        .verticalScroll(rememberScrollState()),
-            ) {
-                Text(
-                    stringResource(R.string.bear_hockey_settings),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
-                if (rulesLocked) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.bear_hockey_rules_locked),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = HockeyUi.warn,
-                    )
-                }
-                Spacer(Modifier.height(14.dp))
-                Text(stringResource(R.string.bear_hockey_diff), color = HockeyUi.textSecondary)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(Difficulty.BEGINNER, Difficulty.EASY, Difficulty.NORMAL).forEach { opt ->
-                        HockeyFilterChip(
-                            selected = d == opt,
-                            onClick = { d = opt },
-                            label = { Text(difficultyLabel(opt)) },
-                        )
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(Difficulty.ADVANCED, Difficulty.HARD, Difficulty.MASTER).forEach { opt ->
-                        HockeyFilterChip(
-                            selected = d == opt,
-                            onClick = { d = opt },
-                            label = { Text(difficultyLabel(opt)) },
-                        )
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                HockeyFilterChip(
-                    selected = d == Difficulty.CUSTOM,
-                    onClick = { d = Difficulty.CUSTOM },
-                    label = { Text(stringResource(R.string.bear_hockey_diff_custom)) },
-                )
-                if (d == Difficulty.CUSTOM) {
-                    Spacer(Modifier.height(8.dp))
-                    HockeyOutlinedField(
-                        value = levelText,
-                        onValueChange = { raw ->
-                            levelText = raw.filter { it.isDigit() }.take(2)
-                        },
-                        label = {
-                            Text(
-                                stringResource(
-                                    R.string.bear_hockey_diff_level_hint,
-                                    HockeyLogic.CUSTOM_LEVEL_MIN,
-                                    HockeyLogic.CUSTOM_LEVEL_MAX,
-                                ),
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                Spacer(Modifier.height(14.dp))
-                Text(stringResource(R.string.bear_hockey_win_score), color = HockeyUi.textSecondary)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(3, 5, 7).forEach { n ->
-                        HockeyFilterChip(
-                            selected = winText.toIntOrNull() == n,
-                            onClick = { winText = n.toString() },
-                            label = { Text("$n") },
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                HockeyOutlinedField(
-                    value = winText,
-                    onValueChange = { raw ->
-                        winText = raw.filter { it.isDigit() }.take(2)
-                    },
-                    label = {
-                        Text(
-                            stringResource(
-                                R.string.bear_hockey_win_score_hint,
-                                HockeyLogic.WIN_SCORE_MIN,
-                                HockeyLogic.WIN_SCORE_MAX,
-                            ),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(14.dp))
-                SizeSliderRow(
-                    label = stringResource(R.string.bear_hockey_paddle_size),
-                    value = scale,
-                    range = HockeyLogic.PADDLE_SCALE_MIN..HockeyLogic.PADDLE_SCALE_MAX,
-                    onChange = { scale = it },
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.bear_hockey_paddle_scope), color = HockeyUi.textSecondary)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    HockeyFilterChip(
-                        selected = scaleBoth,
-                        onClick = { scaleBoth = true },
-                        label = { Text(stringResource(R.string.bear_hockey_paddle_scope_both)) },
-                    )
-                    HockeyFilterChip(
-                        selected = !scaleBoth,
-                        onClick = { scaleBoth = false },
-                        label = { Text(stringResource(R.string.bear_hockey_paddle_scope_mine)) },
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                SizeSliderRow(
-                    label = stringResource(R.string.bear_hockey_puck_size),
-                    value = puck,
-                    range = HockeyLogic.PUCK_SCALE_MIN..HockeyLogic.PUCK_SCALE_MAX,
-                    onChange = { puck = it },
-                )
-                Spacer(Modifier.height(12.dp))
-                SizeSliderRow(
-                    label = stringResource(R.string.bear_hockey_goal_size),
-                    value = goal,
-                    range = HockeyLogic.GOAL_SCALE_MIN..HockeyLogic.GOAL_SCALE_MAX,
-                    onChange = { goal = it },
-                )
-                Spacer(Modifier.height(14.dp))
-                Text(stringResource(R.string.bear_hockey_rink_theme), color = HockeyUi.textSecondary)
-                Spacer(Modifier.height(8.dp))
-                RinkTheme.entries.chunked(2).forEach { rowThemes ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        rowThemes.forEach { opt ->
-                            RinkThemeChip(
-                                theme = opt,
-                                selected = theme == opt,
-                                onClick = { theme = opt },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(6.dp))
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.bear_hockey_sound),
-                        color = HockeyUi.textSecondary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Switch(
-                        checked = sound,
-                        onCheckedChange = { sound = it },
-                    )
-                }
-                Spacer(Modifier.height(6.dp))
-                TextButton(
-                    onClick = onOpenCareer,
-                    colors = ButtonDefaults.textButtonColors(contentColor = HockeyUi.accentCool),
-                    modifier = Modifier.align(Alignment.Start),
-                ) {
-                    Text(stringResource(R.string.bear_hockey_career))
-                }
-                Spacer(Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.textButtonColors(contentColor = HockeyUi.textSecondary),
-                    ) {
-                        Text(stringResource(R.string.bear_hockey_cancel))
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    Button(
-                        onClick = {
-                            val level =
-                                levelText
-                                    .toIntOrNull()
-                                    ?.coerceIn(HockeyLogic.CUSTOM_LEVEL_MIN, HockeyLogic.CUSTOM_LEVEL_MAX)
-                                    ?: customLevel.coerceIn(
-                                        HockeyLogic.CUSTOM_LEVEL_MIN,
-                                        HockeyLogic.CUSTOM_LEVEL_MAX,
-                                    )
-                            val win =
-                                winText
-                                    .toIntOrNull()
-                                    ?.coerceIn(HockeyLogic.WIN_SCORE_MIN, HockeyLogic.WIN_SCORE_MAX)
-                                    ?: winScore.coerceIn(
-                                        HockeyLogic.WIN_SCORE_MIN,
-                                        HockeyLogic.WIN_SCORE_MAX,
-                                    )
-                            onSave(
-                                d,
-                                level,
-                                win,
-                                scale.coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX),
-                                scaleBoth,
-                                puck.coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX),
-                                goal.coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX),
-                                theme,
-                                sound,
-                            )
-                        },
-                    ) {
-                        Text(stringResource(R.string.bear_hockey_save))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HockeyAchievementTitle(a: HockeyAchievement): String =
-    when (a) {
-        HockeyAchievement.FIRST_WIN -> stringResource(R.string.bear_hockey_ach_first_win)
-        HockeyAchievement.SHUTOUT -> stringResource(R.string.bear_hockey_ach_shutout)
-        HockeyAchievement.WIN_STREAK_3 -> stringResource(R.string.bear_hockey_ach_win_streak)
-        HockeyAchievement.HARD_WIN -> stringResource(R.string.bear_hockey_ach_hard_win)
-        HockeyAchievement.MASTER_WIN -> stringResource(R.string.bear_hockey_ach_master_win)
-        HockeyAchievement.FIVE_GOALS -> stringResource(R.string.bear_hockey_ach_five_goals)
-        HockeyAchievement.PERFECT_FIVE -> stringResource(R.string.bear_hockey_ach_perfect_five)
-        HockeyAchievement.VETERAN -> stringResource(R.string.bear_hockey_ach_veteran)
-    }
-
-@Composable
-private fun HockeyAchievementDesc(a: HockeyAchievement): String =
-    when (a) {
-        HockeyAchievement.FIRST_WIN -> stringResource(R.string.bear_hockey_ach_first_win_desc)
-        HockeyAchievement.SHUTOUT -> stringResource(R.string.bear_hockey_ach_shutout_desc)
-        HockeyAchievement.WIN_STREAK_3 -> stringResource(R.string.bear_hockey_ach_win_streak_desc)
-        HockeyAchievement.HARD_WIN -> stringResource(R.string.bear_hockey_ach_hard_win_desc)
-        HockeyAchievement.MASTER_WIN -> stringResource(R.string.bear_hockey_ach_master_win_desc)
-        HockeyAchievement.FIVE_GOALS -> stringResource(R.string.bear_hockey_ach_five_goals_desc)
-        HockeyAchievement.PERFECT_FIVE -> stringResource(R.string.bear_hockey_ach_perfect_five_desc)
-        HockeyAchievement.VETERAN -> stringResource(R.string.bear_hockey_ach_veteran_desc)
-    }
-
-/** 生涯成就面板：列出全部成就与解锁状态及统计。 */
-@Composable
-private fun HockeyCareerDialog(
-    progress: HockeyProgress,
-    onDismiss: () -> Unit,
-    onClear: () -> Unit,
-) {
-    var showClearConfirm by remember { mutableStateOf(false) }
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.padding(20.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = HockeyUi.glassDeep,
-            border = BorderStroke(1.dp, HockeyUi.iceBorder),
-            shadowElevation = 14.dp,
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .padding(20.dp)
-                        .verticalScroll(rememberScrollState()),
-            ) {
-                Text(
-                    stringResource(R.string.bear_hockey_career),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    stringResource(
-                        R.string.bear_hockey_stats_line,
-                        progress.games,
-                        progress.wins,
-                        progress.goalsFor,
-                        progress.goalsAgainst,
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = HockeyUi.textSecondary,
-                )
-                Text(
-                    stringResource(
-                        R.string.bear_hockey_stats_line2,
-                        progress.shutouts,
-                        progress.bestStreak,
-                        progress.bestGoals,
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = HockeyUi.textSecondary,
-                )
-                Text(
-                    stringResource(
-                        R.string.bear_hockey_stats_line3,
-                        progress.winsOn(Difficulty.BEGINNER),
-                        progress.winsOn(Difficulty.EASY),
-                        progress.winsOn(Difficulty.NORMAL),
-                        progress.winsOn(Difficulty.ADVANCED),
-                        progress.winsOn(Difficulty.HARD),
-                        progress.winsOn(Difficulty.MASTER),
-                        progress.winsOn(Difficulty.CUSTOM),
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = HockeyUi.textSecondary.copy(alpha = 0.75f),
-                )
-                Spacer(Modifier.height(12.dp))
-                HockeyAchievement.entries.forEach { ach ->
-                    val unlocked = ach.isUnlocked(progress)
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = if (unlocked) "★" else "☆",
-                            color = if (unlocked) HockeyUi.accentWarm else Color(0x66FFFFFF),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = HockeyAchievementTitle(ach),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (unlocked) Color.White else Color(0x80FFFFFF),
-                            )
-                            Text(
-                                text = HockeyAchievementDesc(ach),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = HockeyUi.textSecondary,
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(
-                        onClick = { showClearConfirm = true },
-                        colors = ButtonDefaults.textButtonColors(contentColor = HockeyUi.danger),
-                    ) {
-                        Text(stringResource(R.string.bear_hockey_clear_stats))
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Button(onClick = onDismiss) { Text(stringResource(R.string.bear_hockey_save)) }
-                }
-            }
-        }
-    }
-    if (showClearConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearConfirm = false },
-            containerColor = HockeyUi.glassDeep,
-            titleContentColor = Color.White,
-            textContentColor = HockeyUi.textSecondary,
-            title = { Text(stringResource(R.string.bear_hockey_clear_stats)) },
-            text = { Text(stringResource(R.string.bear_hockey_clear_stats_confirm)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showClearConfirm = false
-                        onClear()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = HockeyUi.danger),
-                ) {
-                    Text(stringResource(R.string.bear_hockey_clear_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showClearConfirm = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = HockeyUi.accentCool),
-                ) {
-                    Text(stringResource(R.string.bear_hockey_cancel))
-                }
-            },
-        )
-    }
-}
-
-/** 新成就解锁弹窗。 */
-@Composable
-private fun HockeyUnlockDialog(
-    achievements: List<HockeyAchievement>,
-    onDismiss: () -> Unit,
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = HockeyUi.glassDeep,
-            border = BorderStroke(1.dp, HockeyUi.iceBorder),
-            shadowElevation = 14.dp,
-        ) {
-            Column(
-                modifier = Modifier.padding(22.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = stringResource(R.string.bear_hockey_unlock_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = HockeyUi.accentWarm,
-                )
-                Spacer(Modifier.height(10.dp))
-                achievements.forEach { ach ->
-                    Text(
-                        text = "★ " + HockeyAchievementTitle(ach),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                    )
-                    Text(
-                        text = HockeyAchievementDesc(ach),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = HockeyUi.textSecondary,
-                    )
-                }
-                Spacer(Modifier.height(14.dp))
-                Button(onClick = onDismiss) { Text(stringResource(R.string.bear_hockey_save)) }
-            }
-        }
-    }
-}
-
-/** 尺寸设置行：标题 + 当前倍率 + 连续滑块（挡板/冰球/球门共用）。 */
-@Composable
-private fun SizeSliderRow(
-    label: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    onChange: (Float) -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = label,
-                color = HockeyUi.textSecondary,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text =
-                    stringResource(
-                        R.string.bear_hockey_size_value,
-                        value.coerceIn(range.start, range.endInclusive),
-                    ),
-                color = HockeyUi.accentCool,
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
-        Slider(
-            value = value.coerceIn(range.start, range.endInclusive),
-            onValueChange = onChange,
-            valueRange = range,
-            colors =
-                SliderDefaults.colors(
-                    thumbColor = HockeyUi.accentCool,
-                    activeTrackColor = HockeyUi.accentCool,
-                    inactiveTrackColor = HockeyUi.accentCool.copy(alpha = 0.22f),
-                ),
-        )
-    }
-}
-
-/** 场地主题选项：主题名 + 摩擦手感说明，当前项高亮，附无障碍内容描述。 */
-@Composable
-private fun RinkThemeChip(
-    theme: RinkTheme,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val name = stringResource(theme.titleRes)
-    val desc = rinkThemeDesc(theme)
-    val a11y = stringResource(R.string.bear_hockey_rink_theme_a11y, name, desc)
-    HockeyFilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = {
-            Column {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (selected) Color.White else HockeyUi.textSecondary,
-                )
-                Text(
-                    text = desc,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (selected) Color.White.copy(alpha = 0.80f) else HockeyUi.textSecondary.copy(alpha = 0.75f),
-                )
-            }
-        },
-        modifier = modifier.semantics { contentDescription = a11y },
-    )
-}
-
-/** 场地主题的摩擦手感说明（模型只带标题资源，说明文案留在 UI 层）。 */
-@Composable
-private fun rinkThemeDesc(theme: RinkTheme): String =
-    when (theme) {
-        RinkTheme.ICE -> stringResource(R.string.bear_hockey_rink_ice_desc)
-        RinkTheme.BEAR -> stringResource(R.string.bear_hockey_rink_bear_desc)
-        RinkTheme.WOOD -> stringResource(R.string.bear_hockey_rink_wood_desc)
-        RinkTheme.CONCRETE -> stringResource(R.string.bear_hockey_rink_concrete_desc)
-    }
-
-/** 冰球主题筛选胶囊：深色玻璃底 + 冰蓝选中态。 */
-@Composable
-private fun HockeyFilterChip(
-    selected: Boolean,
-    onClick: () -> Unit,
-    label: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = label,
-        colors =
-            FilterChipDefaults.filterChipColors(
-                containerColor = Color(0x14FFFFFF),
-                labelColor = HockeyUi.textSecondary,
-                selectedContainerColor = Color(0x5534B6E8),
-                selectedLabelColor = Color.White,
-            ),
-        modifier = modifier,
-    )
-}
-
-/** 冰球主题输入框：深色底 + 冰蓝描边。 */
-@Composable
-private fun HockeyOutlinedField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = label,
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        colors =
-            OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                cursorColor = HockeyUi.accentCool,
-                focusedBorderColor = HockeyUi.accentCool,
-                unfocusedBorderColor = HockeyUi.iceBorder,
-                focusedLabelColor = HockeyUi.accentCool,
-                unfocusedLabelColor = HockeyUi.textSecondary,
-            ),
-        modifier = modifier,
-    )
-}

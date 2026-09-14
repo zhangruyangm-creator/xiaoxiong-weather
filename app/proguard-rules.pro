@@ -35,6 +35,21 @@
 
 # WorkManager / DataStore keep defaults via consumer proguard
 
+# CrashReporting 通过 Class.forName + getMethod 反射启用 Crashlytics；
+# firebase-crashlytics 19.4.4 / firebase-common 21.0.0 不带 consumer keep 规则，
+# 不保名时 R8 会把类/方法重命名，反射被 runCatching 静默吞掉、崩溃无法上报。
+# `-if` 条件规则：未接入 google-services.json 时依赖不在 classpath，规则自动失效。
+-if class com.google.firebase.FirebaseApp
+-keep class com.google.firebase.FirebaseApp {
+    public static com.google.firebase.FirebaseApp initializeApp(android.content.Context);
+}
+-if class com.google.firebase.crashlytics.FirebaseCrashlytics
+-keep class com.google.firebase.crashlytics.FirebaseCrashlytics {
+    public static com.google.firebase.crashlytics.FirebaseCrashlytics getInstance();
+    public void setCrashlyticsCollectionEnabled(boolean);
+    public void recordException(java.lang.Throwable);
+}
+
 # Crashlytics (optional)
 -keepattributes SourceFile,LineNumberTable
 -keep public class * extends java.lang.Exception

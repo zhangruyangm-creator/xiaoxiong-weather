@@ -124,6 +124,60 @@ class PoolSnapshotTest {
     }
 
     @Test
+    fun restoreSnapshot_preservesClothTheme() {
+        // 台呢主题属于设置态：对局快照不携带，恢复时也不得被重置
+        val prefs = FakePrefs()
+        val source = newGame()
+        source.clothTheme = CLOTH_THEME_COUNT - 1
+        source.mode = PoolMode.PRACTICE
+        source.startMatch(PoolSide.PLAYER, seed = 31L)
+        source.saveSnapshot(prefs)
+
+        val restored = newGame()
+        restored.clothTheme = 1
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals("恢复对局不得回滚台呢主题", 1, restored.clothTheme)
+    }
+
+    @Test
+    fun saveRestore_matchDifficulty_isLockedAtMatchStart() {
+        val prefs = FakePrefs()
+        val source = newGame()
+        source.difficulty = PoolAi.Difficulty.MASTER
+        source.mode = PoolMode.PRACTICE
+        source.startMatch(PoolSide.PLAYER, seed = 41L)
+        assertEquals(PoolAi.Difficulty.MASTER, source.matchDifficulty)
+        // 局中改难度只影响之后的 AI：本场记账难度保持在开局值
+        source.difficulty = PoolAi.Difficulty.NOVICE
+        source.saveSnapshot(prefs)
+
+        val restored = newGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals(
+            "本场难度应随快照恢复，避免局中切到 MASTER 蹭成就",
+            PoolAi.Difficulty.MASTER,
+            restored.matchDifficulty,
+        )
+    }
+
+    @Test
+    fun restore_legacySnapshotWithoutMatchDifficulty_keepsCurrent() {
+        val prefs = FakePrefs()
+        val source = newGame()
+        source.mode = PoolMode.PRACTICE
+        source.startMatch(PoolSide.PLAYER, seed = 41L)
+        source.saveSnapshot(prefs)
+        val raw = prefs.getString(key, null)
+        assertNotNull(raw)
+        prefs.edit().putString(key, raw!!.replace(Regex("matchDiff=[^\\n]*\\n"), "")).apply()
+
+        val restored = newGame()
+        restored.difficulty = PoolAi.Difficulty.HARD
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals("旧档无本场难度时保持当前难度（旧行为）", PoolAi.Difficulty.HARD, restored.matchDifficulty)
+    }
+
+    @Test
     fun restoreSnapshot_empty_returnsFalse() {
         val game = newGame()
         assertFalse(game.restoreSnapshot(FakePrefs()))
@@ -377,6 +431,16 @@ class PoolSnapshotTest {
         source.saveSnapshot(prefs)
         assertFalse("MATCH_OVER 不应保留续玩快照", prefs.contains(key))
         assertFalse(newGame().restoreSnapshot(prefs))
+    }
+
+    /** shouldClear 谓词：仅 MATCH_OVER 清档；FRAME_OVER 保留以便恢复后点下一局。 */
+    @Test
+    fun shouldClearSnapshot_onlyMatchOver() {
+        assertFalse(poolShouldClearSnapshot(PoolGame.Phase.READY))
+        assertFalse(poolShouldClearSnapshot(PoolGame.Phase.AIMING))
+        assertFalse(poolShouldClearSnapshot(PoolGame.Phase.SHOOTING))
+        assertFalse(poolShouldClearSnapshot(PoolGame.Phase.FRAME_OVER))
+        assertTrue(poolShouldClearSnapshot(PoolGame.Phase.MATCH_OVER))
     }
 
     /** 覆盖 PoolGame 用到的 SharedPreferences 子集（String/Int/putString/putInt/remove）。 */

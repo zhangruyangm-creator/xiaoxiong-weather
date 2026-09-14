@@ -34,7 +34,6 @@ kotlin {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:common"))
-    implementation(project(":core:domain"))
     // 场景插画（ic_sun_bear_*）收在共享资源模块。
     // nonTransitiveRClass=true 下需 api 暴露资源与 R 类，下游模块才能直接引用插画。
     api(project(":core:res-illustrations"))

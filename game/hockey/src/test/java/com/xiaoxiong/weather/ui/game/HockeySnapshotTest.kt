@@ -511,4 +511,14 @@ class HockeySnapshotTest {
         assertFalse(prefs.contains(snapshotKey))
         assertFalse(HockeyGame().restoreSnapshot(prefs))
     }
+
+    /** shouldClear 谓词：仅 MATCH_OVER 清档，标题与进行中保留（可续玩）。 */
+    @Test
+    fun shouldClearSnapshot_onlyMatchOver() {
+        assertFalse(hockeyShouldClearSnapshot(Phase.READY))
+        assertFalse(hockeyShouldClearSnapshot(Phase.SERVE))
+        assertFalse(hockeyShouldClearSnapshot(Phase.PLAYING))
+        assertFalse(hockeyShouldClearSnapshot(Phase.SCORED))
+        assertTrue(hockeyShouldClearSnapshot(Phase.MATCH_OVER))
+    }
 }

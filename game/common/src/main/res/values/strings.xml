@@ -23,4 +23,8 @@
     <string name="bear_pause_exit">退出游戏</string>
     <string name="cd_bear_pause">暂停</string>
     <string name="share_card_cancel">取消</string>
+    <string name="game_best_label">最高</string>
+    <string name="game_exit">回到天气</string>
+    <string name="game_restart">再来一局</string>
+    <string name="game_view_rank">查看排行榜</string>
 </resources>

@@ -185,18 +185,22 @@ internal fun PlaneBossBar(
                         1 -> PlaneUi.warn
                         else -> PlaneUi.danger
                     }
+                val fillWidth = segW * fill
                 drawRoundRect(
                     color = color,
                     topLeft = Offset(left, 0f),
-                    size = Size(segW * fill, size.height),
+                    size = Size(fillWidth, size.height),
                     cornerRadius = CornerRadius(size.height * 0.5f),
                 )
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.22f),
-                    topLeft = Offset(left + 1f, 1f),
-                    size = Size(segW * fill - 2f, size.height * 0.32f),
-                    cornerRadius = CornerRadius(size.height * 0.25f),
-                )
+                // 掉到分段末尾时填充宽不足 2px：跳过内高光，避免负尺寸绘制
+                if (fillWidth > 2f) {
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = 0.22f),
+                        topLeft = Offset(left + 1f, 1f),
+                        size = Size(fillWidth - 2f, size.height * 0.32f),
+                        cornerRadius = CornerRadius(size.height * 0.25f),
+                    )
+                }
             }
             drawRoundRect(
                 color = Color.White.copy(alpha = 0.20f),
@@ -223,7 +227,7 @@ internal fun PlaneBottomBar(
     bombEnabled: Boolean,
     onBomb: () -> Unit,
 ) {
-    val statsCd = stringResource(R.string.cd_plane_hud_stats, lives, bombs, weaponLevel)
+    val statsCd = stringResource(R.string.cd_plane_hud_stats, lives, maxLives, bombs, weaponLevel)
     Row(
         modifier =
             Modifier

@@ -104,7 +104,7 @@ internal fun DrawScope.drawPlaneWorld(
         // 5. 粒子与天气
         drawPlaneEffects(game, reduceMotion)
         drawGrazeRing(game, state, PLANE_PLAYER_VISUAL_RADIUS)
-        drawPickupBurst(game, state, PLANE_PLAYER_VISUAL_RADIUS)
+        drawPickupBurst(game, state, PLANE_PLAYER_VISUAL_RADIUS, reduceMotion)
         drawPlaneWeather(weather, rain, freezingRain, hail, time, reduceMotion)
         drawBombBlast(state, reduceMotion)
         drawHitFlash(state, reduceMotion)
@@ -551,8 +551,8 @@ private fun DrawScope.drawEnemies(
         val sprite = PlaneSprites.enemy(enemy.type, enemy.bossPhase, r, isDay, this, layoutDirection)
         if (sprite != null) {
             val wobble =
-                if (enemy.isBoss || enemy.type == PlaneEnemyType.TANK) {
-                    // Boss / 地面装甲车不做空中悬浮摆动
+                if (reduceMotion || enemy.isBoss || enemy.type == PlaneEnemyType.TANK) {
+                    // Boss / 地面装甲车不做空中悬浮摆动；reduceMotion 冻结悬浮摆动
                     0f
                 } else {
                     sin(tick * 0.05f + enemy.id) * 0.7f * scale
@@ -677,7 +677,7 @@ private fun DrawScope.drawPlayer(
         topLeft = Offset(x - r * 0.80f, propY - r * 0.10f),
         size = Size(r * 1.60f, r * 0.20f),
     )
-    val propAngle = (state.visualTick * 46f) % 360f
+    val propAngle = if (reduceMotion) 0f else (state.visualTick * 46f) % 360f
     withTransform({ rotate(propAngle, pivot = Offset(x, propY)) }) {
         drawLine(
             planePlayerBrownDark,

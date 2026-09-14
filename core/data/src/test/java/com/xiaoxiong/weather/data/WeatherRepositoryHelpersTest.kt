@@ -35,8 +35,8 @@ class WeatherRepositoryHelpersTest {
         val a = WeatherFixtures.city("A", lat = 36.65, lon = 117.12)
         val near = WeatherFixtures.city("B", lat = 36.70, lon = 117.15)
         val far = WeatherFixtures.city("C", lat = 37.00, lon = 117.12)
-        assertTrue(CitySearchFetcher.nearSamePlace(a, near))
-        assertFalse(CitySearchFetcher.nearSamePlace(a, far))
+        assertTrue(a.isNearSamePlace(near))
+        assertFalse(a.isNearSamePlace(far))
     }
 
     @Test

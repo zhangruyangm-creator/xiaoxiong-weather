@@ -514,7 +514,10 @@ object PlaneLogic {
     ): Boolean {
         if (enemy.type.baseFireIntervalTicks <= 0) return false
         if (enemy.type == PlaneEnemyType.TANK) {
-            if (enemy.y < fieldH - TANK_GROUND_MARGIN - 1f) return false
+            // 贴地开火：只允许在地面线附近（未爬升到位或越出屏幕下方时都不开火，
+            // 否则炮弹会从画面外冒出，玩家没有反应时间）。
+            val groundY = fieldH - TANK_GROUND_MARGIN
+            if (enemy.y < groundY - 1f || enemy.y > groundY + 1f) return false
         } else {
             if (enemy.y < 4f || enemy.y > fieldH * 0.85f) return false
         }
@@ -577,12 +580,22 @@ object PlaneLogic {
                 }
             }
             PlaneEnemyType.TANK -> {
+                // 地面线两侧都朝线收敛：从下方爬升进场；resize 后场高变大时也会重新下降到新地面线，
+                // 不会悬停在旧地面线上。±0.5 缓冲避免在线上低频振荡。
                 val groundY = fieldH - TANK_GROUND_MARGIN
-                if (enemy.y > groundY) enemy.vx to -base else enemy.vx to 0f
+                val vy =
+                    when {
+                        enemy.y > groundY + 0.5f -> -base
+                        enemy.y < groundY - 0.5f -> base
+                        else -> 0f
+                    }
+                enemy.vx to vy
             }
             PlaneEnemyType.BOSS -> {
                 val vy = if (enemy.y < BOSS_HOLD_Y) base else 0f
-                (sin(enemy.ageTicks * BOSS_SWEEP_OMEGA / 60f) * BOSS_SWEEP_SPEED) to vy
+                // cos（而非 sin）积分后才是围绕出生点左右对称的往返扫射：
+                // sin 速度的积分是单侧振荡，Boss 永远不会扫到出生点左侧，左半场站桩玩家打不到 Boss。
+                (cos(enemy.ageTicks * BOSS_SWEEP_OMEGA / 60f) * BOSS_SWEEP_SPEED) to vy
             }
         }
     }

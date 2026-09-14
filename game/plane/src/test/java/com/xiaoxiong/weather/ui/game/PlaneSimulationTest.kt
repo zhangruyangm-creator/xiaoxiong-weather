@@ -78,6 +78,45 @@ class PlaneSimulationTest {
     }
 
     @Test
+    fun endlessMode_reachesWaveFifty_throughMultipleBossLoops() {
+        val game = gameFor(PlaneDifficulty.STANDARD)
+        game.startLives = 9
+        game.startGame(seed = 777L)
+        val bot = AimBot()
+        var ticks = 0
+        var bossDowns = 0
+        var peakEnemies = 0
+        var peakBullets = 0
+        var peakEffects = 0
+        var peakPowerUps = 0
+        while (game.phase == PlanePhase.PLAYING && game.waveIndex < 50 && ticks < 60 * 60 * 30) {
+            bot.step(game)
+            game.advanceTicks(1)
+            ticks++
+            if (game.consumeEvents().bossDown) bossDowns++
+            peakEnemies = maxOf(peakEnemies, game.enemies.size)
+            peakBullets = maxOf(peakBullets, game.enemyBullets.size)
+            peakEffects = maxOf(peakEffects, game.effects.size)
+            peakPowerUps = maxOf(peakPowerUps, game.powerUps.size)
+        }
+        assertTrue("无尽模式必须能推进到第 50 波（实际 ${game.waveIndex}，ticks=$ticks）", game.waveIndex >= 50)
+        assertTrue("沿途应击破多个 Boss 循环（实际 $bossDowns）", bossDowns >= 8)
+        assertTrue("敌机峰值应有界（实际 $peakEnemies）", peakEnemies <= 48)
+        assertTrue("敌弹峰值应有界（实际 $peakBullets）", peakBullets <= 200)
+        assertTrue("特效应受 MAX_EFFECTS 限制（实际 $peakEffects）", peakEffects <= PlaneConfig.MAX_EFFECTS)
+        assertTrue("道具峰值应有界（实际 $peakPowerUps）", peakPowerUps <= 64)
+        assertTrue(
+            "最高难度最高波次 Boss HP 不得超过快照清洗上限",
+            PlaneConfig.enemySpec(PlaneEnemyType.BOSS, PlaneDifficulty.CHALLENGE, PLANE_MAX_WAVE).hp <= PlaneConfig.MAX_ENEMY_HP,
+        )
+        assertTrue("玩家状态保持有限", game.player.x.isFinite() && game.player.y.isFinite())
+        println(
+            "plane-sim | wave50 | ticks=$ticks | bossDowns=$bossDowns | peakEnemies=$peakEnemies | " +
+                "peakBullets=$peakBullets | peakEffects=$peakEffects | peakPowerUps=$peakPowerUps | kills=${game.kills}",
+        )
+    }
+
+    @Test
     fun longDodgeRun_keepsEntityCountsBounded() {
         val report = runDodge(PlaneDifficulty.CHALLENGE, seed = 2L, maxTicks = 30 * 60 * 60)
         assertTrue("敌弹峰值应有界（实测 ${report.peakBullets}）", report.peakBullets <= 200)
@@ -284,7 +323,7 @@ class PlaneSimulationTest {
 
     @Test
     fun endlessScaling_report_atMilestoneWaves() {
-        val milestones = listOf(1, 5, 10, 20, 30)
+        val milestones = listOf(1, 5, 10, 20, 30, 50)
         println("plane-sim | wave | gruntHP | bossHP | speedMul | bulletMul | idleTicks | idleKills | botKills | botWave | botPeakBullets")
         for (wave in milestones) {
             // 挂机：跳到目标波，观察存活时间（死亡即结束）
@@ -460,6 +499,31 @@ class PlaneSimulationTest {
                 if (gap < nearest) nearest = gap
             }
             return nearest
+        }
+    }
+
+    /**
+     * 推进能力探针机器人：满级火力 + 常驻无敌 + 追踪最近目标，只用于验证「波次可推进 / Boss 可击破」，
+     * 不代表真实手感。坦克在玩家下方，需要贴到它下面才能被上行弹打中。
+     */
+    private class AimBot {
+        fun step(game: PlaneGame) {
+            val player = game.player
+            if (!player.alive) return
+            player.weaponLevel = PlaneConfig.MAX_WEAPON_LEVEL
+            player.invulnTicks = maxOf(player.invulnTicks, 60)
+            if (player.lives <= 1) player.lives = 9
+            val target =
+                game.enemies.minByOrNull { enemy ->
+                    when {
+                        enemy.isBoss -> -1000f
+                        enemy.type == PlaneEnemyType.TURRET -> -500f
+                        else -> abs(enemy.x - player.x) + hypot(enemy.x - player.x, enemy.y - player.y) * 0.01f
+                    }
+                }
+            val desiredX = target?.x ?: player.x
+            val desiredY = if (target?.type == PlaneEnemyType.TANK) game.fieldH - PlaneConfig.PLAYER_RADIUS * 2f else game.fieldH * 0.78f
+            game.movePlayerTo(player.x + (desiredX - player.x) * 0.35f, player.y + (desiredY - player.y) * 0.35f)
         }
     }
 }

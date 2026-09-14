@@ -12,7 +12,8 @@ jobs:
   build-and-publish:
     name: Build APK & publish release
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # 冷缓存下 test + lintKotlin + R8 + 签名 APK 全量构建，60 分钟留出足够余量
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,8 +71,17 @@ jobs:
       - name: Unit tests + ktlint
         run: ./gradlew test lintKotlin --console=plain
 
+      # tag push 不触发 ci.yml，这里补一次资源重名检查（静默覆盖会在发布包才暴露）
+      - name: Check duplicate game string resources
+        run: python3 tools/check_duplicate_game_strings.py
+
       - name: Build full release APK
         run: ./gradlew assembleFullRelease --stacktrace
+
+      # 发布产物自身再过一遍 R8 keep 校验（@Serializable $$serializer / provider /
+      # Worker / 持久化枚举 / Firebase 反射面），避免 CI 未跑或 secret 差异导致漏保
+      - name: Verify R8 keep coverage in dex (serializers / reflection)
+        run: python3 tools/check_r8_dex_keep.py
 
       - name: Extract version from tag
         id: version

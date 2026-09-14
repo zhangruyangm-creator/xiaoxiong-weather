@@ -34,8 +34,6 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:common"))
     implementation(libs.androidx.annotation)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
     testImplementation(project(":core:test-fixtures"))
 }
