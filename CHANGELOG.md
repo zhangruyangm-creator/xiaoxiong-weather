@@ -1,5 +1,13 @@
 # 更新记录
 
+## [1.13.1] - 2026-09-14
+
+- **小游戏界面统一**：小熊跳跳/小熊摘星/小熊接雨雪的 READY 与结算卡片改用公共 `GameReadyCard`/`GameOverCard`（跳跳 READY 新增开始按钮，点屏开跑仍保留；接雨雪最高分行随卡片顺序调整），游戏层公共文案统一（再来一局/查看排行/返回/最高分）
+- **公共层扩展**：`game:common` 新增快照生命周期（`GameSnapshotSession`/`GameSnapshotLifecycle`/`ExitGuard`）、READY/结算卡片、渲染原语（`BakedLayerLru`/`strokeOf`/`gameHash01`）；跳跳/摘星/接雨雪/迷宫/冰球/台球/战机的快照保存/恢复/清档/退出抑制统一由公共件驱动（迷宫保留"先回选关再继续"交互），行为与各游戏原实现逐条对齐
+- **超大文件拆分（纯机械移动，行为与测试不变）**：台球 `BearPoolScreen 2911→979`、`PoolRender 1899→85`（拆出缓存/静态台面/球体/瞄准/天气 5 文件）、`PoolGame 1764→1402`（拆出 `PoolSnapshot`）；冰球 `HockeyRender 2165→160`（拆出缓存/台面/标记/美术/氛围）、`BearHockeyScreen 1403→790`（拆出弹窗/表单控件）；战机 `PlaneGame 1522→821`（拆出 `PlaneSnapshot`）、`PlaneSprites 1042→240`（拆出 `PlaneSpriteArt`）；接雨雪 `BearCatchScreen 1219→552`（拆出渲染/HUD）；跳跳 `BearGameScreen 1164→415`（拆出 `BearGame`/`GameRunHud`）
+- **依赖与边界治理**：删除 14 处无用依赖声明（9 个游戏模块的 `core:common`、designsystem 的 `core:domain`、settings 的 `core:common`、domain 的协程/序列化、network 的拼音库）；`feature:settings` 不再越界依赖 `game:api`（改由 app 传参），lite 运行时确认不含 `game:common`；游戏音效偏好契约上移 `game:api` 由设置页与游戏共用；同城判定收口为 `City.isSamePlace`/`isNearSamePlace` 替换 10 处重复阈值实现
+- **构建与 CI**：游戏/provider 清单去重（app 用映射循环、CI 与 R8 校验脚本从 `META-INF/services` 动态枚举）；CI 增加 full/lite androidTest 源码编译，避免仪器测试长期漂移；文末修正 6 处架构/数据文档漂移并把 9 篇游戏技术文档同步到拆分后的文件结构
+
 ## [1.13.0] - 2026-09-13
 
 - **小熊战机无尽化**：取消第 10 波通关结算，改为波次/Boss 永久循环（每 5 波一个 Boss），敌人 HP/速度/弹速/密度/分数随波次持续成长并设软上限；分数与排行榜不再有上限；新增「历史最远第 N 波」记录与刷新提示
