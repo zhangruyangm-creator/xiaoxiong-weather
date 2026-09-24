@@ -46,10 +46,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -159,6 +162,15 @@ fun BearFarmScreen(
             }
         }
 
+    // 静态远景（远山/丘陵/树线/地面/暗角）只随「天气配色 + 时段 + 尺寸」变化，
+    // 烘焙成一张位图后每帧只 drawImage；雨雪/星空/萤火虫仍逐帧绘制。
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val backdropCache = remember { BakedLayerCache<FarmBackdropKey>(maxEntries = 2) }
+    DisposableEffect(Unit) {
+        onDispose { backdropCache.clear() }
+    }
+
     Box(
         modifier =
             Modifier
@@ -167,16 +179,36 @@ fun BearFarmScreen(
     ) {
         // 氛围装饰
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // 地平线光晕：位于画面上部天空区域
-            drawHorizonGlow(
-                size.height * 0.32f,
-                when (phase) {
-                    FarmSkyPhase.DAY -> midColor(Color(fx.skyTop), Color.White)
-                    FarmSkyPhase.DUSK -> Color(0xFFF2A65E)
-                    FarmSkyPhase.NIGHT -> Color(0xFF8FB3E8)
-                },
-                size.height * 0.30f,
-            )
+            val w = size.width
+            val h = size.height
+            if (w > 0f && h > 0f) {
+                val layer =
+                    backdropCache.getOrBake(
+                        key =
+                            FarmBackdropKey(
+                                widthPx = w.toInt(),
+                                heightPx = h.toInt(),
+                                phase = phase,
+                                weather = weather,
+                                skyTop = fx.skyTop,
+                                skyBottom = fx.skyBottom,
+                            ),
+                        widthPx = w.toInt(),
+                        heightPx = h.toInt(),
+                        logicalWidth = w,
+                        logicalHeight = h,
+                        density = density,
+                        layoutDirection = layoutDirection,
+                    ) {
+                        drawFarmBackdropStatic(phase, weather, fx.skyTop, fx.skyBottom)
+                    }
+                // 烘焙失败（OOM）时 layer 为 null，直接绘制仍能正常玩，只是少了远景
+                if (layer != null) {
+                    drawImage(layer.image, Offset.Zero)
+                } else {
+                    drawFarmBackdropStatic(phase, weather, fx.skyTop, fx.skyBottom)
+                }
+            }
             drawFarmAtmosphere(weather, farm.time, phase, reduceMotion = reduceMotion)
         }
 
