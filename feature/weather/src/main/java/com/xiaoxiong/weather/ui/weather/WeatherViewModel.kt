@@ -389,8 +389,14 @@ class WeatherViewModel(
                     val snapshot = repository.fetchWeather(city)
                     if (requestId != weatherRequestId.get()) return@launch
                     // 缓存写失败（磁盘满等）不应把一次成功的网络拉取误判成网络错误：
-                    // 数据已到手，先出界面；下次刷新再重试写缓存
-                    runCatching { weatherCacheStore.save(snapshot) }
+                    // 数据已到手，先出界面；下次刷新再重试写缓存。
+                    // CancellationException 必须透传，不能被 runCatching 吞掉。
+                    try {
+                        weatherCacheStore.save(snapshot)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                    }
                     publishWeather(
                         requestId = requestId,
                         snapshot = snapshot,

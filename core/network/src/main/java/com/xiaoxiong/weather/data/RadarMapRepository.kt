@@ -428,12 +428,9 @@ class RadarMapRepository(
                         call: okhttp3.Call,
                         response: okhttp3.Response,
                     ) {
-                        if (cont.isActive) {
-                            cont.resume(response)
-                        } else {
-                            // 协程已取消：立即关闭响应，避免连接泄漏
-                            response.close()
-                        }
+                        // 取消回调先于 resume 执行，避免 isActive 判断与取消之间的竞态泄漏响应
+                        // （与 OpenMeteoHttp.awaitBody 同一写法；瓦片并发拉取时取消更频繁）
+                        cont.resume(response) { response.close() }
                     }
                 },
             )

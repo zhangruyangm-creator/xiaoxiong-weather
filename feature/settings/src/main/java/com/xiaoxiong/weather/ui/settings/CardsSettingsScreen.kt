@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,11 +82,14 @@ fun <T : CardId> CardsSettingsScreen(
     var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
-    // 拖拽步进按实际行高推导（含行间距）：固定 72.dp 在大字号/大字体缩放下会漂移
-    var rowHeightPx by remember { mutableFloatStateOf(0f) }
+    // 拖拽步进按实际行高推导（含行间距）：固定 72.dp 在大字号/大字体缩放下会漂移。
+    // 行高按卡片 id 分别测量——锁定行多一行副标题、比普通行高（七日页第一行就是锁定行），
+    // 取单一高度会让另一种行型的换位阈值偏大/偏小。
+    val rowHeightsPx = remember { mutableStateMapOf<CardId, Float>() }
     val rowSpacingPx = with(density) { 12.dp.toPx() }
-    val rowStridePx =
-        if (rowHeightPx > 0f) rowHeightPx + rowSpacingPx else with(density) { 72.dp.toPx() }
+    val fallbackRowHeightPx = with(density) { 72.dp.toPx() }
+
+    fun rowHeight(id: CardId): Float = rowHeightsPx[id]?.takeIf { it > 0f } ?: fallbackRowHeightPx
 
     fun persist(next: List<CardPref<T>>) {
         cards = config.layout.mergeWithDefaults(next)
@@ -137,10 +141,7 @@ fun <T : CardId> CardsSettingsScreen(
                 cards.forEachIndexed { index, pref ->
                     val dragging = draggingIndex == index
                     CardPrefRow(
-                        modifier =
-                            Modifier.onSizeChanged {
-                                if (rowHeightPx <= 0f) rowHeightPx = it.height.toFloat()
-                            },
+                        modifier = Modifier.onSizeChanged { rowHeightsPx[pref.id] = it.height.toFloat() },
                         title = stringResource(pref.id.titleRes),
                         locked = pref.id.alwaysVisible,
                         lockedHint = stringResource(config.lockedHintRes),
@@ -158,13 +159,15 @@ fun <T : CardId> CardsSettingsScreen(
                             dragOffsetY += dy
                             val from = draggingIndex
                             if (from < 0) return@CardPrefRow
-                            val shift = (dragOffsetY / rowStridePx).roundToInt()
+                            // 步进取被拖行自身高度 + 行间距（列表整体等高时即精确值）
+                            val stride = rowHeight(cards[from].id) + rowSpacingPx
+                            val shift = (dragOffsetY / stride).roundToInt()
                             val to = (from + shift).coerceIn(0, cards.lastIndex)
                             if (to != from) {
                                 val moved = config.layout.move(cards, from, to)
                                 cards = moved
                                 draggingIndex = to
-                                dragOffsetY -= (to - from) * rowStridePx
+                                dragOffsetY -= (to - from) * stride
                             }
                         },
                         onDragEnd = {
