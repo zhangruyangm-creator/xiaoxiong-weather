@@ -1170,11 +1170,14 @@ class PoolGame {
         clearLegacySnapshotKeys(prefs)
         val raw = GameSnapshot.load(prefs, POOL_SNAPSHOT_KEY) ?: return false
         val snapshot = runCatching { PoolSnapshotCodec.decode(raw) }.getOrNull()
-        if (snapshot == null) {
+        // 解析失败、数值非有限、球数离谱都算坏档：清掉，别让每次启动都重试一遍
+        if (snapshot == null || !snapshot.isSane()) {
             clearSnapshot(prefs)
             return false
         }
-        return runCatching { applySnapshot(snapshot) }.isSuccess
+        val applied = runCatching { applySnapshot(snapshot) }.isSuccess
+        if (!applied) clearSnapshot(prefs)
+        return applied
     }
 
     /** 清掉对局快照（重开 / 对局结束 / 主动退出），并清理旧版本遗留 key。 */

@@ -133,6 +133,47 @@ internal fun PoolBallSnapshot.toBall(): PoolBall =
 private inline fun <reified T : Enum<T>> enumOrNull(name: String?): T? =
     if (name.isNullOrBlank()) null else runCatching { enumValueOf<T>(name) }.getOrNull()
 
+/** 快照里允许的最大球数：标准摆 15 颗，留出余量给自定义摆球但挡住损坏档。 */
+internal const val POOL_SNAPSHOT_MAX_BALLS = 20
+
+/**
+ * 快照合理性校验。
+ *
+ * codec 用 `toFloatOrNull()` 解析数字，而它**接受 "NaN" / "Infinity"**，
+ * 所以坏档能把非有限值带进物理循环（NaN 会永久污染位置与速度，帧再也停不下来）。
+ * 球数量同样不设防：空列表会让渲染与规则判定拿到零颗球，成千上万条则拖慢恢复。
+ *
+ * 这里只拦"物理上不可能"的值，不做玩法合法性判断——正常存档一律通过。
+ */
+internal fun PoolSnapshot.isSane(): Boolean {
+    if (balls.isEmpty() || balls.size > POOL_SNAPSHOT_MAX_BALLS) return false
+    if (balls.map { it.id }.toSet().size != balls.size) return false
+    if (!aimAngle.isFinite() || !elevation.isFinite()) return false
+    if (!spinSide.isFinite() || !spinVertical.isFinite()) return false
+    if (balls.any { !it.isFinite() }) return false
+    if (!tracking.cueStartY.isFinite()) return false
+    if (shotCount < 0) return false
+    return true
+}
+
+/** 单颗球的所有浮点字段都必须是有限值。 */
+private fun PoolBallSnapshot.isFinite(): Boolean =
+    x.isFinite() &&
+        y.isFinite() &&
+        vx.isFinite() &&
+        vy.isFinite() &&
+        wx.isFinite() &&
+        wy.isFinite() &&
+        wz.isFinite() &&
+        z.isFinite() &&
+        vz.isFinite() &&
+        curve.isFinite() &&
+        qw.isFinite() &&
+        qx.isFinite() &&
+        qy.isFinite() &&
+        qz.isFinite() &&
+        pocketAnim.isFinite()
+
 /**
  * 对局快照的紧凑文本编解码（每行 `key=value`，球/历史各占一行）。
  * 不使用 kotlinx.serialization，读写均容错；任何字段异常都让 [decode] 返回 null。
