@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,6 +66,7 @@ import com.xiaoxiong.weather.data.HistoryMonthSummary
 import com.xiaoxiong.weather.data.HistoryRangeSummary
 import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
+import com.xiaoxiong.weather.ui.InlineLoading
 import com.xiaoxiong.weather.util.formatDateLabel
 import com.xiaoxiong.weather.util.formatTemperature
 import com.xiaoxiong.weather.util.weatherCodeDescription
@@ -629,12 +629,7 @@ private fun StatusRow(
 
 @Composable
 private fun LoadingRow() {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-    }
+    InlineLoading()
 }
 
 @Composable

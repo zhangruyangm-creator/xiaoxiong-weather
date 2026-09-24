@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Whatshot
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -48,6 +47,7 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.FavoriteCityStore
 import com.xiaoxiong.weather.data.isSamePlace
+import com.xiaoxiong.weather.ui.ReduceMotionAwareProgress
 import java.util.Locale
 
 @Composable
@@ -195,12 +195,8 @@ fun SearchHeader(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
             ) {
-                CircularProgressIndicator(
-                    modifier =
-                        Modifier
-                            .padding(8.dp)
-                            .size(22.dp),
-                    strokeWidth = 2.dp,
+                ReduceMotionAwareProgress(
+                    modifier = Modifier.padding(8.dp),
                 )
             }
         }

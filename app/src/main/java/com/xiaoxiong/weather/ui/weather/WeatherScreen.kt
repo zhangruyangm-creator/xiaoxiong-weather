@@ -37,7 +37,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -82,6 +81,7 @@ import com.xiaoxiong.weather.data.AppSettingsStore
 import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_ALBUM
 import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_HOME
 import com.xiaoxiong.weather.game.GameEntry
+import com.xiaoxiong.weather.ui.FullScreenLoading
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.debug.DebugWeatherScreen
 import com.xiaoxiong.weather.ui.settings.DailyCardsSettingsScreen
@@ -506,7 +506,9 @@ private fun WeatherScreenContent(
                                         .padding(top = 56.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                FullScreenLoading(
+                                    modifier = Modifier.padding(top = 56.dp),
+                                )
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
                                     stringResource(
@@ -575,6 +577,7 @@ private fun WeatherScreenContent(
             entries = gameEntries,
             requestPassword = secretRequest,
             onActiveChange = { gameActive = it },
+            onRequestPasswordConsumed = { secretRequest = null },
         )
     }
 }

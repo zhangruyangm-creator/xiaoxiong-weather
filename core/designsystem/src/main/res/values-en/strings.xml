@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="loading_ellipsis">Loading…</string>
     <string name="sun_bear_morning_exercise">Bear is morning training</string>
     <string name="sun_bear_breakfast">Bear is having breakfast</string>
     <string name="sun_bear_exercise_run_morning">Bear is out for a morning run</string>

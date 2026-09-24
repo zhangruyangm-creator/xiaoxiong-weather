@@ -65,11 +65,14 @@ internal fun DrawScope.drawCatchWorld(
     val h = size.height
     val s = game.s
     val scene = game.scene
+    // 装饰性运动时钟：减弱动画时冻结为 0（背景云停住、道具不摆动/旋转/呼吸），
+    // 掉落物实际坐标与角色水平移动不受影响
+    val vt = if (reduceMotion) 0f else game.time
 
     drawCatchSky(scene, isDay, w, h)
 
     // 背景云（所有场景淡淡一层）
-    drawCatchBgClouds(game)
+    drawCatchBgClouds(game, visualTime = vt)
 
     // 天气氛围粒子（作为背景层，与跑酷/摘星/迷宫共用渲染）
     drawCatchWeatherBackdrop(scene, game.time, s, w, h, reduceMotion)
@@ -79,7 +82,7 @@ internal fun DrawScope.drawCatchWorld(
 
     // 掉落物
     for (it in game.items) {
-        drawCatchItem(it, game.time)
+        drawCatchItem(it, vt)
     }
 
     // 地面（底部一条绿草坡）
@@ -98,7 +101,7 @@ internal fun DrawScope.drawCatchWorld(
     )
 
     // 小熊
-    drawCatchBear(game, sprites)
+    drawCatchBear(game, sprites, reduceMotion = reduceMotion)
 
     // 爆点粒子
     for (p in game.particles) {
@@ -145,13 +148,16 @@ private fun DrawScope.drawCatchHudScrim(
     )
 }
 
-private fun DrawScope.drawCatchBgClouds(game: BearCatchGame) {
+private fun DrawScope.drawCatchBgClouds(
+    game: BearCatchGame,
+    visualTime: Float,
+) {
     val s = game.s
     val w = size.width
     for (i in 0 until 3) {
         val cy = (i * 97f + 40f) * s
         if (cy > size.height * 0.55f) continue
-        val cx = ((i * 331f * s + game.time * (3f + i)) % (w + 200f * s)) - 100f * s
+        val cx = ((i * 331f * s + visualTime * (3f + i)) % (w + 200f * s)) - 100f * s
         val cw = (60f + i * 16f) * s
         drawCircle(Color.White.copy(alpha = 0.22f), cw * 0.55f, Offset(cx - cw * 0.4f, cy))
         drawCircle(Color.White.copy(alpha = 0.22f), cw * 0.75f, Offset(cx, cy + cw * 0.08f))
@@ -396,12 +402,15 @@ private fun DrawScope.drawCatchItem(
 private fun DrawScope.drawCatchBear(
     game: BearCatchGame,
     sprites: BearSprites,
+    reduceMotion: Boolean,
 ) {
+    // 装饰性运动时钟：减弱动画时冻结（护盾不呼吸、光点不绕圈、角色不跑循环）
+    val vt = if (reduceMotion) 0f else game.time
     val bs = game.catchR * 1.55f
     val cy = game.catchY
     val dead = game.phase == GamePhase.OVER
-    // 无敌闪烁
-    val invBlink = game.invincibleT > 0f && ((game.invincibleT * 12f) % 1f < 0.5f)
+    // 无敌闪烁（减弱动画下改用恒定半透明，不做高频明暗闪烁）
+    val invBlink = game.invincibleT > 0f && if (reduceMotion) true else ((game.invincibleT * 12f) % 1f < 0.5f)
     // 死亡淡出用 deadT（死亡后从 0 开始累计）：整局 time 很大时也能正常淡出
     val alphaBase = if (dead) (1f - (game.deadT * 2f).coerceIn(0f, 1f)) else 1f
     val alpha = (if (invBlink) alphaBase * 0.45f else alphaBase).coerceIn(0f, 1f)
@@ -434,17 +443,17 @@ private fun DrawScope.drawCatchBear(
     if (game.hasShield && !dead) {
         drawCircle(
             color = Color(0xFF80DEEA).copy(alpha = 0.28f),
-            radius = bs * (0.82f + 0.06f * sin(game.time * 3f)),
+            radius = bs * (0.82f + 0.06f * sin(vt * 3f)),
             center = Offset(game.catchX, cy),
             style = Stroke(width = 2.5f * game.s),
         )
         drawCircle(
             color = Color(0xFF80DEEA).copy(alpha = 0.14f),
-            radius = bs * (0.86f + 0.05f * sin(game.time * 3f + 1.2f)),
+            radius = bs * (0.86f + 0.05f * sin(vt * 3f + 1.2f)),
             center = Offset(game.catchX, cy),
         )
         for (i in 0 until BearCatchLogic.MAX_SHIELD) {
-            val a = game.time * 1.4f + i * (Math.PI.toFloat() * 2f / BearCatchLogic.MAX_SHIELD)
+            val a = vt * 1.4f + i * (Math.PI.toFloat() * 2f / BearCatchLogic.MAX_SHIELD)
             drawCircle(
                 color = Color(0xFFFFE082),
                 radius = 3.2f * game.s,
@@ -464,9 +473,9 @@ private fun DrawScope.drawCatchBear(
         bs = bs,
         pose =
             BearPose(
-                time = game.time,
+                time = vt,
                 dead = dead,
-                frame = runCycleFrame(game.time * 3.2f),
+                frame = if (reduceMotion) BearFrame.RUN_A else runCycleFrame(vt * 3.2f),
                 bodyTilt = tiltMove,
                 scaleX = scaleX,
                 scaleY = scaleY,

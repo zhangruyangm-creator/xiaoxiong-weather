@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 减弱动画时的静态加载提示（替代持续旋转的不定进度圈） -->
+    <string name="loading_ellipsis">加载中…</string>
     <string name="sun_bear_morning_exercise">小熊晨练中</string>
     <string name="sun_bear_breakfast">小熊在吃早餐</string>
     <string name="sun_bear_exercise_run_morning">小熊晨跑中</string>

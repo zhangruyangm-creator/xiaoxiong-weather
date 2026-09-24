@@ -56,8 +56,11 @@ fun DrawScope.drawWorld(
     reduceMotion: Boolean = false,
 ) {
     val s = game.s
+    // 装饰性运动时钟：减弱动画时冻结为 0（云层/光芒/星星/金币停住），
+    // 玩法位移（distance、角色 x、障碍）不受影响
+    val vt = if (reduceMotion) 0f else game.time
 
-    drawSky(game, isDay, scene = game.scene)
+    drawSky(game, isDay, scene = game.scene, visualTime = vt)
 
     // 天气：雨/雪/雷暴压暗天空
     drawRunWeather(game)
@@ -74,13 +77,13 @@ fun DrawScope.drawWorld(
     }) {
         drawHills(game, contentColor, parallax = 0.08f, heightRatio = 0.11f, alpha = 0.07f)
         drawHills(game, contentColor, parallax = 0.18f, heightRatio = 0.075f, alpha = 0.12f)
-        drawBgClouds(game)
+        drawBgClouds(game, visualTime = vt)
         drawGround(game, contentColor)
-        drawCoins(game)
+        drawCoins(game, visualTime = vt)
         drawObstacles(game)
         drawParticles(game)
         drawFloatTexts(game)
-        drawAnimatedBear(game, sprites)
+        drawAnimatedBear(game, sprites, reduceMotion = reduceMotion)
     }
 
     // 雨/雪/闪电盖在最上层，看起来像真的在下
@@ -93,6 +96,7 @@ private fun DrawScope.drawSky(
     game: BearGame,
     isDay: Boolean,
     scene: RunScene,
+    visualTime: Float,
 ) {
     val s = game.s
     val cx = size.width * 0.80f
@@ -100,7 +104,7 @@ private fun DrawScope.drawSky(
     // 阴天：灰云压顶、太阳隐去，只留一点暖光
     if (scene == RunScene.CLOUDY) {
         for (i in 0 until 4) {
-            val x = ((i * 220f + game.time * 14f) % (size.width + 180f)) - 90f
+            val x = ((i * 220f + visualTime * 14f) % (size.width + 180f)) - 90f
             val y = size.height * (0.07f + i * 0.06f)
             drawCircle(Color(0xFF9AA7B5).copy(alpha = 0.55f), 34f * s, Offset(x, y))
             drawCircle(Color(0xFFAEB9C4).copy(alpha = 0.55f), 26f * s, Offset(x + 30f * s, y + 6f * s))
@@ -113,7 +117,7 @@ private fun DrawScope.drawSky(
     // 冻雨/冰雹：更冷更沉的云，无暖光，太阳完全隐去
     if (scene == RunScene.FREEZING_RAIN || scene == RunScene.HAIL) {
         for (i in 0 until 5) {
-            val x = ((i * 190f + game.time * 18f) % (size.width + 180f)) - 90f
+            val x = ((i * 190f + visualTime * 18f) % (size.width + 180f)) - 90f
             val y = size.height * (0.05f + i * 0.055f)
             drawCircle(Color(0xFF5B6E85).copy(alpha = 0.6f), 38f * s, Offset(x, y))
             drawCircle(Color(0xFF6E8299).copy(alpha = 0.55f), 28f * s, Offset(x + 32f * s, y + 6f * s))
@@ -127,7 +131,7 @@ private fun DrawScope.drawSky(
             // 太阳：内芯 + 慢转光芒
             drawCircle(Color(0xFFFFE082), 30f * s, Offset(cx, cy), alpha = 0.95f)
             drawCircle(Color(0xFFFFF8E1), 22f * s, Offset(cx - 3f * s, cy - 3f * s))
-            rotate(degrees = game.time * 6f, pivot = Offset(cx, cy)) {
+            rotate(degrees = visualTime * 6f, pivot = Offset(cx, cy)) {
                 for (i in 0 until 12) {
                     val a = Math.PI.toFloat() * 2f * i / 12f
                     val inner = 38f * s
@@ -150,7 +154,7 @@ private fun DrawScope.drawSky(
             val fy = (i * 0.417f + 0.07f) % 1f
             val sx = size.width * fx
             val sy = size.height * 0.30f * fy + size.height * 0.03f
-            val tw = 0.45f + 0.55f * abs(sin(game.time * 1.8f + i * 1.3f))
+            val tw = 0.45f + 0.55f * abs(sin(visualTime * 1.8f + i * 1.3f))
             drawCircle(Color.White, (1.6f + (i % 3) * 0.7f) * s, Offset(sx, sy), alpha = tw)
         }
         // 月亮 + 环形山
@@ -287,7 +291,10 @@ private fun DrawScope.drawHills(
     }
 }
 
-private fun DrawScope.drawBgClouds(game: BearGame) {
+private fun DrawScope.drawBgClouds(
+    game: BearGame,
+    visualTime: Float,
+) {
     val s = game.s
     for (c in game.clouds) {
         val cw = 110f * s * c.scale
@@ -361,15 +368,18 @@ private fun DrawScope.drawGround(
 
 // ---------------- 金币 ----------------
 
-private fun DrawScope.drawCoins(game: BearGame) {
+private fun DrawScope.drawCoins(
+    game: BearGame,
+    visualTime: Float,
+) {
     val s = game.s
     for (c in game.coins) {
-        val cy = c.y + sin(game.time * 3f + c.x * 0.02f) * 3f * s
+        val cy = c.y + sin(visualTime * 3f + c.x * 0.02f) * 3f * s
         val center = Offset(c.x, cy)
         drawCircle(Color(0xFFFFCA28), c.r, center)
         drawCircle(Color(0xFFFFF3C4), c.r * 0.62f, center + Offset(-c.r * 0.12f, -c.r * 0.12f))
         // 旋转高光
-        rotate(degrees = (game.time * 300f) % 360f, pivot = center) {
+        rotate(degrees = (visualTime * 300f) % 360f, pivot = center) {
             drawCircle(
                 Color.White.copy(alpha = 0.9f),
                 c.r * 0.16f,
@@ -378,7 +388,7 @@ private fun DrawScope.drawCoins(game: BearGame) {
         }
         // 每隔一颗画十字星闪
         if ((c.x / (34f * s)).toInt() % 2 == 0) {
-            val tw = abs(sin(game.time * 4f + c.x)) * c.r * 0.5f
+            val tw = abs(sin(visualTime * 4f + c.x)) * c.r * 0.5f
             drawLine(
                 Color.White.copy(alpha = 0.85f),
                 center + Offset(-tw, 0f),
@@ -628,20 +638,24 @@ private fun DrawScope.drawFloatTexts(game: BearGame) {
 private fun DrawScope.drawAnimatedBear(
     game: BearGame,
     sprites: BearSprites,
+    reduceMotion: Boolean,
 ) {
     val s = game.s
     val bs = game.bearSize
     val cx = game.bearX + bs / 2
-    var cy = game.bearY + bs / 2 + game.bob
+    // 减弱动画：不做待机呼吸/跑步循环摇摆/死亡翻滚坠落，只保留位置与状态本身
+    var cy = game.bearY + bs / 2 + if (reduceMotion) 0f else game.bob
     val dead = game.phase == GamePhase.OVER
     var alpha = 1f
     var tumble = 0f
     if (dead) {
         val t = game.deadT
-        val k = (t / 0.5f).coerceIn(0f, 1f)
-        val ease = 1f - (1f - k) * (1f - k) * (1f - k)
-        tumble = -95f * ease
-        if (t > 0.35f) cy += (t - 0.35f) * 260f * s
+        if (!reduceMotion) {
+            val k = (t / 0.5f).coerceIn(0f, 1f)
+            val ease = 1f - (1f - k) * (1f - k) * (1f - k)
+            tumble = -95f * ease
+            if (t > 0.35f) cy += (t - 0.35f) * 260f * s
+        }
         if (t > 0.55f) alpha = (1f - (t - 0.55f) / 0.55f).coerceIn(0f, 1f)
         if (alpha <= 0f) return
     }
@@ -649,14 +663,14 @@ private fun DrawScope.drawAnimatedBear(
     val tilt =
         if (airborne) {
             (game.bearVY / (1400f * s)).coerceIn(-1f, 1f) * 14f
-        } else if (!dead) {
+        } else if (!dead && !reduceMotion) {
             sin(game.runPhase) * 3f // 跑步重心轻微摇摆
         } else {
             0f
         }
-    // 二段跳前空翻：0.55s 转满一圈
+    // 二段跳前空翻：0.55s 转满一圈（减弱动画下不旋转）
     val flip =
-        if (game.flipT >= 0f) {
+        if (game.flipT >= 0f && !reduceMotion) {
             val k = (game.flipT / 0.55f).coerceIn(0f, 1f)
             val e = if (k < 0.5f) 2f * k * k else 1f - (-2f * k + 2f) * (-2f * k + 2f) / 2f
             e * 360f
@@ -678,12 +692,14 @@ private fun DrawScope.drawAnimatedBear(
             1f
         }
     // 帧选择：上升跳帧、下落下落帧、落地触地帧、地面六拍跑步循环
+    // 减弱动画：地面固定单帧（不跑六拍循环）
     val frame =
         when {
             dead -> BearFrame.FALL
             airborne && game.bearVY < 0f -> BearFrame.JUMP
             airborne -> BearFrame.FALL
             game.squashT in 0f..0.16f -> BearFrame.LAND
+            reduceMotion -> BearFrame.RUN_A
             else -> runCycleFrame(game.runPhase)
         }
 

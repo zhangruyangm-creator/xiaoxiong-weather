@@ -132,6 +132,9 @@ internal fun DrawScope.drawJumpWorld(
     val cam = game.cameraY
     val alt = game.altitudeKm
     val scene = game.scene
+    // 装饰性运动时钟：减弱动画时冻结为 0（星星停止闪烁、云层停止漂移），
+    // 相机随玩法移动不受影响
+    val vt = if (reduceMotion) 0f else game.time
     val (skyTop, skyBottom) = skyColors(alt)
 
     // 天气适配：雨/雪/雷暴压低天空亮度与饱和度，仍随高度渐变
@@ -182,7 +185,7 @@ internal fun DrawScope.drawJumpWorld(
                 val px = c * cell + (h1 % 1000) / 1000f * cell
                 val py = ry * cell + (h2 % 1000) / 1000f * cell - yOff
                 if (py < -20f || py > h + 20f) continue
-                val twinkle = 0.45f + 0.55f * (0.5f + 0.5f * sin(game.time * 2f + (h1 % 628) / 100f))
+                val twinkle = 0.45f + 0.55f * (0.5f + 0.5f * sin(vt * 2f + (h1 % 628) / 100f))
                 val a = starAlpha * twinkle
                 if (h1 % 7 == 0) {
                     // 十字星芒
@@ -229,7 +232,7 @@ internal fun DrawScope.drawJumpWorld(
     val sunA = (1f - alt / 1.5f).coerceIn(0f, 1f) * sunDim
     if (sunA > 0.01f) {
         val sunC = Offset(w * 0.80f, h * 0.20f)
-        rotate(game.time * 3f, pivot = sunC) {
+        rotate(vt * 3f, pivot = sunC) {
             for (i in 0 until 12) {
                 val a = Math.PI.toFloat() * 2f * i / 12f
                 drawLine(
@@ -278,7 +281,7 @@ internal fun DrawScope.drawJumpWorld(
             }
         for (i in 0 until 4) {
             val speed = 10f * s * (1 + (i % 3))
-            val cx = ((i * 283f * s + game.time * speed) % (w + 260f * s)) - 130f * s
+            val cx = ((i * 283f * s + vt * speed) % (w + 260f * s)) - 130f * s
             val cy =
                 ((i * 251f * s - cam * 0.3f) % (h + 200f * s) + (h + 200f * s)) %
                     (h + 200f * s) - 100f * s
@@ -355,12 +358,12 @@ internal fun DrawScope.drawJumpWorld(
         if (st.taken) continue
         val sy = st.y - cam
         if (sy < -40f * s || sy > h + 40f * s) continue
-        val pulse = 1f + 0.12f * sin(game.time * 3f + st.seed)
+        val pulse = 1f + 0.12f * sin(vt * 3f + st.seed)
         val r = 13f * s * pulse
         drawCircle(Color(0xFFFFD54F), r * 1.7f, Offset(st.x, sy), alpha = 0.20f)
         withTransform({
             translate(st.x, sy)
-            rotate(sin(game.time + st.seed) * 10f, pivot = Offset.Zero)
+            rotate(sin(vt + st.seed) * 10f, pivot = Offset.Zero)
             scale(r, r, pivot = Offset.Zero)
         }) {
             drawPath(unitStarPath, Color(0xFFFFD54F))
@@ -375,9 +378,9 @@ internal fun DrawScope.drawJumpWorld(
     drawJumpParticles(game)
 
     // 小熊（含环绕幻影）
-    drawJumpBear(game, sprites, game.bearX)
-    if (game.bearX < game.bearSize) drawJumpBear(game, sprites, game.bearX + w + game.bearSize)
-    if (game.bearX > w) drawJumpBear(game, sprites, game.bearX - w - game.bearSize)
+    drawJumpBear(game, sprites, game.bearX, reduceMotion)
+    if (game.bearX < game.bearSize) drawJumpBear(game, sprites, game.bearX + w + game.bearSize, reduceMotion)
+    if (game.bearX > w) drawJumpBear(game, sprites, game.bearX - w - game.bearSize, reduceMotion)
 }
 
 private fun DrawScope.drawJumpWeatherParticles(
@@ -659,7 +662,10 @@ private fun DrawScope.drawJumpBear(
     game: StarJumpGame,
     sprites: BearSprites,
     x: Float,
+    reduceMotion: Boolean,
 ) {
+    // 装饰性运动时钟：减弱动画时冻结（待机呼吸/死亡翻滚/走路循环停住）
+    val vt = if (reduceMotion) 0f else game.time
     val s = game.s
     val bs = game.bearSize
     val cy = game.bearY - game.cameraY
@@ -688,7 +694,7 @@ private fun DrawScope.drawJumpBear(
     // 帧：待机跑循环呼吸感，落地瞬间用落地帧，上升跳帧，下落下落帧
     val frame =
         when {
-            game.phase == GamePhase.READY -> runCycleFrame(game.time * 3.5f)
+            game.phase == GamePhase.READY -> runCycleFrame(vt * 3.5f)
             game.squashT in 0f..0.16f -> BearFrame.LAND
             game.bearVY < 0f -> BearFrame.JUMP
             else -> BearFrame.FALL
@@ -700,14 +706,14 @@ private fun DrawScope.drawJumpBear(
         centerY =
             cy +
                 if (game.phase == GamePhase.READY) {
-                    sin(game.time * 2.2f) * 2f * s
+                    sin(vt * 2.2f) * 2f * s
                 } else {
                     0f
                 },
         bs = bs,
         pose =
             BearPose(
-                time = game.time,
+                time = vt,
                 dead = dead,
                 frame = frame,
                 bodyTilt = tilt + tumble,
