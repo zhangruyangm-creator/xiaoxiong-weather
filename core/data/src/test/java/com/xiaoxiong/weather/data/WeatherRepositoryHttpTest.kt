@@ -14,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
@@ -340,15 +341,22 @@ class WeatherRepositoryHttpTest {
         }
 
     @Test
-    fun fetchPhenologyShiftDays_httpError_returnsNull() =
+    fun fetchPhenologyShiftDays_httpError_throwsInsteadOfReturningNull() =
         runBlocking {
             server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
-            val shift =
-                repository.fetchPhenologyShiftDays(
-                    WeatherFixtures.city("济南"),
-                    today = java.time.LocalDate.of(2026, 8, 10),
-                )
-            assertNull(shift)
+            // 语义约定：null = "确实没有足够数据"（可缓存一天），错误必须抛出。
+            // 旧实现对 503 也返回 null，控制器无从区分，一次断网会把"失败"当"无数据"
+            // 缓存整天，当天后续重试全被抑制。
+            val error =
+                assertThrows(AppError.Http::class.java) {
+                    runBlocking {
+                        repository.fetchPhenologyShiftDays(
+                            WeatherFixtures.city("济南"),
+                            today = java.time.LocalDate.of(2026, 8, 10),
+                        )
+                    }
+                }
+            assertEquals(503, error.code)
         }
 
     @Test

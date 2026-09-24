@@ -21,30 +21,30 @@ class RecentCityStore(
     private val key = stringPreferencesKey("cities_json")
     private val json = Json { ignoreUnknownKeys = true }
     private val serializer = ListSerializer(RecentCityDto.serializer())
+    private val itemSerializer = RecentCityDto.serializer()
 
     override val recent: Flow<List<City>> =
         context.recentCityDataStore.data.map { prefs ->
-            val raw = prefs[key].orEmpty()
-            if (raw.isBlank()) {
-                emptyList()
-            } else {
-                runCatching {
-                    json.decodeFromString(serializer, raw).map { it.toCity() }
-                }.getOrDefault(emptyList())
-            }
+            decodeCityListTolerant(json, prefs[key], itemSerializer)
+                .map { it.toCity() }
+                .normalizeCityList(MAX_RECENT)
         }
 
     override suspend fun add(city: City) {
         context.recentCityDataStore.edit { prefs ->
+            // 容错解码 + 规范化：坏条目只丢自己，同城去重、数量封顶
             val current =
-                prefs[key]
-                    ?.let {
-                        runCatching { json.decodeFromString(serializer, it) }.getOrDefault(emptyList())
-                    }.orEmpty()
+                decodeCityListTolerant(json, prefs[key], itemSerializer)
+                    .map { it.toCity() }
+                    .normalizeCityList(MAX_RECENT)
                     .toMutableList()
-            current.removeAll { it.toCity().isSamePlace(city) }
-            current.add(0, RecentCityDto.from(city.copy(isCurrentLocation = false)))
-            prefs[key] = json.encodeToString(serializer, current.take(MAX_RECENT))
+            current.removeAll { it.isSamePlace(city) }
+            current.add(0, city.copy(isCurrentLocation = false))
+            prefs[key] =
+                json.encodeToString(
+                    serializer,
+                    current.take(MAX_RECENT).map { RecentCityDto.from(it) },
+                )
         }
     }
 

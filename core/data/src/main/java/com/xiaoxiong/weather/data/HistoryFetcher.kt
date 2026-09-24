@@ -45,8 +45,13 @@ class HistoryFetcher(
                     decodeArchive(OpenMeteoHttp.execute(url.toString(), client))
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
+                } catch (e: AppError) {
+                    throw e
                 } catch (e: Exception) {
-                    return@withContext null
+                    // 网络/解析失败要抛出去而不是返回 null：null 的语义是"确实没有
+                    // 足够数据"，调用方会把它缓存一整天。若这里也返回 null，一次断网
+                    // 会把当天剩余时间的物候重试全部抑制掉。
+                    throw AppError.DataFormat(e)
                 }
             val daily = response.daily ?: return@withContext null
 

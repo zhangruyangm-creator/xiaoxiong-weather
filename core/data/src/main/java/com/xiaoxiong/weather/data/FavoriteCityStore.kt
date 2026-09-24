@@ -21,37 +21,38 @@ class FavoriteCityStore(
     private val key = stringPreferencesKey("cities_json")
     private val json = Json { ignoreUnknownKeys = true }
     private val serializer = ListSerializer(FavoriteCityDto.serializer())
+    private val itemSerializer = FavoriteCityDto.serializer()
 
     override val favorites: Flow<List<City>> =
         context.favoriteDataStore.data.map { prefs ->
-            val raw = prefs[key].orEmpty()
-            if (raw.isBlank()) {
-                emptyList()
-            } else {
-                runCatching {
-                    json.decodeFromString(serializer, raw).map { it.toCity() }
-                }.getOrDefault(emptyList())
-            }
+            decodeCityListTolerant(json, prefs[key], itemSerializer)
+                .map { it.toCity() }
+                .normalizeCityList(MAX_FAVORITES)
         }
 
     override suspend fun toggle(city: City) {
         context.favoriteDataStore.edit { prefs ->
+            // 容错解码：坏条目只丢自己。旧实现整批失败成空列表时，本次写回会把
+            // 用户其余收藏全部覆盖掉。
             val current =
-                prefs[key]
-                    ?.let {
-                        runCatching { json.decodeFromString(serializer, it) }.getOrDefault(emptyList())
-                    }.orEmpty()
+                decodeCityListTolerant(json, prefs[key], itemSerializer)
+                    .map { it.toCity() }
+                    .normalizeCityList(MAX_FAVORITES)
                     .toMutableList()
 
-            val exists = current.any { it.toCity().isSamePlace(city) }
+            val exists = current.any { it.isSamePlace(city) }
             when {
-                exists -> current.removeAll { it.toCity().isSamePlace(city) }
+                exists -> current.removeAll { it.isSamePlace(city) }
                 canAddFavorite(current.size, isAlreadyFavorite = false) ->
-                    current.add(0, FavoriteCityDto.from(city))
+                    current.add(0, city)
                 // 达到上限：拒绝新增，而不是静默丢弃最旧收藏
                 else -> return@edit
             }
-            prefs[key] = json.encodeToString(serializer, current)
+            prefs[key] =
+                json.encodeToString(
+                    serializer,
+                    current.map { FavoriteCityDto.from(it) },
+                )
         }
     }
 
