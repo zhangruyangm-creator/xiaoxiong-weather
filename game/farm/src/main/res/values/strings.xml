@@ -116,5 +116,12 @@
     <string name="bear_farm_weather_name_stormy">雷雨</string>
     <string name="bear_farm_weather_name_snowy">下雪</string>
     <string name="bear_farm_weather_name_foggy">雾天</string>
+    <string name="farm_cat_vegetable">蔬菜</string>
+    <string name="farm_cat_grain">谷物</string>
+    <string name="farm_cat_fruit">水果</string>
+    <string name="farm_cat_flower">花卉</string>
+    <string name="farm_cat_herb">香草</string>
+    <string name="farm_cat_mushroom">菇菌</string>
+    <string name="farm_cat_other">其他</string>
     <string name="cd_close_game">退出游戏</string>
 </resources>

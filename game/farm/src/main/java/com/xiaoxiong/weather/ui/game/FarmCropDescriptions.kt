@@ -1,7 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
-/** 各作物的一句话介绍（图鉴详情/解锁弹卡展示）。 */
-internal val FARM_CROP_DESCRIPTIONS: Map<String, String> =
+/** 各作物的一句话介绍（中文；图鉴详情/解锁弹卡展示）。 */
+internal val FARM_CROP_DESCRIPTIONS_ZH: Map<String, String> =
     mapOf(
         // 蔬菜
         "radish" to "最经典的入门作物，脆甜爽口，7.5 小时就能收获。",

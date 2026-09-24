@@ -116,5 +116,12 @@
     <string name="bear_farm_weather_name_stormy">Stormy</string>
     <string name="bear_farm_weather_name_snowy">Snowy</string>
     <string name="bear_farm_weather_name_foggy">Foggy</string>
+    <string name="farm_cat_vegetable">Vegetables</string>
+    <string name="farm_cat_grain">Grains</string>
+    <string name="farm_cat_fruit">Fruits</string>
+    <string name="farm_cat_flower">Flowers</string>
+    <string name="farm_cat_herb">Herbs</string>
+    <string name="farm_cat_mushroom">Mushrooms</string>
+    <string name="farm_cat_other">Other</string>
     <string name="cd_close_game">Exit game</string>
 </resources>

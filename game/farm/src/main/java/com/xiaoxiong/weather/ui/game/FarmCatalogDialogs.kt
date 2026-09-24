@@ -107,20 +107,20 @@ internal fun FarmUnlockDialog(
                     )
                     Image(
                         bitmap = rememberGameImage(FarmCropArt.ripe(crop), 512),
-                        contentDescription = crop.nameZh,
+                        contentDescription = cropName(crop),
                         modifier = Modifier.size(96.dp),
                         contentScale = ContentScale.Fit,
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    crop.nameZh,
+                    cropName(crop),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = farmScheme().onSurface,
                 )
                 Text(
-                    crop.category,
+                    stringResource(crop.category.labelRes()),
                     style = MaterialTheme.typography.bodySmall,
                     color = farmScheme().onSurfaceVariant,
                 )
@@ -134,10 +134,11 @@ internal fun FarmUnlockDialog(
                         color = Color(0xFF6D4C41),
                     )
                 }
-                if (crop.description.isNotBlank()) {
+                val description = cropDescription(crop)
+                if (description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        crop.description,
+                        description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = farmScheme().onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -200,7 +201,7 @@ internal fun FarmCatalogDialog(
         remember {
             farmCropCategories()
         }
-    var selectedCat by remember { mutableStateOf<String?>(null) }
+    var selectedCat by remember { mutableStateOf<CropCategory?>(null) }
     var selectedCrop by remember { mutableStateOf<CropDef?>(null) }
     val filtered =
         remember(selectedCat) {
@@ -284,7 +285,9 @@ internal fun FarmCatalogDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     categories.forEach { cat ->
-                        val label = cat ?: stringResource(R.string.bear_farm_shop_cat_all)
+                        val label =
+                            cat?.let { stringResource(it.labelRes()) }
+                                ?: stringResource(R.string.bear_farm_shop_cat_all)
                         val sel = selectedCat == cat
                         Surface(
                             onClick = { selectedCat = cat },
@@ -330,7 +333,7 @@ internal fun FarmCatalogDialog(
                                 Box(contentAlignment = Alignment.Center) {
                                     Image(
                                         bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
-                                        contentDescription = crop.nameZh,
+                                        contentDescription = cropName(crop),
                                         modifier =
                                             Modifier
                                                 .size(42.dp)
@@ -347,7 +350,7 @@ internal fun FarmCatalogDialog(
                                     }
                                 }
                                 Text(
-                                    crop.nameZh,
+                                    cropName(crop),
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 12.sp,
                                     color = farmScheme().onSurface,
@@ -488,7 +491,7 @@ private fun FarmCatalogCropDetail(
                     )
                     Image(
                         bitmap = rememberGameImage(FarmCropArt.ripe(crop), 512),
-                        contentDescription = crop.nameZh,
+                        contentDescription = cropName(crop),
                         modifier =
                             Modifier
                                 .size(120.dp)
@@ -506,13 +509,13 @@ private fun FarmCatalogCropDetail(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    crop.nameZh,
+                    cropName(crop),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = farmScheme().onSurface,
                 )
                 Text(
-                    crop.category,
+                    stringResource(crop.category.labelRes()),
                     style = MaterialTheme.typography.bodySmall,
                     color = farmScheme().onSurfaceVariant,
                 )
@@ -526,10 +529,11 @@ private fun FarmCatalogCropDetail(
                         color = Color(0xFF6D4C41),
                     )
                 }
-                if (crop.description.isNotBlank()) {
+                val description = cropDescription(crop)
+                if (description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        crop.description,
+                        description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = farmScheme().onSurfaceVariant,
                         textAlign = TextAlign.Center,

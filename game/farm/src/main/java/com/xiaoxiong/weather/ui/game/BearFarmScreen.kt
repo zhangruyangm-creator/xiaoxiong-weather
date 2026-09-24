@@ -352,12 +352,12 @@ fun BearFarmScreen(
                             ) {
                                 Image(
                                     bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
-                                    contentDescription = crop.nameZh,
+                                    contentDescription = cropName(crop),
                                     modifier = Modifier.size(34.dp),
                                     contentScale = ContentScale.Fit,
                                 )
                                 Text(
-                                    crop.nameZh,
+                                    cropName(crop),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     color = farmScheme().onSurface,

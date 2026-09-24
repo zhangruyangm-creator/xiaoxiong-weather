@@ -35,11 +35,13 @@ class CityListPersistenceTest {
     @Test
     fun oneMalformedEntry_doesNotDiscardSiblings() {
         val raw =
-            """[
+            """
+            [
                 {"name":"济南","lat":36.65,"lon":117.12},
                 {"name":"BAD_NO_COORDS"},
                 {"name":"北京","lat":39.90,"lon":116.41}
-            ]""".trimIndent()
+            ]
+            """.trimIndent()
         val decoded = decodeCityListTolerant(json, raw, itemSerializer)
         assertEquals("坏条目只应丢自己，其余两条保留", 2, decoded.size)
         assertEquals("济南", decoded[0].name)

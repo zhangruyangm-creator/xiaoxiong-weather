@@ -25,6 +25,12 @@ class FarmCropHelpersTest {
     }
 
     @Test
+    fun everyCropCategory_hasDistinctLabelResource() {
+        val labels = CropCategory.entries.map { it.labelRes() }
+        assertEquals("分类标签资源不能重复，否则图鉴筛选会出现同名项", labels.size, labels.distinct().size)
+    }
+
+    @Test
     fun farmUnlockPrice_isFiveTimesSeedCost() {
         val radish = requireNotNull(cropById("radish"))
         assertEquals(40, farmUnlockPrice(radish))
@@ -43,14 +49,14 @@ class FarmCropHelpersTest {
     }
 
     @Test
-    fun preferredWeatherOf_mapsCategoriesToWeather() {
-        assertEquals(FarmWeather.RAINY, preferredWeatherOf("谷物"))
-        assertEquals(FarmWeather.RAINY, preferredWeatherOf("香草"))
-        assertEquals(FarmWeather.SUNNY, preferredWeatherOf("蔬菜"))
-        assertEquals(FarmWeather.SUNNY, preferredWeatherOf("水果"))
-        assertEquals(FarmWeather.CLOUDY, preferredWeatherOf("花卉"))
-        assertEquals(FarmWeather.FOGGY, preferredWeatherOf("菇菌"))
-        assertNull("其他类别无特别偏好", preferredWeatherOf("其他"))
+    fun cropCategory_preferredWeather_mapsCategoriesToWeather() {
+        assertEquals(FarmWeather.RAINY, CropCategory.GRAIN.preferredWeather())
+        assertEquals(FarmWeather.RAINY, CropCategory.HERB.preferredWeather())
+        assertEquals(FarmWeather.SUNNY, CropCategory.VEGETABLE.preferredWeather())
+        assertEquals(FarmWeather.SUNNY, CropCategory.FRUIT.preferredWeather())
+        assertEquals(FarmWeather.CLOUDY, CropCategory.FLOWER.preferredWeather())
+        assertEquals(FarmWeather.FOGGY, CropCategory.MUSHROOM.preferredWeather())
+        assertNull("其他类别无特别偏好", CropCategory.OTHER.preferredWeather())
         assertEquals(FarmWeather.SUNNY, requireNotNull(cropById("radish")).preferredWeather)
         assertTrue(requireNotNull(cropById("mushroom")).prefers(FarmWeather.FOGGY))
     }

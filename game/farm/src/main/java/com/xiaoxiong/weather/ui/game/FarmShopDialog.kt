@@ -97,7 +97,7 @@ internal fun FarmShopDialog(
         remember {
             farmCropCategories()
         }
-    var selectedCat by remember { mutableStateOf<String?>(null) }
+    var selectedCat by remember { mutableStateOf<CropCategory?>(null) }
     val filtered =
         remember(selectedCat) {
             if (selectedCat == null) FARM_CROPS else FARM_CROPS.filter { it.category == selectedCat }
@@ -179,7 +179,9 @@ internal fun FarmShopDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     categories.forEach { cat ->
-                        val label = cat ?: stringResource(R.string.bear_farm_shop_cat_all)
+                        val label =
+                            cat?.let { stringResource(it.labelRes()) }
+                                ?: stringResource(R.string.bear_farm_shop_cat_all)
                         val sel = selectedCat == cat
                         Surface(
                             onClick = { selectedCat = cat },
@@ -229,12 +231,12 @@ internal fun FarmShopDialog(
                             ) {
                                 Image(
                                     bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
-                                    contentDescription = crop.nameZh,
+                                    contentDescription = cropName(crop),
                                     modifier = Modifier.size(40.dp),
                                     contentScale = ContentScale.Fit,
                                 )
                                 Text(
-                                    crop.nameZh,
+                                    cropName(crop),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
                                     color = farmScheme().onSurface,

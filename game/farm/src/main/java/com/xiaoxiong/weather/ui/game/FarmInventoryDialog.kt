@@ -201,12 +201,12 @@ private fun FarmInventoryCard(
         ) {
             Image(
                 bitmap = rememberGameImage(FarmCropArt.ripe(crop), 256),
-                contentDescription = crop.nameZh,
+                contentDescription = cropName(crop),
                 modifier = Modifier.size(40.dp),
                 contentScale = ContentScale.Fit,
             )
             Text(
-                crop.nameZh,
+                cropName(crop),
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp,
                 color = farmScheme().onSurface,

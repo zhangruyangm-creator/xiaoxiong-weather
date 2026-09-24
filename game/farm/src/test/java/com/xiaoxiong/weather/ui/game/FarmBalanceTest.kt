@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.ui.game
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 import kotlin.math.roundToInt
 
 class FarmBalanceTest {
@@ -45,7 +46,26 @@ class FarmBalanceTest {
     @Test
     fun everyCrop_hasDescription() {
         FARM_CROPS.forEach { crop ->
-            assertTrue("${crop.id} 缺少介绍文案", crop.description.isNotBlank())
+            assertTrue(
+                "${crop.id} 缺少中文介绍",
+                cropDisplayDescription(crop, Locale.CHINA).isNotBlank(),
+            )
+        }
+    }
+
+    @Test
+    fun everyCrop_hasEnglishNameAndDescription() {
+        FARM_CROPS.forEach { crop ->
+            val enName = cropDisplayName(crop, Locale.ENGLISH)
+            assertTrue("${crop.id} 缺少英文名", enName.isNotBlank())
+            assertTrue(
+                "${crop.id} 英文名与中文名相同，疑似漏翻译",
+                enName != crop.nameZh,
+            )
+            assertTrue(
+                "${crop.id} 缺少英文介绍",
+                cropDisplayDescription(crop, Locale.ENGLISH).isNotBlank(),
+            )
         }
     }
 
