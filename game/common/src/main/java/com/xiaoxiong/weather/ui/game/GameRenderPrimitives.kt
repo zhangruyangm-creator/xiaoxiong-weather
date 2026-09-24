@@ -15,7 +15,7 @@ import kotlin.math.round
  *
  * 仅主线程绘制路径使用，无锁；容量为个位数时线性扫描足够快。
  */
-internal class BakedLayerLru<K : Any, V : Any>(
+class BakedLayerLru<K : Any, V : Any>(
     private val maxEntries: Int,
     private val reusable: (cached: K, target: K) -> Boolean = { cached, target -> cached == target },
 ) {
