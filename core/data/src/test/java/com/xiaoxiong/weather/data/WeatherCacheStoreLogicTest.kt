@@ -27,6 +27,9 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+/** 多数用例只关心缓存读写本身，统一用固定指纹。 */
+private const val TEST_STAMP = "zh-CN|CELSIUS"
+
 class WeatherCacheStoreLogicTest {
     @get:Rule
     val tempFolder = TemporaryFolder()
@@ -148,8 +151,8 @@ class WeatherCacheStoreLogicTest {
             val city = city("济南", 36.65, 117.12)
             val snapshot = snapshotWithHourly(hours = 80, currentIndex = 30).copy(city = city)
 
-            store.save(snapshot)
-            val loaded = store.get(city)
+            store.save(snapshot, TEST_STAMP)
+            val loaded = store.get(city, TEST_STAMP)
 
             assertNotNull(loaded)
             assertEquals(city.latitude, loaded!!.snapshot.city.latitude, 0.0001)
@@ -161,19 +164,19 @@ class WeatherCacheStoreLogicTest {
         runBlocking {
             val savedCity = city("济南", 36.65, 117.12)
             val queriedCity = savedCity.copy(latitude = 36.655, longitude = 117.124)
-            store.save(snapshotWithHourly(hours = 4, currentIndex = 1).copy(city = savedCity))
+            store.save(snapshotWithHourly(hours = 4, currentIndex = 1).copy(city = savedCity), TEST_STAMP)
 
-            assertNotNull(store.get(queriedCity))
+            assertNotNull(store.get(queriedCity, TEST_STAMP))
         }
 
     @Test
     fun save_replacesOldKeyForSameCity() =
         runBlocking {
             val city = city("济南", 36.65, 117.12)
-            store.save(snapshotWithHourly(hours = 4, currentIndex = 1).copy(city = city, elevationMeters = 1.0))
-            store.save(snapshotWithHourly(hours = 4, currentIndex = 1).copy(city = city, elevationMeters = 2.0))
+            store.save(snapshotWithHourly(hours = 4, currentIndex = 1).copy(city = city, elevationMeters = 1.0), TEST_STAMP)
+            store.save(snapshotWithHourly(hours = 4, currentIndex = 1).copy(city = city, elevationMeters = 2.0), TEST_STAMP)
 
-            val loaded = store.get(city)
+            val loaded = store.get(city, TEST_STAMP)
             assertEquals(2.0, loaded!!.snapshot.elevationMeters!!, 0.001)
             // 同城只保留一个 key，避免每次刷新堆积
             assertEquals(1, dataStoreKeys().count { it.startsWith(CACHE_CITY_KEY_PREFIX) })
@@ -187,7 +190,7 @@ class WeatherCacheStoreLogicTest {
             seedRawEntry(expiredName, entry(city("上海", 31.2, 121.5), now - WeatherCacheStore.MAX_AGE_MS - 1))
 
             val city = city("济南", 36.65, 117.12)
-            store.save(snapshotWithHourly(hours = 4, currentIndex = 1).copy(city = city))
+            store.save(snapshotWithHourly(hours = 4, currentIndex = 1).copy(city = city), TEST_STAMP)
 
             assertFalse(dataStoreKeys().contains(expiredName))
         }
@@ -199,7 +202,7 @@ class WeatherCacheStoreLogicTest {
             val city = city("济南", 36.65, 117.12)
             seedLegacy(listOf(entry(city, now - 60_000)))
 
-            val loaded = store.get(city)
+            val loaded = store.get(city, TEST_STAMP)
 
             assertNotNull(loaded)
             assertEquals("济南", loaded!!.snapshot.city.name)
@@ -213,12 +216,67 @@ class WeatherCacheStoreLogicTest {
             val city = city("济南", 36.65, 117.12)
             seedLegacy(listOf(entry(city, now - WeatherCacheStore.MAX_AGE_MS - 1)))
 
-            assertNull(store.get(city))
+            assertNull(store.get(city, TEST_STAMP))
             assertFalse(dataStoreKeys().contains("entries_json"))
         }
 
-    // ---------- helpers ----------
+    @Test
+    fun get_stampMismatch_keepsNumbersButDropsBakedLocalizedText() =
+        runBlocking {
+            val city = city("济南", 36.65, 117.12)
+            val snapshot =
+                snapshotWithHourly(hours = 4, currentIndex = 1).copy(
+                    city = city,
+                    advice = "穿外套",
+                    alerts =
+                        listOf(
+                            WeatherAlert(
+                                title = "高温预警",
+                                message = "体感 38°C",
+                                severity = AlertSeverity.WARNING,
+                            ),
+                        ),
+                    lifeIndices =
+                        listOf(
+                            LifeIndex(
+                                kind = LifeIndexKind.CLOTHING,
+                                level = LifeIndexLevel.GOOD,
+                                title = "穿衣",
+                                summary = "短袖",
+                            ),
+                        ),
+                )
+            store.save(snapshot, "zh-CN|CELSIUS")
 
+            // 同语言同单位：文案照常返回
+            val same = store.get(city, "zh-CN|CELSIUS")
+            assertNotNull(same)
+            assertEquals("穿外套", same!!.snapshot.advice)
+            assertEquals(1, same.snapshot.alerts.size)
+
+            // 用户切了华氏：数值仍可离线展示，旧单位烘焙的文案必须丢弃
+            val switched = store.get(city, "zh-CAN|FAHRENHEIT")
+            assertNotNull(switched)
+            val s = switched!!.snapshot
+            assertEquals(city, s.city)
+            // 数值字段与语言/单位无关，必须照常离线可用
+            assertTrue(s.hourly.isNotEmpty())
+            assertEquals(1.0, s.hourly[1].temperatureC ?: 0.0, 1e-6)
+            assertNull(s.advice)
+            assertTrue(s.alerts.isEmpty())
+            assertTrue(s.lifeIndices.isEmpty())
+        }
+
+    @Test
+    fun presentationStamp_differsByLocaleAndUnit() {
+        val zh = presentationStampOf(java.util.Locale.SIMPLIFIED_CHINESE, TemperatureUnit.CELSIUS)
+        val zhF = presentationStampOf(java.util.Locale.SIMPLIFIED_CHINESE, TemperatureUnit.FAHRENHEIT)
+        val en = presentationStampOf(java.util.Locale.US, TemperatureUnit.CELSIUS)
+        assertTrue(zh != zhF)
+        assertTrue(zh != en)
+    }
+
+    // ---------- helpers ----------
     private fun city(
         name: String,
         latitude: Double,

@@ -17,6 +17,7 @@ import com.xiaoxiong.weather.data.RadarMapRepository
 import com.xiaoxiong.weather.data.WeatherCacheStore
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.data.isSamePlace
+import com.xiaoxiong.weather.data.presentationStampOf
 import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -392,7 +393,7 @@ class WeatherViewModel(
                     // 数据已到手，先出界面；下次刷新再重试写缓存。
                     // CancellationException 必须透传，不能被 runCatching 吞掉。
                     try {
-                        weatherCacheStore.save(snapshot)
+                        weatherCacheStore.save(snapshot, currentPresentationStamp())
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
@@ -773,12 +774,26 @@ class WeatherViewModel(
      */
     private suspend fun readCacheSafely(city: City): WeatherCacheStore.CacheEntry? =
         try {
-            weatherCacheStore.get(city)
+            weatherCacheStore.get(city, currentPresentationStamp())
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             null
         }
+
+    /**
+     * 当前「语言 + 温度单位」指纹：缓存里的预警/建议是按生成时的语言与单位烘焙的
+     * 字符串，换设置后必须靠指纹识别旧文案。单位取内存里已在收集的 [appSettings]，
+     * 既不多一次 DataStore 读，也保证与界面当前显示的单位一致。
+     */
+    private fun currentPresentationStamp(): String = presentationStampOf(currentLocale(), appSettings.value.temperatureUnit)
+
+    private fun currentLocale(): Locale =
+        runCatching {
+            val config = getApplication<Application>().resources.configuration
+            @Suppress("DEPRECATION")
+            config?.locales?.get(0) ?: config?.locale ?: Locale.getDefault()
+        }.getOrDefault(Locale.getDefault())
 
     private fun formatCacheTime(epochMs: Long): String =
         LocalDateTime

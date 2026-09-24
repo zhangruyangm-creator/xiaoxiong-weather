@@ -10,6 +10,7 @@ import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.WeatherRefreshPolicy
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.data.isSamePlace
+import com.xiaoxiong.weather.data.presentationStampOf
 import com.xiaoxiong.weather.di.AppContainer
 import com.xiaoxiong.weather.di.appContainer
 import com.xiaoxiong.weather.util.CrashReporting
@@ -64,7 +65,8 @@ object WeatherWidgetData {
         val selection = container.selectedCityStore.getOnce() ?: return null
         if (!settings.privacyAccepted) {
             // 隐私未同意：不联网、不定位，尽量展示已有缓存；无缓存则空白占位
-            val cached = container.weatherCacheStore.get(selection.city) ?: return null
+            val stamp = presentationStampOf(context.resources.configuration.locales[0], settings.temperatureUnit)
+            val cached = container.weatherCacheStore.get(selection.city, stamp) ?: return null
             return toUi(
                 context = context,
                 snapshot = cached.snapshot,
@@ -99,7 +101,8 @@ object WeatherWidgetData {
                 selection.city
             }
 
-        val cached = cacheStore.get(city)
+        val stamp = presentationStampOf(context.resources.configuration.locales[0], unit)
+        val cached = cacheStore.get(city, stamp)
         val now = System.currentTimeMillis()
         val moved = selection.useLocation && !selection.city.isSamePlace(city)
         val stale =
@@ -116,7 +119,7 @@ object WeatherWidgetData {
                     val snapshot = container.weatherRepository.fetchWeather(city)
                     // 新数据已到手：落盘/写选择失败只记日志，不能把内存快照一起丢掉
                     try {
-                        cacheStore.save(snapshot)
+                        cacheStore.save(snapshot, stamp)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

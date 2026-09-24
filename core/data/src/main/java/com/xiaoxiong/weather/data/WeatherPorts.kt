@@ -39,9 +39,20 @@ fun interface WeatherFetcher {
 }
 
 interface WeatherCache {
-    suspend fun get(city: City): WeatherCacheStore.CacheEntry?
+    /**
+     * 读缓存。[presentationStamp] 为当前语言+温度单位指纹（见 [presentationStampOf]）：
+     * 与条目落盘时的指纹不一致时，数值照常返回，但会剥掉旧语言的预警/建议/生活指数。
+     */
+    suspend fun get(
+        city: City,
+        presentationStamp: String,
+    ): WeatherCacheStore.CacheEntry?
 
-    suspend fun save(snapshot: WeatherSnapshot)
+    /** 写缓存；[presentationStamp] 随条目落盘，供下次读取比对文案是否过期。 */
+    suspend fun save(
+        snapshot: WeatherSnapshot,
+        presentationStamp: String,
+    )
 }
 
 /** 物候偏移结果的按日缓存：同城同年当日有效，跨天/换城/跨年需重拉。 */

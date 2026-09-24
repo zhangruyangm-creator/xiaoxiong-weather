@@ -45,12 +45,16 @@ class WeatherCacheStore internal constructor(
             coerceInputValues = true
         }
 
-    override suspend fun save(snapshot: WeatherSnapshot) {
+    override suspend fun save(
+        snapshot: WeatherSnapshot,
+        presentationStamp: String,
+    ) {
         val now = System.currentTimeMillis()
         val entry =
             CacheEntry(
                 snapshot = trimSnapshotForCache(snapshot),
                 savedAtEpochMs = now,
+                presentationStamp = presentationStamp,
             )
         dataStore.edit { prefs ->
             migrateLegacyLocked(prefs, now)
@@ -71,7 +75,10 @@ class WeatherCacheStore internal constructor(
         }
     }
 
-    override suspend fun get(city: City): CacheEntry? {
+    override suspend fun get(
+        city: City,
+        presentationStamp: String,
+    ): CacheEntry? {
         val initial = dataStore.data.first()
         val prefs =
             if (initial.contains(LEGACY_KEY)) {
@@ -96,7 +103,17 @@ class WeatherCacheStore internal constructor(
             if (!isWithinFreshnessWindow(entry.savedAtEpochMs, now, MAX_AGE_MS)) continue
             if (!sameCacheCity(entry.snapshot.city, city)) continue
             // 离线跨天：缓存里的 daily[0] 仍是昨天，返回前按快照时区裁掉过期日
-            return entry.copy(snapshot = dropStaleDaily(entry.snapshot))
+            val trimmed = dropStaleDaily(entry.snapshot)
+            // 文案是生成时按当时语言/温度单位烘焙的（预警里带 "38°C"/"100°F"）。
+            // 指纹不一致说明用户换过语言或单位：数值照常离线可用，但旧语言的文案要丢掉，
+            // 等联网刷新重新生成——否则会出现"中文提示 + 华氏温度"这类错配。
+            val snapshot =
+                if (entry.presentationStamp == presentationStamp) {
+                    trimmed
+                } else {
+                    dropLocalizedText(trimmed)
+                }
+            return entry.copy(snapshot = snapshot)
         }
         return null
     }
@@ -141,6 +158,8 @@ class WeatherCacheStore internal constructor(
     data class CacheEntry(
         val snapshot: WeatherSnapshot,
         val savedAtEpochMs: Long,
+        /** 生成文案时的语言+温度单位指纹；旧档为空串，读取时按不匹配处理。 */
+        val presentationStamp: String = "",
     )
 
     companion object {
@@ -223,6 +242,35 @@ internal fun todayInSnapshotZone(
 ): LocalDate {
     val zone = runCatching { timezoneId?.let { ZoneId.of(it) } }.getOrNull() ?: fallbackZone
     return LocalDate.now(zone)
+}
+
+/**
+ * 缓存文案的「语言 + 温度单位」指纹。
+ *
+ * 预警/建议/生活指数是拉取时用当时的 Resources 与温度单位生成并烘焙成字符串的
+ * （预警文案里直接带 `38°C` / `100°F`）。用户换语言或换单位后，命中旧缓存会看到
+ * 错配的文案，所以把两者一起折进指纹随条目落盘，读时比对。
+ */
+fun presentationStampOf(
+    locale: Locale,
+    temperatureUnit: TemperatureUnit,
+): String = "${locale.toLanguageTag()}|${temperatureUnit.name}"
+
+/**
+ * 丢掉生成时烘焙的本地化文案，只保留与语言/单位无关的数值数据。
+ *
+ * 指纹不匹配时使用：离线仍能看到实况/逐时/逐日与空气质量（UI 渲染时才按当前单位格式化），
+ * 只是暂时没有预警与建议，等下一次联网刷新重新生成。
+ */
+internal fun dropLocalizedText(snapshot: WeatherSnapshot): WeatherSnapshot {
+    if (snapshot.alerts.isEmpty() && snapshot.advice == null && snapshot.lifeIndices.isEmpty()) {
+        return snapshot
+    }
+    return snapshot.copy(
+        alerts = emptyList(),
+        advice = null,
+        lifeIndices = emptyList(),
+    )
 }
 
 /**

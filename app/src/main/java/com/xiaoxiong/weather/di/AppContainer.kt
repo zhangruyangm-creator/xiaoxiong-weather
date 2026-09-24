@@ -18,6 +18,7 @@ import com.xiaoxiong.weather.data.SelectedCityStore
 import com.xiaoxiong.weather.data.WeatherCacheStore
 import com.xiaoxiong.weather.data.WeatherNotifyDedupStore
 import com.xiaoxiong.weather.data.WeatherRepository
+import com.xiaoxiong.weather.data.presentationStampOf
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
 import com.xiaoxiong.weather.domain.CitySearchUseCase
 import com.xiaoxiong.weather.game.GameEntry
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
@@ -113,6 +115,17 @@ class AppContainer(
     val settingsStore by lazy { AppSettingsStore(appContext) }
     val debugWeatherStore by lazy { DebugWeatherStore(appContext) }
     val notifyDedupStore by lazy { WeatherNotifyDedupStore(appContext) }
+
+    /**
+     * 当前「语言 + 温度单位」指纹，写/读天气缓存时随条目比对：
+     * 缓存里的预警与建议是按生成时的语言、单位烘焙的字符串，换设置后旧文案必须作废。
+     * Worker 与小组件在独立进程里没有 ViewModel，统一从这里取。
+     */
+    suspend fun presentationStamp(): String {
+        val settings = settingsStore.getOnce()
+        val locale = appContext.resources.configuration.locales[0] ?: Locale.getDefault()
+        return presentationStampOf(locale, settings.temperatureUnit)
+    }
 
     init {
         // 后台独立进程（Worker/小组件）可能不经过 DebugWeatherStore 就直接拉取写缓存：

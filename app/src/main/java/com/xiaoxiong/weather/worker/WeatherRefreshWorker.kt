@@ -53,7 +53,7 @@ class WeatherRefreshWorker(
                     selection.city
                 }
 
-            val cached = cacheStore.get(city)
+            val cached = cacheStore.get(city, container.presentationStamp())
             val now = System.currentTimeMillis()
             if (cached != null &&
                 now - cached.savedAtEpochMs < WeatherRefreshPolicy.BACKGROUND_FRESH_MS
@@ -75,7 +75,7 @@ class WeatherRefreshWorker(
             // 后台刷新结果写入缓存，前台打开时可直接用到最新数据；
             // 落盘失败不能丢掉已到手的数据，后续小组件/图标/通知继续执行。
             // runCatchingCancellable：系统取消 Worker 时不能让取消被吞成普通失败
-            runCatchingCancellable { cacheStore.save(snapshot) }
+            runCatchingCancellable { cacheStore.save(snapshot, container.presentationStamp()) }
             if (selection.useLocation) {
                 runCatchingCancellable { store.saveIfUnchanged(selection, city, useLocation = true) }
             }
