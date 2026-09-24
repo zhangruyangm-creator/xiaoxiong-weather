@@ -341,7 +341,10 @@ internal class MazeGame {
         history.clear()
         moveT = 1f
         sliding = false
-        phase = MazePhase.PLAYING
+        // cleared=true 必须映射回 CLEAR：恢复成 PLAYING 会让 tryMove 因 cleared 全部
+        // 返回 false（既走不动也不显示结算），对局直接软锁。正常落盘不会产生这种会话
+        // （saveSession 排除 CLEAR 阶段），这里是防御损坏/旧版本快照。
+        phase = if (session.cleared) MazePhase.CLEAR else MazePhase.PLAYING
         return true
     }
 

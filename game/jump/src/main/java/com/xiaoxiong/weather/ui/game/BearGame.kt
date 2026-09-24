@@ -609,8 +609,16 @@ class BearGame {
     }
 
     /** 读取并恢复一局；无档/坏档返回 false，保持 READY。恢复成功后保留快照供再次落盘。 */
-    @Suppress("ReturnCount")
     fun restoreSnapshot(prefs: SharedPreferences): Boolean {
+        val restored = restoreSnapshotOrNull(prefs)
+        // 校验失败一律清档：坏档留在 prefs 里会被每次进入重复解析、反复失败，
+        // 还会让「继续」入口的可用性判断与实际不符
+        if (!restored) clearSnapshot(prefs)
+        return restored
+    }
+
+    @Suppress("ReturnCount")
+    private fun restoreSnapshotOrNull(prefs: SharedPreferences): Boolean {
         val raw = GameSnapshot.load(prefs, JUMP_SNAPSHOT_KEY) ?: return false
         val sections = raw.split('\n')
         val meta = SnapshotCodec.decodeFloatArray(sections.getOrNull(0)) ?: return false

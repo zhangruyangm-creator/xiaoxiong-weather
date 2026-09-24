@@ -82,6 +82,22 @@ class MazeGameSessionTest {
     }
 
     @Test
+    fun restoreSession_clearedFlag_restoresAsClearNotStuckPlaying() {
+        val prefs = FakePrefs()
+        val source = MazeGame()
+        source.startLevel(2)
+        source.saveSession(prefs)
+        // 模拟损坏/旧版本快照：cleared=true 但仍标 PLAYING。
+        // 若按 PLAYING 恢复，tryMove 会因 cleared 全部返回 false（走不动又不显示结算）→ 软锁
+        val raw = prefs.getString(sessionKey, null)!!
+        prefs.edit().putString(sessionKey, raw.replace("\"cleared\":false", "\"cleared\":true")).apply()
+
+        val restored = MazeGame()
+        assertTrue(restored.restoreSession(prefs))
+        assertEquals("cleared 档必须恢复成结算态", MazePhase.CLEAR, restored.phase)
+    }
+
+    @Test
     fun restoreSession_keepsSnapshotSoProgressSurvivesAnotherKill() {
         val prefs = FakePrefs()
         val source = MazeGame()

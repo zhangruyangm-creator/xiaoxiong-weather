@@ -459,10 +459,11 @@ class HockeyGame {
     /** 恢复局中快照；无档 / 坏档返回 false（坏档会被清除，当作无档）。 */
     fun restoreSnapshot(prefs: SharedPreferences): Boolean {
         val groups = SnapshotCodec.decodeGroups(GameSnapshot.load(prefs, HOCKEY_SNAPSHOT_KEY)) ?: return false
-        return runCatching { applySnapshot(groups) }.getOrElse {
-            clearSnapshot(prefs)
-            false
-        }
+        val restored = runCatching { applySnapshot(groups) }.getOrDefault(false)
+        // 校验失败（返回 false）与抛异常同等对待：都要清档，
+        // 否则坏档会留在 prefs 里，每次进入都白跑一遍校验
+        if (!restored) clearSnapshot(prefs)
+        return restored
     }
 
     /** 清档：结算、暂停重开、退出时调用，避免陈旧续玩。 */
@@ -471,6 +472,10 @@ class HockeyGame {
     }
 
     private fun applySnapshot(groups: List<FloatArray>): Boolean {
+        // 坏档可能带 NaN/Inf（截断、位翻转、手工改档）。这些值能通过尺寸/下标校验，
+        // 却会让 clampPaddle 的 coerceIn 原样透传（与 NaN 比较恒为 false），
+        // 物理与绘制全程 NaN：球消失、AI 乱冲、比分异常。先做纯数值体检再谈恢复。
+        if (!groups.all { group -> group.all { it.isFinite() } }) return false
         // ── 1. 解析：全部字段先读进局部变量，任何一步失败都直接 return false ──
         val header = groups.firstOrNull() ?: return false
         if (header.size < HOCKEY_HEADER_FIELDS) return false
