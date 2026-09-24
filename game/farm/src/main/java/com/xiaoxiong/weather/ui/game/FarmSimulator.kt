@@ -64,35 +64,30 @@ data class FarmState(
             save: FarmSave,
             backfillUnlockedAsCollected: Boolean,
         ): FarmState {
+            // 存档先过一遍清洗：负数金币、越界阶段/湿度、已删除的作物 id 都在这里被夹回去
+            val clean = save.sanitized()
             val backfilledHarvestCounts =
                 if (backfillUnlockedAsCollected) {
-                    save.unlockedCropIds.toSet().associateWith { 1 }
+                    clean.unlockedCropIds.toSet().associateWith { 1 }
                 } else {
-                    save.harvestCounts
+                    clean.harvestCounts
                 }
             val oldSaveFullyCollected =
-                save.schemaVersion < 2 && backfilledHarvestCounts.size >= FARM_CROPS.size
+                clean.schemaVersion < 2 && backfilledHarvestCounts.size >= FARM_CROPS.size
             return FarmState(
-                coins = save.coins,
-                plots =
-                    save.plots.map { it.copy() }.let { list ->
-                        if (list.size < FARM_PLOT_COUNT) {
-                            list + List(FARM_PLOT_COUNT - list.size) { FarmPlotState() }
-                        } else {
-                            list.take(FARM_PLOT_COUNT)
-                        }
-                    },
+                coins = clean.coins,
+                plots = clean.plots.map { it.copy() },
                 unlocked =
-                    save.unlockedCropIds.toSet().ifEmpty {
-                        setOf("radish", "cabbage", "wheat", "tomato")
+                    clean.unlockedCropIds.toSet().ifEmpty {
+                        FARM_DEFAULT_UNLOCKED.toSet()
                     },
-                harvestedTotal = save.harvestedTotal,
+                harvestedTotal = clean.harvestedTotal,
                 harvestCounts = backfilledHarvestCounts,
-                inventory = save.inventory,
-                completedSeasons = save.completedSeasons,
-                lifetimeHarvests = save.lifetimeHarvests,
+                inventory = clean.inventory,
+                completedSeasons = clean.completedSeasons,
+                lifetimeHarvests = clean.lifetimeHarvests,
                 seasonCollected =
-                    if (oldSaveFullyCollected) backfilledHarvestCounts.keys else save.seasonCollected,
+                    if (oldSaveFullyCollected) backfilledHarvestCounts.keys else clean.seasonCollected,
             )
         }
     }

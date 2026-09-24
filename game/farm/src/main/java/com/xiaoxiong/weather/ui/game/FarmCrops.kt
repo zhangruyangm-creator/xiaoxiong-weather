@@ -386,6 +386,67 @@ const val FARM_COLS = 5
 const val FARM_ROWS = 4
 const val FARM_PLOT_COUNT = FARM_COLS * FARM_ROWS
 
+/** 新档默认解锁的作物；存档里全是不认识的 id 时用它兜底。 */
+internal val FARM_DEFAULT_UNLOCKED = listOf("radish", "cabbage", "wheat", "tomato")
+
+/**
+ * 存档清洗：把"物理上不可能"的值拉回合法区间。
+ *
+ * JSON 解析层已经拒掉 NaN/Infinity（`allowSpecialFloatingPointValues` 默认关），
+ * 但**有限但越界**的值照样能进来：手改档、跨版本删种、写入中断都会留下
+ * 负数金币、stage=99、moisture=50、已删除的作物 id。此处逐项夹紧，
+ * 未知作物 id 一律剔除——正常存档原样通过，不改变任何合法玩法数据。
+ */
+internal fun FarmSave.sanitized(): FarmSave {
+    val knownCrops = FARM_CROPS.map { it.id }.toSet()
+    val cleanPlots =
+        plots
+            .take(FARM_PLOT_COUNT)
+            .map { it.sanitized() }
+            .let { list ->
+                if (list.size < FARM_PLOT_COUNT) {
+                    list + List(FARM_PLOT_COUNT - list.size) { FarmPlotState() }
+                } else {
+                    list
+                }
+            }
+    val cleanUnlocked = unlockedCropIds.filter { it in knownCrops }.distinct()
+    return copy(
+        coins = coins.coerceAtLeast(0),
+        plots = cleanPlots,
+        unlockedCropIds = cleanUnlocked.ifEmpty { FARM_DEFAULT_UNLOCKED },
+        harvestedTotal = harvestedTotal.coerceAtLeast(0),
+        harvestCounts = harvestCounts.sanitizedCounts(knownCrops),
+        completedSeasons = completedSeasons.coerceAtLeast(0),
+        lifetimeHarvests = lifetimeHarvests.coerceAtLeast(0),
+        schemaVersion = schemaVersion.coerceAtLeast(1),
+        inventory = inventory.sanitizedCounts(knownCrops),
+        seasonCollected = seasonCollected.filter { it in knownCrops }.toSet(),
+    )
+}
+
+/** 作物 id → 数量：剔除未知 id 与非正数量。 */
+private fun Map<String, Int>.sanitizedCounts(knownCrops: Set<String>): Map<String, Int> =
+    mapNotNull { (id, count) ->
+        if (id !in knownCrops || count <= 0) null else id to count
+    }.toMap()
+
+/** 单块地：未知作物 id 视为空地，阶段夹到 0..5，进度与湿度夹到 0..1。 */
+private fun FarmPlotState.sanitized(): FarmPlotState {
+    // 先定下清理后的作物 id，再据此决定阶段：空地不该留着旧的 stage=4
+    val cleanCropId = cropId?.takeIf { cropById(it) != null }
+    return copy(
+        cropId = cleanCropId,
+        stage = if (cleanCropId == null) 0 else stage.coerceIn(0, 5),
+        stageProgress = stageProgress.finiteOrDefault(0f).coerceIn(0f, 1f),
+        moisture = moisture.finiteOrDefault(0.5f).coerceIn(0f, 1f),
+        lastTickMs = lastTickMs.coerceAtLeast(0L),
+    )
+}
+
+/** 非有限值回退到默认值；正常有限值原样返回。 */
+private fun Float.finiteOrDefault(fallback: Float): Float = if (isFinite()) this else fallback
+
 /** 每完成一季的永久生长加成（%），上限 5 季（+25%）。 */
 const val SEASON_BONUS_PERCENT = 5
 const val MAX_SEASON_BONUS_PERCENT = 25
