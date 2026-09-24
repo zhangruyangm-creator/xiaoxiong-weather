@@ -161,13 +161,12 @@ fun <T : CardId> CardsSettingsScreen(
                             if (from < 0) return@CardPrefRow
                             // 步进取被拖行自身高度 + 行间距（列表整体等高时即精确值）
                             val stride = rowHeight(cards[from].id) + rowSpacingPx
-                            val shift = (dragOffsetY / stride).roundToInt()
-                            val to = (from + shift).coerceIn(0, cards.lastIndex)
-                            if (to != from) {
-                                val moved = config.layout.move(cards, from, to)
+                            val step = cardDragStep(from, dragOffsetY, stride, cards.size)
+                            if (step.to != from) {
+                                val moved = config.layout.move(cards, from, step.to)
                                 cards = moved
-                                draggingIndex = to
-                                dragOffsetY -= (to - from) * stride
+                                draggingIndex = step.to
+                                dragOffsetY = step.remainingOffsetY
                             }
                         },
                         onDragEnd = {
@@ -192,4 +191,39 @@ fun <T : CardId> CardsSettingsScreen(
             }
         }
     }
+}
+
+/**
+ * 拖拽排序的一次换位结果：[to] 为目标下标（未越界），[remainingOffsetY] 为扣除
+ * 已消费整步后的残余位移，保证连续拖动时行不会"跳"。
+ */
+internal data class CardDragStep(
+    val to: Int,
+    val remainingOffsetY: Float,
+)
+
+/**
+ * 由被拖行下标、累计位移与行步进算出目标下标（纯函数，供单测）。
+ *
+ * @param stridePx 被拖行自身高度 + 行间距；<=0 时视为不换位（防除零）
+ * @param itemCount 列表长度；<=1 时原地不动
+ */
+internal fun cardDragStep(
+    from: Int,
+    offsetY: Float,
+    stridePx: Float,
+    itemCount: Int,
+): CardDragStep {
+    if (stridePx <= 0f || itemCount <= 1 || from !in 0 until itemCount) {
+        return CardDragStep(from, offsetY)
+    }
+    val lastIndex = itemCount - 1
+    val shift = (offsetY / stridePx).roundToInt()
+    val to = (from + shift).coerceIn(0, lastIndex)
+    if (to == from) return CardDragStep(from, offsetY)
+    // 撞到列表首/尾时残余直接归零：钳位后 (to-from) 恒定，
+    // 留着越界残余会无意义地一直累积成脏值
+    val consumed = (to - from) * stridePx
+    val remaining = if (to == 0 || to == lastIndex) 0f else offsetY - consumed
+    return CardDragStep(to, remaining)
 }

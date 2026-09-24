@@ -89,29 +89,6 @@ class WeatherNotifyDedupStore internal constructor(
             posted
         }
 
-    /**
-     * 临近降水提醒按「城市+类型+文案」去重，签名不变时 6 小时内只发一次。
-     * 判定与落盘在同一事务内原子进行，天然无 TOCTOU。
-     */
-    suspend fun shouldNotifySoonAndRemember(
-        cityName: String,
-        signature: String,
-    ): Boolean {
-        var should = false
-        store.updateData { prefs ->
-            val lastSig = prefs[KEY_SOON_SIG]
-            val lastAt = prefs[KEY_SOON_AT] ?: 0L
-            val now = System.currentTimeMillis()
-            should = signature != lastSig || now - lastAt >= NOTIFY_SILENCE_WINDOW_MS
-            if (!should) return@updateData prefs
-            prefs.toMutablePreferences().apply {
-                this[KEY_SOON_SIG] = signature
-                this[KEY_SOON_AT] = now
-            }
-        }
-        return should
-    }
-
     /** 「天气变化」只读判定，必须在 [dedupGate] 内调用。 */
     private suspend fun shouldNotifyLocked(
         cityName: String,
@@ -178,8 +155,6 @@ class WeatherNotifyDedupStore internal constructor(
         private val KEY_CODE = intPreferencesKey("code")
         private val KEY_TEMP = doublePreferencesKey("temp")
         private val KEY_AT = longPreferencesKey("at")
-        private val KEY_SOON_SIG = stringPreferencesKey("soon_sig")
-        private val KEY_SOON_AT = longPreferencesKey("soon_at")
         private val KEY_ALERT_AT = stringSetPreferencesKey("alert_sigs")
     }
 }
