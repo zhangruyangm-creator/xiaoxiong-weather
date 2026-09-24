@@ -18,9 +18,9 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,17 +64,40 @@ data class GamePanelStyle(
 
 /** 深色玻璃面板默认样式，与冰球结算卡一致。 */
 val GamePanelStyleDefaults: GamePanelStyle
-    @Composable get() = GamePanelStyle(
-        containerColor = Color(0xF20C1622),
-        contentColor = Color(0xFFEAF2FF),
-        borderColor = Color(0x998FD9F2),
-        sheenColors =
-            listOf(
-                Color(0xFF7FE3F2).copy(alpha = 0.85f),
-                Color(0xFFFFC46B).copy(alpha = 0.5f),
-                Color.Transparent,
-            ),
-    )
+    @Composable get() =
+        GamePanelStyle(
+            containerColor = Color(0xF20C1622),
+            contentColor = Color(0xFFEAF2FF),
+            borderColor = Color(0x998FD9F2),
+            sheenColors =
+                listOf(
+                    Color(0xFF7FE3F2).copy(alpha = 0.85f),
+                    Color(0xFFFFC46B).copy(alpha = 0.5f),
+                    Color.Transparent,
+                ),
+        )
+
+/**
+ * 暖纸浅色面板：给绘本/田园类场景（家、农场卡面）用。
+ * 保持浅色底，但补上深色玻璃那套的**描边 + 投影 + 统一圆角**，
+ * 这样"精致度"对齐，而不是把暖色界面硬改成深色。
+ */
+val WarmPaperPanelStyle: GamePanelStyle
+    @Composable get() =
+        GamePanelStyle(
+            containerColor = Color(0xF2FFF8EF),
+            contentColor = Color(0xFF5D4037),
+            borderColor = Color(0x33FFFFFF),
+            borderWidth = 1.dp,
+            shape = RoundedCornerShape(18.dp),
+            shadowElevation = 6.dp,
+            sheenColors =
+                listOf(
+                    Color.White.copy(alpha = 0.9f),
+                    Color(0xFFFFE0B2).copy(alpha = 0.35f),
+                    Color.Transparent,
+                ),
+        )
 
 /**
  * 统一浮层面板。背景/描边/高光/投影由 [style] 决定，内容原样透传。
@@ -140,23 +163,25 @@ data class GameControlStyle(
     companion object {
         /** 深色玻璃图标钮（与迷宫玻璃圆钮同款）。 */
         val glassIcon: GameControlStyle
-            @Composable get() = GameControlStyle(
-                containerColor = Color(0xB31A2433),
-                contentColor = Color(0xFFEAF2FF),
-                borderColor = Color(0x52FFFFFF),
-                shape = CircleShape,
-            )
+            @Composable get() =
+                GameControlStyle(
+                    containerColor = Color(0xB31A2433),
+                    contentColor = Color(0xFFEAF2FF),
+                    borderColor = Color(0x52FFFFFF),
+                    shape = CircleShape,
+                )
 
         /** 芯片：未选中近透明底，选中蓝底白字。 */
         val chip: GameControlStyle
-            @Composable get() = GameControlStyle(
-                containerColor = Color(0x14FFFFFF),
-                contentColor = Color(0xFFDCE7F5),
-                borderColor = Color(0x33FFFFFF),
-                selectedContainerColor = Color(0x5534B6E8),
-                selectedContentColor = Color.White,
-                selectedBorderColor = Color(0x887FE3F2),
-            )
+            @Composable get() =
+                GameControlStyle(
+                    containerColor = Color(0x14FFFFFF),
+                    contentColor = Color(0xFFDCE7F5),
+                    borderColor = Color(0x33FFFFFF),
+                    selectedContainerColor = Color(0x5534B6E8),
+                    selectedContentColor = Color.White,
+                    selectedBorderColor = Color(0x887FE3F2),
+                )
     }
 }
 

@@ -4,7 +4,6 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,10 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -128,14 +125,22 @@ private fun StreetSpotCard(
         remember(spot, isNight) {
             streetSpotStatusRes(spot, isNight)
         }
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+    // 街点卡：改用公共暖纸面板。与原实现不同——原卡片没有按下反馈，
+    // 这里用 GameControl 统一提供按压缩放（只改绘制不参与布局，不影响可点区域）
+    GameControl(
+        onClick = onClick,
+        style =
+            GameControlStyle(
+                containerColor = WarmPaperPanelStyle.containerColor,
+                contentColor = WarmPaperPanelStyle.contentColor,
+                borderColor = WarmPaperPanelStyle.borderColor,
+                shape = WarmPaperPanelStyle.shape,
+                shadowElevation = WarmPaperPanelStyle.shadowElevation,
+            ),
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .clickable(onClick = onClick),
+                .padding(horizontal = 16.dp),
     ) {
         Row(
             modifier = Modifier.padding(12.dp),

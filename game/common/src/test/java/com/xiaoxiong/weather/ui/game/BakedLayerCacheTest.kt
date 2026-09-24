@@ -23,7 +23,11 @@ class BakedLayerCacheTest {
         val heightPx: Int,
     )
 
-    private fun key(tag: String, w: Int, h: Int) = LayerKey(tag, w, h)
+    private fun key(
+        tag: String,
+        w: Int,
+        h: Int,
+    ) = LayerKey(tag, w, h)
 
     @Test
     fun sameKey_getDoesNotGrowCache() {

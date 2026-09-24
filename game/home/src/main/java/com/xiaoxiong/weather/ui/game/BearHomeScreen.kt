@@ -577,9 +577,15 @@ private fun HomeBedroom(
         items(slots, key = { "${it.moment.name}-${it.startMinute}" }) { slot ->
             val status = homeRoutineStatus(slot, time)
             val highlight = status == HomeRoutineStatus.NOW
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = if (highlight) Color(0xFFFFE0B2) else Color.White,
+            // 换成公共暖纸面板：与其它游戏同一套"描边+高光+投影"规范，
+            // 保留绘本暖色调，不强行改成深色玻璃
+            GamePanel(
+                style =
+                    if (highlight) {
+                        WarmPaperPanelStyle.copy(containerColor = Color(0xFFFFE0B2))
+                    } else {
+                        WarmPaperPanelStyle
+                    },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             ) {
                 Row(

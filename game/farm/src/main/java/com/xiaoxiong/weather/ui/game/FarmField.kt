@@ -157,14 +157,22 @@ private fun FarmToolChip(
                 null -> "⋯"
             }
     val (interactionSource, pressModifier) = rememberFarmPress()
-    Surface(
+    // 换成公共控件套件：与迷宫/冰球的芯片同一套底色、描边与按压反馈
+    GameControl(
         onClick = onClick,
-        interactionSource = interactionSource,
+        selected = selected,
+        style =
+            GameControlStyle(
+                containerColor = Color(0xF2FFF8EF).copy(alpha = 0.92f),
+                contentColor = Color(0xFF5D4037),
+                borderColor = Color(0x4DFFFFFF),
+                selectedContainerColor = Color(0xFF8BC34A),
+                selectedContentColor = Color.White,
+                selectedBorderColor = Color(0x99Dceda8),
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = if (selected) 3.dp else 1.dp,
+            ),
         modifier = modifier.then(pressModifier),
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) farmScheme().secondary else farmScheme().surface.copy(alpha = 0.92f),
-        shadowElevation = if (selected) 3.dp else 1.dp,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -175,7 +183,6 @@ private fun FarmToolChip(
                 resolvedLabel,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) farmScheme().onSecondary else farmScheme().onSurface,
                 maxLines = 1,
             )
         }

@@ -210,15 +210,16 @@ fun BearFarmScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = farmScheme().surfaceVariant.copy(alpha = 0.92f),
+                // 金币胶囊：改用公共深色玻璃面板，亮天空上的对比度也一起解决
+                GamePanel(
+                    style = GamePanelStyleDefaults,
+                    modifier = Modifier.padding(vertical = 2.dp),
                 ) {
                     Text(
                         stringResource(R.string.bear_farm_coins, farm.coins),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6D4C41),
+                        color = Color(0xFFFFE082),
                     )
                 }
                 Spacer(modifier = Modifier.width(6.dp))
@@ -234,18 +235,15 @@ fun BearFarmScreen(
             }
 
             farm.toast?.let { t ->
-                Surface(
+                GamePanel(
+                    style = GamePanelStyleDefaults,
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = farmScheme().surfaceVariant.copy(alpha = 0.94f),
-                    shadowElevation = 2.dp,
                 ) {
                     Text(
                         t.text,
-                        color = farmScheme().onSurface,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyMedium,

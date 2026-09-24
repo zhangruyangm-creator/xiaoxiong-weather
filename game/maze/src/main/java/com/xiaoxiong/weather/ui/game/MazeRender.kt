@@ -2,11 +2,9 @@ package com.xiaoxiong.weather.ui.game
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
@@ -24,19 +22,35 @@ import kotlin.math.sin
  * 静态底层（场景装饰 + 墙/地板 + 外框/暗角）缓存：
  * 只在「关卡 / 主题 / 画布尺寸」变化时烘焙一次，之后每帧只 drawImage。
  * 蜂蜜/钥匙/锁/传送门/出口/小熊等仍逐帧绘制。最多保留 [MAX_ENTRIES] 张做 LRU。
+ *
+ * 缓存实现复用 `game:common` 的 [BakedLayerCache]（与冰球/台球同一套内存策略：
+ * 先淘汰最旧再烘焙，峰值不出现双份全屏位图；分配或烘焙失败返回 null 由调用方
+ * 回退逐格绘制，不影响玩法）。
  */
 internal class MazeBaseLayerCache {
-    private class Entry(
-        val bitmap: ImageBitmap,
+    /** 缓存键：关卡用身份比较（`===`），因此不放进 data class 的 equals。 */
+    private class Key(
         val width: Int,
         val height: Int,
         val level: MazeLevel,
         val style: MazeThemeStyle,
         val topReservePx: Float,
         val bottomReservePx: Float,
-    )
+    ) {
+        fun matches(other: Key): Boolean =
+            width == other.width &&
+                height == other.height &&
+                level === other.level &&
+                style == other.style &&
+                topReservePx == other.topReservePx &&
+                bottomReservePx == other.bottomReservePx
+    }
 
-    private val entries = ArrayList<Entry>(MAX_ENTRIES)
+    private val cache =
+        BakedLayerCache<Key>(
+            maxEntries = MAX_ENTRIES,
+            reusable = { cached, target -> cached.matches(target) },
+        )
 
     fun bitmapFor(
         game: MazeGame,
@@ -53,41 +67,30 @@ internal class MazeBaseLayerCache {
         val h = quantizeBitmapPx(size.height)
         if (w <= 0 || h <= 0) return null
         val level = game.level
-        var i = entries.size - 1
-        while (i >= 0) {
-            val e = entries[i]
-            if (e.width == w &&
-                e.height == h &&
-                e.level === level &&
-                e.style == style &&
-                e.topReservePx == topReservePx &&
-                e.bottomReservePx == bottomReservePx
+        return cache
+            .getOrBake(
+                key =
+                    Key(
+                        width = w,
+                        height = h,
+                        level = level,
+                        style = style,
+                        topReservePx = topReservePx,
+                        bottomReservePx = bottomReservePx,
+                    ),
+                widthPx = w,
+                heightPx = h,
+                logicalWidth = w.toFloat(),
+                logicalHeight = h.toFloat(),
+                density = density,
+                layoutDirection = layoutDirection,
             ) {
-                entries.removeAt(i)
-                entries.add(e)
-                return e.bitmap
-            }
-            i--
-        }
-        // 先淘汰最旧槽位再分配：峰值同时只驻留 2 张全屏位图（新 + 1 旧）。
-        if (entries.size >= MAX_ENTRIES) entries.removeAt(0)
-        val next = runCatching { ImageBitmap(w, h) }.getOrNull() ?: return null
-        val baked =
-            runCatching {
-                CanvasDrawScope().draw(
-                    density,
-                    layoutDirection,
-                    Canvas(next),
-                    Size(w.toFloat(), h.toFloat()),
-                ) {
-                    drawMazeBaseLayer(game, style, topReservePx, bottomReservePx)
-                }
-            }.isSuccess
-        // 分配或烘焙失败返回 null，由调用方回退逐格绘制，不影响玩法。
-        if (!baked) return null
-        entries.add(Entry(next, w, h, level, style, topReservePx, bottomReservePx))
-        return next
+                drawMazeBaseLayer(game, style, topReservePx, bottomReservePx)
+            }?.image
     }
+
+    /** 释放位图（离屏时调用）。 */
+    fun clear() = cache.clear()
 
     private companion object {
         const val MAX_ENTRIES = 2
