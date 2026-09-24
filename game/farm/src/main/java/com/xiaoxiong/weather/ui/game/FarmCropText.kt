@@ -44,6 +44,17 @@ fun CropCategory.preferredWeather(): FarmWeather? =
         CropCategory.OTHER -> null
     }
 
+/** 作物阶段（0空 1种 2芽 3长 4熟 5枯）的展示文案资源。 */
+fun farmStageNameRes(stage: Int): Int =
+    when (stage) {
+        1 -> R.string.bear_farm_stage_seed
+        2 -> R.string.bear_farm_stage_sprout
+        3 -> R.string.bear_farm_stage_grow
+        4 -> R.string.bear_farm_stage_ripe
+        5 -> R.string.bear_farm_stage_wilt
+        else -> R.string.bear_farm_stage_empty
+    }
+
 /** 中文名直接从 [CropDef.nameZh] 派生，不另抄一份，避免两张表漂移。 */
 private val CROP_NAMES_ZH: Map<String, String> = FARM_CROPS.associate { it.id to it.nameZh }
 

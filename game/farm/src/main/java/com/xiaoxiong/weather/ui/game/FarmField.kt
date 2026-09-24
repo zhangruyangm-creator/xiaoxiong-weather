@@ -41,6 +41,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -189,22 +191,51 @@ private fun FarmToolChip(
     }
 }
 
+/**
+ * 农田格子的读屏标签：地块序号 + 作物 + 阶段 + 需要处理的异常。
+ *
+ * 这块地是可点击的（播种/浇水/除草/收获都走这里），此前完全没有
+ * contentDescription，读屏只会报出一个无标签按钮。
+ */
+@Composable
+private fun farmPlotContentDescription(
+    plot: FarmPlotState,
+    index: Int,
+): String {
+    val stage = stringResource(farmStageNameRes(plot.stage))
+    val crop = cropById(plot.cropId)
+    val separator = stringResource(R.string.farm_a11y_separator)
+    val parts = mutableListOf(if (crop != null) cropName(crop) + separator + stage else stage)
+    if (plot.stage in 1..5 && plot.moisture < 0.25f) {
+        parts += stringResource(R.string.farm_a11y_plot_dry)
+    }
+    if (plot.weed) parts += stringResource(R.string.farm_a11y_plot_weed)
+    if (plot.bug) parts += stringResource(R.string.farm_a11y_plot_bug)
+    return stringResource(R.string.farm_a11y_plot, index + 1, parts.joinToString(separator))
+}
+
 @Composable
 internal fun FarmPlotCell(
     plot: FarmPlotState,
+    index: Int,
     time: () -> Float,
     onClick: () -> Unit,
 ) {
     val crop = cropById(plot.cropId)
     val dry = plot.stage in 1..5 && plot.moisture < 0.25f
     val (interactionSource, pressModifier) = rememberFarmPress()
+    val plotDescription = farmPlotContentDescription(plot, index)
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
         shape = RoundedCornerShape(16.dp),
         color = Color.Transparent,
         shadowElevation = 3.dp,
-        modifier = Modifier.aspectRatio(1f).then(pressModifier),
+        modifier =
+            Modifier
+                .aspectRatio(1f)
+                .then(pressModifier)
+                .semantics { contentDescription = plotDescription },
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             FarmPlotVisual(

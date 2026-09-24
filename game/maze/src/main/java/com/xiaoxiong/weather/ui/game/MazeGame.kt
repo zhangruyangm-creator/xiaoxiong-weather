@@ -228,7 +228,7 @@ internal class MazeGame {
     fun loadProgress(prefs: android.content.SharedPreferences) {
         unlocked = prefs.getInt("maze_unlocked", 1).coerceIn(1, MAZE_CAMPAIGN_SIZE)
         for (i in stars.indices) {
-            stars[i] = prefs.getInt("maze_star_$i", 0).coerceIn(0, 3)
+            stars[i] = prefs.getInt("maze_star_$i", 0).coerceIn(0, MAZE_STAR_MAX)
         }
         endlessBest = prefs.getInt("maze_endless_best", 0)
         progressVersion++

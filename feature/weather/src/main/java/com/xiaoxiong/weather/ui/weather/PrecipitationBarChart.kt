@@ -40,11 +40,30 @@ import com.xiaoxiong.weather.util.indexOfCurrentHour
 import java.util.Locale
 import kotlin.math.max
 
-private data class PrecipBar(
+internal data class PrecipBar(
     val item: HourlyWeather,
     val isFuture: Boolean,
     val isNow: Boolean,
 )
+
+/**
+ * 逐柱数据的中文/英文朗读串：`14时 0.2 毫米、15时 1.5 毫米`。
+ *
+ * Canvas 本身没有可访问的子节点，柱高与柱顶数字对读屏是不可见的；
+ * 此前的 `contentDescription` 只报峰值，等于整张图的数据都拿不到。
+ */
+internal fun precipBarsSpokenText(
+    bars: List<PrecipBar>,
+    nowLabel: String,
+    hourFormatter: (String) -> String,
+    unit: String,
+    separator: String,
+): String =
+    bars.joinToString(separator) { bar ->
+        val hour = if (bar.isNow) nowLabel else hourFormatter(bar.item.time)
+        val mm = bar.item.precipitationMm ?: 0.0
+        "$hour ${String.format(Locale.US, "%.1f", mm)}$unit"
+    }
 
 /**
  * 过去几小时（蓝）+ 未来几小时预测（橙）降雨量柱状图。
@@ -169,12 +188,25 @@ fun PrecipitationBarChart(
                 R.string.cd_precip_chart,
                 String.format(Locale.US, "%.1f", maxPrecip),
             )
+        val precipA11yBars =
+            stringResource(
+                R.string.cd_precip_chart_bars,
+                precipBarsSpokenText(
+                    bars = bars,
+                    nowLabel = labelNow,
+                    hourFormatter = { formatHourLabel(it) },
+                    unit = stringResource(R.string.precip_unit_mm),
+                    separator = stringResource(R.string.precip_list_separator),
+                ),
+            )
         Canvas(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .height(190.dp)
-                    .semantics { contentDescription = precipA11yDesc },
+                    .semantics {
+                        contentDescription = "$precipA11yDesc，$precipA11yBars"
+                    },
         ) {
             val leftPad = 40.dp.toPx()
             val rightPad = 8.dp.toPx()

@@ -41,6 +41,7 @@
     <string name="bear_maze_title">Bear Maze</string>
     <string name="bear_maze_progress">Cleared %1$d / %2$d</string>
     <string name="bear_maze_stars_total">★ %1$d / %2$d</string>
+    <string name="maze_a11y_stars_earned">Earned %1$d of %2$d stars</string>
     <string name="bear_maze_campaign_short">Campaign · %1$d</string>
     <string name="bear_maze_locked">Locked</string>
     <string name="cd_close_game">Exit game</string>

@@ -41,6 +41,7 @@
     <string name="bear_maze_title">小熊迷宫</string>
     <string name="bear_maze_progress">已通关 %1$d / %2$d</string>
     <string name="bear_maze_stars_total">★ %1$d / %2$d</string>
+    <string name="maze_a11y_stars_earned">本关获得 %1$d 颗星，满分 %2$d 颗</string>
     <string name="bear_maze_campaign_short">战役关卡 · %1$d</string>
     <string name="bear_maze_locked">未解锁</string>
     <string name="cd_close_game">退出游戏</string>

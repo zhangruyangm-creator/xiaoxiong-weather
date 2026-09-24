@@ -123,5 +123,10 @@
     <string name="farm_cat_herb">香草</string>
     <string name="farm_cat_mushroom">菇菌</string>
     <string name="farm_cat_other">其他</string>
+    <string name="farm_a11y_plot">第 %1$d 块地，%2$s</string>
+    <string name="farm_a11y_plot_dry">缺水</string>
+    <string name="farm_a11y_plot_weed">有杂草</string>
+    <string name="farm_a11y_plot_bug">有害虫</string>
+    <string name="farm_a11y_separator">，</string>
     <string name="cd_close_game">退出游戏</string>
 </resources>

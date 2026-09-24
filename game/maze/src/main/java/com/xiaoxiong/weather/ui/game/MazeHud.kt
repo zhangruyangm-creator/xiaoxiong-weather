@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -602,13 +603,19 @@ private fun MazeStarRow(
             return@LaunchedEffect
         }
         lit = 0
-        repeat(earned.coerceIn(0, 3)) { i ->
+        repeat(earned.coerceIn(0, MAZE_STAR_MAX)) { i ->
             delay(200)
             lit = i + 1
         }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        for (i in 0 until 3) {
+    // 逐颗星暴露给读屏会变成三次重复的「黑星」，且点亮动画期间反复播报；
+    // 这里合并成一个节点，只报一次「获得 N 颗星，满分 3 颗」。
+    val starsDescription = stringResource(R.string.maze_a11y_stars_earned, earned, MAZE_STAR_MAX)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.clearAndSetSemantics { contentDescription = starsDescription },
+    ) {
+        for (i in 0 until MAZE_STAR_MAX) {
             val active = i < lit
             val scale by animateFloatAsState(
                 targetValue = if (active) 1f else 0.82f,

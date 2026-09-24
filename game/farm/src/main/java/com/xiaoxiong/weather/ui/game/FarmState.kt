@@ -209,17 +209,7 @@ internal class BearFarm(
         vararg args: Any,
     ): String = if (args.isEmpty()) appContext.getString(id) else appContext.getString(id, *args)
 
-    private fun stageLabel(stage: Int) =
-        str(
-            when (stage) {
-                1 -> R.string.bear_farm_stage_seed
-                2 -> R.string.bear_farm_stage_sprout
-                3 -> R.string.bear_farm_stage_grow
-                4 -> R.string.bear_farm_stage_ripe
-                5 -> R.string.bear_farm_stage_wilt
-                else -> R.string.bear_farm_stage_empty
-            },
-        )
+    private fun stageLabel(stage: Int) = str(farmStageNameRes(stage))
 
     val currentSeason: Int get() = state.currentSeason
     val collectedCount: Int get() = state.collectedCount

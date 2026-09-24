@@ -30,6 +30,9 @@
     <string name="cd_pause">Pause</string>
     <string name="cd_play">Play</string>
     <string name="cd_precip_chart">Hourly precipitation chart, peak of %1$s mm</string>
+    <string name="cd_precip_chart_bars">Per-bar values: %1$s</string>
+    <string name="precip_unit_mm"> mm</string>
+    <string name="precip_list_separator">; </string>
     <string name="cd_radar_echo">Radar echo</string>
     <string name="cd_radar_frame_time">Radar frame %1$s</string>
     <string name="cd_refresh_cloud">Refresh cloud map</string>

@@ -30,6 +30,9 @@
     <string name="cd_pause">暂停</string>
     <string name="cd_play">播放</string>
     <string name="cd_precip_chart">逐小时降水量柱状图, 峰值 %1$s 毫米</string>
+    <string name="cd_precip_chart_bars">逐柱数据：%1$s</string>
+    <string name="precip_unit_mm"> 毫米</string>
+    <string name="precip_list_separator">、</string>
     <string name="cd_radar_echo">雷达回波</string>
     <string name="cd_radar_frame_time">雷达帧时间 %1$s</string>
     <string name="cd_refresh_cloud">刷新云图</string>

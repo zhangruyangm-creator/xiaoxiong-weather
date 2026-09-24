@@ -600,7 +600,7 @@ private fun starRow(
     open: Boolean,
 ): String {
     if (!open) return "☆ ☆ ☆"
-    val s = stars.coerceIn(0, 3)
+    val s = stars.coerceIn(0, MAZE_STAR_MAX)
     return "★".repeat(s) + "☆".repeat(3 - s)
 }
 

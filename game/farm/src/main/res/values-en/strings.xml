@@ -123,5 +123,10 @@
     <string name="farm_cat_herb">Herbs</string>
     <string name="farm_cat_mushroom">Mushrooms</string>
     <string name="farm_cat_other">Other</string>
+    <string name="farm_a11y_plot">Plot %1$d, %2$s</string>
+    <string name="farm_a11y_plot_dry">needs water</string>
+    <string name="farm_a11y_plot_weed">has weeds</string>
+    <string name="farm_a11y_plot_bug">has pests</string>
+    <string name="farm_a11y_separator">, </string>
     <string name="cd_close_game">Exit game</string>
 </resources>

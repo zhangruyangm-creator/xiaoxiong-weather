@@ -7,6 +7,9 @@ import kotlin.random.Random
 const val MAZE_HANDCRAFTED_COUNT = 12
 const val MAZE_CAMPAIGN_SIZE = 60
 
+/** 单关满分星数：存档写入、关卡选择与通关 HUD 共用此上限。 */
+const val MAZE_STAR_MAX = 3
+
 /** 生成关卡缓存上限：战役 60 关 + 无尽若干波，够用即可。 */
 private const val MAZE_LEVEL_CACHE_MAX = 128
 

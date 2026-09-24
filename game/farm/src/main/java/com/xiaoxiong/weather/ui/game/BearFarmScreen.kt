@@ -303,6 +303,7 @@ fun BearFarmScreen(
                     itemsIndexed(farm.plots) { index, plot ->
                         FarmPlotCell(
                             plot = plot,
+                            index = index,
                             // 减弱动画：冻结共享时钟 → 需求气泡不上下浮动、成熟作物不脉冲
                             time = { decorativeTime(farm.time, reduceMotion) },
                             onClick = {
