@@ -345,3 +345,15 @@ fun DrawScope.drawRainLayered(
         }
     }
 }
+
+/**
+ * 装饰性运动时钟：减弱动画开启时冻结为 0，让待机呼吸、闪烁、漂移、金币旋转这类
+ * **纯装饰**动画停下；关闭时原样返回 [time]，默认路径与行为完全不变。
+ *
+ * 玩法必需的运动（角色/障碍/掉落物的实际坐标、相机跟随）不经过本函数，
+ * 因此减弱动画不会影响可玩性，只去掉晃动。
+ */
+fun decorativeTime(
+    time: Float,
+    reduceMotion: Boolean,
+): Float = if (reduceMotion) 0f else time

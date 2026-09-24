@@ -399,7 +399,8 @@ internal fun DrawScope.drawMazeBear(
             game.failed -> BearFrame.LAND
             celebrate -> if (reduceMotion) BearFrame.LAND else BearFrame.JUMP
             game.moving && game.sliding -> BearFrame.JUMP
-            game.moving -> runCycleFrame(time * 10f)
+            // 减弱动画：移动时固定单帧，不跑循环动画（格子位移本身照常）
+            game.moving -> if (reduceMotion) BearFrame.RUN_A else runCycleFrame(time * 10f)
             else -> BearFrame.LAND
         }
     val flip = game.facing == MazeDir.LEFT

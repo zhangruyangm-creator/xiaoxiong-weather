@@ -1,11 +1,6 @@
 package com.xiaoxiong.weather.ui.weather
 
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -72,6 +67,7 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.HourlyWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
+import com.xiaoxiong.weather.ui.ReduceMotionAwareVisibility
 import com.xiaoxiong.weather.util.convertCelsiusForDisplay
 import com.xiaoxiong.weather.util.formatHourDetailLabel
 import com.xiaoxiong.weather.util.formatHourLabel
@@ -598,11 +594,7 @@ fun HourlyChartSection(
             expanded = detailsExpanded,
             onClick = { detailsExpanded = !detailsExpanded },
         )
-        AnimatedVisibility(
-            visible = detailsExpanded,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
+        ReduceMotionAwareVisibility(visible = detailsExpanded) {
             Column {
                 Spacer(modifier = Modifier.height(6.dp))
                 // 稳定实例：拖动折线时 CompactHourlyList 重组，各行靠稳定参数跳过

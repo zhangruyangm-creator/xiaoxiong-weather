@@ -273,7 +273,8 @@ fun BearFarmScreen(
                     itemsIndexed(farm.plots) { index, plot ->
                         FarmPlotCell(
                             plot = plot,
-                            time = { farm.time },
+                            // 减弱动画：冻结共享时钟 → 需求气泡不上下浮动、成熟作物不脉冲
+                            time = { decorativeTime(farm.time, reduceMotion) },
                             onClick = {
                                 farm.onPlot(index, weather)
                                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)

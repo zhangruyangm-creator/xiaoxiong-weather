@@ -63,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.LocalReduceMotion
 
 private const val COLUMNS = 4
 
@@ -154,10 +155,15 @@ fun BearAlbumScreen(onBack: () -> Unit) {
         }
     }
 
+    // transitionSpec 不是 composable 上下文，先在组合期读出标志
+    val reduceMotion = LocalReduceMotion.current
     AnimatedContent(
         targetState = viewerStart,
         transitionSpec = {
-            if (targetState >= 0 && initialState < 0) {
+            // 减弱动画：全屏查看器的淡入+缩放是明显的位移/缩放，直接切
+            if (reduceMotion) {
+                EnterTransition.None togetherWith ExitTransition.None
+            } else if (targetState >= 0 && initialState < 0) {
                 (fadeIn(tween(200)) + scaleIn(initialScale = 0.96f)).togetherWith(fadeOut(tween(160)))
             } else if (targetState < 0 && initialState >= 0) {
                 (fadeIn(tween(160)) + scaleIn(initialScale = 0.98f)).togetherWith(fadeOut(tween(200)))

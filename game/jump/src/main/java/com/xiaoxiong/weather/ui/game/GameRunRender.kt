@@ -58,7 +58,7 @@ fun DrawScope.drawWorld(
     val s = game.s
     // 装饰性运动时钟：减弱动画时冻结为 0（云层/光芒/星星/金币停住），
     // 玩法位移（distance、角色 x、障碍）不受影响
-    val vt = if (reduceMotion) 0f else game.time
+    val vt = decorativeTime(game.time, reduceMotion)
 
     drawSky(game, isDay, scene = game.scene, visualTime = vt)
 

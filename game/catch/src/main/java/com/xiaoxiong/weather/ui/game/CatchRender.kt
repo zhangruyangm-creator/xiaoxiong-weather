@@ -67,7 +67,7 @@ internal fun DrawScope.drawCatchWorld(
     val scene = game.scene
     // 装饰性运动时钟：减弱动画时冻结为 0（背景云停住、道具不摆动/旋转/呼吸），
     // 掉落物实际坐标与角色水平移动不受影响
-    val vt = if (reduceMotion) 0f else game.time
+    val vt = decorativeTime(game.time, reduceMotion)
 
     drawCatchSky(scene, isDay, w, h)
 
@@ -405,7 +405,7 @@ private fun DrawScope.drawCatchBear(
     reduceMotion: Boolean,
 ) {
     // 装饰性运动时钟：减弱动画时冻结（护盾不呼吸、光点不绕圈、角色不跑循环）
-    val vt = if (reduceMotion) 0f else game.time
+    val vt = decorativeTime(game.time, reduceMotion)
     val bs = game.catchR * 1.55f
     val cy = game.catchY
     val dead = game.phase == GamePhase.OVER

@@ -82,6 +82,7 @@ import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_ALBUM
 import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_HOME
 import com.xiaoxiong.weather.game.GameEntry
 import com.xiaoxiong.weather.ui.FullScreenLoading
+import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.debug.DebugWeatherScreen
 import com.xiaoxiong.weather.ui.settings.DailyCardsSettingsScreen
@@ -138,6 +139,8 @@ private fun WeatherScreenContent(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // 减弱动画：组合期读出，供 tab 翻页等非 composable 回调使用
+    val reduceMotion = LocalReduceMotion.current
     // rememberPagerState 内部即 rememberSaveable（保存 currentPage/offset），旋转后页码不丢
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
     val pullToRefreshState = rememberPullToRefreshState()
@@ -444,7 +447,14 @@ private fun WeatherScreenContent(
                             NavigationBarItem(
                                 selected = pagerState.currentPage == index,
                                 onClick = {
-                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                    scope.launch {
+                                        // 减弱动画：直接跳页，不做横向滑动
+                                        if (reduceMotion) {
+                                            pagerState.scrollToPage(index)
+                                        } else {
+                                            pagerState.animateScrollToPage(index)
+                                        }
+                                    }
                                 },
                                 // 图标语义置空：label 已提供朗读文本，避免重复播报
                                 icon = { Icon(tab.icon, contentDescription = null) },

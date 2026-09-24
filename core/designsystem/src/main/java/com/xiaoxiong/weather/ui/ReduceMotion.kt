@@ -1,5 +1,12 @@
 package com.xiaoxiong.weather.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -69,5 +76,57 @@ fun InlineLoading() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         ReduceMotionAwareProgress()
+    }
+}
+
+/**
+ * 纵向展开/收起容器：默认带高度+淡入淡出过渡，减弱动画时改为直接显示/隐藏
+ * （一次性入场动画同样会引发前庭不适，不该只冻结"循环"动画）。
+ */
+@Composable
+fun ReduceMotionAwareVisibility(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    if (LocalReduceMotion.current) {
+        // 不用 AnimatedVisibility：显隐切换不参与动画，布局直接跳变
+        if (visible) {
+            Column(modifier = modifier) { content() }
+        }
+        return
+    }
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        content()
+    }
+}
+
+/** 同上，但允许调用方自定义过渡（相册查看器等用淡入淡出而非展开）。 */
+@Composable
+fun ReduceMotionAwareVisibility(
+    visible: Boolean,
+    enter: EnterTransition,
+    exit: ExitTransition,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    if (LocalReduceMotion.current) {
+        if (visible) {
+            Column(modifier = modifier) { content() }
+        }
+        return
+    }
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = enter,
+        exit = exit,
+    ) {
+        content()
     }
 }

@@ -46,6 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.LocalReduceMotion
+import kotlinx.coroutines.delay
 import kotlin.math.sin
 
 @Composable
@@ -419,7 +421,15 @@ internal fun FloatingRewardItem(
     onDone: () -> Unit,
 ) {
     val progress = remember(reward.id) { Animatable(0f) }
+    // 减弱动画：不做 1.3s 的上浮+放大，但保留静态文字 ~900ms 再移除，
+    // 直接消失等于没有收获反馈
+    val reduceMotion = LocalReduceMotion.current
     LaunchedEffect(reward.id) {
+        if (reduceMotion) {
+            delay(900)
+            onDone()
+            return@LaunchedEffect
+        }
         progress.animateTo(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),

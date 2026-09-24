@@ -134,7 +134,7 @@ internal fun DrawScope.drawJumpWorld(
     val scene = game.scene
     // 装饰性运动时钟：减弱动画时冻结为 0（星星停止闪烁、云层停止漂移），
     // 相机随玩法移动不受影响
-    val vt = if (reduceMotion) 0f else game.time
+    val vt = decorativeTime(game.time, reduceMotion)
     val (skyTop, skyBottom) = skyColors(alt)
 
     // 天气适配：雨/雪/雷暴压低天空亮度与饱和度，仍随高度渐变
@@ -665,7 +665,7 @@ private fun DrawScope.drawJumpBear(
     reduceMotion: Boolean,
 ) {
     // 装饰性运动时钟：减弱动画时冻结（待机呼吸/死亡翻滚/走路循环停住）
-    val vt = if (reduceMotion) 0f else game.time
+    val vt = decorativeTime(game.time, reduceMotion)
     val s = game.s
     val bs = game.bearSize
     val cy = game.bearY - game.cameraY

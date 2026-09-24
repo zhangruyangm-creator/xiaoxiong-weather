@@ -1,10 +1,5 @@
 package com.xiaoxiong.weather.ui.weather
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -60,6 +55,7 @@ import com.xiaoxiong.weather.data.DailyWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
+import com.xiaoxiong.weather.ui.ReduceMotionAwareVisibility
 import com.xiaoxiong.weather.util.MoonPhaseCalculator
 import com.xiaoxiong.weather.util.formatDateLabel
 import com.xiaoxiong.weather.util.formatHourLabel
@@ -330,11 +326,7 @@ private fun DailyDayCard(
             )
         }
 
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
+        ReduceMotionAwareVisibility(visible = expanded) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
                 val sunrise = day.sunrise?.let { formatHourLabel(it) } ?: "--"

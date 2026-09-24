@@ -1,10 +1,5 @@
 package com.xiaoxiong.weather.ui.weather
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -68,6 +63,7 @@ import com.xiaoxiong.weather.data.TodayCardPref
 import com.xiaoxiong.weather.data.WeatherAlert
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
+import com.xiaoxiong.weather.ui.ReduceMotionAwareVisibility
 import com.xiaoxiong.weather.ui.theme.AccentCoral
 import com.xiaoxiong.weather.ui.theme.Leaf
 import com.xiaoxiong.weather.util.AlertBearIcon
@@ -218,11 +214,7 @@ internal fun AlertsSection(alerts: List<WeatherAlert>) {
             )
         }
 
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
+        ReduceMotionAwareVisibility(visible = expanded) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ordered.drop(1).forEach { alert ->
                     AlertCard(alert = alert)
