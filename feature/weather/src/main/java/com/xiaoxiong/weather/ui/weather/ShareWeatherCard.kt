@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -227,40 +228,49 @@ fun ShareWeatherCardDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val graphicsLayer = rememberGraphicsLayer()
-    // 卡片内容在弹窗打开时已固定（snapshot + quote），录制一次即可出图；
-    // 逐帧 record 会在每次重绘（含弹窗内任何动画）时重复录制+拷贝，纯属浪费
-    val recordedOnce = remember { booleanArrayOf(false) }
-    var sharing by remember { mutableStateOf(false) }
-    // 每次打开弹窗随机抽一句，预览与导出同一句
+    // 每次打开弹窗随机抽一句，预览与导出同一句。
+    // key 只能用内容而不能用 quotes.size：切换语言后数组长度可能不变，会保留旧语言的句子。
     val quotes = stringArrayResource(R.array.share_card_quotes)
     val quote =
-        remember(quotes.size) {
+        remember(quotes) {
             if (quotes.isEmpty()) "" else quotes.random()
         }
+    // 卡片内容在弹窗打开时已固定（snapshot + quote），录制一次即可出图；
+    // 逐帧 record 会在每次重绘（含弹窗内任何动画）时重复录制+拷贝，纯属浪费。
+    //
+    // 但 key 必须覆盖全部渲染输入：弹窗打开后若后台刷新了天气、或用户切了温度单位，
+    // 预览会按新内容重绘，而这里仍重放第一次录制的旧图层——导出的图片与预览不一致。
+    val cardKey = "${snapshot.current.time}|${snapshot.current.temperatureC}|$quote"
+    val graphicsLayer = rememberGraphicsLayer()
+    val recordedOnce = remember(cardKey) { booleanArrayOf(false) }
+    var sharing by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = { if (!sharing) onDismiss() }) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            ShareWeatherCard(
-                snapshot = snapshot,
-                quote = quote,
-                modifier =
-                    Modifier
-                        .width(300.dp)
-                        // 首帧把卡片内容录进 layer，之后直接重放录制结果；
-                        // 分享时 toImageBitmap() 从录制内容出图
-                        .drawWithCache {
-                            onDrawWithContent {
-                                if (!recordedOnce[0]) {
-                                    graphicsLayer.record {
-                                        this@onDrawWithContent.drawContent()
+            // key() 而非只重置 recordedOnce：graphicsLayer 自身也持有录制状态，
+            // 不换实例就会继续 drawLayer 旧内容。
+            key(cardKey) {
+                ShareWeatherCard(
+                    snapshot = snapshot,
+                    quote = quote,
+                    modifier =
+                        Modifier
+                            .width(300.dp)
+                            // 首帧把卡片内容录进 layer，之后直接重放录制结果；
+                            // 分享时 toImageBitmap() 从录制内容出图
+                            .drawWithCache {
+                                onDrawWithContent {
+                                    if (!recordedOnce[0]) {
+                                        graphicsLayer.record {
+                                            this@onDrawWithContent.drawContent()
+                                        }
+                                        recordedOnce[0] = true
                                     }
-                                    recordedOnce[0] = true
+                                    drawLayer(graphicsLayer)
                                 }
-                                drawLayer(graphicsLayer)
-                            }
-                        },
-            )
+                            },
+                )
+            }
             Spacer(modifier = Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 TextButton(onClick = onDismiss, enabled = !sharing) {

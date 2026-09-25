@@ -48,10 +48,18 @@ interface WeatherCache {
         presentationStamp: String,
     ): WeatherCacheStore.CacheEntry?
 
-    /** 写缓存；[presentationStamp] 随条目落盘，供下次读取比对文案是否过期。 */
+    /**
+     * 写缓存；[presentationStamp] 随条目落盘，供下次读取比对文案是否过期。
+     *
+     * [fetchedAtEpochMs] 必须是**发起本次取数的时刻**，不是写盘时刻：ViewModel、
+     * Worker 与 Widget 三条路径会为同一城市并发取数，若只按写入顺序落盘，
+     * 先发后至的旧数据会以"更新"的时间戳覆盖新数据，冷启动/离线就会读到旧天气
+     * 却以为它是新鲜的。实现应拒绝比已存条目更旧的写入。
+     */
     suspend fun save(
         snapshot: WeatherSnapshot,
         presentationStamp: String,
+        fetchedAtEpochMs: Long = 0L,
     )
 }
 

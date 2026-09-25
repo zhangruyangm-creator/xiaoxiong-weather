@@ -87,6 +87,9 @@ fun TodayPage(
     radarMapRepository: RadarMapRepository,
     cardLayout: List<TodayCardPref> = TodayCardLayout.defaults,
     paused: Boolean = false,
+    /** 上一次拉取的失败原因；非空且无数据时渲染常驻错误态与重试按钮。 */
+    errorMessage: String? = null,
+    onRetry: (() -> Unit)? = null,
 ) {
     val layout = remember(cardLayout) { TodayCardLayout.mergeWithDefaults(cardLayout) }
     LazyColumn(
@@ -95,7 +98,13 @@ fun TodayPage(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (weather == null) {
-            item { EmptyHint(stringResource(R.string.today_empty)) }
+            // 拉取失败时给出常驻错误态与重试，而不是只显示「暂无数据」——
+            // 此前失败只弹一次 Snackbar 就被清掉，用户错过就没有任何恢复入口。
+            if (errorMessage != null && onRetry != null) {
+                item { ErrorRetryCard(message = errorMessage, onRetry = onRetry) }
+            } else {
+                item { EmptyHint(stringResource(R.string.today_empty)) }
+            }
             return@LazyColumn
         }
         if (isOffline) {

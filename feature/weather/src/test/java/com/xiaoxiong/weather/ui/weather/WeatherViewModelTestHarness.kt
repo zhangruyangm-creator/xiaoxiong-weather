@@ -203,6 +203,7 @@ class FakeWeatherCache : WeatherCache {
     override suspend fun save(
         snapshot: WeatherSnapshot,
         presentationStamp: String,
+        fetchedAtEpochMs: Long,
     ) {
         map[key(snapshot.city)] =
             WeatherCacheStore.CacheEntry(

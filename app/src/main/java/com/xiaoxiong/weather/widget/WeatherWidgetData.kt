@@ -6,6 +6,7 @@ import androidx.annotation.DrawableRes
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.LifeIndexLevel
 import com.xiaoxiong.weather.data.SelectedCityStore
+import com.xiaoxiong.weather.data.SelectedCityStore.PersistedSelection
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.WeatherRefreshPolicy
 import com.xiaoxiong.weather.data.WeatherSnapshot
@@ -27,6 +28,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.round
 
 /** 线程安全的「更新时间」格式：DateTimeFormatter 不可变，避免每次渲染重复创建。 */
 private val WIDGET_UPDATED_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
@@ -38,6 +40,18 @@ object WeatherWidgetData {
     private const val LOAD_DEDUP_TTL_MS = 30_000L
 
     private val loadGate = WidgetLoadGate(ttlMs = LOAD_DEDUP_TTL_MS)
+
+    /**
+     * 30s 去重窗口的缓存键。
+     *
+     * 必须含坐标而不只是地名：多个城市可同名（多个"南京"），定位移动后地名也可能
+     * 不变（"当前位置"）。只用 `useLocation + 城市名` 会让不同位置互相命中缓存，
+     * 短时间显示另一城市或旧位置的天气。坐标量化到约 100m，与城市去重同一口径。
+     */
+    internal fun widgetLoadKey(selection: PersistedSelection): String =
+        "${selection.useLocation}|${selection.city.name}|" +
+            "${round(selection.city.latitude * 1000.0).toLong()}," +
+            round(selection.city.longitude * 1000.0).toLong()
 
     /**
      * 数据源刚刷新后调用：清掉 30s 去重缓存，保证随后的 `updateAll`
@@ -75,9 +89,10 @@ object WeatherWidgetData {
                 unit = settings.temperatureUnit,
             )
         }
-        // 只按「位置模式 + 选中城市」做键：30s 内定位漂移不值当再联网，WIDGET_STALE_MS 会兜底
-        val cityKey = "${selection.useLocation}|${selection.city.name}"
-        return loadGate.load(cityKey) {
+        // 键必须区分「不同城市但同名」与「定位漂移」：原先只用 useLocation + 城市名，
+        // 于是同名城市（多个"南京"）会互相命中 30s 缓存，定位移动但地名不变时
+        // 也会显示旧位置的天气。
+        return loadGate.load(widgetLoadKey(selection)) {
             loadAccepted(context, container, selection, settings.temperatureUnit)
         }
     }
@@ -116,10 +131,11 @@ object WeatherWidgetData {
             // 返回旧数据，看起来"在线但不刷新"
             val refreshed =
                 try {
+                    val fetchStartedAt = System.currentTimeMillis()
                     val snapshot = container.weatherRepository.fetchWeather(city)
                     // 新数据已到手：落盘/写选择失败只记日志，不能把内存快照一起丢掉
                     try {
-                        cacheStore.save(snapshot, stamp)
+                        cacheStore.save(snapshot, stamp, fetchStartedAt)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

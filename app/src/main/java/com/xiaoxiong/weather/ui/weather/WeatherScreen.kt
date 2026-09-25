@@ -369,6 +369,8 @@ private fun WeatherScreenContent(
     LaunchedEffect(state.errorMessage) {
         val message = state.errorMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
+        // 只清一次性提示；state.lastErrorMessage 保留给页面上的常驻错误态，
+        // 否则 Snackbar 播完错误态就跟着消失，用户又没有重试入口了
         viewModel.clearError()
     }
 
@@ -549,6 +551,8 @@ private fun WeatherScreenContent(
                                             radarMapRepository = viewModel.radarMapRepository,
                                             cardLayout = appSettings.todayCards,
                                             paused = gameActive,
+                                            errorMessage = state.lastErrorMessage,
+                                            onRetry = { viewModel.refresh() },
                                         )
                                     1 ->
                                         HourlyPage(

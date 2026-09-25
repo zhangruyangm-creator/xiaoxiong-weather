@@ -48,6 +48,7 @@ class WeatherCacheStore internal constructor(
     override suspend fun save(
         snapshot: WeatherSnapshot,
         presentationStamp: String,
+        fetchedAtEpochMs: Long,
     ) {
         val now = System.currentTimeMillis()
         val entry =
@@ -55,6 +56,7 @@ class WeatherCacheStore internal constructor(
                 snapshot = trimSnapshotForCache(snapshot),
                 savedAtEpochMs = now,
                 presentationStamp = presentationStamp,
+                fetchedAtEpochMs = fetchedAtEpochMs,
             )
         dataStore.edit { prefs ->
             migrateLegacyLocked(prefs, now)
@@ -70,7 +72,15 @@ class WeatherCacheStore internal constructor(
                             snapshot.city.longitude,
                         )
                 }.forEach { prefs.remove(stringPreferencesKey(it.name)) }
-            prefs[cacheEntryKey(now, snapshot.city)] = encodeEntry(entry)
+            val target = cacheEntryKey(now, snapshot.city)
+            // 新旧保护：同一城市的并发取数中，先发后至的旧数据不得覆盖新数据。
+            // 用取数时刻而非写入时刻比较——否则旧请求一旦后完成就会以"更新"的
+            // 时间戳落盘，冷启动/离线读到旧天气却以为它新鲜。
+            val existingFetchedAt = decodeEntry(prefs[target])?.fetchedAtEpochMs?.takeIf { it > 0L }
+            if (isStaleFetch(incomingFetchedAt = fetchedAtEpochMs, existingFetchedAt = existingFetchedAt)) {
+                return@edit
+            }
+            prefs[target] = encodeEntry(entry)
             pruneOverflowLocked(prefs)
         }
     }
@@ -145,7 +155,8 @@ class WeatherCacheStore internal constructor(
 
     private fun encodeEntry(entry: CacheEntry): String = json.encodeToString(CacheEntry.serializer(), entry)
 
-    private fun decodeEntry(raw: String): CacheEntry? = runCatching { json.decodeFromString(CacheEntry.serializer(), raw) }.getOrNull()
+    private fun decodeEntry(raw: String?): CacheEntry? =
+        if (raw.isNullOrBlank()) null else runCatching { json.decodeFromString(CacheEntry.serializer(), raw) }.getOrNull()
 
     private fun decodeEntries(raw: String?): List<CacheEntry> {
         if (raw.isNullOrBlank()) return emptyList()
@@ -160,6 +171,11 @@ class WeatherCacheStore internal constructor(
         val savedAtEpochMs: Long,
         /** 生成文案时的语言+温度单位指纹；旧档为空串，读取时按不匹配处理。 */
         val presentationStamp: String = "",
+        /**
+         * 发起本次取数的时刻（epoch ms）。旧档为 0，按"不参与新旧比较"处理。
+         * 用于拒绝比已存条目更旧的写入，见 [WeatherCache.save]。
+         */
+        val fetchedAtEpochMs: Long = 0L,
     )
 
     companion object {
@@ -192,6 +208,18 @@ private val CACHE_CITY_KEY_REGEX =
     Regex("""^${CACHE_CITY_KEY_PREFIX}(\d+)_(-?\d+(?:\.\d+)?)_(-?\d+(?:\.\d+)?)$""")
 
 private fun formatCoordinate(value: Double): String = String.format(Locale.US, "%.4f", value)
+
+/**
+ * 本次写入是否比已存条目更旧（是则应拒绝）。
+ *
+ * ViewModel / Worker / Widget 会为同一城市并发取数，必须按**取数发起时刻**比较：
+ * 旧请求若后完成，按写入顺序落盘会让磁盘回退到旧天气，而时间戳看起来更新，
+ * 冷启动与离线都读错。`existingFetchedAt` 为 null 表示没有可比条目（旧档 fetchedAt=0）。
+ */
+internal fun isStaleFetch(
+    incomingFetchedAt: Long,
+    existingFetchedAt: Long?,
+): Boolean = existingFetchedAt != null && incomingFetchedAt in 1 until existingFetchedAt
 
 /** 每城 key：`city_<savedAt>_<lat>_<lon>`。 */
 internal fun cacheEntryKeyName(

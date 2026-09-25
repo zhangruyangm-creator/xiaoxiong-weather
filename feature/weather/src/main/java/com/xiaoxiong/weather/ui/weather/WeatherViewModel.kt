@@ -54,6 +54,14 @@ data class WeatherUiState(
     val lastUpdatedText: String? = null,
     val isOffline: Boolean = false,
     val errorMessage: String? = null,
+    /**
+     * 最近一次拉取失败的原因，**不随 Snackbar 播完而清空**。
+     *
+     * [errorMessage] 用于一次性提示，播完即清；无数据时页面会退化成「暂无今天的
+     * 天气数据」，用户既看不到原因也没有恢复入口。这里保留一份给错误态常驻展示，
+     * 下一次成功刷新时清空。
+     */
+    val lastErrorMessage: String? = null,
     val infoMessage: String? = null,
     /** 隐藏调试模式已开启 */
     val debugEnabled: Boolean = false,
@@ -386,6 +394,9 @@ class WeatherViewModel(
                     }
                 }
 
+                // 记录取数发起时刻：并发刷新（手动 + Worker + Widget）时，
+                // 后发先至的旧数据不能以"更新"的时间戳覆盖新数据
+                val fetchStartedAt = System.currentTimeMillis()
                 try {
                     val snapshot = repository.fetchWeather(city)
                     if (requestId != weatherRequestId.get()) return@launch
@@ -393,7 +404,7 @@ class WeatherViewModel(
                     // 数据已到手，先出界面；下次刷新再重试写缓存。
                     // CancellationException 必须透传，不能被 runCatching 吞掉。
                     try {
-                        weatherCacheStore.save(snapshot, currentPresentationStamp())
+                        weatherCacheStore.save(snapshot, currentPresentationStamp(), fetchStartedAt)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
@@ -432,6 +443,13 @@ class WeatherViewModel(
                                 isLoadingWeather = false,
                                 isOffline = false,
                                 errorMessage =
+                                    if (quiet) {
+                                        null
+                                    } else {
+                                        userFacingError(e, R.string.error_fetch_weather)
+                                    },
+                                // 无缓存且拉取失败：常驻错误态，给用户原因与重试入口
+                                lastErrorMessage =
                                     if (quiet) {
                                         null
                                     } else {
@@ -756,6 +774,8 @@ class WeatherViewModel(
                     isOffline = isOffline,
                     lastUpdatedText = lastUpdatedText,
                     errorMessage = errorMessage,
+                    // 有新快照到达即视为恢复：清掉常驻错误态，让页面回到正常内容
+                    lastErrorMessage = null,
                     debugEnabled = presented.debugEnabled,
                 )
             }
