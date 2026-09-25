@@ -31,7 +31,7 @@ data class FarmState(
      * 本季开启新一季所需的作物种类数：随周目递增（12/16/20…），封顶 40。
      * 不再要求集齐全部 128 种，降低周目门槛。
      */
-    val seasonGoal: Int get() = (12 + completedSeasons * 4).coerceAtMost(40)
+    val seasonGoal: Int get() = (12 + completedSeasons.coerceIn(0, MAX_FARM_SEASONS_STORED) * 4).coerceAtMost(40)
 
     /** 本季是否已达成开季门槛。 */
     val seasonReady: Boolean get() = seasonCollectedCount >= seasonGoal

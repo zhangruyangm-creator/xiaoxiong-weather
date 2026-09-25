@@ -398,6 +398,16 @@ internal val FARM_DEFAULT_UNLOCKED = listOf("radish", "cabbage", "wheat", "tomat
 const val FARM_SAVE_SCHEMA_VERSION = 2
 
 /**
+ * 存档里允许的周目数上限。
+ *
+ * 季节目标在第 7 季就封顶 40，生长加成在第 5 季就封顶 25%，再往上没有玩法意义。
+ * 但 `completedSeasons` 会参与 `completedSeasons * 4` 与 `* 5`：
+ * 脏档写 536870912 时乘法**溢出 Int 变负**，季节目标随之变负，
+ * `seasonCollectedCount >= seasonGoal` 恒真，玩家可无成本连开新季。
+ */
+const val MAX_FARM_SEASONS_STORED = 1000
+
+/**
  * 存档清洗：把"物理上不可能"的值拉回合法区间。
  *
  * JSON 解析层已经拒掉 NaN/Infinity（`allowSpecialFloatingPointValues` 默认关），
@@ -425,7 +435,7 @@ internal fun FarmSave.sanitized(): FarmSave {
         unlockedCropIds = cleanUnlocked.ifEmpty { FARM_DEFAULT_UNLOCKED },
         harvestedTotal = harvestedTotal.coerceAtLeast(0),
         harvestCounts = harvestCounts.sanitizedCounts(knownCrops),
-        completedSeasons = completedSeasons.coerceAtLeast(0),
+        completedSeasons = completedSeasons.coerceIn(0, MAX_FARM_SEASONS_STORED),
         lifetimeHarvests = lifetimeHarvests.coerceAtLeast(0),
         // schemaVersion 刻意不夹：未来版本必须在读档入口整档拒绝（BearFarm.load），
         // 夹成当前版本等于静默降级，未识别字段会在下一次写回时永久丢失。
@@ -460,7 +470,9 @@ private fun Float.finiteOrDefault(fallback: Float): Float = if (isFinite()) this
 const val SEASON_BONUS_PERCENT = 5
 const val MAX_SEASON_BONUS_PERCENT = 25
 
-fun seasonGrowthPercent(completedSeasons: Int): Int = (SEASON_BONUS_PERCENT * completedSeasons).coerceAtMost(MAX_SEASON_BONUS_PERCENT)
+/** 输入先夹到 [MAX_FARM_SEASONS_STORED] 再乘，避免脏档让乘法溢出成负数。 */
+fun seasonGrowthPercent(completedSeasons: Int): Int =
+    (SEASON_BONUS_PERCENT * completedSeasons.coerceIn(0, MAX_FARM_SEASONS_STORED)).coerceAtMost(MAX_SEASON_BONUS_PERCENT)
 
 /** 周目生长倍率：1f + 加成百分比 / 100。 */
 fun seasonGrowthMul(completedSeasons: Int): Float = 1f + seasonGrowthPercent(completedSeasons) / 100f

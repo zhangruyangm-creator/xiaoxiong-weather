@@ -156,6 +156,29 @@ class FarmSaveSanitizeTest {
     }
 
     @Test
+    fun absurdCompletedSeasons_isClampedBeforeAnyMultiplication() {
+        val clean = FarmSave(completedSeasons = 536_870_912).sanitized()
+        assertEquals(MAX_FARM_SEASONS_STORED, clean.completedSeasons)
+    }
+
+    @Test
+    fun seasonGoal_staysPositiveForOverflowingSeasonsCount() {
+        val state = FarmState(completedSeasons = 536_870_912)
+        assertTrue(
+            "季节目标为负会让 seasonCollectedCount >= seasonGoal 恒真，可无成本连开新季",
+            state.seasonGoal > 0,
+        )
+        assertEquals(40, state.seasonGoal)
+    }
+
+    @Test
+    fun seasonGrowthPercent_neverGoesNegative() {
+        assertEquals(MAX_SEASON_BONUS_PERCENT, seasonGrowthPercent(536_870_912))
+        assertEquals(MAX_SEASON_BONUS_PERCENT, seasonGrowthPercent(Int.MAX_VALUE))
+        assertEquals(0, seasonGrowthPercent(-5))
+    }
+
+    @Test
     fun fromSave_appliesSanitizing() {
         val state =
             FarmState.fromSave(

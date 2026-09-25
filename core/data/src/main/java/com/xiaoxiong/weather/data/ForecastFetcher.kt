@@ -257,13 +257,13 @@ class ForecastFetcher(
             hourlyDto?.time.orEmpty().mapIndexed { index, time ->
                 HourlyWeather(
                     time = time,
-                    temperatureC = hourlyDto?.temperature?.getOrNull(index),
-                    humidityPercent = hourlyDto?.humidity?.getOrNull(index),
-                    visibilityMeters = hourlyDto?.visibility?.getOrNull(index),
+                    temperatureC = WeatherValueClamp.temperatureC(hourlyDto?.temperature?.getOrNull(index)),
+                    humidityPercent = WeatherValueClamp.percent(hourlyDto?.humidity?.getOrNull(index)),
+                    visibilityMeters = WeatherValueClamp.visibilityMeters(hourlyDto?.visibility?.getOrNull(index)),
                     weatherCode = WeatherCodes.normalizeCode(hourlyDto?.weatherCode?.getOrNull(index)),
-                    precipitationMm = hourlyDto?.precipitation?.getOrNull(index),
-                    precipProbability = hourlyDto?.precipProbability?.getOrNull(index),
-                    windSpeedKmh = hourlyDto?.windSpeed?.getOrNull(index),
+                    precipitationMm = WeatherValueClamp.precipitationMm(hourlyDto?.precipitation?.getOrNull(index)),
+                    precipProbability = WeatherValueClamp.percent(hourlyDto?.precipProbability?.getOrNull(index)),
+                    windSpeedKmh = WeatherValueClamp.windKmh(hourlyDto?.windSpeed?.getOrNull(index)),
                 )
             }
 
@@ -272,14 +272,14 @@ class ForecastFetcher(
                 DailyWeather(
                     date = date,
                     weatherCode = WeatherCodes.normalizeCode(dailyDto?.weatherCode?.getOrNull(index)),
-                    tempMaxC = dailyDto?.tempMax?.getOrNull(index),
-                    tempMinC = dailyDto?.tempMin?.getOrNull(index),
-                    precipSumMm = dailyDto?.precipSum?.getOrNull(index),
-                    precipProbabilityMax = dailyDto?.precipProbabilityMax?.getOrNull(index),
+                    tempMaxC = WeatherValueClamp.temperatureC(dailyDto?.tempMax?.getOrNull(index)),
+                    tempMinC = WeatherValueClamp.temperatureC(dailyDto?.tempMin?.getOrNull(index)),
+                    precipSumMm = WeatherValueClamp.precipitationMm(dailyDto?.precipSum?.getOrNull(index)),
+                    precipProbabilityMax = WeatherValueClamp.percent(dailyDto?.precipProbabilityMax?.getOrNull(index)),
                     sunrise = dailyDto?.sunrise?.getOrNull(index),
                     sunset = dailyDto?.sunset?.getOrNull(index),
-                    uvIndexMax = dailyDto?.uvIndexMax?.getOrNull(index),
-                    windMaxKmh = dailyDto?.windMax?.getOrNull(index),
+                    uvIndexMax = WeatherValueClamp.uvIndex(dailyDto?.uvIndexMax?.getOrNull(index)),
+                    windMaxKmh = WeatherValueClamp.windKmh(dailyDto?.windMax?.getOrNull(index)),
                 )
             }
 
@@ -292,20 +292,20 @@ class ForecastFetcher(
             current =
                 CurrentWeather(
                     time = currentDto.time,
-                    temperatureC = currentDto.temperature,
-                    apparentTemperatureC = currentDto.apparentTemperature,
-                    humidityPercent = currentDto.humidity,
+                    temperatureC = WeatherValueClamp.temperatureC(currentDto.temperature),
+                    apparentTemperatureC = WeatherValueClamp.temperatureC(currentDto.apparentTemperature),
+                    humidityPercent = WeatherValueClamp.percent(currentDto.humidity),
                     weatherCode = WeatherCodes.normalizeCode(currentDto.weatherCode),
-                    windSpeedKmh = currentDto.windSpeed,
-                    windGustsKmh = currentDto.windGusts,
-                    windDirectionDeg = currentDto.windDirection,
-                    visibilityMeters = currentDto.visibility,
-                    precipitationMm = currentDto.precipitation,
+                    windSpeedKmh = WeatherValueClamp.windKmh(currentDto.windSpeed),
+                    windGustsKmh = WeatherValueClamp.windKmh(currentDto.windGusts),
+                    windDirectionDeg = WeatherValueClamp.windDirectionDeg(currentDto.windDirection),
+                    visibilityMeters = WeatherValueClamp.visibilityMeters(currentDto.visibility),
+                    precipitationMm = WeatherValueClamp.precipitationMm(currentDto.precipitation),
                     precipitationIntervalSeconds = currentDto.interval,
-                    precipitationRateMmPerHour = precipRateMmPerHour,
-                    cloudCoverPercent = currentDto.cloudCover,
-                    pressureHpa = currentDto.pressure,
-                    dewPointC = currentDto.dewPoint,
+                    precipitationRateMmPerHour = WeatherValueClamp.precipitationMm(precipRateMmPerHour),
+                    cloudCoverPercent = WeatherValueClamp.percent(currentDto.cloudCover),
+                    pressureHpa = WeatherValueClamp.pressureHpa(currentDto.pressure),
+                    dewPointC = WeatherValueClamp.temperatureC(currentDto.dewPoint),
                     isDay = currentDto.isDay?.let { it == 1 },
                 ),
             hourly = hourly,
