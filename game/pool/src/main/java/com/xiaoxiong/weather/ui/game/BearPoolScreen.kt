@@ -57,6 +57,7 @@ import com.xiaoxiong.weather.game.intOr
 import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.game.PoolGame.Phase
+import com.xiaoxiong.weather.ui.rememberTodayEpochDay
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
 import kotlin.math.max
 import kotlin.math.min
@@ -165,7 +166,8 @@ fun BearPoolScreen(
     var pendingUnlocks by remember { mutableStateOf<List<PoolAchievement>>(emptyList()) }
 
     // 关卡 / 每日挑战状态
-    val todayDate = remember { todayEpochDay() }
+    // 跨零点自动刷新：否则用户停留过夜时，每日挑战与最高分仍停在前一天
+    val todayDate = rememberTodayEpochDay().value
     val dailyChallenge = remember(todayDate) { PoolChallenges.daily(todayDate) }
     var showChallenges by remember { mutableStateOf(false) }
     var showDaily by remember { mutableStateOf(false) }

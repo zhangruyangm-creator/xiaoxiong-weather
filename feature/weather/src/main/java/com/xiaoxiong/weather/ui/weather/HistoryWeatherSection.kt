@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
+import com.xiaoxiong.weather.ui.rememberTodayEpochDay
 import com.xiaoxiong.weather.util.formatDateLabel
 import com.xiaoxiong.weather.util.formatHourLabel
 import com.xiaoxiong.weather.util.formatTemperature
@@ -266,7 +267,9 @@ internal fun HistoryDatePickerDialog(
     onConfirm: (LocalDate) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val today = remember { LocalDate.now() }
+    // 跨零点自动刷新：否则停留过夜时，可选日期上限会停在昨天，新一天查不到
+    val todayEpochDay = rememberTodayEpochDay().value
+    val today = remember(todayEpochDay) { LocalDate.ofEpochDay(todayEpochDay) }
     val minUtc =
         remember {
             LocalDate

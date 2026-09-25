@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.SeasonTipGenerator
+import com.xiaoxiong.weather.ui.rememberTodayEpochDay
 import java.time.LocalDate
 
 @Composable
@@ -28,7 +29,9 @@ internal fun SeasonTipsSection(
 ) {
     // 物候是「当下」该看的时令：不依赖天气快照的 current.time（缓存快照日期
     // 可能滞后，落到物候空窗期会让整卡消失），始终按真实今天推算。
-    val todayIso = remember { LocalDate.now().toString() }
+    // 跨零点自动刷新：否则用户停留过夜时，时令提示仍按昨天的日期推算
+    val todayEpochDay = rememberTodayEpochDay().value
+    val todayIso = remember(todayEpochDay) { LocalDate.ofEpochDay(todayEpochDay).toString() }
     val tips =
         remember(
             city.latitude,

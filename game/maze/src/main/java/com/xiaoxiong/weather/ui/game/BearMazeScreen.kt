@@ -10,7 +10,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -23,12 +22,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.edit
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.game.intOr
-import java.time.LocalDate
+import com.xiaoxiong.weather.ui.rememberTodayEpochDay
 
 @Composable
 fun BearMazeScreen(
@@ -53,9 +49,10 @@ fun BearMazeScreen(
             MazeGame().also { it.loadProgress(prefs) }
         }
     // 本地日（用于每日迷宫与完成记录）；跨零点回到前台（ON_RESUME）时刷新
-    var today by remember { mutableLongStateOf(LocalDate.now().toEpochDay()) }
+    // 回到前台（ON_RESUME）时刷新「今天」，跨零点后选关页展示新每日图与新纪录
+    val today = rememberTodayEpochDay()
     // 每日最佳用 today 做 key：跨天后自动重新读取新一天的记录
-    var dailyBest by remember(today) { mutableIntStateOf(prefs.intOr("maze_daily_$today", -1)) }
+    var dailyBest by remember(today.value) { mutableIntStateOf(prefs.intOr("maze_daily_${today.value}", -1)) }
     // 事件特效宿主（粒子/庆祝）。提到 Screen 层是为了让帧循环能在特效结束后暂停；
     // observe() 会按 grid 身份感知换关并清空上一局粒子。
     val fx = remember { MazeFxHost() }
@@ -87,18 +84,6 @@ fun BearMazeScreen(
             restoreOnEnter = false,
         )
     // 回到前台（ON_RESUME）时刷新「今天」，跨零点后选关页展示新每日图与新纪录
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    val now = LocalDate.now().toEpochDay()
-                    if (now != today) today = now
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
     val sprites = rememberBearSprites(characterState.selected)
     // 帧时间以 State 形式传入绘制层：只有 Canvas 的 draw lambda 读它，
     // 避免每帧更新 Long 触发整个 BearMazeScreen 重组。
@@ -169,7 +154,7 @@ fun BearMazeScreen(
                     if (prev < 0 || game.moves < prev) {
                         prefs.edit { putInt(key, game.moves) }
                         // 只更新今天对应的展示状态；旧日期的会话不污染今日最佳
-                        if (game.dailyDate == today) dailyBest = game.moves
+                        if (game.dailyDate == today.value) dailyBest = game.moves
                     }
                 }
             } else if (event == MazeStepEvent.NONE) {
@@ -209,7 +194,7 @@ fun BearMazeScreen(
                         game.restoreSession(prefs)
                         savedSession = null
                     },
-                    onDaily = { guardedStart { game.startDaily(today) } },
+                    onDaily = { guardedStart { game.startDaily(today.value) } },
                     onExit = onExit,
                     onCharacter = { showCharacterPicker = true },
                 )
