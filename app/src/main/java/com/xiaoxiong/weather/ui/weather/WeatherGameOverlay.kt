@@ -37,6 +37,7 @@ fun BearGameOverlay(
     entries: List<GameEntry>,
     requestPassword: Pair<Int, String>? = null,
     onActiveChange: (Boolean) -> Unit = {},
+    onRequestPasswordConsumed: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     // 口令注册表直接来自装配方（ServiceLoader），无需过滤
@@ -58,16 +59,31 @@ fun BearGameOverlay(
     }
 
     // 外部直接激活信号（如标题连点彩蛋）：nonce 变化即重新尝试，口令相同也生效
+    //
+    // 同一对 (nonce, password) 只能消费一次：entries 由空→非空时 LaunchedEffect 会因
+    // keys 变化重跑，若不消费会把已经触发过的口令再触发一次，导致「从设置返回后
+    // 突然弹出小熊的家」之类延迟副作用。消费成功/失败都通知父组件清空信号。
+    val currentOnConsumed by rememberUpdatedState(onRequestPasswordConsumed)
     LaunchedEffect(requestPassword, enabledEntries) {
         val nonce = requestPassword?.first
         val password = requestPassword?.second
         if (nonce != null && password != null) {
             enabledEntries.firstOrNull { it.password == password }?.let(launchGame)
         }
+        if (nonce != null) currentOnConsumed()
     }
 
+    // transitionSpec/回调内不是 composable 上下文，先在组合期读出
+    val reduceMotion = com.xiaoxiong.weather.ui.LocalReduceMotion.current
     val exitToHome: () -> Unit = {
-        scope.launch { pagerState.animateScrollToPage(0) }
+        scope.launch {
+            // 减弱动画：直接跳回今天页，不做横向滑动
+            if (reduceMotion) {
+                pagerState.scrollToPage(0)
+            } else {
+                pagerState.animateScrollToPage(0)
+            }
+        }
     }
 
     val activeEntry = enabledEntries.firstOrNull { it.password == activePassword }
