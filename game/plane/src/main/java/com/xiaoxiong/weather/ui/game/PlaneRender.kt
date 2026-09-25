@@ -103,7 +103,7 @@ internal fun DrawScope.drawPlaneWorld(
 
         // 5. 粒子与天气
         drawPlaneEffects(game, reduceMotion)
-        drawGrazeRing(game, state, PLANE_PLAYER_VISUAL_RADIUS)
+        drawGrazeRing(game, state, PLANE_PLAYER_VISUAL_RADIUS, reduceMotion)
         drawPickupBurst(game, state, PLANE_PLAYER_VISUAL_RADIUS, reduceMotion)
         drawPlaneWeather(weather, rain, freezingRain, hail, time, reduceMotion)
         drawBombBlast(state, reduceMotion)

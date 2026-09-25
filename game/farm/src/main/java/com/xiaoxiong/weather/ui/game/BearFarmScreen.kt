@@ -2,7 +2,6 @@ package com.xiaoxiong.weather.ui.game
 
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -67,6 +66,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.LocalReduceMotion
+import com.xiaoxiong.weather.ui.ReduceMotionAwareVisibility
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.ceil
@@ -431,32 +431,52 @@ fun BearFarmScreen(
             farm.unlockCard?.let { lastUnlockCrop.value = it }
         }
 
-        AnimatedVisibility(visible = farm.showShop, enter = farmDialogEnter, exit = farmDialogExit) {
+        ReduceMotionAwareVisibility(
+            visible = farm.showShop,
+            enter = farmDialogEnter,
+            exit = farmDialogExit,
+        ) {
             FarmShopDialog(
                 farm = farm,
                 onDismiss = { farm.showShop = false },
             )
         }
-        AnimatedVisibility(visible = farm.showCatalog, enter = farmDialogEnter, exit = farmDialogExit) {
+        ReduceMotionAwareVisibility(
+            visible = farm.showCatalog,
+            enter = farmDialogEnter,
+            exit = farmDialogExit,
+        ) {
             FarmCatalogDialog(
                 farm = farm,
                 onDismiss = { farm.showCatalog = false },
             )
         }
-        AnimatedVisibility(visible = farm.showInventory, enter = farmDialogEnter, exit = farmDialogExit) {
+        ReduceMotionAwareVisibility(
+            visible = farm.showInventory,
+            enter = farmDialogEnter,
+            exit = farmDialogExit,
+        ) {
             FarmInventoryDialog(
                 farm = farm,
                 weather = weather,
                 onDismiss = { farm.showInventory = false },
             )
         }
-        AnimatedVisibility(visible = farm.showSeasonConfirm, enter = farmDialogEnter, exit = farmDialogExit) {
+        ReduceMotionAwareVisibility(
+            visible = farm.showSeasonConfirm,
+            enter = farmDialogEnter,
+            exit = farmDialogExit,
+        ) {
             NewSeasonConfirmDialog(
                 farm = farm,
                 onDismiss = { farm.showSeasonConfirm = false },
             )
         }
-        AnimatedVisibility(visible = farm.unlockCard != null, enter = farmDialogEnter, exit = farmDialogExit) {
+        ReduceMotionAwareVisibility(
+            visible = farm.unlockCard != null,
+            enter = farmDialogEnter,
+            exit = farmDialogExit,
+        ) {
             lastUnlockCrop.value?.let { crop ->
                 FarmUnlockDialog(
                     crop = crop,

@@ -363,29 +363,32 @@ internal fun DrawScope.drawPlayerTrailAndFlame(
     )
 }
 
-/** 擦弹火花：玩家周围青色扩散环，短促且不遮挡机体。 */
+/** 擦弹火花：玩家周围青色扩散环，短促且不遮挡机体。[reduceMotion] 时不扩散（半径固定，仅淡出）。 */
 internal fun DrawScope.drawGrazeRing(
     game: PlaneGame,
     state: PlaneFrameState,
     playerRadius: Float,
+    reduceMotion: Boolean = false,
 ) {
     if (state.grazeTicks <= 0) return
     val scale = game.viewScale
     if (scale <= 0f) return
     val p = state.grazeTicks / GRAZE_FX_TICKS.toFloat()
+    // 减弱动画：扩散半径固定在起始值，只保留淡出——保留"擦弹了"的反馈但去掉位移/缩放
+    val spread = if (reduceMotion) 0f else 1f - p
     val x = game.toScreenX(game.player.x)
     val y = game.toScreenY(game.player.y)
     val r = playerRadius * scale
     drawCircle(
         color = PlaneUi.accent.copy(alpha = 0.55f * p),
-        radius = r * (1.15f + (1f - p) * 1.7f),
+        radius = r * (1.15f + spread * 1.7f),
         center = Offset(x, y),
         style = PlaneStroke.of(r * 0.10f),
         blendMode = BlendMode.Plus,
     )
     drawCircle(
         color = Color.White.copy(alpha = 0.45f * p),
-        radius = r * (0.95f + (1f - p) * 0.9f),
+        radius = r * (0.95f + spread * 0.9f),
         center = Offset(x, y),
         style = PlaneStroke.of(r * 0.05f),
         blendMode = BlendMode.Plus,

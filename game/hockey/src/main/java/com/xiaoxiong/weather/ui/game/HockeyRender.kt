@@ -123,14 +123,17 @@ internal fun DrawScope.drawHockeyWorld(
             }
         if (tint != Color.Transparent) {
             drawRect(tint.copy(alpha = 0.09f * flash))
+            // 减弱动画："+1" 固定在终点不漂移（保留"谁得分"的反馈，去掉位移；
+            // alpha 仍随 flash 淡出，淡出不属位移类动效）
+            val drift = if (reduceMotion) 1f else 1f - flash
             drawScoreFloat(
                 text = "+1",
                 x = t.midX,
                 y =
                     if (scorer == Scorer.PLAYER) {
-                        t.top + short * (0.09f + 0.12f * (1f - flash))
+                        t.top + short * (0.09f + 0.12f * drift)
                     } else {
-                        t.bottom - short * (0.09f + 0.12f * (1f - flash))
+                        t.bottom - short * (0.09f + 0.12f * drift)
                     },
                 color = tint,
                 sizePx = short * 0.06f,
