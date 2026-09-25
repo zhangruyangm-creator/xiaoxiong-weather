@@ -54,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -639,13 +640,12 @@ private fun BoxScope.BearRefreshIndicator(
         )
 
     // 刷新中才创建无限动画；闲置/下拉阶段不创建，避免常驻逐帧重组耗电。
-    // 条件组合时把动画值读回局部变量，供下方 graphicsLayer 使用。
+    // 动画值保持 State 并在 graphicsLayer 内部读：若在组合作用域用 `by` 读走，
+    // 无限动画每帧都会重组本函数（原先就是这么写的，属持续性浪费）。
     // 减弱动画模式下跳过弹跳/上下浮动（纯装饰），只保留跑动帧序作为状态反馈。
     val reduceMotion = com.xiaoxiong.weather.ui.LocalReduceMotion.current
-    var bounceScale = 1f
-    var bobY = 0f
-    if (isRefreshing && !reduceMotion) {
-        val bounce by
+    val bounceState: State<Float>? =
+        if (isRefreshing && !reduceMotion) {
             rememberInfiniteTransition(label = "refreshBounce")
                 .animateFloat(
                     initialValue = 0.92f,
@@ -657,7 +657,11 @@ private fun BoxScope.BearRefreshIndicator(
                         ),
                     label = "refreshBounceScale",
                 )
-        val bob by
+        } else {
+            null
+        }
+    val bobState: State<Float>? =
+        if (isRefreshing && !reduceMotion) {
             rememberInfiniteTransition(label = "refreshBob")
                 .animateFloat(
                     initialValue = -1.5f,
@@ -669,19 +673,20 @@ private fun BoxScope.BearRefreshIndicator(
                         ),
                     label = "refreshBobY",
                 )
-        bounceScale = bounce
-        bobY = bob
-    }
-    val scale = if (isRefreshing) bounceScale else 0.4f + 0.6f * reveal
+        } else {
+            null
+        }
     Box(
         modifier =
             modifier
                 .size(48.dp)
                 .graphicsLayer {
                     alpha = reveal
-                    scaleX = scale
-                    scaleY = scale
-                    translationY = if (isRefreshing) bobY else 0f
+                    val layerScale =
+                        if (isRefreshing) bounceState?.value ?: 1f else 0.4f + 0.6f * reveal
+                    scaleX = layerScale
+                    scaleY = layerScale
+                    translationY = if (isRefreshing) bobState?.value ?: 0f else 0f
                 }.shadow(
                     elevation = 4.dp,
                     shape = CircleShape,
