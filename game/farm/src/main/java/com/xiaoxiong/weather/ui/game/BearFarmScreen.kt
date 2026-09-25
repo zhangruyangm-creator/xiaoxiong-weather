@@ -29,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -439,6 +440,50 @@ fun BearFarmScreen(
                     crop = crop,
                     onDismiss = { farm.dismissUnlockCard() },
                 )
+            }
+        }
+        if (farm.loadFailed) {
+            FarmSaveUnreadableBanner(onReset = { farm.discardUnreadableSave() })
+        }
+    }
+}
+
+/**
+ * 存档读不出来时的提示条。
+ *
+ * 此时 [BearFarm] 已禁止一切自动写盘，所以原数据仍在 prefs 里完好——但玩家需要
+ * 知道「进度没丢，是读不出来」，并且能主动选择重置，否则农场既不保存也无法离开。
+ */
+@Composable
+private fun FarmSaveUnreadableBanner(onReset: () -> Unit) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = farmScheme().errorContainer,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.bear_farm_save_unreadable),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = farmScheme().onErrorContainer,
+                )
+                TextButton(
+                    onClick = onReset,
+                    colors = ButtonDefaults.textButtonColors(contentColor = farmScheme().onErrorContainer),
+                ) {
+                    Text(stringResource(R.string.bear_farm_save_reset))
+                }
             }
         }
     }

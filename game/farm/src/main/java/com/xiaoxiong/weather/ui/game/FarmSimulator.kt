@@ -39,16 +39,25 @@ data class FarmState(
     /** 是否已集齐本季全部作物（开季门槛之外的额外成就）。 */
     val allCollected: Boolean get() = FARM_CROP_ORDER.all { it in seasonCollected }
 
+    /**
+     * 导出可安全交给后台线程编码的快照。
+     *
+     * [FarmPlotState] 是带 `var` 的可变对象，而 60fps 帧循环里的 `tick` /
+     * `advanceGrowth` 会**原地**改它们。这里必须逐块 `copy()`：只复制列表的话，
+     * 快照与活状态共享元素，后果有两个——后台编码时读到撕裂的数据；更隐蔽的是
+     * 存盘去重基准 `lastSaved` 也会跟着被改，于是「只有地块变化」（作物生长）时
+     * `toSave() == lastSaved` 恒为真，磁盘永远停在旧进度，静默丢存档。
+     */
     fun toSave(): FarmSave =
         FarmSave(
             coins = coins,
-            plots = plots,
+            plots = plots.map { it.copy() },
             unlockedCropIds = unlocked.toList(),
             harvestedTotal = harvestedTotal,
             harvestCounts = harvestCounts,
             completedSeasons = completedSeasons,
             lifetimeHarvests = lifetimeHarvests,
-            schemaVersion = 2,
+            schemaVersion = FARM_SAVE_SCHEMA_VERSION,
             inventory = inventory,
             seasonCollected = seasonCollected,
         )

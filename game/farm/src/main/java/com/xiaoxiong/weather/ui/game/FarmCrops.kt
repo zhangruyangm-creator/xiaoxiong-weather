@@ -390,6 +390,14 @@ const val FARM_PLOT_COUNT = FARM_COLS * FARM_ROWS
 internal val FARM_DEFAULT_UNLOCKED = listOf("radish", "cabbage", "wheat", "tomato")
 
 /**
+ * 当前存档结构版本。
+ *
+ * 读档时必须拒绝比它大的版本：`ignoreUnknownKeys=true` 会静默丢掉未来版本新增的
+ * 字段，随后本版再写回就变成**不可逆的数据删除**。
+ */
+const val FARM_SAVE_SCHEMA_VERSION = 2
+
+/**
  * 存档清洗：把"物理上不可能"的值拉回合法区间。
  *
  * JSON 解析层已经拒掉 NaN/Infinity（`allowSpecialFloatingPointValues` 默认关），
@@ -419,7 +427,8 @@ internal fun FarmSave.sanitized(): FarmSave {
         harvestCounts = harvestCounts.sanitizedCounts(knownCrops),
         completedSeasons = completedSeasons.coerceAtLeast(0),
         lifetimeHarvests = lifetimeHarvests.coerceAtLeast(0),
-        schemaVersion = schemaVersion.coerceAtLeast(1),
+        // schemaVersion 刻意不夹：未来版本必须在读档入口整档拒绝（BearFarm.load），
+        // 夹成当前版本等于静默降级，未识别字段会在下一次写回时永久丢失。
         inventory = inventory.sanitizedCounts(knownCrops),
         seasonCollected = seasonCollected.filter { it in knownCrops }.toSet(),
     )

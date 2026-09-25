@@ -283,10 +283,11 @@ class BearCatchGame {
         for (i in 1 until groups.size) {
             val g = groups[i]
             if (g.isEmpty()) continue
+            // 逐个实体容错：字段不足/类型非法的实体只丢自己，不让整局进度被清档
             when (g[0].toInt()) {
                 1 -> {
-                    if (g.size < 7) return false
-                    val kind = BearCatchLogic.ItemKind.entries.getOrNull(g[1].toInt()) ?: return false
+                    if (g.size < 7) continue
+                    val kind = BearCatchLogic.ItemKind.entries.getOrNull(g[1].toInt()) ?: continue
                     newItems +=
                         BearCatchLogic
                             .Item(
@@ -298,7 +299,7 @@ class BearCatchGame {
                             ).also { it.vy = g[5] }
                 }
                 2 -> {
-                    if (g.size < 11) return false
+                    if (g.size < 11) continue
                     newParticles +=
                         Particle(
                             x = g[1],
@@ -310,7 +311,7 @@ class BearCatchGame {
                             color = Color(g[7], g[8], g[9], g[10]),
                         )
                 }
-                else -> return false
+                else -> continue
             }
         }
         val savedW = header[14].toInt()

@@ -628,21 +628,22 @@ class BearGame {
         val obstacleGroups = decodeSnapshotSection(sections.getOrNull(1)) ?: return false
         val coinGroups = decodeSnapshotSection(sections.getOrNull(2)) ?: return false
         val cloudGroups = decodeSnapshotSection(sections.getOrNull(3)) ?: return false
-        // 先整体校验再落状态，避免坏档半途写入把对局留在 RUNNING 的残缺状态。
+        // 逐个实体容错：字段不足/类型非法的实体只丢自己，不让整局进度被清档。
+        // 先全部构造完再落状态，避免坏档半途写入把对局留在 RUNNING 的残缺状态。
         val newObstacles =
-            obstacleGroups.map { g ->
-                if (g.size < 4) return false
-                val type = ObstacleType.values().getOrNull(g[0].toInt()) ?: return false
+            obstacleGroups.mapNotNull { g ->
+                if (g.size < 4) return@mapNotNull null
+                val type = ObstacleType.values().getOrNull(g[0].toInt()) ?: return@mapNotNull null
                 Obstacle(type, g[1], g[2], g[3])
             }
         val newCoins =
-            coinGroups.map { g ->
-                if (g.size < 3) return false
+            coinGroups.mapNotNull { g ->
+                if (g.size < 3) return@mapNotNull null
                 Coin(g[0], g[1], g[2])
             }
         val newClouds =
-            cloudGroups.map { g ->
-                if (g.size < 4) return false
+            cloudGroups.mapNotNull { g ->
+                if (g.size < 4) return@mapNotNull null
                 BgCloud(g[0], g[1], g[2], g[3])
             }
 

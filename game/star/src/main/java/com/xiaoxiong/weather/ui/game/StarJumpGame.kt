@@ -444,16 +444,16 @@ internal class StarJumpGame {
         if (GamePhase.entries.getOrNull(meta[0].toInt()) != GamePhase.RUNNING) return false
         val platformGroups = decodeSnapshotSection(sections.getOrNull(1)) ?: return false
         val starGroups = decodeSnapshotSection(sections.getOrNull(2)) ?: return false
-        // 先整体校验再落状态，避免坏档半途写入把对局留在 RUNNING 的残缺状态。
+        // 逐个实体容错：字段不足/类型非法的实体只丢自己，不让整局进度被清档。
         val newPlatforms =
-            platformGroups.map { g ->
-                if (g.size < 7) return false
-                val type = PlatType.values().getOrNull(g[0].toInt()) ?: return false
+            platformGroups.mapNotNull { g ->
+                if (g.size < 7) return@mapNotNull null
+                val type = PlatType.values().getOrNull(g[0].toInt()) ?: return@mapNotNull null
                 Platform(g[1], g[2], g[3], type, vx = g[4], broken = g[5] >= 0.5f, breakT = g[6])
             }
         val newStars =
-            starGroups.map { g ->
-                if (g.size < 4) return false
+            starGroups.mapNotNull { g ->
+                if (g.size < 4) return@mapNotNull null
                 StarItem(g[0], g[1], taken = g[2] >= 0.5f, seed = g[3])
             }
 

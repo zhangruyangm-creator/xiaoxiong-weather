@@ -128,5 +128,7 @@
     <string name="farm_a11y_plot_weed">has weeds</string>
     <string name="farm_a11y_plot_bug">has pests</string>
     <string name="farm_a11y_separator">, </string>
+    <string name="bear_farm_save_unreadable">Your save could not be read, so autosave is paused to avoid overwriting it. The original data is still on this device.</string>
+    <string name="bear_farm_save_reset">Erase save and start over</string>
     <string name="cd_close_game">Exit game</string>
 </resources>

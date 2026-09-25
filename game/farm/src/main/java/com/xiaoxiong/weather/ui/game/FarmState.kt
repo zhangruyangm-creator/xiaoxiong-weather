@@ -213,6 +213,12 @@ internal class BearFarm(
 
     var toast by mutableStateOf<FarmToast?>(null)
     private var toastSeq = 0
+
+    /**
+     * 存档读不出来（损坏 / 来自更高版本）。为 true 时禁止一切自动写盘，
+     * 直到玩家显式选择重置——否则默认值会把原始数据覆盖掉。
+     */
+    var loadFailed by mutableStateOf(false)
     var floatingRewards by mutableStateOf<List<FarmReward>>(emptyList())
     private var rewardSeq = 0
     var unlockCard by mutableStateOf<CropDef?>(null)
@@ -252,27 +258,56 @@ internal class BearFarm(
     val seasonReady: Boolean get() = state.seasonReady
     val allCollected: Boolean get() = state.allCollected
 
+    /**
+     * 读档。
+     *
+     * 解码失败时**不碰磁盘**并置 [loadFailed]：此前异常被 `runCatching` 吞掉后
+     * 状态停在默认值，而 5 秒自动保存与退出保存会把这份默认值写回去——一个坏字节
+     * 就足以毁掉整份存档（金币/地块/背包/图鉴全没）。宁可让玩家看到提示后手动重置。
+     */
     fun load() {
         val raw = prefs.getString("farm_save_v1", null) ?: return
-        runCatching {
-            val save = farmJson.decodeFromString(FarmSave.serializer(), raw)
-            val loaded =
+        val loaded =
+            runCatching {
+                val save = farmJson.decodeFromString(FarmSave.serializer(), raw)
+                if (save.schemaVersion > FARM_SAVE_SCHEMA_VERSION) {
+                    // 未来版本：字段名可能已变，解码出的内容不可信，同样禁止写回
+                    return@runCatching null
+                }
                 loadFarmFromSave(
                     save = save,
                     currentSelectedSeedId = selectedSeedId,
                     // 旧存档（1.x，无图鉴字段）一次性回填：已解锁的作物视为收集过
                     backfillUnlockedAsCollected = save.schemaVersion < 2 && save.unlockedCropIds.size > 4,
                 )
-            state = loaded.state
-            syncFromState()
-            lastSaved = state.toSave()
-            // 回档会覆盖当前进度：清空与旧局面绑定的瞬态 UI，并把选中种子归位到已解锁作物
-            toast = loaded.ui.toast
-            floatingRewards = loaded.ui.floatingRewards
-            unlockCard = loaded.ui.unlockCard
-            unlockQueue.clear()
-            selectedSeedId = loaded.ui.selectedSeedId
+            }
+        val result = loaded.getOrNull()
+        if (result == null) {
+            loadFailed = true
+            return
         }
+        state = result.state
+        syncFromState()
+        lastSaved = state.toSave()
+        // 回档会覆盖当前进度：清空与旧局面绑定的瞬态 UI，并把选中种子归位到已解锁作物
+        toast = result.ui.toast
+        floatingRewards = result.ui.floatingRewards
+        unlockCard = result.ui.unlockCard
+        unlockQueue.clear()
+        selectedSeedId = result.ui.selectedSeedId
+    }
+
+    /**
+     * 读档失败（存档损坏或来自更高版本）时唯一允许的出路：丢弃原始 payload 后
+     * 以初始农场重新开始。正常读档路径不会调用它。
+     */
+    fun discardUnreadableSave() {
+        loadFailed = false
+        lastSaved = null
+        lastSubmitted = null
+        state = FarmState()
+        syncFromState()
+        writeIfNewest(state.toSave(), nextSubmitSeq())
     }
 
     /**
@@ -283,6 +318,7 @@ internal class BearFarm(
      * 编码，而农场页面同时跑 60fps 帧循环，编码耗时直接算进掉帧。
      */
     fun save() {
+        if (loadFailed) return
         val s = state.toSave()
         if (s == lastSaved || s == lastSubmitted) return
         val seq = nextSubmitSeq()
@@ -297,6 +333,7 @@ internal class BearFarm(
      * 保留同步写不会造成可感知卡顿。
      */
     fun saveBlocking() {
+        if (loadFailed) return
         val s = state.toSave()
         if (s == lastSaved) return
         val seq = nextSubmitSeq()
