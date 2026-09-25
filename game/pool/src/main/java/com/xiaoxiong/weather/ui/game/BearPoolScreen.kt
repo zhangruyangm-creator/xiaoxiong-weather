@@ -52,6 +52,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.booleanOr
+import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.game.PoolGame.Phase
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
@@ -88,7 +91,7 @@ fun BearPoolScreen(
     var showShotHistory by remember { mutableStateOf(false) }
     var doneLessons by remember { mutableStateOf(loadDoneLessons(prefs)) }
     var clothTheme by remember { mutableIntStateOf(loadClothTheme(prefs)) }
-    var reduceMotionPref by remember { mutableStateOf(prefs.getBoolean(PREF_POOL_REDUCE_MOTION, false)) }
+    var reduceMotionPref by remember { mutableStateOf(prefs.booleanOr(PREF_POOL_REDUCE_MOTION, false)) }
     var storedReplay by remember { mutableStateOf(loadReplay(prefs)) }
     // 系统级「减弱动态效果」与游戏内设置任一开启即生效
     val systemReduceMotion = LocalReduceMotion.current
@@ -113,9 +116,9 @@ fun BearPoolScreen(
             PoolGame().also {
                 it.difficulty = difficultyOf(prefs.getString(PREF_POOL_DIFF, "normal"))
                 it.aids = aidsOf(prefs.getString(PREF_POOL_AIDS, "full"))
-                it.raceTo = clampRaceTo(prefs.getInt(PREF_POOL_RACE, 2))
-                it.mode = modeOf(prefs.getString(PREF_POOL_MODE, null))
-                it.best = prefs.getInt(bestModeKey(it.mode), 0)
+                it.raceTo = clampRaceTo(prefs.intOr(PREF_POOL_RACE, 2))
+                it.mode = modeOf(prefs.stringOr(PREF_POOL_MODE))
+                it.best = prefs.intOr(bestModeKey(it.mode), 0)
                 it.reduceMotion = reduceMotion
                 it.clothTheme = clothTheme
             }
@@ -147,14 +150,14 @@ fun BearPoolScreen(
             shouldClear = ::poolShouldClearSnapshot,
             onRestored = {
                 // 快照里的 best 可能是旧计分口径（v1 帧数）：恢复后统一以当前模式的 v2 记录为准
-                game.best = prefs.getInt(bestModeKey(game.mode), 0)
+                game.best = prefs.intOr(bestModeKey(game.mode), 0)
                 // 局中改设置只暂存在内存 + prefs：进程被杀后内存暂存丢失，按 prefs 重建暂存，
                 // 否则设置界面会显示旧值，保存时还会把用户已选的下一场规则改回去
                 pendingRulesAfterSnapshotRestore(
                     snapshotRaceTo = game.raceTo,
                     snapshotMode = game.mode,
-                    prefsRaceTo = prefs.getInt(PREF_POOL_RACE, 2),
-                    prefsMode = modeOf(prefs.getString(PREF_POOL_MODE, null)),
+                    prefsRaceTo = prefs.intOr(PREF_POOL_RACE, 2),
+                    prefsMode = modeOf(prefs.stringOr(PREF_POOL_MODE)),
                 )?.let { (race, mode) -> game.stageRuleChange(race, mode) }
             },
         )
@@ -170,7 +173,7 @@ fun BearPoolScreen(
     var dailyEntries by remember { mutableStateOf<List<LeaderboardEntry>>(emptyList()) }
     var clearedLevels by remember { mutableStateOf(loadClearedLevels(prefs)) }
     var bestLevels by remember { mutableStateOf(loadBestLevels(prefs)) }
-    var dailyBest by remember(todayDate) { mutableIntStateOf(prefs.getInt(dailyBestKey(todayDate), 0)) }
+    var dailyBest by remember(todayDate) { mutableIntStateOf(prefs.intOr(dailyBestKey(todayDate), 0)) }
     var lastChallengeResult by remember { mutableStateOf<ChallengeResult?>(null) }
 
     // 排行榜按模式分开，练习模式保留高分（其它保留最近局，惨败不被挤出）
@@ -183,7 +186,7 @@ fun BearPoolScreen(
             retainRecent = mode != PoolMode.PRACTICE,
         )
     LaunchedEffect(mode) {
-        game.best = prefs.getInt(bestModeKey(mode), 0)
+        game.best = prefs.intOr(bestModeKey(mode), 0)
         lb.resetLastRank()
     }
 
@@ -238,7 +241,7 @@ fun BearPoolScreen(
             if (daily) {
                 val date = if (game.challengeDate > 0L) game.challengeDate else todayDate
                 val bestKey = dailyBestKey(date)
-                val prev = prefs.getInt(bestKey, 0)
+                val prev = prefs.intOr(bestKey, 0)
                 val newRecord = score > prev
                 if (newRecord) prefs.edit { putInt(bestKey, score) }
                 dailyBest = max(prev, score)
@@ -257,7 +260,7 @@ fun BearPoolScreen(
                     ChallengeResult(challengeDisplayName(challenge), challenge.par, shots, score, newRecord, daily = true)
             } else {
                 val bestKey = bestLevelKey(challenge.id)
-                val prev = prefs.getInt(bestKey, Int.MAX_VALUE)
+                val prev = prefs.intOr(bestKey, Int.MAX_VALUE)
                 val newRecord = shots < prev
                 if (newRecord) prefs.edit { putInt(bestKey, shots) }
                 prefs.edit { putBoolean(clearedLevelKey(challenge.id), true) }
@@ -349,8 +352,8 @@ fun BearPoolScreen(
      * 开新比赛时统一从 prefs 同步赛制/模式并清掉暂存，避免自定义设置不生效。
      */
     fun startFreshMatch() {
-        game.raceTo = clampRaceTo(prefs.getInt(PREF_POOL_RACE, 2))
-        game.mode = modeOf(prefs.getString(PREF_POOL_MODE, null))
+        game.raceTo = clampRaceTo(prefs.intOr(PREF_POOL_RACE, 2))
+        game.mode = modeOf(prefs.stringOr(PREF_POOL_MODE))
         game.clearPendingRules()
         game.startMatch()
     }
@@ -583,7 +586,7 @@ fun BearPoolScreen(
                     }
                     TextButton(
                         onClick = {
-                            dailyBest = prefs.getInt(dailyBestKey(todayDate), 0)
+                            dailyBest = prefs.intOr(dailyBestKey(todayDate), 0)
                             showDaily = true
                         },
                     ) {
@@ -855,7 +858,7 @@ fun BearPoolScreen(
             clothTheme = clothTheme,
             dailyBest = dailyBest,
             onOpenDaily = {
-                dailyBest = prefs.getInt(dailyBestKey(todayDate), 0)
+                dailyBest = prefs.intOr(dailyBestKey(todayDate), 0)
                 showSettings = false
                 showDaily = true
             },

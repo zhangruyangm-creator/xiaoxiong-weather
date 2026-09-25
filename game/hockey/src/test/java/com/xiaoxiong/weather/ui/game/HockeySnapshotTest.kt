@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Difficulty
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Phase
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Scorer
@@ -293,7 +294,7 @@ class HockeySnapshotTest {
         source.saveSnapshot(prefs)
         // 把玩家球体坐标改成 NaN：NaN 能通过尺寸/下标校验，但 coerceIn 会原样透传，
         // 导致物理与绘制全程 NaN（球消失、AI 乱冲）
-        val groups = prefs.getString(snapshotKey, null)!!.split(';').toMutableList()
+        val groups = prefs.stringOr(snapshotKey)!!.split(';').toMutableList()
         val body = groups[1].split(',').toMutableList()
         body[0] = "NaN"
         groups[1] = body.joinToString(",")
@@ -302,7 +303,7 @@ class HockeySnapshotTest {
         val target = HockeyGame()
         target.resize(400f, 800f, 20f, 40f)
         assertFalse("NaN 坏档必须恢复失败", target.restoreSnapshot(prefs))
-        assertTrue("恢复失败后坏档必须被清掉", prefs.getString(snapshotKey, null) == null)
+        assertTrue("恢复失败后坏档必须被清掉", prefs.stringOr(snapshotKey) == null)
     }
 
     @Test
@@ -418,7 +419,7 @@ class HockeySnapshotTest {
         )
         assertTrue(source.hasPendingRules)
         source.saveSnapshot(prefs)
-        val raw = prefs.getString(snapshotKey, null) ?: error("快照应已写入")
+        val raw = prefs.stringOr(snapshotKey) ?: error("快照应已写入")
         val parts = raw.split(";")
         assertTrue("前置条件：快照至少包含表头 + 3 个球体组", parts.size > 4)
         prefs

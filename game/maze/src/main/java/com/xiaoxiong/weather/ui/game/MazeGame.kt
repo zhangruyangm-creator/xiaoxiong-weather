@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
+import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.math.min
@@ -226,11 +228,11 @@ internal class MazeGame {
     val canUndo: Boolean get() = history.isNotEmpty() && phase == MazePhase.PLAYING && !moving && !cleared
 
     fun loadProgress(prefs: android.content.SharedPreferences) {
-        unlocked = prefs.getInt("maze_unlocked", 1).coerceIn(1, MAZE_CAMPAIGN_SIZE)
+        unlocked = prefs.intOr("maze_unlocked", 1).coerceIn(1, MAZE_CAMPAIGN_SIZE)
         for (i in stars.indices) {
-            stars[i] = prefs.getInt("maze_star_$i", 0).coerceIn(0, MAZE_STAR_MAX)
+            stars[i] = prefs.intOr("maze_star_$i", 0).coerceIn(0, MAZE_STAR_MAX)
         }
-        endlessBest = prefs.getInt("maze_endless_best", 0)
+        endlessBest = prefs.intOr("maze_endless_best", 0)
         progressVersion++
     }
 
@@ -288,7 +290,7 @@ internal class MazeGame {
 
     /** 恢复局中会话；无会话或解析失败返回 false。恢复后保留快照，供 ON_STOP/onDispose 再次落盘。 */
     fun restoreSession(prefs: android.content.SharedPreferences): Boolean {
-        val raw = prefs.getString(MAZE_SESSION_KEY, null) ?: return false
+        val raw = prefs.stringOr(MAZE_SESSION_KEY) ?: return false
         val session =
             runCatching { sessionJson.decodeFromString(MazeSession.serializer(), raw) }.getOrNull()
                 ?: return false
@@ -353,7 +355,7 @@ internal class MazeGame {
      * 无会话或解析失败时返回 null。
      */
     fun peekSavedSession(prefs: android.content.SharedPreferences): SavedSessionInfo? {
-        val raw = prefs.getString(MAZE_SESSION_KEY, null) ?: return null
+        val raw = prefs.stringOr(MAZE_SESSION_KEY) ?: return null
         val session =
             runCatching { sessionJson.decodeFromString(MazeSession.serializer(), raw) }.getOrNull()
                 ?: return null

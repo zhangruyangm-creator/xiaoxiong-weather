@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
+import com.xiaoxiong.weather.game.stringOr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -32,11 +33,11 @@ class GameSnapshotSessionTest {
             )
 
         adapter.saveSnapshot(prefs)
-        assertEquals("payload", prefs.getString("k", null))
+        assertEquals("payload", prefs.stringOr("k"))
         assertTrue(adapter.restoreSnapshot(prefs))
         adapter.clearSnapshot(prefs)
         assertFalse(adapter.restoreSnapshot(prefs))
-        assertNull(prefs.getString("k", null))
+        assertNull(prefs.stringOr("k"))
     }
 
     // ── 进入恢复 ──────────────────────────────────────────────

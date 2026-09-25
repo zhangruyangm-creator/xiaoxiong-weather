@@ -2,6 +2,8 @@ package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Difficulty
 import kotlin.math.max
 
@@ -86,17 +88,17 @@ enum class HockeyAchievement(
 
 fun loadHockeyProgress(prefs: SharedPreferences): HockeyProgress =
     HockeyProgress(
-        games = prefs.getInt(PREF_STAT_GAMES, 0),
-        wins = prefs.getInt(PREF_STAT_WINS, 0),
-        losses = prefs.getInt(PREF_STAT_LOSSES, 0),
-        goalsFor = prefs.getInt(PREF_STAT_GOALS_FOR, 0),
-        goalsAgainst = prefs.getInt(PREF_STAT_GOALS_AGAINST, 0),
-        shutouts = prefs.getInt(PREF_STAT_SHUTOUTS, 0),
-        winStreak = prefs.getInt(PREF_STAT_WIN_STREAK, 0),
-        bestStreak = prefs.getInt(PREF_STAT_BEST_STREAK, 0),
-        bestGoals = prefs.getInt(PREF_STAT_BEST_GOALS, 0),
-        bestShutoutGoals = prefs.getInt(PREF_STAT_BEST_SHUTOUT_GOALS, 0),
-        winsByDifficulty = decodeWinsByDifficulty(prefs.getString(PREF_STAT_WINS_BY_DIFF, null)),
+        games = prefs.intOr(PREF_STAT_GAMES, 0),
+        wins = prefs.intOr(PREF_STAT_WINS, 0),
+        losses = prefs.intOr(PREF_STAT_LOSSES, 0),
+        goalsFor = prefs.intOr(PREF_STAT_GOALS_FOR, 0),
+        goalsAgainst = prefs.intOr(PREF_STAT_GOALS_AGAINST, 0),
+        shutouts = prefs.intOr(PREF_STAT_SHUTOUTS, 0),
+        winStreak = prefs.intOr(PREF_STAT_WIN_STREAK, 0),
+        bestStreak = prefs.intOr(PREF_STAT_BEST_STREAK, 0),
+        bestGoals = prefs.intOr(PREF_STAT_BEST_GOALS, 0),
+        bestShutoutGoals = prefs.intOr(PREF_STAT_BEST_SHUTOUT_GOALS, 0),
+        winsByDifficulty = decodeWinsByDifficulty(prefs.stringOr(PREF_STAT_WINS_BY_DIFF)),
         unlocked =
             prefs
                 .getString(PREF_STAT_ACH_SEEN, null)

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.util.WeatherCodes
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -117,7 +118,7 @@ class GameLeaderboardStore(
 
     fun load(): List<LeaderboardEntry> {
         cache?.let { return it }
-        val raw = prefs.getString(key, null) ?: return emptyList()
+        val raw = prefs.stringOr(key) ?: return emptyList()
         cache =
             runCatching {
                 leaderboardJson.decodeFromString<List<LeaderboardEntry>>(raw)

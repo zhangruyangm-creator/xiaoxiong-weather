@@ -2,6 +2,9 @@ package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.xiaoxiong.weather.game.booleanOr
+import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.game.PoolGame.Aids
 import java.time.LocalDate
 import java.util.Locale
@@ -47,7 +50,7 @@ internal const val CLOTH_THEME_COUNT = 4
 internal fun clampClothTheme(theme: Int): Int = theme.coerceIn(0, CLOTH_THEME_COUNT - 1)
 
 /** 读取持久化的台呢主题：旧键 `pool_cloth_theme` 无值回退 0（经典湖蓝），越界钳制。 */
-internal fun loadClothTheme(prefs: SharedPreferences): Int = clampClothTheme(prefs.getInt(PREF_POOL_CLOTH, 0))
+internal fun loadClothTheme(prefs: SharedPreferences): Int = clampClothTheme(prefs.intOr(PREF_POOL_CLOTH, 0))
 
 /** 保存台呢主题（点保存才写入，与其它设置一致）。 */
 internal fun saveClothTheme(
@@ -75,7 +78,7 @@ internal fun loadDoneLessons(prefs: SharedPreferences): Set<Int> =
     PoolTutorial
         .lessons()
         .map { it.id }
-        .filter { prefs.getBoolean(lessonDoneKey(it), false) }
+        .filter { prefs.booleanOr(lessonDoneKey(it), false) }
         .toSet()
 
 internal fun lessonName(lesson: PoolLesson): String = if (Locale.getDefault().language.startsWith("en")) lesson.nameEn else lesson.nameZh
@@ -92,14 +95,14 @@ internal fun loadClearedLevels(prefs: SharedPreferences): Set<Int> =
     PoolChallenges
         .campaigns()
         .map { it.id }
-        .filter { prefs.getBoolean(clearedLevelKey(it), false) }
+        .filter { prefs.booleanOr(clearedLevelKey(it), false) }
         .toSet()
 
 internal fun loadBestLevels(prefs: SharedPreferences): Map<Int, Int> =
     PoolChallenges
         .campaigns()
         .mapNotNull { c ->
-            val best = prefs.getInt(bestLevelKey(c.id), 0)
+            val best = prefs.intOr(bestLevelKey(c.id), 0)
             if (best > 0) c.id to best else null
         }.toMap()
 
@@ -166,7 +169,7 @@ internal fun saveReplay(
 }
 
 internal fun loadReplay(prefs: SharedPreferences): StoredReplay? =
-    runCatching { prefs.getString(PREF_POOL_REPLAY, null) }.getOrNull()?.let { parseReplay(it) }
+    runCatching { prefs.stringOr(PREF_POOL_REPLAY) }.getOrNull()?.let { parseReplay(it) }
 
 /**
  * 逐杆容错解析回放文本。
@@ -260,20 +263,20 @@ internal enum class PoolAchievement(
 
 internal fun loadPoolProgress(prefs: SharedPreferences): PoolProgress =
     PoolProgress(
-        games = prefs.getInt(PREF_STAT_GAMES, 0),
-        wins = prefs.getInt(PREF_STAT_WINS, 0),
-        frames = prefs.getInt(PREF_STAT_FRAMES, 0),
-        pots = prefs.getInt(PREF_STAT_POTS, 0),
-        bestRun = prefs.getInt(PREF_STAT_BEST_RUN, 0),
-        breakRuns = prefs.getInt(PREF_STAT_BREAK_RUNS, 0),
-        cleanSheets = prefs.getInt(PREF_STAT_CLEAN_SHEETS, 0),
-        masterWins = prefs.getInt(PREF_STAT_MASTER_WINS, 0),
-        bestShotPots = prefs.getInt(PREF_STAT_BEST_SHOT, 0),
-        winStreak = prefs.getInt(PREF_STAT_WIN_STREAK, 0),
-        bestWinStreak = prefs.getInt(PREF_STAT_BEST_STREAK, 0),
-        nineBallWins = prefs.getInt(PREF_STAT_NINE_WINS, 0),
-        practiceClears = prefs.getInt(PREF_STAT_PRACTICE_CLEARS, 0),
-        bestPractice = prefs.getInt(PREF_STAT_BEST_PRACTICE, 0),
+        games = prefs.intOr(PREF_STAT_GAMES, 0),
+        wins = prefs.intOr(PREF_STAT_WINS, 0),
+        frames = prefs.intOr(PREF_STAT_FRAMES, 0),
+        pots = prefs.intOr(PREF_STAT_POTS, 0),
+        bestRun = prefs.intOr(PREF_STAT_BEST_RUN, 0),
+        breakRuns = prefs.intOr(PREF_STAT_BREAK_RUNS, 0),
+        cleanSheets = prefs.intOr(PREF_STAT_CLEAN_SHEETS, 0),
+        masterWins = prefs.intOr(PREF_STAT_MASTER_WINS, 0),
+        bestShotPots = prefs.intOr(PREF_STAT_BEST_SHOT, 0),
+        winStreak = prefs.intOr(PREF_STAT_WIN_STREAK, 0),
+        bestWinStreak = prefs.intOr(PREF_STAT_BEST_STREAK, 0),
+        nineBallWins = prefs.intOr(PREF_STAT_NINE_WINS, 0),
+        practiceClears = prefs.intOr(PREF_STAT_PRACTICE_CLEARS, 0),
+        bestPractice = prefs.intOr(PREF_STAT_BEST_PRACTICE, 0),
         unlocked =
             prefs
                 .getString(PREF_STAT_ACH_SEEN, null)

@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
+import com.xiaoxiong.weather.game.stringOr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -157,7 +158,7 @@ class PlaneSnapshotTest {
         source.startGame(seed = 22L)
         source.advanceTicks(30)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
 
         val broken =
@@ -295,7 +296,7 @@ class PlaneSnapshotTest {
         source.startGame(seed = 9L)
         source.advanceTicks(60)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
         assertTrue("新档应为 v=4: $payload", payload!!.startsWith("v=4"))
         prefs.edit().putString(key, payload.replaceFirst("v=4", "v=3")).apply()
@@ -312,7 +313,7 @@ class PlaneSnapshotTest {
         source.startGame(seed = 24L)
         source.advanceTicks(60)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
         val broken =
             payload!!
@@ -341,7 +342,7 @@ class PlaneSnapshotTest {
         source.startGame(seed = 10L)
         source.advanceTicks(30)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
         val broken = payload!!.lineSequence().filterNot { it.startsWith("player=") }.joinToString("\n")
         prefs.edit().putString(key, broken).apply()
@@ -358,7 +359,7 @@ class PlaneSnapshotTest {
         source.startGame(seed = 11L)
         source.advanceTicks(30)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
         prefs.edit().putString(key, payload!!.replaceFirst("phase=PLAYING", "phase=READY")).apply()
 
@@ -478,7 +479,7 @@ class PlaneSnapshotTest {
         source.startLives = 5
         source.startGame(seed = 55L)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
         for ((raw, expected) in listOf("0" to PlaneConfig.START_LIVES_MIN, "99" to PlaneConfig.START_LIVES_MAX)) {
             val broken = payload!!.lineSequence().map { if (it.startsWith("start=")) "start=$raw" else it }.joinToString("\n")
@@ -496,7 +497,7 @@ class PlaneSnapshotTest {
         source.startGame(seed = 41L, startWave = 2)
         source.advanceTicks(120)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
         val broken =
             payload!!
@@ -524,7 +525,7 @@ class PlaneSnapshotTest {
         source.startGame(seed = 42L)
         source.advanceTicks(30)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
         // hp=0 的实体（如坏档）恢复后不应在首个 tick 被当成击杀计分
         val broken = payload!! + "\nenemy=9999,GRUNT,50,50,0,0,0,3,100,0,0,50,0,0,0"

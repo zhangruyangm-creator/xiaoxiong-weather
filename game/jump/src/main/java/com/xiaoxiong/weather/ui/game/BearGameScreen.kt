@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.intOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
 
@@ -78,7 +79,7 @@ fun BearGameScreen(
     val gameWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     val game =
         remember {
-            BearGame().also { it.best = prefs.getInt("best", 0) }
+            BearGame().also { it.best = prefs.intOr("best", 0) }
         }
     // 进程重建（旋转/被杀）后恢复局中对局：由 GameSnapshotLifecycle 在进入时恢复，
     // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。

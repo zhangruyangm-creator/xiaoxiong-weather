@@ -27,6 +27,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.intOr
 import java.time.LocalDate
 
 @Composable
@@ -54,7 +55,7 @@ fun BearMazeScreen(
     // 本地日（用于每日迷宫与完成记录）；跨零点回到前台（ON_RESUME）时刷新
     var today by remember { mutableLongStateOf(LocalDate.now().toEpochDay()) }
     // 每日最佳用 today 做 key：跨天后自动重新读取新一天的记录
-    var dailyBest by remember(today) { mutableIntStateOf(prefs.getInt("maze_daily_$today", -1)) }
+    var dailyBest by remember(today) { mutableIntStateOf(prefs.intOr("maze_daily_$today", -1)) }
     // 事件特效宿主（粒子/庆祝）。提到 Screen 层是为了让帧循环能在特效结束后暂停；
     // observe() 会按 grid 身份感知换关并清空上一局粒子。
     val fx = remember { MazeFxHost() }
@@ -164,7 +165,7 @@ fun BearMazeScreen(
                 game.saveSession(prefs)
                 if (game.daily) {
                     val key = "maze_daily_${game.dailyDate}"
-                    val prev = prefs.getInt(key, -1)
+                    val prev = prefs.intOr(key, -1)
                     if (prev < 0 || game.moves < prev) {
                         prefs.edit { putInt(key, game.moves) }
                         // 只更新今天对应的展示状态；旧日期的会话不污染今日最佳

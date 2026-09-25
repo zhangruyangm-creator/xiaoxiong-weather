@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
+import com.xiaoxiong.weather.game.stringOr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -21,14 +22,14 @@ class MazeGameSessionTest {
         val game = MazeGame()
         game.startEndless(1)
         game.saveSession(prefs)
-        val saved = prefs.getString(sessionKey, null)
+        val saved = prefs.stringOr(sessionKey)
         assertNotNull(saved)
 
         // 模拟「保留进度并退出」：存档后回到选关（grid 仍在），随后 onDispose/ON_STOP 再落盘
         game.openSelect()
         game.saveSession(prefs)
 
-        assertEquals("选关阶段不应覆盖已保存的无尽会话", saved, prefs.getString(sessionKey, null))
+        assertEquals("选关阶段不应覆盖已保存的无尽会话", saved, prefs.stringOr(sessionKey))
         assertTrue(saved!!.contains("\"endless\":true"))
     }
 
@@ -39,17 +40,17 @@ class MazeGameSessionTest {
 
         game.startLevel(5)
         game.saveSession(prefs)
-        val campaignSaved = prefs.getString(sessionKey, null)
+        val campaignSaved = prefs.stringOr(sessionKey)
         game.openSelect()
         game.saveSession(prefs)
-        assertEquals("看一眼选关不应清掉战役存档", campaignSaved, prefs.getString(sessionKey, null))
+        assertEquals("看一眼选关不应清掉战役存档", campaignSaved, prefs.stringOr(sessionKey))
 
         game.startDaily(20_000L)
         game.saveSession(prefs)
-        val dailySaved = prefs.getString(sessionKey, null)
+        val dailySaved = prefs.stringOr(sessionKey)
         game.openSelect()
         game.saveSession(prefs)
-        assertEquals("看一眼选关不应清掉每日存档", dailySaved, prefs.getString(sessionKey, null))
+        assertEquals("看一眼选关不应清掉每日存档", dailySaved, prefs.stringOr(sessionKey))
     }
 
     @Test
@@ -89,7 +90,7 @@ class MazeGameSessionTest {
         source.saveSession(prefs)
         // 模拟损坏/旧版本快照：cleared=true 但仍标 PLAYING。
         // 若按 PLAYING 恢复，tryMove 会因 cleared 全部返回 false（走不动又不显示结算）→ 软锁
-        val raw = prefs.getString(sessionKey, null)!!
+        val raw = prefs.stringOr(sessionKey)!!
         prefs.edit().putString(sessionKey, raw.replace("\"cleared\":false", "\"cleared\":true")).apply()
 
         val restored = MazeGame()
@@ -103,13 +104,13 @@ class MazeGameSessionTest {
         val source = MazeGame()
         source.startEndless(2)
         source.saveSession(prefs)
-        val saved = prefs.getString(sessionKey, null)
+        val saved = prefs.stringOr(sessionKey)
 
         val restored = MazeGame()
         assertTrue(restored.restoreSession(prefs))
         assertEquals(MazePhase.PLAYING, restored.phase)
         assertTrue(restored.endless)
-        assertEquals("恢复后应保留快照，供再次被杀时恢复", saved, prefs.getString(sessionKey, null))
+        assertEquals("恢复后应保留快照，供再次被杀时恢复", saved, prefs.stringOr(sessionKey))
     }
 
     @Test

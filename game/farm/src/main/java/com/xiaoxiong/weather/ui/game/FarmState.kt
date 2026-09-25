@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.stringOr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -266,7 +267,7 @@ internal class BearFarm(
      * 就足以毁掉整份存档（金币/地块/背包/图鉴全没）。宁可让玩家看到提示后手动重置。
      */
     fun load() {
-        val raw = prefs.getString("farm_save_v1", null) ?: return
+        val raw = prefs.stringOr("farm_save_v1") ?: return
         val loaded =
             runCatching {
                 val save = farmJson.decodeFromString(FarmSave.serializer(), raw)

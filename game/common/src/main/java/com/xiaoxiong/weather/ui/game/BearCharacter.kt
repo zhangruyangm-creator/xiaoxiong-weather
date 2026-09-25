@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.imageResource
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.stringOr
 
 /** 动作类游戏可选主角：浅粉 Q 版 / 蜂蜜棕太阳熊。 */
 enum class BearCharacter(
@@ -69,7 +70,7 @@ private const val PREF_BEAR_CHARACTER = "bear_character"
 
 object BearCharacterStore {
     fun load(prefs: SharedPreferences): BearCharacter {
-        val raw = prefs.getString(PREF_BEAR_CHARACTER, BearCharacter.PEACH.name)
+        val raw = prefs.stringOr(PREF_BEAR_CHARACTER, BearCharacter.PEACH.name)
         return runCatching { BearCharacter.valueOf(raw!!) }.getOrDefault(BearCharacter.PEACH)
     }
 

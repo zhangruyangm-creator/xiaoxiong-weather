@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
+import com.xiaoxiong.weather.game.stringOr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -71,7 +72,7 @@ class PoolSnapshotTest {
         source.mode = PoolMode.PRACTICE
         source.startMatch(PoolSide.PLAYER, seed = 3L)
         source.saveSnapshot(prefs)
-        val raw = prefs.getString(key, null)
+        val raw = prefs.stringOr(key)
         assertNotNull(raw)
         val tampered = raw!!.replace(Regex("raceTo=\\d+"), "raceTo=99")
         prefs.edit().putString(key, tampered).apply()
@@ -167,7 +168,7 @@ class PoolSnapshotTest {
         source.mode = PoolMode.PRACTICE
         source.startMatch(PoolSide.PLAYER, seed = 41L)
         source.saveSnapshot(prefs)
-        val raw = prefs.getString(key, null)
+        val raw = prefs.stringOr(key)
         assertNotNull(raw)
         prefs.edit().putString(key, raw!!.replace(Regex("matchDiff=[^\\n]*\\n"), "")).apply()
 
@@ -199,7 +200,7 @@ class PoolSnapshotTest {
         val source = newGame()
         source.startMatch(PoolSide.PLAYER, seed = 9L)
         source.saveSnapshot(prefs)
-        val payload = prefs.getString(key, null)
+        val payload = prefs.stringOr(key)
         assertNotNull(payload)
         assertTrue("新档应为 v2: $payload", payload!!.startsWith("v=2"))
         prefs.edit().putString(key, payload.replaceFirst("v=2", "v=1")).apply()
@@ -216,7 +217,7 @@ class PoolSnapshotTest {
         val source = newGame()
         source.startMatch(PoolSide.PLAYER, seed = 9L)
         source.saveSnapshot(prefs)
-        val v2 = prefs.getString(key, null)
+        val v2 = prefs.stringOr(key)
         assertNotNull(v2)
         prefs
             .edit()
@@ -252,7 +253,7 @@ class PoolSnapshotTest {
         assertFalse(prefs.contains(key))
         assertFalse(prefs.contains(POOL_LEGACY_SNAPSHOT_KEY))
         assertFalse(prefs.contains(POOL_LEGACY_REPLAY_KEY))
-        assertEquals("v2 回放不属于对局快照，不应误删", "keep-me", prefs.getString(replayKey, null))
+        assertEquals("v2 回放不属于对局快照，不应误删", "keep-me", prefs.stringOr(replayKey))
     }
 
     @Test
@@ -340,7 +341,7 @@ class PoolSnapshotTest {
         source.mode = PoolMode.PRACTICE
         source.startMatch(PoolSide.PLAYER, seed = 8L)
         source.saveSnapshot(prefs)
-        val saved = prefs.getString(key, null)
+        val saved = prefs.stringOr(key)
         assertNotNull(saved)
 
         source.shoot((Math.PI / 2).toFloat(), 0.8f)
@@ -354,7 +355,7 @@ class PoolSnapshotTest {
         source.tick(1f / 60f)
 
         source.saveSnapshot(prefs)
-        assertEquals("回放中不应覆盖续玩快照", saved, prefs.getString(key, null))
+        assertEquals("回放中不应覆盖续玩快照", saved, prefs.stringOr(key))
     }
 
     @Test
@@ -366,7 +367,7 @@ class PoolSnapshotTest {
         source.saveSnapshot(prefs)
 
         assertTrue(prefs.contains(key))
-        assertEquals("对局快照不得覆盖回放", "sentinel-replay", prefs.getString(replayKey, null))
+        assertEquals("对局快照不得覆盖回放", "sentinel-replay", prefs.stringOr(replayKey))
     }
 
     // ---------------------------------------------------------------------

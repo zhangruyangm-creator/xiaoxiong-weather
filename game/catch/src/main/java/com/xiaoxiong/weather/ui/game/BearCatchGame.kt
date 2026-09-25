@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.edit
+import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchDifficulty
 import kotlin.math.max
 import kotlin.math.min
@@ -614,15 +616,15 @@ class BearCatchGame {
 
         /** 读取最高分；旧键有值而新键没有时迁移，避免升级后丢纪录。 */
         fun loadBestScore(prefs: SharedPreferences): Int {
-            val saved = prefs.getInt(PREFS_BEST_SCORE_KEY, -1)
+            val saved = prefs.intOr(PREFS_BEST_SCORE_KEY, -1)
             if (saved >= 0) return saved
-            val legacy = prefs.getInt(PREFS_BEST_SCORE_LEGACY_KEY, 0)
+            val legacy = prefs.intOr(PREFS_BEST_SCORE_LEGACY_KEY, 0)
             if (legacy > 0) prefs.edit { putInt(PREFS_BEST_SCORE_KEY, legacy) }
             return legacy
         }
 
         /** 读取难度档位；缺省 / 未知 id 回退 [CatchDifficulty.STANDARD]。 */
-        fun loadDifficulty(prefs: SharedPreferences): CatchDifficulty = CatchDifficulty.fromId(prefs.getString(PREFS_DIFFICULTY_KEY, null))
+        fun loadDifficulty(prefs: SharedPreferences): CatchDifficulty = CatchDifficulty.fromId(prefs.stringOr(PREFS_DIFFICULTY_KEY))
     }
 }
 

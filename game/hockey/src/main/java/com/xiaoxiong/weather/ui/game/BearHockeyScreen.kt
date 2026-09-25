@@ -60,6 +60,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.booleanOr
+import com.xiaoxiong.weather.game.intOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Difficulty
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Phase
@@ -163,7 +165,7 @@ fun BearHockeyScreen(
                     prefs
                         .getFloat(PREF_PADDLE, HockeyLogic.PADDLE_SCALE_DEFAULT)
                         .coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX)
-                it.paddleScaleBoth = prefs.getBoolean(PREF_PADDLE_BOTH, true)
+                it.paddleScaleBoth = prefs.booleanOr(PREF_PADDLE_BOTH, true)
                 it.puckScale =
                     prefs
                         .getFloat(PREF_PUCK, HockeyLogic.PUCK_SCALE_DEFAULT)
@@ -173,7 +175,7 @@ fun BearHockeyScreen(
                         .getFloat(PREF_GOAL, HockeyLogic.GOAL_SCALE_DEFAULT)
                         .coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
                 it.rinkTheme = RinkTheme.fromId(prefs.getString(PREF_RINK_THEME, RinkTheme.DEFAULT.id))
-                it.bestWins = prefs.getInt(PREF_BEST, 0)
+                it.bestWins = prefs.intOr(PREF_BEST, 0)
             }
         }
     var showSettings by remember { mutableStateOf(false) }

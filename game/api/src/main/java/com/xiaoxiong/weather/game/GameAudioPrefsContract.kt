@@ -133,8 +133,8 @@ object GameAudioPrefsContract {
     ): GameAudioSettings {
         migrateLegacyEnabledIfNeeded(prefs, legacyPrefs)
         return GameAudioSettings(
-            enabled = prefs.getBoolean(KEY_ENABLED, true),
-            volume = coerceVolume(prefs.getFloat(KEY_VOLUME, DEFAULT_VOLUME)),
+            enabled = prefs.booleanOr(KEY_ENABLED, true),
+            volume = coerceVolume(prefs.floatOr(KEY_VOLUME, DEFAULT_VOLUME)),
         )
     }
 

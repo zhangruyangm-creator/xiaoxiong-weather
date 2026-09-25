@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.xiaoxiong.weather.game.stringOr
 
 /**
  * 对局快照的轻量本地存储：把每个游戏自己的紧凑文本快照存进 `bear_game` prefs。
@@ -24,7 +25,7 @@ object GameSnapshot {
     fun load(
         prefs: SharedPreferences,
         key: String,
-    ): String? = runCatching { prefs.getString(key, null) }.getOrNull()
+    ): String? = runCatching { prefs.stringOr(key) }.getOrNull()
 
     fun clear(
         prefs: SharedPreferences,

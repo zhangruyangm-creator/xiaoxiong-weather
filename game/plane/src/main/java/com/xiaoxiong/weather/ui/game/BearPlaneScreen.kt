@@ -32,6 +32,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
 import kotlinx.coroutines.delay
@@ -60,7 +62,7 @@ internal fun planeTouchTargetY(touchLogicalY: Float): Float =
 
 /** 读取持久化的开局命数并夹到 1..9（缺省 / 坏值回退默认 3）。 */
 internal fun planeStartLivesOf(prefs: SharedPreferences): Int =
-    planeClampStartLives(prefs.getInt(PLANE_START_LIVES_KEY, PlaneConfig.START_LIVES))
+    planeClampStartLives(prefs.intOr(PLANE_START_LIVES_KEY, PlaneConfig.START_LIVES))
 
 /** 开局命数夹取：1..9。 */
 internal fun planeClampStartLives(value: Int): Int = value.coerceIn(PlaneConfig.START_LIVES_MIN, PlaneConfig.START_LIVES_MAX)
@@ -106,7 +108,7 @@ fun BearPlaneScreen(
         remember {
             PlaneGame().also {
                 it.setWeather(sceneCode, isDay)
-                it.difficulty = PlaneDifficulty.fromId(prefs.getString(PREF_PLANE_DIFF, null))
+                it.difficulty = PlaneDifficulty.fromId(prefs.stringOr(PREF_PLANE_DIFF))
                 it.startLives = planeStartLivesOf(prefs)
             }
         }
@@ -164,9 +166,9 @@ fun BearPlaneScreen(
             },
         )
 
-    fun bestOf(difficulty: PlaneDifficulty): Int = prefs.getInt(planeBestKey(difficulty), 0)
+    fun bestOf(difficulty: PlaneDifficulty): Int = prefs.intOr(planeBestKey(difficulty), 0)
 
-    fun bestWaveOf(difficulty: PlaneDifficulty): Int = prefs.getInt(planeBestWaveKey(difficulty), 0)
+    fun bestWaveOf(difficulty: PlaneDifficulty): Int = prefs.intOr(planeBestWaveKey(difficulty), 0)
 
     fun syncHud() {
         if (hudPhase != game.phase) hudPhase = game.phase
@@ -180,13 +182,13 @@ fun BearPlaneScreen(
 
     fun submitResult() {
         val key = planeBestKey(difficultyState)
-        val prevBest = prefs.getInt(key, 0)
+        val prevBest = prefs.intOr(key, 0)
         isNewRecord = game.score > prevBest && game.score > 0
         if (game.score > prevBest) prefs.edit { putInt(key, game.score) }
         best = max(prevBest, game.score)
         // 无尽模式的正反馈：记录并刷新「历史最远波次」
         val waveKey = planeBestWaveKey(difficultyState)
-        val prevBestWave = prefs.getInt(waveKey, 0)
+        val prevBestWave = prefs.intOr(waveKey, 0)
         val reachedWave = game.waveIndex.coerceAtLeast(1)
         isNewWaveRecord = reachedWave > prevBestWave
         if (isNewWaveRecord) prefs.edit { putInt(waveKey, reachedWave) }

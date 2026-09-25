@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
+import com.xiaoxiong.weather.game.intOr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -110,7 +111,7 @@ class GameLeaderboardStoreTest {
         store.purgeLegacyKeys("leaderboard_old_v1", "best_old")
         assertFalse(prefs.contains("leaderboard_old_v1"))
         assertFalse(prefs.contains("best_old"))
-        assertEquals(7, prefs.getInt("keep_me", 0))
+        assertEquals(7, prefs.intOr("keep_me", 0))
     }
 
     @Test
@@ -168,7 +169,7 @@ class GameLeaderboardStoreTest {
         assertFalse(prefs.contains(key))
         assertFalse(prefs.contains(bestKey))
         assertFalse("清榜应一并清掉显式传入的旧 key", prefs.contains("leaderboard_old_v1"))
-        assertEquals(7, prefs.getInt("keep_me", 0))
+        assertEquals(7, prefs.intOr("keep_me", 0))
         assertTrue(store.load().isEmpty())
     }
 

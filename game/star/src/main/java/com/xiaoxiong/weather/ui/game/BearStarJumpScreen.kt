@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.intOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import kotlin.random.Random
 
@@ -66,7 +67,7 @@ fun BearStarJumpScreen(
     var showCharacterPicker by remember { mutableStateOf(false) }
     val game =
         remember {
-            StarJumpGame().also { it.best = prefs.getInt("best_jump", 0) }
+            StarJumpGame().also { it.best = prefs.intOr("best_jump", 0) }
         }
     val jumpWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     // 进程重建（旋转/被杀）后恢复局中对局：由 GameSnapshotLifecycle 在进入时恢复，

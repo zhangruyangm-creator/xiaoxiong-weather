@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
+import com.xiaoxiong.weather.game.stringOr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -250,7 +251,7 @@ class StarSnapshotTest {
         prefs: FakePrefs,
         phaseOrdinal: Int,
     ) {
-        val raw = prefs.getString(key, null)!!
+        val raw = prefs.stringOr(key)!!
         val lines = raw.split('\n').toMutableList()
         val meta = lines[0].split(',').toMutableList()
         meta[0] = phaseOrdinal.toString()

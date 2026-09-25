@@ -3,6 +3,7 @@ package com.xiaoxiong.weather.ui.game
 import android.content.SharedPreferences
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
+import com.xiaoxiong.weather.game.intOr
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchDifficulty
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchScene
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.ItemKind
@@ -164,14 +165,14 @@ class CatchSnapshotTest {
         assertEquals(
             "读取旧值后应回写新键",
             321,
-            prefs.getInt(BearCatchGame.PREFS_BEST_SCORE_KEY, 0),
+            prefs.intOr(BearCatchGame.PREFS_BEST_SCORE_KEY, 0),
         )
 
         val game = BearCatchGame()
         game.best = 400
         assertFalse("更低分不应刷新", game.recordBestScore(prefs, 321))
         assertTrue("更高分应刷新", game.recordBestScore(prefs, 500))
-        assertEquals(500, prefs.getInt(BearCatchGame.PREFS_BEST_SCORE_KEY, 0))
+        assertEquals(500, prefs.intOr(BearCatchGame.PREFS_BEST_SCORE_KEY, 0))
         assertEquals(500, BearCatchGame.loadBestScore(prefs))
     }
 
