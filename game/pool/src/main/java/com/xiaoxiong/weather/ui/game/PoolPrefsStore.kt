@@ -165,33 +165,51 @@ internal fun saveReplay(
     runCatching { prefs.edit { putString(PREF_POOL_REPLAY, raw) } }
 }
 
-internal fun loadReplay(prefs: SharedPreferences): StoredReplay? {
-    val raw = runCatching { prefs.getString(PREF_POOL_REPLAY, null) }.getOrNull() ?: return null
-    return runCatching {
-        val parts = raw.split('|')
-        if (parts.size < 4) return@runCatching null
-        val shots =
-            parts[3]
-                .split(';')
-                .filter { it.isNotBlank() }
-                .mapNotNull { entry ->
-                    val f = entry.split(',')
-                    if (f.size < 5) {
-                        null
-                    } else {
-                        StoredShot(
-                            angle = f[0].toFloat(),
-                            power = f[1].toFloat(),
-                            side = f[2].toFloat(),
-                            vertical = f[3].toFloat(),
-                            elevation = f[4].toFloat(),
-                            x = f.getOrNull(5)?.toFloat() ?: 0f,
-                            y = f.getOrNull(6)?.toFloat() ?: 0f,
-                        )
-                    }
-                }
-        if (shots.isEmpty()) null else StoredReplay(parts[0], parts[1].toLong(), parts[2], shots)
-    }.getOrNull()
+internal fun loadReplay(prefs: SharedPreferences): StoredReplay? =
+    runCatching { prefs.getString(PREF_POOL_REPLAY, null) }.getOrNull()?.let { parseReplay(it) }
+
+/**
+ * 逐杆容错解析回放文本。
+ *
+ * 原先每杆用 `toFloat()`，任一脏数据抛 NumberFormatException 后被外层 runCatching
+ * 吞成 null——**整段回放作废**，与已修的城市列表「单条坏数据抹掉整批」同型。
+ * 这里改为逐杆 `toFloatOrNull()` + 有限性校验：坏杆只丢自己，其余照常可回放。
+ * 头部（模式/种子/球方）坏了仍整段作废，因为那决定回放如何重建球局。
+ */
+internal fun parseReplay(raw: String): StoredReplay? {
+    val parts = raw.split('|')
+    if (parts.size < 4) return null
+    val seed = parts[1].toLongOrNull() ?: return null
+    val shots =
+        parts[3]
+            .split(';')
+            .filter { it.isNotBlank() }
+            .mapNotNull { parseStoredShot(it) }
+    return if (shots.isEmpty()) null else StoredReplay(parts[0], seed, parts[2], shots)
+}
+
+/** 单杆容错解析：字段不足、非数字或非有限值都返回 null（只丢这一杆）。 */
+private fun parseStoredShot(entry: String): StoredShot? {
+    val f = entry.split(',')
+    if (f.size < 5) return null
+    val angle = f[0].toFloatOrNull() ?: return null
+    val power = f[1].toFloatOrNull() ?: return null
+    val side = f[2].toFloatOrNull() ?: return null
+    val vertical = f[3].toFloatOrNull() ?: return null
+    val elevation = f[4].toFloatOrNull() ?: return null
+    if (!listOf(angle, power, side, vertical, elevation).all { it.isFinite() }) return null
+    val x = f.getOrNull(5)?.toFloatOrNull() ?: 0f
+    val y = f.getOrNull(6)?.toFloatOrNull() ?: 0f
+    if (!x.isFinite() || !y.isFinite()) return null
+    return StoredShot(
+        angle = angle,
+        power = power,
+        side = side,
+        vertical = vertical,
+        elevation = elevation,
+        x = x,
+        y = y,
+    )
 }
 
 /** 台球生涯统计（只存本地 SharedPreferences）。 */
