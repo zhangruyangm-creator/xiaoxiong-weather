@@ -148,6 +148,9 @@ internal const val POOL_SNAPSHOT_MAX_BALLS = 20
 internal fun PoolSnapshot.isSane(): Boolean {
     if (balls.isEmpty() || balls.size > POOL_SNAPSHOT_MAX_BALLS) return false
     if (balls.map { it.id }.toSet().size != balls.size) return false
+    // 恰好一颗白球：缺白球时 PoolGame.shoot() 会静默 return，玩家既不能出杆也不知道
+    // 为什么，界面看着正常却完全无法操作——属于软锁，必须当坏档清掉而不是恢复。
+    if (balls.count { it.kind == PoolBallKind.CUE } != 1) return false
     if (!aimAngle.isFinite() || !elevation.isFinite()) return false
     if (!spinSide.isFinite() || !spinVertical.isFinite()) return false
     if (balls.any { !it.isFinite() }) return false

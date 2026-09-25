@@ -321,10 +321,10 @@ internal class MazeGame {
             prefs.edit { remove(MAZE_SESSION_KEY) }
             return false
         }
-        keys = session.keys
-        honeyLeft = session.honeyLeft
-        honeyTotal = session.honeyTotal
-        moves = session.moves
+        keys = session.keys.coerceAtLeast(0)
+        honeyLeft = session.honeyLeft.coerceAtLeast(0)
+        honeyTotal = session.honeyTotal.coerceAtLeast(0)
+        moves = session.moves.coerceAtLeast(0)
         facing = runCatching { MazeDir.valueOf(session.facing) }.getOrDefault(MazeDir.RIGHT)
         bearR = session.bearR
         bearC = session.bearC
@@ -347,7 +347,21 @@ internal class MazeGame {
         // 返回 false（既走不动也不显示结算），对局直接软锁。正常落盘不会产生这种会话
         // （saveSession 排除 CLEAR 阶段），这里是防御损坏/旧版本快照。
         phase = if (session.cleared) MazePhase.CLEAR else MazePhase.PLAYING
+        reconcileHoneyWithGrid()
         return true
+    }
+
+    /**
+     * 按恢复后的棋盘重算蜂蜜余量。
+     *
+     * 计数来自存档、棋盘是重建出来的，两者可能不一致（手改档、写入截断、旧版本迁移）：
+     * 存档说 `honeyLeft=0` 但棋盘上还有 H 就能跳过收蜜直接过关；反过来棋盘已无 H
+     * 而 `honeyLeft>0` 则永远收不齐，出口永不开启——两种都是坏档。以棋盘为准。
+     */
+    private fun reconcileHoneyWithGrid() {
+        val remaining = grid.sumOf { row -> row.count { it.tile == MazeTile.HONEY } }
+        honeyLeft = remaining
+        honeyTotal = maxOf(honeyTotal, remaining)
     }
 
     /**

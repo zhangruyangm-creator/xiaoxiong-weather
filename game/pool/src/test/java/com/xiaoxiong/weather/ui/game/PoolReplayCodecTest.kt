@@ -72,6 +72,26 @@ class PoolReplayCodecTest {
     }
 
     @Test
+    fun `present-but-invalid x drops the shot instead of silently using zero`() {
+        val replay = parseReplay(raw(line(x = "BAD"), line(angle = "0.7")))
+        assertNotNull(replay)
+        assertEquals(
+            "字段存在却非法时不能当 0（会把白球摆到球桌角落），应丢这一杆",
+            1,
+            replay!!.shots.size,
+        )
+        assertEquals(0.7f, replay.shots.single().angle, 1e-6f)
+    }
+
+    @Test
+    fun `present-but-empty y drops the shot`() {
+        val replay = parseReplay(raw(line(y = ""), line(angle = "0.7")))
+        assertNotNull(replay)
+        assertEquals(1, replay!!.shots.size)
+        assertEquals(0.7f, replay.shots.single().angle, 1e-6f)
+    }
+
+    @Test
     fun `replay with no valid shot is null`() {
         assertNull(parseReplay(raw(line(angle = "BAD"), line(power = "oops"))))
     }

@@ -15,9 +15,10 @@ class PoolSnapshotSanityTest {
         id: Int = 0,
         x: Float = 100f,
         y: Float = 200f,
+        kind: PoolBallKind = if (id == 0) PoolBallKind.CUE else PoolBallKind.SOLID,
     ) = PoolBallSnapshot(
         id = id,
-        kind = PoolBallKind.CUE,
+        kind = kind,
         x = x,
         y = y,
         vx = 0f,
@@ -156,7 +157,24 @@ class PoolSnapshotSanityTest {
     }
 
     @Test
-    fun nanCueStartY_isRejected() {
+    fun `nanCueStartY_isRejected`() {
         assertFalse(snapshot(cueStartY = Float.NaN).isSane())
+    }
+
+    @Test
+    fun `missingCueBall_isRejectedToAvoidSoftLock`() {
+        val noCue = listOf(ball(1), ball(2))
+        assertFalse("无白球时 shoot() 静默 return，玩家无法出杆也不能察觉原因", snapshot(balls = noCue).isSane())
+    }
+
+    @Test
+    fun twoCueBalls_areRejected() {
+        val twoCue = listOf(ball(0, kind = PoolBallKind.CUE), ball(9, kind = PoolBallKind.CUE))
+        assertFalse(snapshot(balls = twoCue).isSane())
+    }
+
+    @Test
+    fun `exactlyOneCueBall_isAccepted`() {
+        assertTrue(snapshot(balls = listOf(ball(0, kind = PoolBallKind.CUE), ball(1))).isSane())
     }
 }

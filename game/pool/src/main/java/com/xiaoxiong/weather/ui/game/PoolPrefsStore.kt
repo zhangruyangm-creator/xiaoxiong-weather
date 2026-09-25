@@ -201,9 +201,10 @@ private fun parseStoredShot(entry: String): StoredShot? {
     val vertical = f[3].toFloatOrNull() ?: return null
     val elevation = f[4].toFloatOrNull() ?: return null
     if (!listOf(angle, power, side, vertical, elevation).all { it.isFinite() }) return null
-    val x = f.getOrNull(5)?.toFloatOrNull() ?: 0f
-    val y = f.getOrNull(6)?.toFloatOrNull() ?: 0f
-    if (!x.isFinite() || !y.isFinite()) return null
+    // 区分「旧格式没有 x/y 字段」（合法，缺省 0）和「字段存在但非法」（坏数据，丢这一杆）：
+    // 后者若也当 0 处理，白球会被摆到球桌左上角，回放从错误局面开始。
+    val x = if (f.size > 5) f[5].toFloatOrNull()?.takeIf { it.isFinite() } ?: return null else 0f
+    val y = if (f.size > 6) f[6].toFloatOrNull()?.takeIf { it.isFinite() } ?: return null else 0f
     return StoredShot(
         angle = angle,
         power = power,

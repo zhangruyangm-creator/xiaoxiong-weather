@@ -88,7 +88,7 @@ internal fun FarmInventoryDialog(
                             stringResource(R.string.bear_farm_coins, farm.coins),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6D4C41),
+                            color = farmScheme().onSurfaceVariant,
                         )
                     }
                 }

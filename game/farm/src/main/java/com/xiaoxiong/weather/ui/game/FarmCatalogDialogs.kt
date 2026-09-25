@@ -131,7 +131,7 @@ internal fun FarmUnlockDialog(
                             stringResource(farmWeatherNameRes(preferred)),
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6D4C41),
+                        color = farmScheme().onSurfaceVariant,
                     )
                 }
                 val description = cropDescription(crop)
@@ -186,7 +186,7 @@ private fun FarmUnlockInfoChip(text: String) {
             text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
-            color = Color(0xFF6D4C41),
+            color = farmScheme().onSurfaceVariant,
         )
     }
 }
@@ -262,7 +262,7 @@ internal fun FarmCatalogDialog(
                     Text(
                         stringResource(R.string.bear_farm_catalog_progress, farm.collectedCount, FARM_CROPS.size),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF6D4C41),
+                        color = farmScheme().onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     LinearProgressIndicator(
@@ -300,7 +300,7 @@ internal fun FarmCatalogDialog(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
-                                color = if (sel) farmScheme().onSecondary else Color(0xFF6D4C41),
+                                color = if (sel) farmScheme().onSecondary else farmScheme().onSurfaceVariant,
                             )
                         }
                     }
@@ -378,7 +378,7 @@ internal fun FarmCatalogDialog(
                 Text(
                     stringResource(R.string.bear_farm_season_progress, farm.seasonCollectedCount, farm.seasonGoal),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF6D4C41),
+                    color = farmScheme().onSurfaceVariant,
                 )
                 if (farm.allCollected) {
                     Text(
@@ -526,7 +526,7 @@ private fun FarmCatalogCropDetail(
                             stringResource(farmWeatherNameRes(preferred)),
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6D4C41),
+                        color = farmScheme().onSurfaceVariant,
                     )
                 }
                 val description = cropDescription(crop)
@@ -626,7 +626,7 @@ internal fun NewSeasonConfirmDialog(
                 Text(
                     stringResource(R.string.bear_farm_new_season_msg, seasonGrowthPercent(farm.completedSeasons + 1)),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF6D4C41),
+                    color = farmScheme().onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

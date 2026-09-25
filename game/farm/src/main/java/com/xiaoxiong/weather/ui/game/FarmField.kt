@@ -386,7 +386,7 @@ private fun FarmPlotVisual(
                 }
                 Image(
                     bitmap = rememberGameImage(FarmCropArt.ripe(c), 256),
-                    contentDescription = c.nameZh,
+                    contentDescription = cropName(c),
                     modifier =
                         Modifier
                             .fillMaxSize(0.78f)

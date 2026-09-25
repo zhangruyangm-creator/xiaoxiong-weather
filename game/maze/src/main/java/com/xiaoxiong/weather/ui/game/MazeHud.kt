@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -205,7 +206,9 @@ private fun MazeGlassButton(
         modifier =
             Modifier
                 .padding(2.dp)
-                .size(38.dp)
+                // 视觉圆保持 38dp，但点击区域补足 48dp：顶栏一排按钮挤在一起时，
+                // 38dp 的可点节点对运动障碍用户过小（无障碍建议最小 48dp）。
+                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.verticalGradient(

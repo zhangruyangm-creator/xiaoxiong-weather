@@ -146,7 +146,7 @@ internal fun FarmShopDialog(
                     stringResource(R.string.bear_farm_item_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF6D4C41),
+                    color = farmScheme().onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -194,7 +194,7 @@ internal fun FarmShopDialog(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
-                                color = if (sel) farmScheme().onSecondary else Color(0xFF6D4C41),
+                                color = if (sel) farmScheme().onSecondary else farmScheme().onSurfaceVariant,
                             )
                         }
                     }
@@ -263,7 +263,7 @@ internal fun FarmShopDialog(
                                         style = MaterialTheme.typography.labelSmall,
                                         textAlign = TextAlign.Center,
                                         fontSize = 10.sp,
-                                        color = Color(0xFF6D4C41),
+                                        color = farmScheme().onSurfaceVariant,
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
