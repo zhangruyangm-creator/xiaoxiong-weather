@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,7 +77,9 @@ fun BearFarmScreen(
     // 入口预加载全部音效样本，消除首次播放的加载延迟
     LaunchedEffect(Unit) { GameAudio.preload(context) }
     val appContext = remember(context) { context.applicationContext }
-    val farm = remember(appContext) { BearFarm(appContext).also { it.load() } }
+    // 存盘用组合作用域：异步 JSON 编码/写盘随界面销毁一起取消
+    val saveScope = rememberCoroutineScope()
+    val farm = remember(appContext, saveScope) { BearFarm(appContext, saveScope).also { it.load() } }
     val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     val fx = remember(weather) { farmWeatherEffect(weather) }
     // 减弱动画：跳过农场雨雪/星空/萤火虫等动态氛围，只保留静态天空与田地
@@ -128,9 +131,10 @@ fun BearFarmScreen(
     // 自动保存与渲染帧解耦：独立 5 秒定时，不再依赖帧循环
     GameRepeatingInterval(intervalMs = 5_000L) { farm.save() }
 
-    // 退出兜底：切到其它游戏/主页时补记最后一次改动
+    // 退出兜底：切到其它游戏/主页时补记最后一次改动。
+    // 必须同步落盘：此时组合作用域正在取消，异步写会被丢弃，进程也可能立刻被回收。
     DisposableEffect(Unit) {
-        onDispose { farm.save() }
+        onDispose { farm.saveBlocking() }
     }
 
     // 农场是挂机经营玩法，不设暂停菜单：返回键先关内容弹窗，否则保存后直接退出
@@ -142,7 +146,7 @@ fun BearFarmScreen(
             farm.showSeasonConfirm -> farm.showSeasonConfirm = false
             farm.unlockCard != null -> farm.dismissUnlockCard()
             else -> {
-                farm.save()
+                farm.saveBlocking()
                 onExit()
             }
         }
@@ -222,7 +226,7 @@ fun BearFarmScreen(
             // 顶栏
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = {
-                    farm.save()
+                    farm.saveBlocking()
                     onExit()
                 }) {
                     Icon(Icons.Default.Close, stringResource(R.string.cd_close_game), tint = Color.White)

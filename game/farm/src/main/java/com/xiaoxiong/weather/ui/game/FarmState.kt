@@ -9,6 +9,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
 internal enum class FarmTool { CARE, PLANT, CLEAR, INFO, WATER, WEED, BUG, HARVEST, FERTILIZE }
@@ -166,11 +170,34 @@ internal fun farmEffectCues(effect: FarmEffect): List<GameCue> {
 }
 
 /**
+ * 存盘序号闸门。
+ *
+ * 农场同时有两条写入来源：每次操作/5 秒定时触发的异步写，以及退出时的同步写。
+ * 两者并发时，先提交的快照可能后落盘，磁盘上就会留下**旧进度**——比丢一次进度更
+ * 难排查。因此每次提交取一个单调递增序号，写入前问 [shouldWrite]，过期的一律丢弃。
+ */
+internal class FarmSaveGate {
+    private var submit = 0L
+    private var written = 0L
+
+    fun nextSubmit(): Long = ++submit
+
+    /** 该提交是否比已落盘的更新。 */
+    fun shouldWrite(seq: Long): Boolean = seq > written
+
+    fun markWritten(seq: Long) {
+        written = seq
+    }
+}
+
+/**
  * 农场的 UI 状态壳：持有 Compose 状态并委托 [FarmSimulator] 执行规则。
  * 规则与持久化分别在 FarmSimulator / FarmSave 中，本类只做同步与反馈翻译。
  */
 internal class BearFarm(
     private val appContext: Context,
+    /** 异步存盘用的作用域：由 UI 传入（`rememberCoroutineScope`），随界面一起取消。 */
+    private val saveScope: CoroutineScope,
 ) {
     private val prefs = appContext.getSharedPreferences("bear_game", Context.MODE_PRIVATE)
 
@@ -201,8 +228,15 @@ internal class BearFarm(
     /** 纯数据状态：所有规则走 FarmSimulator。 */
     private var state = FarmState()
 
-    /** 上次落盘的快照：与当前一致时跳过 JSON 编码与写盘。 */
+    /** 上次落盘的快照：与当前一致时跳过 JSON 编码与写盘（IO 线程也会写，故加 volatile）。 */
+    @Volatile
     private var lastSaved: FarmSave? = null
+
+    /** 已提交但未必落盘的快照：合并连续请求，避免同一状态被反复编码。 */
+    private var lastSubmitted: FarmSave? = null
+
+    /** 存盘门：串行化提交/落盘并挡掉乱序覆盖。 */
+    private val saveGate = FarmSaveGate()
 
     private fun str(
         id: Int,
@@ -241,11 +275,54 @@ internal class BearFarm(
         }
     }
 
+    /**
+     * 提交一次异步存盘。
+     *
+     * 主线程只生成不可变的 [FarmSave]（一次列表 + 几个 map 的拷贝），JSON 编码与
+     * SharedPreferences 写入都挪到 IO。原先每次操作与每个 5 秒定时都在主线程做完整
+     * 编码，而农场页面同时跑 60fps 帧循环，编码耗时直接算进掉帧。
+     */
     fun save() {
         val s = state.toSave()
+        if (s == lastSaved || s == lastSubmitted) return
+        val seq = nextSubmitSeq()
+        lastSubmitted = s
+        saveScope.launch { withContext(Dispatchers.IO) { writeIfNewest(s, seq) } }
+    }
+
+    /**
+     * 同步落盘，供退出路径使用（返回键 / 关闭按钮 / onDispose）。
+     *
+     * 这些时刻进程可能立刻被回收，必须保证写完；每次会话只发生一次，
+     * 保留同步写不会造成可感知卡顿。
+     */
+    fun saveBlocking() {
+        val s = state.toSave()
         if (s == lastSaved) return
-        prefs.edit { putString("farm_save_v1", farmJson.encodeToString(FarmSave.serializer(), s)) }
-        lastSaved = s
+        val seq = nextSubmitSeq()
+        lastSubmitted = s
+        writeIfNewest(s, seq)
+    }
+
+    private fun nextSubmitSeq(): Long = saveGate.nextSubmit()
+
+    /**
+     * 写盘并推进去重基准。
+     *
+     * 序号用于挡住乱序覆盖：异步写与退出时的同步写可能并发，若先提交的 S1 反而
+     * 后落盘，磁盘上就会留下旧进度（比丢一次进度更危险）。这里只接受比已落盘更新的
+     * 提交，过期的一律丢弃。
+     */
+    private fun writeIfNewest(
+        s: FarmSave,
+        seq: Long,
+    ) {
+        synchronized(saveGate) {
+            if (!saveGate.shouldWrite(seq)) return
+            prefs.edit { putString("farm_save_v1", farmJson.encodeToString(FarmSave.serializer(), s)) }
+            saveGate.markWritten(seq)
+            lastSaved = s
+        }
     }
 
     fun toast(msg: String) {
