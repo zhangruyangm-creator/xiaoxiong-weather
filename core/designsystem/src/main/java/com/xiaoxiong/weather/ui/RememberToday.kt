@@ -3,7 +3,7 @@ package com.xiaoxiong.weather.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -19,7 +19,9 @@ import java.time.LocalDate
  */
 @Composable
 fun rememberTodayEpochDay(): State<Long> {
-    val today = rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
+    // 用 mutableStateOf 而非 mutableLongStateOf：renameSaveable 对 MutableState 有
+    // 明确支持，而本仓其余 rememberSaveable 也都用前者，不在这里率先依赖 Long 变体。
+    val today = rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, today) {
         val observer =

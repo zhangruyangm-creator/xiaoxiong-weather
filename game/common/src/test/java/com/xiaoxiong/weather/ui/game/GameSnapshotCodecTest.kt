@@ -60,9 +60,19 @@ class GameSnapshotCodecTest {
     }
 
     @Test
-    fun allGroupsMalformed_yieldsEmptyListNotNull() {
-        val decoded = SnapshotCodec.decodeGroups("bad;NaN,1")
-        assertTrue("整段坏掉时返回空列表（实体都没了），而不是 null 让上层清档", decoded != null)
+    fun allGroupsMalformed_isTreatedAsCorruptNotAsEmpty() {
+        assertNull(
+            "非空输入必然写入过至少一组；全组皆坏若返回空列表，跳过类游戏会恢复出" +
+                "没有障碍物的一局，成了刷分通道",
+            SnapshotCodec.decodeGroups("bad;NaN,1"),
+        )
+    }
+
+    @Test
+    fun emptyGroupsEncoding_roundTripsToEmptyList() {
+        // encodeGroups(emptyList()) 产出空串，必须回空列表而不是 null（往返对称）
+        val decoded = SnapshotCodec.decodeGroups(SnapshotCodec.encodeGroups(emptyList()))
+        assertTrue(decoded != null)
         assertEquals(0, decoded!!.size)
     }
 

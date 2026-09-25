@@ -58,21 +58,27 @@ object SnapshotCodec {
      * 每组是一个独立实体（金币/障碍/云/球），坏组只丢自己：原先用 `toFloat()`，
      * 任一组有脏数据就抛异常并被外层 runCatching 吞成 null，导致**整局进度被清档**。
      * 字段数不足的组同样只丢自己（由各游戏的实体构造处决定要不要跳过）。
+     *
+     * 但"非空输入却一个组都解不出来"仍视为坏档返回 null：`encodeGroups(emptyList())`
+     * 产出的是空字符串，所以非空文本必然至少写入过一组；全组皆坏时若返回空列表，
+     * 跳过类游戏会恢复出一局**没有障碍物**的对局，成了刷分通道。
      */
     fun decodeGroups(text: String?): List<FloatArray>? {
         if (text == null) return null
         // 空字符串对应 encodeGroups(emptyList())：解码回空列表而不是 null，保证往返对称
         if (text.isBlank()) return emptyList()
-        return text
-            .split(GROUP)
-            .mapNotNull { part ->
-                if (part.isBlank()) return@mapNotNull null
-                val values =
-                    part
-                        .split(FIELD)
-                        .map { it.toFloatOrNull() ?: return@mapNotNull null }
-                if (values.any { !it.isFinite() }) return@mapNotNull null
-                values.toFloatArray()
-            }
+        val groups =
+            text
+                .split(GROUP)
+                .mapNotNull { part ->
+                    if (part.isBlank()) return@mapNotNull null
+                    val values =
+                        part
+                            .split(FIELD)
+                            .map { it.toFloatOrNull() ?: return@mapNotNull null }
+                    if (values.any { !it.isFinite() }) return@mapNotNull null
+                    values.toFloatArray()
+                }
+        return groups.ifEmpty { null }
     }
 }

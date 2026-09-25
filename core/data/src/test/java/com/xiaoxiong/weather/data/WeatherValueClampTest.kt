@@ -34,9 +34,19 @@ class WeatherValueClampTest {
     }
 
     @Test
-    fun `precipitation never goes negative`() {
+    fun `precipitation never goes negative and only absurd values are clamped`() {
         assertEquals(0.0, WeatherValueClamp.precipitationMm(-1.0)!!, 0.0)
-        assertEquals(1000.0, WeatherValueClamp.precipitationMm(1e9)!!, 0.0)
+        assertEquals(3000.0, WeatherValueClamp.precipitationMm(1e9)!!, 0.0)
+        // 真实极端值（日降水世界纪录约 1825mm）不得被改小
+        assertEquals(1825.0, WeatherValueClamp.precipitationMm(1825.0)!!, 0.0)
+    }
+
+    @Test
+    fun `uvIndex keeps real extremes`() {
+        // 世界纪录约 43.3（玻利维亚高原），夹到 20 会失真
+        assertEquals(43.3, WeatherValueClamp.uvIndex(43.3)!!, 1e-6)
+        assertEquals(50.0, WeatherValueClamp.uvIndex(1e9)!!, 0.0)
+        assertEquals(0.0, WeatherValueClamp.uvIndex(-3.0)!!, 0.0)
     }
 
     @Test

@@ -175,20 +175,41 @@ internal fun farmEffectCues(effect: FarmEffect): List<GameCue> {
  *
  * 农场同时有两条写入来源：每次操作/5 秒定时触发的异步写，以及退出时的同步写。
  * 两者并发时，先提交的快照可能后落盘，磁盘上就会留下**旧进度**——比丢一次进度更
- * 难排查。因此每次提交取一个单调递增序号，写入前问 [shouldWrite]，过期的一律丢弃。
+ * 难排查。因此每次提交取一个单调递增序号，只有比已落盘更新的提交才允许写。
+ *
+ * 所有状态都在 [lock] 内维护，不依赖"调用方一定在主线程"这一隐含约定：
+ * 序号若不加锁递增，两个线程可能拿到同一个序号，后者会被 [writeIfNewest] 判为
+ * 过期而**静默丢弃**。
  */
 internal class FarmSaveGate {
+    private val lock = Any()
     private var submit = 0L
     private var written = 0L
 
-    fun nextSubmit(): Long = ++submit
+    /** 取下一个提交序号。 */
+    fun nextSubmit(): Long = synchronized(lock) { ++submit }
 
-    /** 该提交是否比已落盘的更新。 */
-    fun shouldWrite(seq: Long): Boolean = seq > written
-
-    fun markWritten(seq: Long) {
-        written = seq
-    }
+    /**
+     * 原子地"判断是否比已落盘更新 → 执行 [write] → 推进已落盘序号"。
+     *
+     * [write] 必须在锁内执行：若判断与推进分成两步，两个并发写入者可能都通过判断
+     * 再依次落盘，先提交的旧快照反而最后写入，磁盘回退。
+     *
+     * @return 是否真的执行了写入
+     */
+    fun writeIfNewest(
+        seq: Long,
+        write: () -> Unit,
+    ): Boolean =
+        synchronized(lock) {
+            if (seq <= written) {
+                false
+            } else {
+                write()
+                written = seq
+                true
+            }
+        }
 }
 
 /**
@@ -348,17 +369,15 @@ internal class BearFarm(
      * 写盘并推进去重基准。
      *
      * 序号用于挡住乱序覆盖：异步写与退出时的同步写可能并发，若先提交的 S1 反而
-     * 后落盘，磁盘上就会留下旧进度（比丢一次进度更危险）。这里只接受比已落盘更新的
-     * 提交，过期的一律丢弃。
+     * 后落盘，磁盘上就会留下旧进度（比丢一次进度更危险）。判断与落盘由
+     * [FarmSaveGate.writeIfNewest] 在同一把锁内完成，过期提交整体丢弃。
      */
     private fun writeIfNewest(
         s: FarmSave,
         seq: Long,
     ) {
-        synchronized(saveGate) {
-            if (!saveGate.shouldWrite(seq)) return
+        saveGate.writeIfNewest(seq) {
             prefs.edit { putString("farm_save_v1", farmJson.encodeToString(FarmSave.serializer(), s)) }
-            saveGate.markWritten(seq)
             lastSaved = s
         }
     }

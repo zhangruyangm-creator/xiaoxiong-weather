@@ -60,9 +60,28 @@ class WeatherCacheStore internal constructor(
             )
         dataStore.edit { prefs ->
             migrateLegacyLocked(prefs, now)
+            // 新旧保护必须**先于**写前清理：
+            // 清理会删掉同城旧键（含尚未被覆盖的那条新数据），而 target 用当前毫秒
+            // 组建、本身几乎不存在，若在清理之后才比对，既读不到可比对象（保护失效），
+            // 又已经把好数据删了。
+            val keys = prefs.cityEntryKeys()
+            val existingFetchedAt =
+                keys
+                    .firstOrNull {
+                        sameCacheCity(
+                            it.latitude,
+                            it.longitude,
+                            snapshot.city.latitude,
+                            snapshot.city.longitude,
+                        )
+                    }?.let { decodeEntry(prefs[stringPreferencesKey(it.name)])?.fetchedAtEpochMs }
+                    ?.takeIf { it > 0L }
+            if (isStaleFetch(incomingFetchedAt = fetchedAtEpochMs, existingFetchedAt = existingFetchedAt)) {
+                // 旧数据直接放弃，且必须在清理前返回，否则会删掉新条目却又不写入
+                return@edit
+            }
             // 写前清理：同城旧键 + 过期键；只按 key 元数据判断，不 decode 其他城市
-            prefs
-                .cityEntryKeys()
+            keys
                 .filter { key ->
                     !isWithinFreshnessWindow(key.savedAtEpochMs, now, MAX_AGE_MS) ||
                         sameCacheCity(
@@ -72,15 +91,7 @@ class WeatherCacheStore internal constructor(
                             snapshot.city.longitude,
                         )
                 }.forEach { prefs.remove(stringPreferencesKey(it.name)) }
-            val target = cacheEntryKey(now, snapshot.city)
-            // 新旧保护：同一城市的并发取数中，先发后至的旧数据不得覆盖新数据。
-            // 用取数时刻而非写入时刻比较——否则旧请求一旦后完成就会以"更新"的
-            // 时间戳落盘，冷启动/离线读到旧天气却以为它新鲜。
-            val existingFetchedAt = decodeEntry(prefs[target])?.fetchedAtEpochMs?.takeIf { it > 0L }
-            if (isStaleFetch(incomingFetchedAt = fetchedAtEpochMs, existingFetchedAt = existingFetchedAt)) {
-                return@edit
-            }
-            prefs[target] = encodeEntry(entry)
+            prefs[cacheEntryKey(now, snapshot.city)] = encodeEntry(entry)
             pruneOverflowLocked(prefs)
         }
     }
