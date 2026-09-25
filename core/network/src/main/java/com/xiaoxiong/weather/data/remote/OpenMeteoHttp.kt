@@ -1,6 +1,8 @@
 package com.xiaoxiong.weather.data.remote
 
 import com.xiaoxiong.weather.data.AppError
+import com.xiaoxiong.weather.data.MAX_WEATHER_JSON_BYTES
+import com.xiaoxiong.weather.data.readBodyLimited
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
@@ -106,11 +108,11 @@ object OpenMeteoHttp {
             cont.invokeOnCancellation { cancel() }
         }.use { response ->
             // 协程已取消时继续执行的取消信号会从这里抛给调用方，use 负责关闭 response
-            val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
+                // 先判状态码再读体：错误页同样可能有超大 body
                 throw AppError.Http(response.code)
             }
-            body
+            response.readBodyLimited(MAX_WEATHER_JSON_BYTES, "天气")
         }
 
     private fun userAgent(): String {

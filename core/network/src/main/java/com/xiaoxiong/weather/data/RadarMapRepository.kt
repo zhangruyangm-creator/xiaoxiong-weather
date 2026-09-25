@@ -354,7 +354,7 @@ class RadarMapRepository(
                 .build()
         return client.newCall(request).awaitResponse().use { response ->
             if (!response.isSuccessful) return@use null
-            val bytes = response.body?.bytes() ?: return@use null
+            val bytes = runCatching { response.readBytesLimited(MAX_RADAR_IMAGE_BYTES, "雷达图片") }.getOrNull() ?: return@use null
             val options =
                 BitmapFactory.Options().apply {
                     if (opaque) {
@@ -400,11 +400,11 @@ class RadarMapRepository(
                 .build()
         return try {
             client.newCall(request).awaitResponse().use { response ->
-                val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
+                    // 先判状态码再读体：错误页同样可能有超大 body
                     throw AppError.Http(response.code)
                 }
-                body
+                response.readBodyLimited(MAX_RADAR_JSON_BYTES, "雷达索引")
             }
         } catch (e: AppError) {
             throw e
