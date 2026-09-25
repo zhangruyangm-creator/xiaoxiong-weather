@@ -6,6 +6,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.min
@@ -66,32 +67,28 @@ fun GameFrameLoop(
     val currentMaxDt = rememberUpdatedState(maxDtSeconds)
 
     LaunchedEffect(key) {
-        var lastNanos = Long.MIN_VALUE
-        var slowTick = 0
-        while (isActive) {
-            // 切后台（ON_STOP）后不再推进：锁屏/通知栏等场景下 withFrameNanos 仍会派发，
-            // 若不暂停，角色会继续跑并翻车，且持续耗电。期间降频轮询避免忙等。
-            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                lastNanos = Long.MIN_VALUE
-                slowTick = 0
-                delay(300)
-                continue
-            }
-            // 弹窗/选关等暂停态：不注册 vsync，低频轮询等待恢复，避免空转唤醒主线程
-            if (currentPaused.value()) {
-                lastNanos = Long.MIN_VALUE
-                slowTick = 0
-                delay(PAUSED_POLL_MS)
-                continue
-            }
-            withFrameNanos { now ->
-                val dt = computeFrameDt(lastNanos, now, currentMaxDt.value)
-                lastNanos = now
-                if (currentPaused.value()) return@withFrameNanos
-                if (currentThrottle.value == FrameThrottle.FULL || slowTick % 5 == 0) {
-                    currentOnTick.value(dt, now)
+        // repeatOnLifecycle：低于 STARTED 时**挂起**而不是每 300ms 轮询一次。
+        // 轮询虽不推进物理，却仍持续唤醒 CPU 耗电；锁屏/切后台时这正是主要来源。
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            var lastNanos = Long.MIN_VALUE
+            var slowTick = 0
+            while (isActive) {
+                // 弹窗/选关等暂停态：不注册 vsync，低频轮询等待恢复，避免空转唤醒主线程
+                if (currentPaused.value()) {
+                    lastNanos = Long.MIN_VALUE
+                    slowTick = 0
+                    delay(PAUSED_POLL_MS)
+                    continue
                 }
-                slowTick++
+                withFrameNanos { now ->
+                    val dt = computeFrameDt(lastNanos, now, currentMaxDt.value)
+                    lastNanos = now
+                    if (currentPaused.value()) return@withFrameNanos
+                    if (currentThrottle.value == FrameThrottle.FULL || slowTick % 5 == 0) {
+                        currentOnTick.value(dt, now)
+                    }
+                    slowTick++
+                }
             }
         }
     }
@@ -121,36 +118,18 @@ fun GameRepeatingInterval(
     val currentOnInterval = rememberUpdatedState(onInterval)
 
     LaunchedEffect(lifecycleOwner) {
-        var wasStarted = false
-        while (isActive) {
-            val started = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-            if (!started) {
-                wasStarted = false
-                delay(PAUSED_POLL_MS)
-                continue
-            }
-            if (shouldFireOnResume(started = started, wasStarted = wasStarted)) {
-                // 后台恢复：立即补一次（农场 save 幂等），省去再等满一个间隔
-                runCatching { currentOnInterval.value() }
-            }
-            wasStarted = true
-            delay(intervalDelayMs(currentIntervalMs.value))
-            // 等待期间若切到后台：本轮不触发，回到循环顶部转入后台轮询
-            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+        // 同 GameFrameLoop：低于 STARTED 时挂起而非轮询。挂起还会自动取消内部的
+        // delay，因此「切后台时正好在等下一轮」也不会留下残余唤醒。
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            // 进入 STARTED（含后台恢复）：立即补一次，农场 save 幂等，省去等满一个间隔
+            runCatching { currentOnInterval.value() }
+            while (isActive) {
+                delay(intervalDelayMs(currentIntervalMs.value))
                 runCatching { currentOnInterval.value() }
             }
         }
     }
 }
-
-/**
- * 后台→前台恢复时是否立即补一次回调：仅「刚恢复」的第一轮为 true，
- * 持续前台不会重复补发。纯逻辑便于 JVM 单测。
- */
-internal fun shouldFireOnResume(
-    started: Boolean,
-    wasStarted: Boolean,
-): Boolean = started && !wasStarted
 
 /** 定时器间隔下限：非正数会让 `delay(0)` 忙循环。 */
 internal fun intervalDelayMs(intervalMs: Long): Long = intervalMs.coerceAtLeast(1L)

@@ -111,6 +111,11 @@
     <string name="bear_pool_clear_confirm">清空</string>
     <string name="cd_pool_table">台球桌</string>
     <string name="cd_pool_spin">白球杆法</string>
+    <string name="cd_pool_spin_up">加高杆</string>
+    <string name="cd_pool_spin_down">加低杆</string>
+    <string name="cd_pool_spin_left">加左塞</string>
+    <string name="cd_pool_spin_right">加右塞</string>
+    <string name="cd_pool_spin_center">回正（中心杆）</string>
     <string name="cd_pool_elevation">抬杆角度</string>
     <string name="cd_pool_power">击球力度</string>
     <string name="bear_pool_levels">关卡模式</string>

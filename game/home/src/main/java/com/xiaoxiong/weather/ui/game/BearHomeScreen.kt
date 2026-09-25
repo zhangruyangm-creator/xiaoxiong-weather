@@ -57,6 +57,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.game.GameEntry
 import com.xiaoxiong.weather.ui.weather.SunPathBearMoment
@@ -99,11 +102,19 @@ fun BearHomeScreen(
     var streetSpot by remember { mutableStateOf<StreetSpot?>(null) }
     var today by remember { mutableStateOf(LocalDate.now()) }
     var now by remember { mutableStateOf(LocalTime.now()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(60_000)
+    // 时钟 ticker：只在页面前台运行。原先 LaunchedEffect(Unit)+delay 是纯挂起协程，
+    // 页面进后台后仍每分钟唤醒一次并写 State（唤醒 CPU + 无意义的重组）。
+    val homeLifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(homeLifecycleOwner) {
+        homeLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            // 进入前台立即校时，避免后台期间跨过整点/跨天导致首页时间停摆
             now = LocalTime.now()
             today = LocalDate.now()
+            while (true) {
+                delay(60_000)
+                now = LocalTime.now()
+                today = LocalDate.now()
+            }
         }
     }
     // 天气未加载（isDay==null）时按白天处理：片刻兜底是晨间活动，Hub 主题保持一致

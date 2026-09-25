@@ -35,6 +35,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -658,11 +663,22 @@ private fun LevelCell(
     bestShots: Int?,
     onClick: () -> Unit,
 ) {
+    // semantics lambda 不是组合上下文，文案必须先在组合期取好
+    val clearedLabel = stringResource(R.string.bear_pool_level_cleared)
     Surface(
         modifier =
             Modifier
                 .width(96.dp)
-                .clickable(enabled = unlocked, onClick = onClick),
+                // 语义：挑战格是可点按钮，未解锁要明确 disabled（此前只有 clickable(enabled)，
+                // 读屏用户听不出"尚未解锁"）；已通关用 stateDescription 传达。
+                .semantics {
+                    role = Role.Button
+                    if (unlocked) {
+                        if (cleared) stateDescription = clearedLabel
+                    } else {
+                        disabled()
+                    }
+                }.clickable(enabled = unlocked, onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         color = if (unlocked) Color(0xFFFFECB3) else Color(0xFFE0E0E0),
     ) {

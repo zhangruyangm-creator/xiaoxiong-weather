@@ -62,6 +62,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import kotlinx.coroutines.delay
@@ -87,11 +90,16 @@ fun BearFarmScreen(
     val reduceMotion = LocalReduceMotion.current
     var phase by remember(isDay) { mutableStateOf(farmSkyPhase(isDay)) }
 
-    // 昼夜时段随钟点慢速更新（5 分钟一次），长时间挂着也能跨过黄昏/入夜
-    LaunchedEffect(isDay) {
-        while (isActive) {
-            delay(5 * 60_000L)
+    // 昼夜时段随钟点慢速更新（5 分钟一次），长时间挂着也能跨过黄昏/入夜。
+    // 只在前台运行：原先纯挂起协程在页面进后台后仍每 5 分钟唤醒一次并写 State。
+    val farmLifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(farmLifecycleOwner, isDay) {
+        farmLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             phase = farmSkyPhase(isDay)
+            while (isActive) {
+                delay(5 * 60_000L)
+                phase = farmSkyPhase(isDay)
+            }
         }
     }
 

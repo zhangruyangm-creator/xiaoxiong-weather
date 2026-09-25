@@ -111,6 +111,11 @@
     <string name="bear_pool_clear_confirm">Clear</string>
     <string name="cd_pool_table">Pool table</string>
     <string name="cd_pool_spin">Cue ball spin</string>
+    <string name="cd_pool_spin_up">Add top spin</string>
+    <string name="cd_pool_spin_down">Add bottom spin</string>
+    <string name="cd_pool_spin_left">Add left english</string>
+    <string name="cd_pool_spin_right">Add right english</string>
+    <string name="cd_pool_spin_center">Reset to center</string>
     <string name="cd_pool_elevation">Cue elevation</string>
     <string name="cd_pool_power">Shot power</string>
     <string name="bear_pool_levels">Levels</string>

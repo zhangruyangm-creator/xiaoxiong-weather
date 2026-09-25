@@ -58,6 +58,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -465,7 +470,16 @@ private fun MazeLevelNode(
                 .clip(shape)
                 .background(Brush.verticalGradient(listOf(cardTop, cardBottom)))
                 .border(if (isNext) 2.dp else 1.dp, borderColor, shape)
-                .clickable(
+                // 语义：关卡卡是可选中的按钮，锁定的关要明确 disabled。
+                // 此前只有 clickable(enabled)，读屏用户听不出"已锁定"和"当前可继续"。
+                .semantics {
+                    role = Role.Button
+                    if (open) {
+                        selected = isNext
+                    } else {
+                        disabled()
+                    }
+                }.clickable(
                     enabled = open,
                     onClick = {
                         GameAudio.play(GameCue.UI_CLICK)

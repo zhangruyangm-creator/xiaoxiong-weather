@@ -42,8 +42,11 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
@@ -248,13 +251,35 @@ private fun SpinControl(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         val spinCd = stringResource(R.string.cd_pool_spin)
+        val spinUpLabel = stringResource(R.string.cd_pool_spin_up)
+        val spinDownLabel = stringResource(R.string.cd_pool_spin_down)
+        val spinLeftLabel = stringResource(R.string.cd_pool_spin_left)
+        val spinRightLabel = stringResource(R.string.cd_pool_spin_right)
+        val spinCenterLabel = stringResource(R.string.cd_pool_spin_center)
+        // semantics lambda 不是组合上下文，不能在里面调 stringResource：先在组合期取好
+        val spinStateText = spinHint(game.spin)
         Canvas(
             modifier =
                 Modifier
                     .size(80.dp)
                     .alpha(if (enabled) 1f else 0.45f)
-                    .semantics { contentDescription = spinCd }
-                    .pointerInput(enabled) {
+                    // 读屏：除名称外还要播报当前值，并支持无障碍动作直接调杆法。
+                    // 此前只有静态 contentDescription，TalkBack 用户听得到"杆法"却
+                    // 既不知道当前高低/左右塞，也无法调整（连自定义 action 都没有）。
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = spinCd
+                        stateDescription = spinStateText
+                        if (enabled) {
+                            customActions =
+                                listOf(
+                                    spinAction(spinUpLabel) { adjustSpinBy(game, 0f, -STEP) },
+                                    spinAction(spinDownLabel) { adjustSpinBy(game, 0f, STEP) },
+                                    spinAction(spinLeftLabel) { adjustSpinBy(game, -STEP, 0f) },
+                                    spinAction(spinRightLabel) { adjustSpinBy(game, STEP, 0f) },
+                                    spinAction(spinCenterLabel) { applySpin(game, Offset.Zero, 1f) },
+                                )
+                        }
+                    }.pointerInput(enabled) {
                         if (!enabled) return@pointerInput
                         val radius = (min(size.width, size.height) / 2f).coerceAtLeast(1f)
                         awaitEachGesture {
@@ -743,6 +768,33 @@ private fun applySpin(
     val nx = ((position.x - radius) / (radius * 0.8f)).coerceIn(-1f, 1f)
     val ny = ((position.y - radius) / (radius * 0.8f)).coerceIn(-1f, 1f)
     game.updateSpin(Spin(side = nx, vertical = -ny))
+}
+
+/** 无障碍动作的杆法步进量：一次调整约控件半径的 20%。 */
+private const val STEP = 0.2f
+
+/** 构造一个调整杆法的无障碍动作。 */
+private fun spinAction(
+    label: String,
+    action: () -> Unit,
+): CustomAccessibilityAction =
+    CustomAccessibilityAction(label) {
+        action()
+        true
+    }
+
+/** 以 [step] 为增量调整杆法，供无障碍自定义动作使用（读屏/开关控制用户无法精确拖动）。 */
+private fun adjustSpinBy(
+    game: PoolGame,
+    dSide: Float,
+    dVertical: Float,
+) {
+    val next =
+        Spin(
+            side = (game.spin.side + dSide).coerceIn(-1f, 1f),
+            vertical = (game.spin.vertical + dVertical).coerceIn(-1f, 1f),
+        )
+    game.updateSpin(next)
 }
 
 private fun DrawScope.drawSpinPad(spin: Spin) {

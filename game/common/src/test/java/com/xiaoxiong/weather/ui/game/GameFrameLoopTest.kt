@@ -52,19 +52,8 @@ class GameFrameLoopTest {
     }
 
     // ── 定时器（GameRepeatingInterval 的纯状态机）────────────────
-
-    @Test
-    fun `resume from background fires exactly once`() {
-        // 后台→前台的第一轮补一次；持续前台不再重复补
-        assertEquals(true, shouldFireOnResume(started = true, wasStarted = false))
-        assertEquals(false, shouldFireOnResume(started = true, wasStarted = true))
-    }
-
-    @Test
-    fun `background does not fire`() {
-        assertEquals(false, shouldFireOnResume(started = false, wasStarted = false))
-        assertEquals(false, shouldFireOnResume(started = false, wasStarted = true))
-    }
+    // 后台挂起与"恢复即补一次"现在由 repeatOnLifecycle 自身保证（进入 STARTED
+    // 就重新执行块内首行），不再是可单测的纯状态机，故无对应单测。
 
     @Test
     fun `interval delay clamps non-positive to 1ms`() {
