@@ -10,17 +10,25 @@ import androidx.compose.ui.graphics.lerp
 import kotlin.math.abs
 import kotlin.math.sin
 
+// 农场背景的静态远景层：远山剪影 + 丘陵 + 树线 + 暗角。
+//
+// 与冰球/台球同一思路——这些内容只依赖「天气配色 + 时段 + 画布尺寸」，
+// 因此用公共 BakedLayerCache 烘焙成一张位图，之后每帧只 drawImage；
+// 雨雪/星空/萤火虫等动态氛围仍逐帧绘制。
+//
+// 视觉目标是补上"地平线以下的层次"：原来天空渐变之下直接就是田地，
+// 画面缺少远近对比；加入三层剪影后田格像坐落在真实的乡野里。
+
 /**
- * 农场背景的静态远景层：远山剪影 + 丘陵 + 树线 + 暗角。
+ * 农场远景层的烘焙缓存键。
  *
- * 与冰球/台球同一思路——这些内容只依赖「天气配色 + 时段 + 画布尺寸」，
- * 因此用公共 [BakedLayerCache] 烘焙成一张位图，之后每帧只 drawImage；
- * 雨雪/星空/萤火虫等动态氛围仍逐帧绘制。
- *
- * 视觉目标是补上"地平线以下的层次"：原来天空渐变之下直接就是田地，
- * 画面缺少远近对比；加入三层剪影后田格像坐落在真实的乡野里。
+ * 必须是 `data class`：全部字段都是值类型（Int / 枚举 / Long），结构相等正是缓存
+ * 需要的语义。此前是普通 class，`equals` 退化为引用比较，而缓存构造时又忘了传
+ * `reusable`，导致**缓存永不命中**——该调用点在 Canvas 绘制 lambda 内、农场按
+ * 60fps 重绘，等于每帧重新烘焙一张整屏位图（1080×2400 约 10MB），每秒数百 MB
+ * 分配。`reusable` 也显式接上，避免再依赖"记得传参"。
  */
-internal class FarmBackdropKey(
+internal data class FarmBackdropKey(
     val widthPx: Int,
     val heightPx: Int,
     val phase: FarmSkyPhase,

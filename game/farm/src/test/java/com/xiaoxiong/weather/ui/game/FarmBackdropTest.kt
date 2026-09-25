@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -12,6 +13,33 @@ import org.junit.Test
  * "键必须区分所有视觉输入"和"夜间压暗规则"都锁成断言。
  */
 class FarmBackdropTest {
+    /**
+     * 键必须结构相等。
+     *
+     * 这条断言锁的是缓存能否命中：`BakedLayerCache` 的默认复用谓词用 `==`。
+     * 键曾是普通 class（引用比较），而缓存构造又漏传 reusable，于是**永不命中**；
+     * 该调用点在 Canvas 绘制 lambda 内、农场按 60fps 重绘，等于每帧重新烘焙一张
+     * 整屏位图（1080×2400 约 10MB）。结构相等一旦被破坏，缓存就退化成本 bug。
+     */
+    @Test
+    fun key_isStructurallyEqual() {
+        assertEquals(
+            "键必须结构相等，否则缓存永不命中、每帧重烘焙整屏位图",
+            key(),
+            key(),
+        )
+    }
+
+    @Test
+    fun key_equalityDistinguishesEveryVisualInput() {
+        assertNotEquals(key(), key(phase = FarmSkyPhase.NIGHT))
+        assertNotEquals(key(), key(weather = FarmWeather.RAINY))
+        assertNotEquals(key(), key(w = 1440))
+        assertNotEquals(key(), key(h = 2340))
+        assertNotEquals(key(), key(skyTop = 0xFF000000))
+        assertNotEquals(key(), key(skyBottom = 0xFFFFFFFF))
+    }
+
     private fun key(
         phase: FarmSkyPhase = FarmSkyPhase.DAY,
         weather: FarmWeather = FarmWeather.SUNNY,

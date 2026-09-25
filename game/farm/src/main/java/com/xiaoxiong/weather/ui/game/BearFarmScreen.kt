@@ -69,6 +69,7 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.math.ceil
 
 @Composable
 fun BearFarmScreen(
@@ -179,7 +180,15 @@ fun BearFarmScreen(
     // 烘焙成一张位图后每帧只 drawImage；雨雪/星空/萤火虫仍逐帧绘制。
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
-    val backdropCache = remember { BakedLayerCache<FarmBackdropKey>(maxEntries = 2) }
+    // reusable 必须显式接上：默认谓词用 ==，依赖键的结构相等。
+    // 这里与迷宫 MazeRender 一致，用键自己的 matches 表达"可近似复用"的语义。
+    val backdropCache =
+        remember {
+            BakedLayerCache<FarmBackdropKey>(
+                maxEntries = 2,
+                reusable = { cached, target -> cached.matches(target) },
+            )
+        }
     DisposableEffect(Unit) {
         onDispose { backdropCache.clear() }
     }
@@ -195,19 +204,24 @@ fun BearFarmScreen(
             val w = size.width
             val h = size.height
             if (w > 0f && h > 0f) {
+                // 用 ceil 而不是 toInt 截断：烘焙出的位图按自然尺寸 drawImage，
+                // 截断会让右边/下边留下最多 1px 未覆盖的透明条（迷宫同样用 ceil 量化）。
+                // 键与烘焙尺寸共用同一组像素值，避免两者不一致导致复用错配。
+                val wPx = ceil(w).toInt()
+                val hPx = ceil(h).toInt()
                 val layer =
                     backdropCache.getOrBake(
                         key =
                             FarmBackdropKey(
-                                widthPx = w.toInt(),
-                                heightPx = h.toInt(),
+                                widthPx = wPx,
+                                heightPx = hPx,
                                 phase = phase,
                                 weather = weather,
                                 skyTop = fx.skyTop,
                                 skyBottom = fx.skyBottom,
                             ),
-                        widthPx = w.toInt(),
-                        heightPx = h.toInt(),
+                        widthPx = wPx,
+                        heightPx = hPx,
                         logicalWidth = w,
                         logicalHeight = h,
                         density = density,
