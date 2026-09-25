@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
@@ -229,18 +230,29 @@ fun ShareWeatherCardDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     // 每次打开弹窗随机抽一句，预览与导出同一句。
-    // key 只能用内容而不能用 quotes.size：切换语言后数组长度可能不变，会保留旧语言的句子。
+    //
+    // key 不能用数组本身：`stringArrayResource` 每次组合都返回**新数组**，而数组的
+    // equals 是引用比较，等于每次重组都重新抽签、文案会在弹窗停留期间闪变。
+    // 也不能用 `quotes.size`：切换语言后若长度相同会保留旧语言的句子。
+    // 用 toList() 的内容相等，既稳定（内容不变就不重抽）又真正随语言变化。
     val quotes = stringArrayResource(R.array.share_card_quotes)
     val quote =
-        remember(quotes) {
+        remember(quotes.toList()) {
             if (quotes.isEmpty()) "" else quotes.random()
         }
     // 卡片内容在弹窗打开时已固定（snapshot + quote），录制一次即可出图；
     // 逐帧 record 会在每次重绘（含弹窗内任何动画）时重复录制+拷贝，纯属浪费。
     //
-    // 但 key 必须覆盖全部渲染输入：弹窗打开后若后台刷新了天气、或用户切了温度单位，
-    // 预览会按新内容重绘，而这里仍重放第一次录制的旧图层——导出的图片与预览不一致。
-    val cardKey = "${snapshot.current.time}|${snapshot.current.temperatureC}|$quote"
+    // key 必须覆盖卡片渲染的**全部**输入。曾只取 time|temperatureC，同一小时内刷新
+    // 导致 weatherCode / isDay / 当日高低温变化时会漏检——预览已按新内容重绘，而录制层
+    // 仍是旧的，导出的图片与预览不一致。
+    //   · snapshot 是 data class，覆盖全部天气字段；
+    //   · quote 覆盖随机文案，其自身用内容（而非数组引用）取键；
+    //   · 温度单位与语言来自 CompositionLocal，不在 snapshot 里但影响温度格式与文案语言。
+    // List 的相等是逐元素的，因此这里用列表组合即可，无需自定义类。
+    val tempUnit = LocalTemperatureUnit.current
+    val locale = LocalConfiguration.current.locales[0]
+    val cardKey = listOf(snapshot, quote, tempUnit, locale)
     val graphicsLayer = rememberGraphicsLayer()
     val recordedOnce = remember(cardKey) { booleanArrayOf(false) }
     var sharing by remember { mutableStateOf(false) }
