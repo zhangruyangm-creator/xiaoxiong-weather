@@ -35,6 +35,18 @@ object GameAudioPrefsContract {
 
     private val lock = Any()
 
+    /**
+     * 进程内已读到的设置。
+     *
+     * 音效播放是高频路径（每次 cue 都读一次），而 [read] 每次都要走
+     * `getSharedPreferences` + `contains`，在主线程上是 SharedPreferencesImpl 的
+     * 锁竞争。缓存放在契约层而不是 `GameAudio`，是因为设置页
+     * （`feature/settings` 的 `GameAudioPrefs`）也直接经契约写同一个文件；
+     * 放这里则两侧天然一致，不会出现「设置页改了、音效仍按旧值播」的失同步。
+     */
+    @Volatile
+    private var cached: GameAudioSettings? = null
+
     /** 未读取到偏好时的快照（enabled=true、默认音量），供设置页预览 / 初始状态使用。 */
     val default: GameAudioSettings = GameAudioSettings(enabled = true, volume = DEFAULT_VOLUME)
 
@@ -42,10 +54,40 @@ object GameAudioPrefsContract {
     fun coerceVolume(volume: Float): Float = if (volume.isNaN()) MIN_VOLUME else volume.coerceIn(MIN_VOLUME, MAX_VOLUME)
 
     /**
-     * 读取全局设置；仅首次读取时触发一次旧键迁移（见 [migrateLegacyEnabledIfNeeded]）。
-     * 请在 IO 线程调用（首次会触发 prefs 文件加载与一次迁移写盘）。
+     * 读取全局设置。
+     *
+     * 首次读取会触发一次旧键迁移（见 [migrateLegacyEnabledIfNeeded]）与 prefs 文件加载，
+     * 仍应放在 IO 线程；之后命中进程内缓存，纯内存读，任意线程都安全。
      */
-    fun read(context: Context): GameAudioSettings {
+    fun read(context: Context): GameAudioSettings = cachedOrLoad { readFromPrefs(context) }
+
+    /** 缓存优先读取；[loader] 只在未命中时执行一次。抽成注入式以便无 Robolectric 单测。 */
+    internal fun cachedOrLoad(loader: () -> GameAudioSettings): GameAudioSettings {
+        cached?.let { return it }
+        synchronized(lock) {
+            cached?.let { return it }
+            val loaded = loader()
+            cached = loaded
+            return loaded
+        }
+    }
+
+    /**
+     * 写入成功后同步缓存。
+     *
+     * 缓存为空时保持为空：此时我们并不知道另一项（如 `enabled`）的真实值，
+     * 用默认值补一个组合反而会覆盖掉用户此前的选择。
+     */
+    internal fun updateCached(update: (GameAudioSettings) -> GameAudioSettings) {
+        synchronized(lock) { cached = cached?.let(update) }
+    }
+
+    /** 丢弃进程内缓存；仅供单测在注入不同 prefs 后复位。 */
+    internal fun resetCache() {
+        synchronized(lock) { cached = null }
+    }
+
+    private fun readFromPrefs(context: Context): GameAudioSettings {
         val app = context.applicationContext
         val prefs = app.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
         // 全局键已写入后不再触碰旧 prefs（bear_game 含农场存档等）
@@ -64,6 +106,8 @@ object GameAudioPrefsContract {
         enabled: Boolean,
     ) {
         runCatching { prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply() }
+        // apply() 同步改了内存副本，缓存跟着走
+        updateCached { it.copy(enabled = enabled) }
     }
 
     /** 仅由用户操作触发写入。 */
@@ -71,7 +115,9 @@ object GameAudioPrefsContract {
         context: Context,
         volume: Float,
     ) {
-        runCatching { prefs(context).edit().putFloat(KEY_VOLUME, coerceVolume(volume)).apply() }
+        val coerced = coerceVolume(volume)
+        runCatching { prefs(context).edit().putFloat(KEY_VOLUME, coerced).apply() }
+        updateCached { it.copy(volume = coerced) }
     }
 
     private fun prefs(context: Context): SharedPreferences =

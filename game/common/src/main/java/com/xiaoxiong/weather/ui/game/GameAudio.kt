@@ -76,8 +76,8 @@ object GameAudio {
     private val sampleIds = HashMap<GameCue, Int>()
 
     /**
-     * 读取全局设置；仅首次读取时触发一次旧键迁移，之后只做内存键值读取，
-     * 不再触碰 `bear_game`、不写盘（同 `GameAudioPrefsContract.read`）。
+     * 读取全局设置（走契约的进程内缓存，高频播放路径不再反复读 prefs）。
+     * 仅首次读取会触发一次旧键迁移，之后只做内存读。
      */
     fun settings(context: Context): GameAudioSettings = GameAudioPrefsContract.read(context)
 
