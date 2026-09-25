@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.createBitmap
 import com.xiaoxiong.weather.data.remote.RainViewerFrame
 import com.xiaoxiong.weather.data.remote.RainViewerMapsResponse
+import com.xiaoxiong.weather.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -38,6 +39,14 @@ data class RadarFrame(
     /** RainViewer 短临外推帧（未来约 0.5～2h）；false 为已观测实况。 */
     val isNowcast: Boolean = false,
 )
+
+/**
+ * 单类雷达帧（past / nowcast）的数量上限。
+ *
+ * 正常响应约 10 + 30 帧；上游异常返回海量帧时，每帧都会拼 URL 并被并发信号量放行下载，
+ * 数组与协程数量都会失控。取 64 既覆盖正常上限（30 帧短临）又有充足余量。
+ */
+internal const val MAX_RASTER_FRAMES = 64
 
 data class SatelliteCloudMap(
     val image: ImageBitmap,
@@ -85,8 +94,10 @@ class RadarMapRepository(
                     throw AppError.DataFormat(e)
                 }
             val host = response.host.trimEnd('/')
+            // 帧数上限：RainViewer 正常只返回过去 ~2h（10 帧）+ 短临（30 帧）。
+            // 上游异常返回十万帧时，map 会为每帧拼 URL 并各起一个协程下载 → OOM。
             val past =
-                response.radar?.past.orEmpty().map { frame ->
+                response.radar?.past.orEmpty().take(MAX_RASTER_FRAMES).map { frame ->
                     RadarFrame(
                         timeEpochSec = frame.time,
                         path = frame.path,
@@ -95,7 +106,7 @@ class RadarMapRepository(
                     )
                 }
             val nowcast =
-                response.radar?.nowcast.orEmpty().map { frame ->
+                response.radar?.nowcast.orEmpty().take(MAX_RASTER_FRAMES).map { frame ->
                     RadarFrame(
                         timeEpochSec = frame.time,
                         path = frame.path,
@@ -129,7 +140,7 @@ class RadarMapRepository(
         }
         val loaded =
             withContext(Dispatchers.IO) {
-                runCatching {
+                runCatchingCancellable {
                     composeCenteredMap(latitude, longitude, zoom, size) { z, x, y ->
                         fetchCartoTile(z, x, y)
                     }?.asImageBitmap()
@@ -164,7 +175,7 @@ class RadarMapRepository(
         }
         val loaded =
             withContext(Dispatchers.IO) {
-                runCatching { composeSatellite(latitude, longitude, zoom, size) }.getOrNull()
+                runCatchingCancellable { composeSatellite(latitude, longitude, zoom, size) }.getOrNull()
             }
         if (loaded != null) {
             cacheMutex.withLock {
@@ -181,7 +192,7 @@ class RadarMapRepository(
         }
         val loaded =
             withContext(Dispatchers.IO) {
-                runCatching { decodeUrl(url) }.getOrNull()?.asImageBitmap()
+                runCatchingCancellable { decodeUrl(url) }.getOrNull()?.asImageBitmap()
             }
         if (loaded != null) {
             cacheMutex.withLock {
@@ -520,7 +531,10 @@ fun mergeRadarTimeline(
     if (past.isEmpty()) return nowcast.sortedBy { it.timeEpochSec }
     val pastTimes = past.mapTo(HashSet()) { it.timeEpochSec }
     val extra = nowcast.filter { it.timeEpochSec !in pastTimes }
-    return (past + extra).sortedBy { it.timeEpochSec }
+    // 合并后同样设总上限：past+nowcast 可达 2×MAX_RASTER_FRAMES，
+    // 而轮播只用到最近的一小段，超出的部分纯属浪费内存与预取。
+    val merged = (past + extra).sortedBy { it.timeEpochSec }
+    return if (merged.size > MAX_RASTER_FRAMES) merged.takeLast(MAX_RASTER_FRAMES) else merged
 }
 
 /** 首屏停在最新实况帧；若无实况则落在最后一帧。 */

@@ -5,6 +5,7 @@ import com.xiaoxiong.weather.data.ChinaCityCatalog
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.LocationHelper
 import com.xiaoxiong.weather.data.WeatherRepository
+import com.xiaoxiong.weather.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -46,7 +47,7 @@ class CitySearchUseCase(
                 coroutineScope {
                     val remoteDeferred =
                         async {
-                            runCatching { repository.searchCities(query) }.getOrDefault(emptyList())
+                            runCatchingCancellable { repository.searchCities(query) }.getOrDefault(emptyList())
                         }
                     val geocoderDeferred =
                         async {
@@ -55,7 +56,7 @@ class CitySearchUseCase(
                                 WeatherRepository.containsHan(query) &&
                                     (catalog.isEmpty() || !ChinaCityCatalog.hasStrongMatch(query, catalog))
                             if (needGeocoder) {
-                                runCatching {
+                                runCatchingCancellable {
                                     locationHelper.searchPlaces(
                                         WeatherRepository.normalizePlaceQuery(query),
                                     )

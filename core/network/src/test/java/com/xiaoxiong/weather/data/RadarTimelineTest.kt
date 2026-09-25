@@ -6,6 +6,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RadarTimelineTest {
+    @Test
+    fun `merged timeline is capped to keep the most recent frames`() {
+        val past = (1..MAX_RASTER_FRAMES).map { frame(it.toLong(), false) }
+        val nowcast = (100..100 + MAX_RASTER_FRAMES).map { frame(it.toLong(), true) }
+        val merged = mergeRadarTimeline(past, nowcast)
+        assertTrue(
+            "past+nowcast 合并后可翻倍，必须再设总上限，否则内存与预取白白浪费",
+            merged.size <= MAX_RASTER_FRAMES,
+        )
+        assertEquals(merged.maxOf { it.timeEpochSec }, merged.last().timeEpochSec)
+    }
+
+    @Test
+    fun `normal sized timelines are not truncated`() {
+        val past = (1..10).map { frame(it.toLong(), false) }
+        val nowcast = (11..40).map { frame(it.toLong(), true) }
+        assertEquals(40, mergeRadarTimeline(past, nowcast).size)
+    }
+
     private fun frame(
         time: Long,
         nowcast: Boolean,
