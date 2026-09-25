@@ -403,7 +403,16 @@ class HockeyGame {
      * 其后每两字段为一个拖尾点；球桌不落盘，恢复时按画布尺寸重建后套用坐标。
      */
     fun saveSnapshot(prefs: SharedPreferences) {
-        if (phase == Phase.READY || phase == Phase.MATCH_OVER) return
+        // 终局必须**清档**而不是默默 return：phase 是游戏内部改的，若在下一次重组
+        // 触发 onPhaseChanged 之前就 ON_STOP 且进程被杀，残留的局中快照会在下次启动
+        // 被恢复成"已经结束的比赛"。战机在终局清档（PlanePhase.SETTLED）同理。
+        if (phase == Phase.MATCH_OVER) {
+            clearSnapshot(prefs)
+            return
+        }
+        // READY 保持"不动"而非清档：进入界面即自动恢复，READY 是恢复前的瞬时态，
+        // 此时清档会把玩家待续玩的对局一并删掉（比残留旧档更糟）。
+        if (phase == Phase.READY) return
         runCatching {
             val name = difficulty.name
             val header = mutableListOf<Number>()

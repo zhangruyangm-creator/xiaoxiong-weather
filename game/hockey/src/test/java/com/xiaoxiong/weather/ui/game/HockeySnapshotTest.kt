@@ -532,6 +532,39 @@ class HockeySnapshotTest {
         assertFalse(HockeyGame().restoreSnapshot(prefs))
     }
 
+    /**
+     * 终局兜底落盘必须清档。
+     *
+     * 时序：phase 由游戏内部改成 MATCH_OVER，若在下一次重组触发 onPhaseChanged 之前
+     * 就 ON_STOP 且进程被杀，`persist` 会带着旧 phase 走 SAVE 分支。此时若
+     * saveSnapshot 只是默默 return，残留的局中快照会在下次启动被恢复成"已结束的比赛"。
+     */
+    @Test
+    fun saveSnapshot_atMatchOver_clearsStaleSnapshot() {
+        val prefs = TestPrefs()
+        val game = startedGame()
+        game.saveSnapshot(prefs)
+        assertTrue("局中应有快照", prefs.contains(snapshotKey))
+
+        game.phase = Phase.MATCH_OVER
+        game.saveSnapshot(prefs)
+
+        assertFalse("终局后残留快照会被下次启动复活成已结束的比赛", prefs.contains(snapshotKey))
+    }
+
+    /** READY 是自动恢复前的瞬时态：此时清档会删掉待续玩的对局，必须保持不动。 */
+    @Test
+    fun saveSnapshot_atReady_keepsResumableSnapshot() {
+        val prefs = TestPrefs()
+        val game = startedGame()
+        game.saveSnapshot(prefs)
+
+        val ready = HockeyGame()
+        ready.saveSnapshot(prefs)
+
+        assertTrue("标题态不得清掉待续玩的快照", prefs.contains(snapshotKey))
+    }
+
     /** shouldClear 谓词：仅 MATCH_OVER 清档，标题与进行中保留（可续玩）。 */
     @Test
     fun shouldClearSnapshot_onlyMatchOver() {
