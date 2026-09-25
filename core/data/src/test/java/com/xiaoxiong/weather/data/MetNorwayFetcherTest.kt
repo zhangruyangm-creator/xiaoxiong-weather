@@ -207,6 +207,55 @@ class MetNorwayFetcherTest {
         assertFalse(snapshotAtUtc("2026-09-12T10:00:00Z").current.isDay == true) // 本地 18:00
     }
 
+    /**
+     * 降级源同样要过物理量夹紧。
+     *
+     * 夹紧最初只接在 Open-Meteo 实况路径，备用源绕过了——上游字段错位时
+     * 荒谬值仍会经降级路径上屏。
+     */
+    @Test
+    fun mapToSnapshot_clampsAbsurdValues() {
+        val utc = "2026-09-12T07:30:00Z"
+        val body =
+            """
+            {
+              "properties": {
+                "timeseries": [
+                  {
+                    "time": "$utc",
+                    "data": {
+                      "instant": { "details": {
+                        "air_temperature": 1e9,
+                        "relative_humidity": 5000.0,
+                        "wind_speed": 1e8,
+                        "cloud_area_fraction": -20.0,
+                        "air_pressure_at_sea_level": 99999.0
+                      } },
+                      "next_1_hours": {
+                        "summary": { "symbol_code": "clearsky_day" },
+                        "details": { "precipitation_amount": -5.0 }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+        val snapshot =
+            fetcher.mapToSnapshot(
+                json.decodeFromString(MetNorwayResponse.serializer(), body),
+                city,
+                now = Instant.parse(utc),
+            )
+
+        assertEquals(70.0, snapshot.current.temperatureC!!, 0.0)
+        assertEquals(100, snapshot.current.humidityPercent)
+        assertEquals(500.0, snapshot.current.windSpeedKmh!!, 0.0)
+        assertEquals(0, snapshot.current.cloudCoverPercent)
+        assertEquals(1100.0, snapshot.current.pressureHpa!!, 0.0)
+        assertEquals(0.0, snapshot.current.precipitationMm!!, 0.0)
+    }
+
     private fun snapshotAtUtc(utc: String): WeatherSnapshot {
         val body =
             """

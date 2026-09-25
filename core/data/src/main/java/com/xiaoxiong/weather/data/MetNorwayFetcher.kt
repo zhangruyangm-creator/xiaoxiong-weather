@@ -79,16 +79,20 @@ class MetNorwayFetcher(
                     } else {
                         MetPoint(
                             instant = instant,
-                            temperatureC = details.airTemperature,
-                            humidityPercent = details.relativeHumidity?.roundToInt(),
-                            windKmh = details.windSpeed?.times(MPS_TO_KMH),
-                            windDirectionDeg = details.windFromDirection?.roundToInt(),
-                            cloudCoverPercent = details.cloudAreaFraction?.roundToInt(),
-                            pressureHpa = details.airPressureAtSeaLevel,
+                            // 在此统一夹紧物理量：下游小时序列、日聚合（最高/最低温、累计降水）
+                            // 与当前实况都由 MetPoint 派生，收口一处即可全部覆盖。
+                            // 注意 MET 的 relative_humidity / cloud_area_fraction 官方单位就是
+                            // 百分数（已核对数据模型文档），无需 ×100。
+                            temperatureC = WeatherValueClamp.temperatureC(details.airTemperature),
+                            humidityPercent = WeatherValueClamp.percent(details.relativeHumidity?.roundToInt()),
+                            windKmh = WeatherValueClamp.windKmh(details.windSpeed?.times(MPS_TO_KMH)),
+                            windDirectionDeg = WeatherValueClamp.windDirectionDeg(details.windFromDirection?.roundToInt()),
+                            cloudCoverPercent = WeatherValueClamp.percent(details.cloudAreaFraction?.roundToInt()),
+                            pressureHpa = WeatherValueClamp.pressureHpa(details.airPressureAtSeaLevel),
                             weatherCode = WeatherCodes.normalizeCode(weatherCodeForSymbol(symbolOf(entry))),
-                            precipitationAmountMm = precipitationAmountForPeriod(entry),
-                            precipitationRateMmPerHour = precipitationForHour(entry),
-                            precipProbability = probabilityForHour(entry)?.roundToInt(),
+                            precipitationAmountMm = WeatherValueClamp.precipitationMm(precipitationAmountForPeriod(entry)),
+                            precipitationRateMmPerHour = WeatherValueClamp.precipitationMm(precipitationForHour(entry)),
+                            precipProbability = WeatherValueClamp.percent(probabilityForHour(entry)?.roundToInt()),
                         )
                     }
                 }.sortedBy { it.instant }

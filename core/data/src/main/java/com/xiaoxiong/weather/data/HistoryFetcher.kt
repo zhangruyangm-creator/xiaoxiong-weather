@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.data
 
+import com.xiaoxiong.weather.data.remote.ArchiveDailyDto
 import com.xiaoxiong.weather.data.remote.ArchiveResponse
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
 import com.xiaoxiong.weather.util.WeatherCodes
@@ -131,18 +132,7 @@ class HistoryFetcher(
             val parsed = runCatching { java.time.LocalDate.parse(day) }.getOrNull() ?: return@withContext null
             if (parsed != date) return@withContext null
 
-            HistoryWeather(
-                date = day,
-                weatherCode = WeatherCodes.normalizeCode(daily.weatherCode.getOrNull(0)),
-                tempMaxC = daily.tempMax.getOrNull(0),
-                tempMinC = daily.tempMin.getOrNull(0),
-                tempMeanC = daily.temperatureMean.getOrNull(0),
-                precipSumMm = daily.precipSum.getOrNull(0),
-                humidityMeanPercent = daily.humidityMean.getOrNull(0),
-                windMaxKmh = daily.windMax.getOrNull(0),
-                sunrise = daily.sunrise.getOrNull(0),
-                sunset = daily.sunset.getOrNull(0),
-            )
+            archiveDailyToHistory(daily, index = 0, date = day)
         }
 
     /**
@@ -198,18 +188,7 @@ class HistoryFetcher(
                 daily.time.mapIndexedNotNull { index, day ->
                     val parsed = runCatching { java.time.LocalDate.parse(day) }.getOrNull() ?: return@mapIndexedNotNull null
                     if (parsed < start || parsed > end) return@mapIndexedNotNull null
-                    HistoryWeather(
-                        date = day,
-                        weatherCode = WeatherCodes.normalizeCode(daily.weatherCode.getOrNull(index)),
-                        tempMaxC = daily.tempMax.getOrNull(index),
-                        tempMinC = daily.tempMin.getOrNull(index),
-                        tempMeanC = daily.temperatureMean.getOrNull(index),
-                        precipSumMm = daily.precipSum.getOrNull(index),
-                        humidityMeanPercent = daily.humidityMean.getOrNull(index),
-                        windMaxKmh = daily.windMax.getOrNull(index),
-                        sunrise = daily.sunrise.getOrNull(index),
-                        sunset = daily.sunset.getOrNull(index),
-                    )
+                    archiveDailyToHistory(daily, index = index, date = day)
                 }
             if (days.isEmpty()) return@withContext null
 
@@ -257,6 +236,30 @@ class HistoryFetcher(
         } catch (e: SerializationException) {
             throw AppError.DataFormat(e)
         }
+
+    /**
+     * 从 archive daily 的某一列构造 [HistoryWeather]，并统一夹紧物理量。
+     *
+     * 历史数据同样来自远端，会原样进入折线图与极值摘要；与实况走同一套区间，
+     * 否则"实况有夹紧、历史没有"就成了半截防护（离谱值仍能上屏或撑爆图表）。
+     */
+    internal fun archiveDailyToHistory(
+        daily: ArchiveDailyDto,
+        index: Int,
+        date: String,
+    ): HistoryWeather =
+        HistoryWeather(
+            date = date,
+            weatherCode = WeatherCodes.normalizeCode(daily.weatherCode.getOrNull(index)),
+            tempMaxC = WeatherValueClamp.temperatureC(daily.tempMax.getOrNull(index)),
+            tempMinC = WeatherValueClamp.temperatureC(daily.tempMin.getOrNull(index)),
+            tempMeanC = WeatherValueClamp.temperatureC(daily.temperatureMean.getOrNull(index)),
+            precipSumMm = WeatherValueClamp.precipitationMm(daily.precipSum.getOrNull(index)),
+            humidityMeanPercent = WeatherValueClamp.percent(daily.humidityMean.getOrNull(index)),
+            windMaxKmh = WeatherValueClamp.windKmh(daily.windMax.getOrNull(index)),
+            sunrise = daily.sunrise.getOrNull(index),
+            sunset = daily.sunset.getOrNull(index),
+        )
 
     companion object {
         /** 常年对比窗口年数（含今年共 N 年），N-1 年用于多年平均。 */
