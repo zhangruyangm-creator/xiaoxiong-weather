@@ -9,7 +9,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.edit
-import com.xiaoxiong.weather.game.intOr
 import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchDifficulty
 import kotlin.math.max
@@ -21,8 +20,8 @@ private const val CATCH_SNAPSHOT_KEY = "catch_snapshot_v1"
 /** 快照头最少字段数（旧版无 difficulty 字段，详见 [BearCatchGame.saveSnapshot]）。 */
 private const val CATCH_HEADER_FIELDS_LEGACY = 19
 
-/** 快照头当前字段数（旧版 19 字段 + difficulty）。 */
-private const val CATCH_HEADER_FIELDS = 20
+/** 快照头当前字段数（旧版 19 + difficulty + maxCombo + perfectCount）。 */
+private const val CATCH_HEADER_FIELDS = 22
 
 /**
  * 安全水平夹取：窗口极窄（width < 2·r）时 [coerceIn] 区间非法会抛 IllegalArgumentException，
@@ -56,17 +55,26 @@ class BearCatchGame {
     /** 连击：连续接住得分物不中断；断连（漏接得分物）归零。 */
     var combo by mutableIntStateOf(0)
 
+    /** 本局峰值连击（结算展示；断连不回退）。 */
+    var maxCombo by mutableIntStateOf(0)
+
     /** 双倍得分剩余时间（秒）；<=0 时无加成。 */
     var doubleT by mutableFloatStateOf(0f)
 
     /** 最近一次是否处于风暴爆发波次（供 HUD 闪烁）。 */
     var inBurstWave by mutableStateOf(false)
 
+    /** 本局精准接住次数（结算卡展示；不进快照）。 */
+    var perfectCount by mutableIntStateOf(0)
+
     /** 当前天气场景；由 Screen 在天气变化时刷新。 */
     var scene by mutableStateOf(BearCatchLogic.CatchScene.SUNNY)
 
     /** 当前难度档位；由标题界面选择并持久化，快照保存 / 恢复（旧档缺省 STANDARD）。 */
     var difficulty by mutableStateOf(CatchDifficulty.STANDARD)
+
+    /** 本局已播过开场横幅的场景（STORM/HAIL/SNOW 各一次）。 */
+    private val sceneIntrosShown = mutableSetOf<BearCatchLogic.CatchScene>()
 
     var size = IntSize.Zero
     var time = 0f
@@ -147,8 +155,11 @@ class BearCatchGame {
         hasShield = false
         shieldCooldownT = 0f
         combo = 0
+        maxCombo = 0
         doubleT = 0f
         inBurstWave = false
+        perfectCount = 0
+        sceneIntrosShown.clear()
         spawnAccum = 0f
         time = 0f
         deadT = 0f
@@ -214,6 +225,8 @@ class BearCatchGame {
                     -1f,
                     best,
                     difficulty.ordinal,
+                    maxCombo,
+                    perfectCount,
                 )
             items.forEach { item ->
                 groups +=
@@ -341,10 +354,18 @@ class BearCatchGame {
         // 触摸点不恢复（即使旧档写了坐标也忽略）：否则恢复瞬间小熊会朝旧触点漂移
         touchX = null
         if (header[18].toInt() > best) best = header[18].toInt()
-        if (header.size >= CATCH_HEADER_FIELDS) {
+        if (header.size > 19) {
             difficulty =
                 CatchDifficulty.entries.getOrNull(header[19].toInt()) ?: CatchDifficulty.STANDARD
         }
+        // 峰值连击 / 精准次数：旧档缺省时 maxCombo 至少不低于当前 combo
+        maxCombo =
+            if (header.size > 20) {
+                header[20].toInt().coerceAtLeast(combo)
+            } else {
+                combo
+            }
+        perfectCount = if (header.size > 21) header[21].toInt().coerceAtLeast(0) else 0
         items.clear()
         items.addAll(newItems)
         particles.clear()
@@ -357,13 +378,17 @@ class BearCatchGame {
     /** 推进一帧：委托 [BearCatchLogic] 引擎，并消费事件更新状态。 */
     fun tick(
         dt: Float,
-        onCaught: (BearCatchLogic.ItemKind) -> Unit,
+        onCaught: (BearCatchLogic.ItemKind, points: Int, perfect: Boolean) -> Unit,
         onHit: (BearCatchLogic.ItemKind) -> Unit,
         onDeath: (Int) -> Unit,
         /** 护盾吸收伤害时触发（区别于 [onHit] 的真扣血）：供屏幕播放「格挡」表现。 */
         onBlocked: (BearCatchLogic.ItemKind) -> Unit = {},
         /** 跨过 500 / 1000 / 2000 里程碑时回调一次（不阻塞操作）。 */
         onMilestone: (Int) -> Unit = {},
+        /** 风暴爆发波次上升沿：供横幅 + WARNING cue。 */
+        onBurstStart: () -> Unit = {},
+        /** 危险场景开场（每局每种一次）：供横幅 + WARNING cue。 */
+        onSceneIntro: (BearCatchLogic.CatchScene) -> Unit = {},
     ) {
         if (size == IntSize.Zero) return
         time += dt
@@ -395,6 +420,11 @@ class BearCatchGame {
             return
         }
 
+        // 危险场景开场横幅：STORM / HAIL / SNOW 每局各提示一次
+        if (scene in BearCatchLogic.SCENE_INTRO_SCENES && sceneIntrosShown.add(scene)) {
+            onSceneIntro(scene)
+        }
+
         // 小熊跟随手指水平移动（截距式：取 touchX，无触摸时惯性衰减）
         val tx = touchX
         if (tx != null) {
@@ -411,6 +441,7 @@ class BearCatchGame {
             BearCatchLogic.milestoneFor(before, score)?.let { pendingMilestone = it }
         }
 
+        val wasBurst = inBurstWave
         val ev =
             BearCatchLogic.stepCatchWorldDefault(
                 items = items,
@@ -430,18 +461,27 @@ class BearCatchGame {
             )
         spawnAccum = ev.spawnAccum
         inBurstWave = ev.inBurstWave
+        if (!wasBurst && inBurstWave) onBurstStart()
 
         if (ev.missedGood > 0) combo = 0
 
-        for (kind in ev.caught) {
+        for (hit in ev.caught) {
+            val kind = hit.kind
+            val perfect = hit.perfect && BearCatchLogic.scoreOf(kind) > 0
             when (kind) {
                 BearCatchLogic.ItemKind.GIFT -> {
                     combo++
-                    // 与普通得分物同口径：双倍期间再吃礼物也翻倍（先算分再续时长）
-                    val mult =
-                        (if (doubleT > 0f) 2 else 1) *
-                            BearCatchLogic.comboScoreMultiplier(combo)
-                    addScore(BearCatchLogic.scoreOf(kind) * mult)
+                    if (combo > maxCombo) maxCombo = combo
+                    val points =
+                        BearCatchLogic.pointsAwarded(
+                            kind = kind,
+                            combo = combo,
+                            doubleActive = doubleT > 0f,
+                            difficulty = difficulty,
+                            perfect = perfect,
+                        )
+                    addScore(points)
+                    if (perfect) perfectCount++
                     doubleT = BearCatchLogic.DOUBLE_TIME_SEC
                     squashT = 0f
                     burst(
@@ -450,6 +490,8 @@ class BearCatchGame {
                         count = 12,
                         color = Color(0xFFFF8F00),
                     )
+                    if (perfect) sparklePerfect()
+                    onCaught(kind, points, perfect)
                 }
                 BearCatchLogic.ItemKind.BUBBLE -> {
                     // 冷却期间拾取不再叠加；只有在没护盾且没冷却时才给一次性护盾
@@ -463,14 +505,21 @@ class BearCatchGame {
                         count = 10,
                         color = Color(0xFF80DEEA),
                     )
+                    onCaught(kind, 0, false)
                 }
                 else -> {
                     combo++
-                    val base = BearCatchLogic.scoreOf(kind)
-                    val mult =
-                        (if (doubleT > 0f) 2 else 1) *
-                            BearCatchLogic.comboScoreMultiplier(combo)
-                    addScore(base * mult)
+                    if (combo > maxCombo) maxCombo = combo
+                    val points =
+                        BearCatchLogic.pointsAwarded(
+                            kind = kind,
+                            combo = combo,
+                            doubleActive = doubleT > 0f,
+                            difficulty = difficulty,
+                            perfect = perfect,
+                        )
+                    addScore(points)
+                    if (perfect) perfectCount++
                     squashT = 0f
                     burst(
                         cx = catchX,
@@ -478,9 +527,10 @@ class BearCatchGame {
                         count = 6,
                         color = burstColorOf(kind),
                     )
+                    if (perfect) sparklePerfect()
+                    onCaught(kind, points, perfect)
                 }
             }
-            onCaught(kind)
         }
         pendingMilestone?.let(onMilestone)
         // 命中处理：同帧最多只生效一次伤害/护盾消耗，
@@ -547,6 +597,22 @@ class BearCatchGame {
         }
     }
 
+    /** 精准接住的金色星芒粒子。 */
+    private fun sparklePerfect() {
+        burst(
+            cx = catchX,
+            cy = catchY - catchR * 0.7f,
+            count = 10,
+            color = Color(0xFFFFF59D),
+        )
+        burst(
+            cx = catchX,
+            cy = catchY - catchR * 0.7f,
+            count = 6,
+            color = Color(0xFFFFFFFF),
+        )
+    }
+
     /** 接住某类掉落物的爆点颜色（纯数据，不触碰 Android 图形 API，保证可单测）。 */
     fun burstColorOf(kind: BearCatchLogic.ItemKind): Color =
         when (kind) {
@@ -591,14 +657,13 @@ class BearCatchGame {
         prefs.edit { putString(PREFS_DIFFICULTY_KEY, difficulty.id) }
     }
 
-    /** 刷新并持久化最高分；未刷新返回 false（供结算调用）。 */
+    /** 刷新并持久化当前难度最高分；未刷新返回 false（供结算调用）。 */
     fun recordBestScore(
         prefs: SharedPreferences,
         score: Int,
     ): Boolean {
-        if (score <= best) return false
+        if (!recordCatchBestScore(prefs, difficulty, score, best)) return false
         best = score
-        prefs.edit { putInt(PREFS_BEST_SCORE_KEY, score) }
         return true
     }
 
@@ -608,20 +673,17 @@ class BearCatchGame {
         /** 难度档位持久化键。 */
         const val PREFS_DIFFICULTY_KEY = "catch_difficulty"
 
-        /** 最高分持久化键。 */
-        const val PREFS_BEST_SCORE_KEY = "catch_best_score"
+        /** @deprecated 旧版单一最高分键；请用 [catchBestKey]。保留供迁移 / 清榜。 */
+        const val PREFS_BEST_SCORE_KEY = CATCH_LEGACY_BEST_KEY
 
-        /** 旧版最高分键：首次读取时迁移到 [PREFS_BEST_SCORE_KEY]。 */
-        const val PREFS_BEST_SCORE_LEGACY_KEY = "best_catch"
+        /** @deprecated 更早的最高分键。 */
+        const val PREFS_BEST_SCORE_LEGACY_KEY = CATCH_LEGACY_BEST_KEY_V0
 
-        /** 读取最高分；旧键有值而新键没有时迁移，避免升级后丢纪录。 */
-        fun loadBestScore(prefs: SharedPreferences): Int {
-            val saved = prefs.intOr(PREFS_BEST_SCORE_KEY, -1)
-            if (saved >= 0) return saved
-            val legacy = prefs.intOr(PREFS_BEST_SCORE_LEGACY_KEY, 0)
-            if (legacy > 0) prefs.edit { putInt(PREFS_BEST_SCORE_KEY, legacy) }
-            return legacy
-        }
+        /** 读取指定难度最高分；缺省难度 [CatchDifficulty.STANDARD]。 */
+        fun loadBestScore(
+            prefs: SharedPreferences,
+            difficulty: CatchDifficulty = CatchDifficulty.STANDARD,
+        ): Int = loadCatchBestScore(prefs, difficulty)
 
         /** 读取难度档位；缺省 / 未知 id 回退 [CatchDifficulty.STANDARD]。 */
         fun loadDifficulty(prefs: SharedPreferences): CatchDifficulty = CatchDifficulty.fromId(prefs.stringOr(PREFS_DIFFICULTY_KEY))

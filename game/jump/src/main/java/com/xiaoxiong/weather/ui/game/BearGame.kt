@@ -21,8 +21,11 @@ enum class RunScene { SUNNY, CLOUDY, RAIN_LIGHT, RAIN, RAIN_HEAVY, SNOW, STORM, 
 /** 跑酷快照键：对局进行中落盘，结束/重开/退出时清除。 */
 private const val JUMP_SNAPSHOT_KEY = "jump_snapshot_v1"
 
-/** 快照 meta 段的字段数，用于坏档校验。 */
-private const val JUMP_SNAPSHOT_META_FIELDS = 22
+/** 旧档 meta 字段数（不含 combo / coinScore / difficulty）。 */
+private const val JUMP_SNAPSHOT_META_FIELDS_LEGACY = 22
+
+/** 当前快照 meta 字段数：legacy + combo + coinScore + difficulty + maxCombo + grazeCount。 */
+private const val JUMP_SNAPSHOT_META_FIELDS = 27
 
 enum class ObstacleType { PUDDLE, SNOWMAN, STORM_CLOUD, ICE_WALL }
 
@@ -31,6 +34,8 @@ class Obstacle(
     var x: Float,
     val w: Float,
     val h: Float,
+    /** 本局是否已计过擦边，避免同一障碍反复加分。 */
+    var grazed: Boolean = false,
 )
 
 class Coin(
@@ -64,17 +69,29 @@ class BearGame {
     /** HUD 实时分数：仅在整数值变化时写入，避免组合期读取帧计数器导致每帧整屏重组。 */
     var hudScore by mutableIntStateOf(0)
 
-    /** 连续吃金币、无漏接的连击数；仅供 HUD 展示（漏接/死亡/重开归零）。 */
+    /** 连续吃金币、无漏接的连击数；漏接/死亡/重开归零；影响金币得分。 */
     var combo by mutableIntStateOf(0)
+
+    /** 本局峰值连击（结算展示；漏接不回退）。 */
+    var maxCombo by mutableIntStateOf(0)
+
+    /** 本局擦边次数（HUD）。 */
+    var grazeCount by mutableIntStateOf(0)
 
     /** 当前天气场景；由 [BearGameScreen] 在天气变化时刷新。 */
     var scene by mutableStateOf(RunScene.SUNNY)
+
+    /** 玩法难度：影响跑速 / 间距 / 冰墙门槛 / 得分倍率。 */
+    var difficulty by mutableStateOf(RunDifficulty.DEFAULT)
 
     var size = IntSize.Zero
     var time = 0f
     var distance = 0f
     var speed = 0f
     var coinCount = 0
+
+    /** 金币 + 擦边累计得分（含连击与难度倍率），写入总分。 */
+    var coinScore = 0
     var bearY = 0f
     var bearVY = 0f
     var jumpsLeft = 2
@@ -106,8 +123,11 @@ class BearGame {
     /** 跳跃缓冲剩余时间（秒）：落地前点按会缓存，落地时立即消费。 */
     var jumpBufferT = 0f
 
-    /** 下一个里程碑分数阈值：每 500 分飘一个字。 */
+    /** 下一个里程碑分数阈值：每 500 分飘一个字 / 横幅。 */
     var nextMilestone = 500
+
+    /** 本局是否已播报过冰墙解锁横幅。 */
+    var iceUnlockAnnounced = false
 
     val obstacles = mutableListOf<Obstacle>()
     val coins = mutableListOf<Coin>()
@@ -128,15 +148,15 @@ class BearGame {
     private val floorY get() = groundY - bearSize
     private val jumpV get() = BearGameLogic.jumpV(s)
     private val jumpV2 get() = BearGameLogic.jumpV2(s)
-    private val maxSpeed get() = BearGameLogic.maxSpeed(s)
+    private val maxSpeed get() = BearGameLogic.maxSpeed(s) * difficulty.speedMul
 
     // 速度曲线由纯距离分数驱动（详见 BearGameLogic.speedAt）
-    private fun speedAt(distanceScore: Float): Float = BearGameLogic.speedAt(distanceScore, s)
+    private fun speedAt(distanceScore: Float): Float = BearGameLogic.speedAt(distanceScore, s, difficulty.speedMul)
 
     // 步频随速度渐快并封顶，避免高速抽帧（详见 BearGameLogic.runPhaseRate）
     private fun runPhaseRate(): Float = BearGameLogic.runPhaseRate(speed, s)
 
-    fun score(): Int = BearGameLogic.score(distance, coinCount, s)
+    fun score(): Int = BearGameLogic.score(distance, coinScore, s)
 
     fun resize(
         newSize: IntSize,
@@ -192,12 +212,13 @@ class BearGame {
         distance = 0f
         speed = 0f
         coinCount = 0
+        coinScore = 0
         hudScore = 0
         bearY = floorY
         bearVY = 0f
         jumpsLeft = 2
         grounded = true
-        nextGap = 560f * s
+        nextGap = BearGameLogic.nextObstacleGap(0.3f, s, difficulty.gapMul)
         runPhase = 0f
         deadT = 0f
         bob = 0f
@@ -209,7 +230,10 @@ class BearGame {
         airTime = 0f
         jumpBufferT = 0f
         combo = 0
+        maxCombo = 0
+        grazeCount = 0
         nextMilestone = 500
+        iceUnlockAnnounced = false
         obstacles.clear()
         coins.clear()
         particles.clear()
@@ -220,7 +244,7 @@ class BearGame {
         snapshotDiscarded = false
         reset()
         phase = GamePhase.RUNNING
-        speed = 340f * s
+        speed = 340f * s * difficulty.speedMul
     }
 
     fun tap(onJump: () -> Unit = {}) {
@@ -351,7 +375,7 @@ class BearGame {
      */
     private fun iceWallHeight(scene: RunScene): Float = BearGameLogic.iceWallHeight(scene, s)
 
-    private fun iceWallMinScore(scene: RunScene): Int = BearGameLogic.iceWallMinScore(scene)
+    private fun iceWallMinScore(scene: RunScene): Int = BearGameLogic.iceWallMinScore(scene, difficulty)
 
     /** 出生障碍类型：冰墙在低分段降级为雪人。 */
     fun spawnType(
@@ -396,9 +420,12 @@ class BearGame {
 
     fun tick(
         dt: Float,
-        onCoin: () -> Unit,
+        onCoin: (gained: Int) -> Unit,
         onDeath: (score: Int) -> Unit,
         onJump: () -> Unit = {},
+        onGraze: () -> Unit = {},
+        onMilestone: (score: Int) -> Unit = {},
+        onIceUnlock: () -> Unit = {},
     ) {
         if (size == IntSize.Zero) return
         time += dt
@@ -502,7 +529,7 @@ class BearGame {
         nextGap -= dx
         if (nextGap <= 0f) {
             spawn()
-            nextGap = (460f + Random.nextFloat() * 340f) * s
+            nextGap = BearGameLogic.nextObstacleGap(Random.nextFloat(), s, difficulty.gapMul)
         }
 
         // 碰撞（判定盒内缩，手感宽松一点）
@@ -527,9 +554,54 @@ class BearGame {
                 coins.remove(coinHit)
                 coinCount++
                 combo++
-                texts += FloatText(coinHit.x, coinHit.y - 24f * s, "+10")
+                if (combo > maxCombo) maxCombo = combo
+                val gained = BearGameLogic.scaledPoints(BearGameLogic.coinGain(combo), difficulty.scoreMul)
+                coinScore += gained
+                texts += FloatText(coinHit.x, coinHit.y - 24f * s, "+$gained")
                 burst(coinHit.x, coinHit.y, count = 4, spread = 150f * s, color = Color(0xFFFFCA28))
-                onCoin()
+                onCoin(gained)
+            }
+        }
+        val grazePad = bearSize * BearGameLogic.GRAZE_PAD_FRAC
+        for (ob in obstacles) {
+            if (ob.grazed) continue
+            val obTop =
+                when (ob.type) {
+                    ObstacleType.PUDDLE -> groundY - ob.h
+                    ObstacleType.SNOWMAN -> groundY - ob.h
+                    ObstacleType.STORM_CLOUD -> groundY - ob.h - 4f * s
+                    ObstacleType.ICE_WALL -> groundY - ob.h
+                }
+            val shrinkX = ob.w * 0.16f
+            val shrinkTop = ob.h * 0.14f
+            val hitLeft = ob.x + shrinkX
+            val hitTop = obTop + shrinkTop
+            val hitRight = ob.x + ob.w - shrinkX
+            val hitBottom = obTop + ob.h
+            if (
+                BearGameLogic.obstacleNearMiss(
+                    bearLeft = bearRect.left,
+                    bearTop = bearRect.top,
+                    bearRight = bearRect.right,
+                    bearBottom = bearRect.bottom,
+                    obLeft = hitLeft,
+                    obTop = hitTop,
+                    obRight = hitRight,
+                    obBottom = hitBottom,
+                    pad = grazePad,
+                )
+            ) {
+                ob.grazed = true
+                grazeCount++
+                val gained = BearGameLogic.scaledPoints(BearGameLogic.GRAZE_SCORE, difficulty.scoreMul)
+                coinScore += gained
+                texts +=
+                    FloatText(
+                        bearX + bearSize / 2,
+                        bearY,
+                        "+$gained",
+                    )
+                onGraze()
             }
         }
         val dead =
@@ -550,15 +622,26 @@ class BearGame {
         if (dead) die(onDeath)
         val v = score()
         if (hudScore != v) hudScore = v
-        // 每 500 分里程碑飘字
+        // 每 500 分里程碑飘字 + 横幅回调
         if (v >= nextMilestone) {
+            val milestone = nextMilestone
             texts +=
                 FloatText(
                     bearX + bearSize / 2,
                     groundY - bearSize * 2.2f,
-                    "$nextMilestone!",
+                    "$milestone!",
                 )
             nextMilestone += 500
+            onMilestone(milestone)
+        }
+        // 冰墙解锁：雪/冻雨场景首次跨过门槛
+        if (
+            !iceUnlockAnnounced &&
+            (scene == RunScene.SNOW || scene == RunScene.FREEZING_RAIN) &&
+            v >= iceWallMinScore(scene)
+        ) {
+            iceUnlockAnnounced = true
+            onIceUnlock()
         }
     }
 
@@ -594,8 +677,16 @@ class BearGame {
                 scene.ordinal,
                 size.width,
                 size.height,
+                combo,
+                coinScore,
+                difficulty.ordinal,
+                maxCombo,
+                grazeCount,
             )
-        val obstacleGroups = obstacles.map { listOf<Number>(it.type.ordinal, it.x, it.w, it.h) }
+        val obstacleGroups =
+            obstacles.map {
+                listOf<Number>(it.type.ordinal, it.x, it.w, it.h, if (it.grazed) 1 else 0)
+            }
         val coinGroups = coins.map { listOf<Number>(it.x, it.y, it.r) }
         val cloudGroups = clouds.map { listOf<Number>(it.x, it.y, it.scale, it.layer) }
         val payload =
@@ -622,7 +713,7 @@ class BearGame {
         val raw = GameSnapshot.load(prefs, JUMP_SNAPSHOT_KEY) ?: return false
         val sections = raw.split('\n')
         val meta = SnapshotCodec.decodeFloatArray(sections.getOrNull(0)) ?: return false
-        if (meta.size < JUMP_SNAPSHOT_META_FIELDS) return false
+        if (meta.size < JUMP_SNAPSHOT_META_FIELDS_LEGACY) return false
         // 只接受 RUNNING 档：旧档/标题档恢复后会造成「标题态却续着残缺对局」的错乱
         if (GamePhase.entries.getOrNull(meta[0].toInt()) != GamePhase.RUNNING) return false
         val obstacleGroups = decodeSnapshotSection(sections.getOrNull(1)) ?: return false
@@ -634,7 +725,14 @@ class BearGame {
             obstacleGroups.mapNotNull { g ->
                 if (g.size < 4) return@mapNotNull null
                 val type = ObstacleType.values().getOrNull(g[0].toInt()) ?: return@mapNotNull null
-                Obstacle(type, g[1], g[2], g[3])
+                // 第 5 字段为 grazed；旧档缺省 false，稍后对已越过障碍再补标
+                Obstacle(
+                    type = type,
+                    x = g[1],
+                    w = g[2],
+                    h = g[3],
+                    grazed = g.size >= 5 && g[4] >= 0.5f,
+                )
             }
         val newCoins =
             coinGroups.mapNotNull { g ->
@@ -670,6 +768,28 @@ class BearGame {
         scene = RunScene.values().getOrElse(meta[19].toInt()) { RunScene.SUNNY }
         val savedW = meta[20].toInt()
         val savedH = meta[21].toInt()
+        // 追加字段：旧档缺省时 combo=0、coinScore=枚数×10、难度 STANDARD
+        combo = if (meta.size > 22) meta[22].toInt().coerceAtLeast(0) else 0
+        coinScore =
+            if (meta.size > 23) {
+                meta[23].toInt().coerceAtLeast(0)
+            } else {
+                coinCount * BearGameLogic.COIN_BASE
+            }
+        difficulty =
+            if (meta.size > 24) {
+                RunDifficulty.entries.getOrNull(meta[24].toInt()) ?: RunDifficulty.DEFAULT
+            } else {
+                RunDifficulty.DEFAULT
+            }
+        // 峰值连击 / 擦边次数：旧档缺省时至少不低于当前 combo，擦边从 0 起
+        maxCombo =
+            if (meta.size > 25) {
+                meta[25].toInt().coerceAtLeast(combo)
+            } else {
+                combo
+            }
+        grazeCount = if (meta.size > 26) meta[26].toInt().coerceAtLeast(0) else 0
         // 恢复可能早于首次 onSizeChanged：用存档尺寸兜底，否则 score() 以零尺寸计算
         // 会把 hudScore 归零，随后连续重播 500/1000… 里程碑飘字
         if (size == IntSize.Zero && savedW > 0 && savedH > 0) {
@@ -680,10 +800,16 @@ class BearGame {
         nextMilestone = (hudScore / 500 + 1) * 500
         airTime = 0f
         jumpBufferT = 0f
-        combo = 0
+        iceUnlockAnnounced =
+            (scene == RunScene.SNOW || scene == RunScene.FREEZING_RAIN) &&
+            hudScore >= iceWallMinScore(scene)
         snapshotDiscarded = false
         obstacles.clear()
         obstacles += newObstacles
+        // 旧档未存 grazed：已越过小熊的障碍补标，避免续玩瞬间刷分
+        for (ob in obstacles) {
+            if (ob.x + ob.w < bearX) ob.grazed = true
+        }
         coins.clear()
         coins += newCoins
         clouds.clear()

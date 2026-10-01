@@ -40,7 +40,7 @@ class PlaneWaveTest {
     }
 
     @Test
-    fun allSevenEnemyTypes_appearAcrossWaves() {
+    fun allMinionEnemyTypes_appearAcrossWaves() {
         val types = (1 until PLANE_BOSS_EVERY * 2).flatMap { PlaneConfig.wave(it).spawns }.map { it.type }.toSet()
         listOf(
             PlaneEnemyType.GRUNT,
@@ -50,6 +50,9 @@ class PlaneWaveTest {
             PlaneEnemyType.TRANSPORT,
             PlaneEnemyType.HELI,
             PlaneEnemyType.TANK,
+            PlaneEnemyType.SCOUT,
+            PlaneEnemyType.BOMBER,
+            PlaneEnemyType.SNIPER,
         ).forEach { type ->
             assertTrue("波次表缺少敌人类型 $type", type in types)
         }
@@ -60,11 +63,18 @@ class PlaneWaveTest {
         val earlyTypes = (1..PLANE_BOSS_EVERY).flatMap { PlaneConfig.wave(it).spawns }
         val helis = earlyTypes.filter { it.type == PlaneEnemyType.HELI }
         val tanks = earlyTypes.filter { it.type == PlaneEnemyType.TANK }
+        val scouts = earlyTypes.filter { it.type == PlaneEnemyType.SCOUT }
+        val bombers = earlyTypes.filter { it.type == PlaneEnemyType.BOMBER }
+        val snipers = earlyTypes.filter { it.type == PlaneEnemyType.SNIPER }
         assertTrue("直升机应在第 5 波前登场", helis.isNotEmpty())
         assertTrue("装甲车应在第 5 波前登场", tanks.isNotEmpty())
+        assertTrue("侦察机应在第 5 波前登场", scouts.isNotEmpty())
+        assertTrue("轰炸机应在第 5 波前登场", bombers.isNotEmpty())
+        assertTrue("狙击机应在第 5 波前登场", snipers.isNotEmpty())
         assertTrue("直升机从顶部常规入场", helis.all { !it.fromBottom })
         assertTrue("装甲车从画面下方进场", tanks.all { it.fromBottom })
         assertTrue("装甲车横向巡行方向非零", tanks.all { it.vx != 0f })
+        assertTrue("狙击机应配置停靠高度", snipers.all { it.targetY > 0f })
     }
 
     @Test
@@ -91,10 +101,14 @@ class PlaneWaveTest {
 
     @Test
     fun secondStage_hasMoreOrEqualEnemiesThanFirst() {
-        // 同一编队位（1..4）在第二轮数量不少于第一轮
+        // 同一编队位（1..4）在第二轮数量不少于第一轮；特殊主题波跳过（编队被内容波替换）
         for (local in 1..4) {
-            val first = PlaneConfig.wave(local).spawns.size
-            val second = PlaneConfig.wave(local + PLANE_BOSS_EVERY).spawns.size
+            val firstIdx = local
+            val secondIdx = local + PLANE_BOSS_EVERY
+            if (PlaneConfig.waveTheme(firstIdx) != PlaneWaveTheme.NORMAL) continue
+            if (PlaneConfig.waveTheme(secondIdx) != PlaneWaveTheme.NORMAL) continue
+            val first = PlaneConfig.wave(firstIdx).spawns.size
+            val second = PlaneConfig.wave(secondIdx).spawns.size
             assertTrue("第二轮编队 $local 数量应不少于第一轮", second >= first)
         }
     }
@@ -105,6 +119,8 @@ class PlaneWaveTest {
         for (local in 1..4) {
             val waveA = local + PLANE_BOSS_EVERY * 8
             val waveB = local + PLANE_BOSS_EVERY * 9
+            if (PlaneConfig.waveTheme(waveA) != PlaneWaveTheme.NORMAL) continue
+            if (PlaneConfig.waveTheme(waveB) != PlaneWaveTheme.NORMAL) continue
             assertEquals(
                 "编队 $local 在软上限后规模应恒定（$waveA vs $waveB）",
                 PlaneConfig.wave(waveA).spawns.size,
@@ -119,5 +135,40 @@ class PlaneWaveTest {
         val maxDelay = sampledWaves.flatMap { PlaneConfig.wave(it).spawns }.maxOf { it.delayTicks }
         assertTrue("刷怪延迟应在 600 tick 内", maxDelay <= 600)
         assertFalse(PlaneConfig.wave(3).spawns.any { it.type == PlaneEnemyType.BOSS })
+    }
+
+    @Test
+    fun specialThemes_cycleEveryTwentyWaves() {
+        assertEquals(PlaneWaveTheme.SCOUT_SWARM, PlaneConfig.waveTheme(3))
+        assertEquals(PlaneWaveTheme.BOMBER_RUN, PlaneConfig.waveTheme(8))
+        assertEquals(PlaneWaveTheme.SNIPER_NEST, PlaneConfig.waveTheme(13))
+        assertEquals(PlaneWaveTheme.SCOUT_SWARM, PlaneConfig.waveTheme(23))
+        assertEquals(PlaneWaveTheme.BOMBER_RUN, PlaneConfig.waveTheme(28))
+        assertEquals(PlaneWaveTheme.SNIPER_NEST, PlaneConfig.waveTheme(33))
+        assertEquals(PlaneWaveTheme.BOSS, PlaneConfig.waveTheme(5))
+        assertEquals(PlaneWaveTheme.NORMAL, PlaneConfig.waveTheme(1))
+        assertEquals(PlaneWaveTheme.SCOUT_SWARM, PlaneConfig.wave(3).theme)
+        assertTrue(PlaneConfig.wave(3).spawns.all { it.type == PlaneEnemyType.SCOUT || it.type == PlaneEnemyType.TRANSPORT })
+        assertTrue(PlaneConfig.wave(8).spawns.any { it.type == PlaneEnemyType.BOMBER })
+        assertTrue(PlaneConfig.wave(13).spawns.any { it.type == PlaneEnemyType.SNIPER })
+    }
+
+    @Test
+    fun milestoneWaves_arePreBossAndNotBoss() {
+        assertTrue(PlaneConfig.isMilestoneWave(9))
+        assertTrue(PlaneConfig.isMilestoneWave(19))
+        assertFalse(PlaneConfig.isMilestoneWave(10))
+        assertFalse(PlaneConfig.isMilestoneWave(5))
+        assertFalse(PlaneConfig.isMilestoneWave(1))
+        assertFalse("里程碑波不应是 Boss", PlaneConfig.wave(9).isBoss)
+    }
+
+    @Test
+    fun bossKinds_rotateEveryBossWave() {
+        assertEquals(PlaneBossKind.STANDARD, PlaneConfig.bossKindForWave(5))
+        assertEquals(PlaneBossKind.RINGMASTER, PlaneConfig.bossKindForWave(10))
+        assertEquals(PlaneBossKind.STRIKER, PlaneConfig.bossKindForWave(15))
+        assertEquals(PlaneBossKind.STANDARD, PlaneConfig.bossKindForWave(20))
+        assertEquals(PlaneBossKind.STANDARD, PlaneConfig.bossKindForWave(4))
     }
 }

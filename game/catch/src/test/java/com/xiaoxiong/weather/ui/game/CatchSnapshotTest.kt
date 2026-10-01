@@ -29,6 +29,8 @@ class CatchSnapshotTest {
         source.score = 120
         source.hearts = 2
         source.combo = 3
+        source.maxCombo = 8
+        source.perfectCount = 5
         source.doubleT = 4.5f
         source.hasShield = true
         source.shieldCooldownT = 7f
@@ -71,6 +73,8 @@ class CatchSnapshotTest {
         assertEquals(120, restored.score)
         assertEquals(2, restored.hearts)
         assertEquals(3, restored.combo)
+        assertEquals(8, restored.maxCombo)
+        assertEquals(5, restored.perfectCount)
         assertEquals(4.5f, restored.doubleT, 1e-4f)
         assertTrue(restored.hasShield)
         assertEquals(7f, restored.shieldCooldownT, 1e-4f)
@@ -161,19 +165,22 @@ class CatchSnapshotTest {
     fun bestScore_migratesFromLegacyKeyAndRecords() {
         val prefs = FakePrefs()
         prefs.edit().putInt(BearCatchGame.PREFS_BEST_SCORE_LEGACY_KEY, 321).apply()
-        assertEquals("旧键应迁移读出", 321, BearCatchGame.loadBestScore(prefs))
+        assertEquals("旧键应迁移到 standard", 321, BearCatchGame.loadBestScore(prefs))
         assertEquals(
-            "读取旧值后应回写新键",
+            "读取旧值后应回写 catch_best_standard",
             321,
-            prefs.intOr(BearCatchGame.PREFS_BEST_SCORE_KEY, 0),
+            prefs.intOr(catchBestKey(CatchDifficulty.STANDARD), 0),
         )
 
         val game = BearCatchGame()
         game.best = 400
+        game.difficulty = CatchDifficulty.STANDARD
         assertFalse("更低分不应刷新", game.recordBestScore(prefs, 321))
         assertTrue("更高分应刷新", game.recordBestScore(prefs, 500))
-        assertEquals(500, prefs.intOr(BearCatchGame.PREFS_BEST_SCORE_KEY, 0))
-        assertEquals(500, BearCatchGame.loadBestScore(prefs))
+        assertEquals(500, prefs.intOr(catchBestKey(CatchDifficulty.STANDARD), 0))
+        assertEquals(500, BearCatchGame.loadBestScore(prefs, CatchDifficulty.STANDARD))
+        // 分难度独立：challenge 不受 standard 影响
+        assertEquals(0, BearCatchGame.loadBestScore(prefs, CatchDifficulty.CHALLENGE))
     }
 
     @Test
@@ -257,7 +264,7 @@ class CatchSnapshotTest {
 
         game.start()
         game.touchX = 5f
-        game.tick(dt = 0.016f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.016f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals("tick 触摸目标夹取不应崩溃且保持居中", 100f, game.catchX, 1e-3f)
 
         // reset 路径同样安全
@@ -279,7 +286,7 @@ class CatchSnapshotTest {
         assertTrue(restored.restoreSnapshot(prefs))
         assertNull("恢复后不应带触摸点", restored.touchX)
         val before = restored.catchX
-        restored.tick(dt = 0.05f, onCaught = {}, onHit = {}, onDeath = {})
+        restored.tick(dt = 0.05f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals("恢复后不得朝旧触点自动漂移", before, restored.catchX, 1e-3f)
     }
 
@@ -303,7 +310,7 @@ class CatchSnapshotTest {
                     r = 28f,
                     phase = 0f,
                 ).also { it.vy = 0f }
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(GamePhase.OVER, game.phase)
 
         game.saveSnapshot(prefs)

@@ -22,6 +22,7 @@
     <string name="sun_bear_exercise_diabolo_morning">Bear is playing diabolo this morning</string>
     <string name="sun_bear_exercise_tennis_morning">Bear is playing tennis this morning</string>
     <string name="sun_bear_exercise_hulahoop_morning">Bear is hula-hooping this morning</string>
+    <string name="sun_bear_exercise_baseball_morning">Bear is playing baseball this morning</string>
     <string name="sun_bear_morning_out">Bear heads out for the day</string>
     <string name="sun_bear_commute_walk_out">Bear is walking to work</string>
     <string name="sun_bear_commute_metro_out">Bear is taking the metro to work</string>
@@ -98,6 +99,7 @@
     <string name="sun_bear_exercise_diabolo_evening">Bear is playing diabolo this evening</string>
     <string name="sun_bear_exercise_tennis_evening">Bear is playing tennis this evening</string>
     <string name="sun_bear_exercise_hulahoop_evening">Bear is hula-hooping this evening</string>
+    <string name="sun_bear_exercise_baseball_evening">Bear is playing baseball this evening</string>
     <string name="sun_bear_morning_stroll">Bear is on a morning stroll</string>
     <string name="sun_bear_weekend_morning">Bear heads out for the weekend</string>
     <string name="sun_bear_weekend_explore">Bear is out exploring</string>

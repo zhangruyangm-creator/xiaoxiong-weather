@@ -6,11 +6,15 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,12 +31,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
-import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
+import kotlinx.coroutines.delay
 
 /** 金币音效最小间隔（纳秒）：同帧/连续吃多枚只响一次，避免爆音。 */
 private const val COIN_SOUND_GAP_NANOS = 60_000_000L
+
+/** 擦边 cue 最小间隔（毫秒）。 */
+private const val GRAZE_CUE_MIN_INTERVAL_MS = 55L
 
 /** 快照清档条件：只有结算态不可续玩（与既有死亡清档时机一致）。 */
 internal fun jumpSnapshotShouldClear(phase: GamePhase): Boolean = phase == GamePhase.OVER
@@ -73,18 +81,31 @@ fun BearGameScreen(
     val pause = rememberGamePauseState()
 
     val prefs = rememberGamePrefs()
-    val lb = rememberLeaderboardState(prefs, "leaderboard_run", "best")
+    var difficultyState by remember { mutableStateOf(loadRunDifficulty(prefs)) }
+    val lbKey = remember(difficultyState) { ensureRunLeaderboardMigrated(prefs, difficultyState) }
+    val bestKey = remember(difficultyState) { runBestKey(difficultyState) }
+    val lb = rememberLeaderboardState(prefs, lbKey, bestKey)
     val characterState = rememberBearCharacterState()
     var showCharacterPicker by remember { mutableStateOf(false) }
     val gameWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
+    var scarfTint by remember {
+        mutableStateOf(RunScarfTint.fromId(prefs.stringOr(RUN_SCARF_TINT_KEY)))
+    }
     val game =
         remember {
-            BearGame().also { it.best = prefs.intOr("best", 0) }
+            BearGame().also {
+                it.difficulty = difficultyState
+                it.best = loadRunBest(prefs, difficultyState)
+            }
         }
     // 进程重建（旋转/被杀）后恢复局中对局：由 GameSnapshotLifecycle 在进入时恢复，
     // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。
     LaunchedEffect(Unit) {
         GameAudio.preload(context)
+        if (!runScarfTintUnlocked(scarfTint, game.best)) {
+            scarfTint = RunScarfTint.CLASSIC
+            prefs.edit { putString(RUN_SCARF_TINT_KEY, scarfTint.id) }
+        }
     }
     // 快照生命周期统一交给公共件：进入恢复 → OVER 清档 → ON_STOP/onDispose 兜底落盘 → 退出抑制。
     val session =
@@ -101,6 +122,11 @@ fun BearGameScreen(
             prefs = prefs,
             phase = game.phase,
             shouldClear = ::jumpSnapshotShouldClear,
+            onRestored = {
+                difficultyState = game.difficulty
+                persistRunDifficulty(prefs, game.difficulty)
+                game.best = loadRunBest(prefs, game.difficulty)
+            },
         )
     LaunchedEffect(game.phase) {
         if (game.phase == GamePhase.OVER) GameAudio.play(GameCue.LOSE)
@@ -116,10 +142,25 @@ fun BearGameScreen(
     // 减弱动画：跳过雨雪/雷电粒子，只保留静态天空与世界
     val reduceMotion = LocalReduceMotion.current
     var frame by remember { mutableLongStateOf(0L) }
+    var milestoneBannerToken by remember { mutableIntStateOf(0) }
+    var milestoneBannerScore by remember { mutableIntStateOf(0) }
+    var iceBannerToken by remember { mutableIntStateOf(0) }
+    var lastGrazeCueMs by remember { mutableLongStateOf(Long.MIN_VALUE) }
     // 主动退出视为放弃本局：guard 先清档再抑制兜底落盘，随后导航离开不会被 onDispose 复活。
     val exitGame: () -> Unit = {
         guard.exit(session, prefs)
         onExit()
+    }
+
+    fun applyDifficulty(difficulty: RunDifficulty) {
+        difficultyState = difficulty
+        game.difficulty = difficulty
+        persistRunDifficulty(prefs, difficulty)
+        game.best = loadRunBest(prefs, difficulty)
+        if (!runScarfTintUnlocked(scarfTint, game.best)) {
+            scarfTint = RunScarfTint.CLASSIC
+            prefs.edit { putString(RUN_SCARF_TINT_KEY, scarfTint.id) }
+        }
     }
 
     BackHandler {
@@ -162,10 +203,7 @@ fun BearGameScreen(
                         GameAudio.play(GameCue.HIT)
                         // 对局结束：清除快照，避免下次重进续上已死的一局
                         game.clearSnapshot(prefs)
-                        if (score > game.best) {
-                            game.best = score
-                            prefs.edit { putInt("best", score) }
-                        }
+                        game.best = persistRunBestIfHigher(prefs, game.difficulty, score)
                         if (score > 0) {
                             lb.lastRank =
                                 lb.store.submit(
@@ -179,12 +217,44 @@ fun BearGameScreen(
                         }
                     },
                     onJump = { GameAudio.play(GameCue.JUMP) },
+                    onGraze = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        val nowMs = now / 1_000_000L
+                        if (lastGrazeCueMs == Long.MIN_VALUE ||
+                            nowMs - lastGrazeCueMs >= GRAZE_CUE_MIN_INTERVAL_MS
+                        ) {
+                            lastGrazeCueMs = nowMs
+                            GameAudio.play(GameCue.GRAZE)
+                        }
+                    },
+                    onMilestone = { score ->
+                        milestoneBannerScore = score
+                        milestoneBannerToken++
+                        GameAudio.play(GameCue.POWERUP)
+                    },
+                    onIceUnlock = {
+                        iceBannerToken++
+                        GameAudio.play(GameCue.WARNING)
+                    },
                 )
                 frame = now
             }
             if (!running) slowTick++
         },
     )
+
+    LaunchedEffect(milestoneBannerToken) {
+        if (milestoneBannerToken > 0) {
+            delay(1400)
+            milestoneBannerToken = 0
+        }
+    }
+    LaunchedEffect(iceBannerToken) {
+        if (iceBannerToken > 0) {
+            delay(1600)
+            iceBannerToken = 0
+        }
+    }
 
     // 浅色场景在渐变上叠纯黑暗角（与天气卡片同款兜底），保证白字标题/地面线可读；
     // 深色场景 scrimAlpha=0 时整层跳过，不产生多余合成。
@@ -231,6 +301,7 @@ fun BearGameScreen(
                 isDay = isDay ?: true,
                 sprites = bearSprites,
                 reduceMotion = reduceMotion,
+                scarfTint = scarfTint,
             )
         }
 
@@ -244,6 +315,13 @@ fun BearGameScreen(
             },
             onCharacter = { showCharacterPicker = true },
         )
+
+        if (milestoneBannerToken > 0 && iceBannerToken == 0) {
+            RunBanner(text = stringResource(R.string.bear_run_milestone_banner, milestoneBannerScore))
+        }
+        if (iceBannerToken > 0) {
+            RunBanner(text = stringResource(R.string.bear_run_ice_unlock_banner), warn = true)
+        }
 
         if (showCharacterPicker) {
             GameCharacterPickerDialog(
@@ -261,6 +339,10 @@ fun BearGameScreen(
                     lb.entries = emptyList()
                     lb.resetLastRank()
                     game.best = 0
+                    prefs.edit {
+                        putInt(runBestKey(difficultyState), 0)
+                        if (difficultyState == RunDifficulty.STANDARD) putInt(PREF_RUN_BEST_LEGACY, 0)
+                    }
                 },
                 onDismiss = { lb.show = false },
             )
@@ -271,10 +353,28 @@ fun BearGameScreen(
                 GameReadyCard(
                     title = stringResource(R.string.bear_game_title),
                     hint = stringResource(R.string.bear_game_hint_jump),
+                    bestLine = gameBestLabel() + " ${game.best}",
                     startText = stringResource(R.string.bear_game_tap_start),
                     onStart = {
                         lb.resetLastRank()
+                        lastGrazeCueMs = Long.MIN_VALUE
+                        milestoneBannerToken = 0
+                        iceBannerToken = 0
                         game.start()
+                    },
+                    extra = {
+                        RunReadyExtras(
+                            difficulty = difficultyState,
+                            scarfTint = scarfTint,
+                            best = game.best,
+                            onPickDifficulty = { applyDifficulty(it) },
+                            onPickScarf = { tint ->
+                                if (runScarfTintUnlocked(tint, game.best) && tint != scarfTint) {
+                                    scarfTint = tint
+                                    prefs.edit { putString(RUN_SCARF_TINT_KEY, tint.id) }
+                                }
+                            },
+                        )
                     },
                 )
             }
@@ -286,6 +386,9 @@ fun BearGameScreen(
                     restartText = stringResource(R.string.bear_jump_restart),
                     onRestart = {
                         lb.resetLastRank()
+                        lastGrazeCueMs = Long.MIN_VALUE
+                        milestoneBannerToken = 0
+                        iceBannerToken = 0
                         game.clearSnapshot(prefs)
                         game.start()
                     },
@@ -297,6 +400,37 @@ fun BearGameScreen(
                     rankLine =
                         if (lb.lastRank > 0) {
                             stringResource(R.string.bear_leaderboard_rank_label, lb.lastRank)
+                        } else {
+                            null
+                        },
+                    extra =
+                        if (game.maxCombo >= 2 || game.grazeCount > 0) {
+                            {
+                                Column {
+                                    if (game.maxCombo >= 2) {
+                                        Text(
+                                            text =
+                                                stringResource(
+                                                    R.string.bear_run_max_combo,
+                                                    game.maxCombo,
+                                                ),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                    if (game.grazeCount > 0) {
+                                        Text(
+                                            text =
+                                                stringResource(
+                                                    R.string.bear_run_graze,
+                                                    game.grazeCount,
+                                                ),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
                         } else {
                             null
                         },
@@ -313,6 +447,9 @@ fun BearGameScreen(
                 onRestart = {
                     pause.resume()
                     lb.resetLastRank()
+                    lastGrazeCueMs = Long.MIN_VALUE
+                    milestoneBannerToken = 0
+                    iceBannerToken = 0
                     game.clearSnapshot(prefs)
                     game.start()
                 },

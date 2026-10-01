@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.weather
 
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -38,6 +39,9 @@ fun BearGameOverlay(
     requestPassword: Pair<Int, String>? = null,
     onActiveChange: (Boolean) -> Unit = {},
     onRequestPasswordConsumed: () -> Unit = {},
+    onOpenBearAlbum: () -> Unit = {},
+    bearHomeResumeRoom: String? = null,
+    onBearHomeResumeRoomConsumed: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     // 口令注册表直接来自装配方（ServiceLoader），无需过滤
@@ -91,6 +95,11 @@ fun BearGameOverlay(
     LaunchedEffect(activeEntry) {
         currentOnActiveChange(activeEntry != null)
     }
+    // 打开相册等全屏 overlay 时本组件会离开组合；若不复位，gameActive 会卡在 true
+    // （竖屏锁定 + 今日页暂停），从相册返回天气页也恢复不了。
+    DisposableEffect(Unit) {
+        onDispose { currentOnActiveChange(false) }
+    }
     val entry = activeEntry ?: return
     val otherGames =
         remember(activePassword, enabledEntries) {
@@ -108,6 +117,9 @@ fun BearGameOverlay(
             onOpenGame = { password ->
                 enabledEntries.firstOrNull { it.password == password }?.let(launchGame)
             },
+            onOpenBearAlbum = onOpenBearAlbum,
+            bearHomeResumeRoom = bearHomeResumeRoom,
+            onBearHomeResumeRoomConsumed = onBearHomeResumeRoomConsumed,
             otherGames = otherGames,
         )
     }

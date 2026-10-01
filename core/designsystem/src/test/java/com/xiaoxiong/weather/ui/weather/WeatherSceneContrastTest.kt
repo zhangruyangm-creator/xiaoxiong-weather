@@ -41,6 +41,8 @@ class WeatherSceneContrastTest {
         listOf(
             Case("CLEAR_DAY", 0, isDay = true, appDark = false, lightScene = true),
             Case("CLEAR_NIGHT", 0, isDay = false, appDark = false, lightScene = false),
+            Case("MAINLY_CLEAR_DAY", 1, isDay = true, appDark = false, lightScene = true),
+            Case("MAINLY_CLEAR_NIGHT", 1, isDay = false, appDark = false, lightScene = false),
             Case("PARTLY_CLOUDY_DAY", 2, isDay = true, appDark = false, lightScene = true),
             Case("PARTLY_CLOUDY_NIGHT", 2, isDay = false, appDark = false, lightScene = false),
             Case("OVERCAST", 3, isDay = true, appDark = false, lightScene = false),

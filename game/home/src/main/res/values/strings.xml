@@ -204,6 +204,8 @@
     <string name="bear_home_narration_evening">晚上歇一会儿</string>
     <string name="bear_home_narration_bedtime_prep">准备睡觉了</string>
     <string name="bear_home_narration_sleep">睡着了</string>
+    <string name="bear_home_action_album">小熊相册</string>
+    <string name="bear_home_bedroom_empty">卧室今天没什么可点的，过会儿再来吧</string>
     <string name="bear_home_playroom_empty">游乐间今天很安静，过会儿再来吧</string>
     <string name="bear_home_room_bedroom">卧室</string>
     <string name="bear_home_room_closet">储物间</string>

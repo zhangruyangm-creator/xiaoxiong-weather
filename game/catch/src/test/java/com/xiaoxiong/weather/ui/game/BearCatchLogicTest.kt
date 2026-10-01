@@ -105,14 +105,14 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.GIFT,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 18f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
         val caught = mutableListOf<ItemKind>()
-        game.tick(dt = 0.001f, onCaught = { caught.add(it) }, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { kind, _, _ -> caught.add(kind) }, onHit = {}, onDeath = {})
         assertEquals(listOf(ItemKind.GIFT), caught)
         assertEquals(20, game.score)
         assertTrue(game.doubleT > 0f)
@@ -122,13 +122,13 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.RAINDROP,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 13f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(20 + 40, game.score)
         assertEquals(2, game.combo)
 
@@ -137,13 +137,13 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.BUBBLE,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 17f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertTrue(game.hasShield)
         assertEquals(0f, game.shieldCooldownT, 1e-4f)
         val heartsBefore = game.hearts
@@ -158,7 +158,7 @@ class BearCatchLogicTest {
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals("护盾应抵挡本次伤害", heartsBefore, game.hearts)
         assertFalse("护盾消耗后应清空", game.hasShield)
         assertTrue("护盾消耗后应进入冷却", game.shieldCooldownT > 0f)
@@ -182,13 +182,13 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.BUBBLE,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 17f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertFalse("冷却中接泡泡不应再给护盾", game.hasShield)
     }
 
@@ -205,16 +205,16 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.GIFT,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 18f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(20, game.score)
         // 双倍到期后再接雨滴：连击若仍在则 ×combo，此处清空避免与双倍断言纠缠
-        game.tick(dt = BearCatchLogic.DOUBLE_TIME_SEC + 0.1f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = BearCatchLogic.DOUBLE_TIME_SEC + 0.1f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertTrue(game.doubleT <= 0f)
         game.combo = 0
         game.items.clear()
@@ -222,13 +222,13 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.RAINDROP,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 13f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(30, game.score)
     }
 
@@ -245,13 +245,13 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.GIFT,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 18f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals("首个礼物按基础分 20", 20, game.score)
         assertTrue(game.doubleT > 0f)
 
@@ -260,13 +260,13 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.GIFT,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 18f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(20 + 80, game.score)
         assertEquals(2, game.combo)
     }
@@ -291,14 +291,14 @@ class BearCatchLogicTest {
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(GamePhase.OVER, game.phase)
         assertEquals("死亡当帧淡出从 0 开始", 0f, game.deadT, 1e-6f)
 
         // 结算期间 deadT 持续累计（与整局 time 无关）
-        game.tick(dt = 0.1f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.1f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(0.1f, game.deadT, 1e-4f)
-        game.tick(dt = 0.2f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.2f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(0.3f, game.deadT, 1e-4f)
 
         // 重开归零
@@ -319,13 +319,13 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.RAINDROP,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 13f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(1, game.combo)
         // 漏接一个得分物（跑到屏幕下方外）→ 连击清零
         game.items.add(
@@ -338,7 +338,7 @@ class BearCatchLogicTest {
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(0, game.combo)
     }
 
@@ -392,7 +392,7 @@ class BearCatchLogicTest {
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals("漏接泡泡不应断连击", 3, game.combo)
     }
 
@@ -494,7 +494,7 @@ class BearCatchLogicTest {
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.05f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.05f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals("横风吹出屏外不应断连击", 4, game.combo)
         assertTrue(game.items.isEmpty())
     }
@@ -673,7 +673,7 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.RAINDROP,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 13f,
                     phase = 0f,
@@ -681,7 +681,7 @@ class BearCatchLogicTest {
         )
         game.tick(
             dt = 0.001f,
-            onCaught = {},
+            onCaught = { _, _, _ -> },
             onHit = {},
             onDeath = {},
             onMilestone = { milestones.add(it) },
@@ -693,7 +693,7 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.RAINDROP,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 13f,
                     phase = 0f,
@@ -701,7 +701,7 @@ class BearCatchLogicTest {
         )
         game.tick(
             dt = 0.001f,
-            onCaught = {},
+            onCaught = { _, _, _ -> },
             onHit = {},
             onDeath = {},
             onMilestone = { milestones.add(it) },
@@ -769,7 +769,7 @@ class BearCatchLogicTest {
                 random = Random(1),
             )
         assertTrue(items.isEmpty())
-        assertEquals(listOf(ItemKind.RAINDROP), ev.caught)
+        assertEquals(listOf(ItemKind.RAINDROP), ev.caught.map { it.kind })
     }
 
     @Test
@@ -904,7 +904,7 @@ class BearCatchLogicTest {
         // 快速过一帧
         game.tick(
             dt = 0.01f,
-            onCaught = {},
+            onCaught = { _, _, _ -> },
             onHit = {},
             onDeath = {},
         )
@@ -924,13 +924,13 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.RAINDROP,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 13f,
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(10, game.score)
 
         // 用闪电（伤害 2）把仅剩 1 心打空，进入结算
@@ -945,7 +945,7 @@ class BearCatchLogicTest {
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(GamePhase.OVER, game.phase)
         assertEquals(0, game.hearts)
 
@@ -972,7 +972,7 @@ class BearCatchLogicTest {
             BearCatchLogic
                 .Item(
                     kind = ItemKind.RAINDROP,
-                    x = game.catchX,
+                    x = game.catchX + game.catchR * 0.5f,
                     y = game.catchY,
                     r = 13f,
                     phase = 0f,
@@ -981,7 +981,7 @@ class BearCatchLogicTest {
         val caught = mutableListOf<ItemKind>()
         game.tick(
             dt = 0.001f,
-            onCaught = { caught.add(it) },
+            onCaught = { kind, _, _ -> caught.add(kind) },
             onHit = {},
             onDeath = {},
         )
@@ -1012,7 +1012,7 @@ class BearCatchLogicTest {
         val hits = mutableListOf<ItemKind>()
         game.tick(
             dt = 0.001f,
-            onCaught = {},
+            onCaught = { _, _, _ -> },
             onHit = { hits.add(it) },
             onDeath = {},
         )
@@ -1042,12 +1042,12 @@ class BearCatchLogicTest {
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals(GamePhase.RUNNING, game.phase)
         assertEquals(1, game.hearts)
 
         // 受击后 0.6s 无敌，需等待过期再受击
-        game.tick(dt = 0.8f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.8f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
 
         game.items.add(
             BearCatchLogic
@@ -1061,7 +1061,7 @@ class BearCatchLogicTest {
         )
         game.tick(
             dt = 0.001f,
-            onCaught = {},
+            onCaught = { _, _, _ -> },
             onHit = {},
             onDeath = { deathScore = it },
         )
@@ -1097,7 +1097,7 @@ class BearCatchLogicTest {
         }
         game.tick(
             dt = 0.001f,
-            onCaught = {},
+            onCaught = { _, _, _ -> },
             onHit = { hitCount[0]++ },
             onDeath = {},
         )
@@ -1127,7 +1127,7 @@ class BearCatchLogicTest {
                     phase = 0f,
                 ).also { it.vy = 0f },
         )
-        game.tick(dt = 0.001f, onCaught = {}, onHit = {}, onDeath = {})
+        game.tick(dt = 0.001f, onCaught = { _, _, _ -> }, onHit = {}, onDeath = {})
         assertEquals("闪电无视护盾直扣 2 心", 1, game.hearts)
         assertTrue("护盾不被消耗（闪电直接扣血）", game.hasShield)
     }
@@ -1155,7 +1155,7 @@ class BearCatchLogicTest {
         val blocks = mutableListOf<ItemKind>()
         game.tick(
             dt = 0.001f,
-            onCaught = {},
+            onCaught = { _, _, _ -> },
             onHit = { hits.add(it) },
             onDeath = {},
             onBlocked = { blocks.add(it) },
@@ -1164,5 +1164,161 @@ class BearCatchLogicTest {
         assertFalse("护盾应被消耗", game.hasShield)
         assertEquals(listOf(ItemKind.CLOUD), blocks)
         assertTrue("护盾挡下不应触发真扣血的 onHit", hits.isEmpty())
+    }
+
+    // ── 精准接住 / 难度得分倍率 ─────────────────────────────────
+
+    @Test
+    fun `pointsAwarded applies combo double scoreMul and perfect bonus`() {
+        val base =
+            BearCatchLogic.pointsAwarded(
+                kind = ItemKind.RAINDROP,
+                combo = 1,
+                doubleActive = false,
+                difficulty = CatchDifficulty.STANDARD,
+            )
+        assertEquals(10, base)
+
+        val comboDouble =
+            BearCatchLogic.pointsAwarded(
+                kind = ItemKind.RAINDROP,
+                combo = 2,
+                doubleActive = true,
+                difficulty = CatchDifficulty.STANDARD,
+            )
+        assertEquals(40, comboDouble)
+
+        val challenge =
+            BearCatchLogic.pointsAwarded(
+                kind = ItemKind.COIN,
+                combo = 1,
+                doubleActive = false,
+                difficulty = CatchDifficulty.CHALLENGE,
+            )
+        assertEquals(34, challenge) // 25 * 1.35
+
+        val perfect =
+            BearCatchLogic.pointsAwarded(
+                kind = ItemKind.RAINDROP,
+                combo = 1,
+                doubleActive = false,
+                difficulty = CatchDifficulty.STANDARD,
+                perfect = true,
+            )
+        assertEquals(10 + BearCatchLogic.PERFECT_CATCH_BONUS, perfect)
+
+        assertEquals(
+            0,
+            BearCatchLogic.pointsAwarded(
+                kind = ItemKind.BUBBLE,
+                combo = 5,
+                doubleActive = true,
+                difficulty = CatchDifficulty.CHALLENGE,
+                perfect = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `perfect catch awards bonus sparkle and increments count`() {
+        val game = BearCatchGame()
+        game.resize(
+            androidx.compose.ui.unit
+                .IntSize(400, 800),
+        )
+        game.start()
+        // 圆心重合 → 精准
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.RAINDROP,
+                    x = game.catchX,
+                    y = game.catchY,
+                    r = 13f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        var points = 0
+        var perfect = false
+        game.tick(
+            dt = 0.001f,
+            onCaught = { _, p, perf ->
+                points = p
+                perfect = perf
+            },
+            onHit = {},
+            onDeath = {},
+        )
+        assertTrue(perfect)
+        assertEquals(10 + BearCatchLogic.PERFECT_CATCH_BONUS, points)
+        assertEquals(points, game.score)
+        assertEquals(1, game.perfectCount)
+        assertTrue("精准应额外爆星芒粒子", game.particles.size >= 16)
+    }
+
+    @Test
+    fun `offcenter catch is not perfect`() {
+        val game = BearCatchGame()
+        game.resize(
+            androidx.compose.ui.unit
+                .IntSize(400, 800),
+        )
+        game.start()
+        game.items.add(
+            BearCatchLogic
+                .Item(
+                    kind = ItemKind.RAINDROP,
+                    x = game.catchX + game.catchR * 0.5f,
+                    y = game.catchY,
+                    r = 13f,
+                    phase = 0f,
+                ).also { it.vy = 0f },
+        )
+        var perfect = true
+        game.tick(
+            dt = 0.001f,
+            onCaught = { _, _, perf -> perfect = perf },
+            onHit = {},
+            onDeath = {},
+        )
+        assertFalse(perfect)
+        assertEquals(10, game.score)
+        assertEquals(0, game.perfectCount)
+    }
+
+    @Test
+    fun `burst rising edge and scene intro fire once`() {
+        val game = BearCatchGame()
+        game.resize(
+            androidx.compose.ui.unit
+                .IntSize(400, 800),
+        )
+        game.scene = CatchScene.STORM
+        game.start()
+        val intros = mutableListOf<CatchScene>()
+        var bursts = 0
+        // 首帧：场景开场 + 可能处于爆发（time≈0 在波次内）
+        game.tick(
+            dt = 0.001f,
+            onCaught = { _, _, _ -> },
+            onHit = {},
+            onDeath = {},
+            onBurstStart = { bursts++ },
+            onSceneIntro = { intros.add(it) },
+        )
+        assertEquals(listOf(CatchScene.STORM), intros)
+        assertTrue("风暴开局应进入爆发波次上升沿", bursts >= 1)
+        val burstsAfter = bursts
+        // 同场景再 tick：开场不再触发
+        game.tick(
+            dt = 0.001f,
+            onCaught = { _, _, _ -> },
+            onHit = {},
+            onDeath = {},
+            onBurstStart = { bursts++ },
+            onSceneIntro = { intros.add(it) },
+        )
+        assertEquals(listOf(CatchScene.STORM), intros)
+        assertEquals("同波次内不应重复上升沿", burstsAfter, bursts)
     }
 }

@@ -60,6 +60,7 @@ internal fun DrawScope.drawCatchWorld(
     texts: List<CatchFloatText>,
     /** 减弱动画：跳过天气氛围粒子，只保留静态天空底色。 */
     reduceMotion: Boolean = false,
+    gearTint: CatchGearTint = CatchGearTint.CLASSIC,
 ) {
     val w = size.width
     val h = size.height
@@ -100,8 +101,8 @@ internal fun DrawScope.drawCatchWorld(
         cap = StrokeCap.Round,
     )
 
-    // 小熊
-    drawCatchBear(game, sprites, reduceMotion = reduceMotion)
+    // 小熊 + 雨具涂装
+    drawCatchBear(game, sprites, reduceMotion = reduceMotion, gearTint = gearTint)
 
     // 爆点粒子
     for (p in game.particles) {
@@ -403,6 +404,7 @@ private fun DrawScope.drawCatchBear(
     game: BearCatchGame,
     sprites: BearSprites,
     reduceMotion: Boolean,
+    gearTint: CatchGearTint = CatchGearTint.CLASSIC,
 ) {
     // 装饰性运动时钟：减弱动画时冻结（护盾不呼吸、光点不绕圈、角色不跑循环）
     val vt = decorativeTime(game.time, reduceMotion)
@@ -466,6 +468,18 @@ private fun DrawScope.drawCatchBear(
         }
     }
 
+    // 提篮在身前底层；伞面在头顶后画，避免被熊身挡住
+    if (alpha > 0.05f) {
+        drawCatchBasket(
+            cx = game.catchX,
+            cy = cy,
+            bs = bs,
+            tint = gearTint,
+            alpha = alpha,
+            tilt = tiltMove,
+        )
+    }
+
     drawGameBear(
         sprites = sprites,
         centerX = game.catchX,
@@ -481,6 +495,95 @@ private fun DrawScope.drawCatchBear(
                 scaleY = scaleY,
                 alpha = alpha,
             ),
+    )
+
+    if (alpha > 0.05f) {
+        drawCatchUmbrella(
+            cx = game.catchX,
+            cy = cy,
+            bs = bs,
+            tint = gearTint,
+            alpha = alpha,
+            tilt = tiltMove,
+        )
+    }
+}
+
+/** 提篮：身前偏下，按涂装染色。 */
+private fun DrawScope.drawCatchBasket(
+    cx: Float,
+    cy: Float,
+    bs: Float,
+    tint: CatchGearTint,
+    alpha: Float,
+    tilt: Float,
+) {
+    val palette = catchGearPalette(tint)
+    val a = alpha.coerceIn(0f, 1f)
+    val basketW = bs * 0.55f
+    val basketH = bs * 0.28f
+    val basketX = cx - basketW * 0.5f + tilt * 0.8f
+    val basketY = cy + bs * 0.18f
+    val stroke = 1.8f * (size.height / 820f)
+    drawRoundRect(
+        color = palette.basket.copy(alpha = a * 0.92f),
+        topLeft = Offset(basketX, basketY),
+        size = Size(basketW, basketH),
+        cornerRadius = CornerRadius(basketH * 0.35f),
+    )
+    drawLine(
+        color = palette.trim.copy(alpha = a * 0.75f),
+        start = Offset(basketX + basketW * 0.15f, basketY),
+        end = Offset(basketX + basketW * 0.15f, basketY - basketH * 0.45f),
+        strokeWidth = stroke,
+        cap = StrokeCap.Round,
+    )
+    drawLine(
+        color = palette.trim.copy(alpha = a * 0.75f),
+        start = Offset(basketX + basketW * 0.85f, basketY),
+        end = Offset(basketX + basketW * 0.85f, basketY - basketH * 0.45f),
+        strokeWidth = stroke,
+        cap = StrokeCap.Round,
+    )
+    drawLine(
+        color = palette.trim.copy(alpha = a * 0.75f),
+        start = Offset(basketX + basketW * 0.15f, basketY - basketH * 0.45f),
+        end = Offset(basketX + basketW * 0.85f, basketY - basketH * 0.45f),
+        strokeWidth = stroke,
+        cap = StrokeCap.Round,
+    )
+}
+
+/** 雨伞：头顶伞面 + 伞柄。 */
+private fun DrawScope.drawCatchUmbrella(
+    cx: Float,
+    cy: Float,
+    bs: Float,
+    tint: CatchGearTint,
+    alpha: Float,
+    tilt: Float,
+) {
+    val palette = catchGearPalette(tint)
+    val a = alpha.coerceIn(0f, 1f)
+    val canopyY = cy - bs * 0.95f
+    val canopyW = bs * 0.85f
+    val canopyH = bs * 0.28f
+    drawLine(
+        color = palette.trim.copy(alpha = a * 0.9f),
+        start = Offset(cx + tilt * 0.3f, cy - bs * 0.35f),
+        end = Offset(cx + tilt * 0.3f, canopyY + canopyH * 0.2f),
+        strokeWidth = 2.2f * (size.height / 820f),
+        cap = StrokeCap.Round,
+    )
+    drawOval(
+        color = palette.canopy.copy(alpha = a * 0.88f),
+        topLeft = Offset(cx - canopyW + tilt * 0.4f, canopyY),
+        size = Size(canopyW * 2f, canopyH),
+    )
+    drawOval(
+        color = palette.trim.copy(alpha = a * 0.55f),
+        topLeft = Offset(cx - canopyW * 0.55f + tilt * 0.4f, canopyY + canopyH * 0.15f),
+        size = Size(canopyW * 1.1f, canopyH * 0.55f),
     )
 }
 

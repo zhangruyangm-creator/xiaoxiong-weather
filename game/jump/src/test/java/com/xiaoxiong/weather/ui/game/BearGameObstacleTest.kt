@@ -62,11 +62,25 @@ class BearGameObstacleTest {
     @Test
     fun iceWall_gatedBySceneThreshold_downgradesToSnowman() {
         val game = BearGame()
+        game.difficulty = RunDifficulty.STANDARD
         // 雪天：门槛 300 分，未到前冰墙降级为雪人
         assertEquals(ObstacleType.SNOWMAN, game.spawnType(RunScene.SNOW, 0.6f, score = 299))
         assertEquals(ObstacleType.ICE_WALL, game.spawnType(RunScene.SNOW, 0.6f, score = 300))
         // 冻雨天：门槛 200 分，更早出现
         assertEquals(ObstacleType.SNOWMAN, game.spawnType(RunScene.FREEZING_RAIN, 0.7f, score = 199))
         assertEquals(ObstacleType.ICE_WALL, game.spawnType(RunScene.FREEZING_RAIN, 0.7f, score = 200))
+    }
+
+    @Test
+    fun iceWall_challengeUnlocksEarlier_casualLater() {
+        val casual = BearGame().also { it.difficulty = RunDifficulty.CASUAL }
+        val challenge = BearGame().also { it.difficulty = RunDifficulty.CHALLENGE }
+        // CASUAL 雪天门槛 420：299 仍降级
+        assertEquals(ObstacleType.SNOWMAN, casual.spawnType(RunScene.SNOW, 0.6f, score = 299))
+        assertEquals(ObstacleType.SNOWMAN, casual.spawnType(RunScene.SNOW, 0.6f, score = 419))
+        assertEquals(ObstacleType.ICE_WALL, casual.spawnType(RunScene.SNOW, 0.6f, score = 420))
+        // CHALLENGE 雪天门槛 210：210 可出冰墙
+        assertEquals(ObstacleType.SNOWMAN, challenge.spawnType(RunScene.SNOW, 0.6f, score = 209))
+        assertEquals(ObstacleType.ICE_WALL, challenge.spawnType(RunScene.SNOW, 0.6f, score = 210))
     }
 }

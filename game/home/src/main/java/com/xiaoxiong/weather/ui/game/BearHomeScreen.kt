@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +62,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.BEAR_HOME_ROOM_BEDROOM
 import com.xiaoxiong.weather.game.GameEntry
 import com.xiaoxiong.weather.ui.weather.SunPathBearMoment
 import com.xiaoxiong.weather.ui.weather.isWeekend
@@ -80,6 +82,12 @@ private enum class HomeRoom {
     SUMMARY,
 }
 
+private fun homeRoomFromResumeId(id: String): HomeRoom? =
+    when (id) {
+        BEAR_HOME_ROOM_BEDROOM -> HomeRoom.BEDROOM
+        else -> null
+    }
+
 /**
  * 小熊的家：世界客厅枢纽。口令 [EASTER_EGG_BEAR_HOME] 打开。
  * 房间子页在浮层内导航；游乐间按 [otherGames]（装配方注入，随 `-Pgames` 裁剪增减）显隐入口。
@@ -91,11 +99,20 @@ fun BearHomeScreen(
     onExit: () -> Unit,
     otherGames: List<GameEntry> = emptyList(),
     onOpenGame: (GameEntry) -> Unit = {},
+    onOpenBearAlbum: () -> Unit = {},
+    bearHomeResumeRoom: String? = null,
+    onBearHomeResumeRoomConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
     // 入口预加载全部音效样本，消除首次播放的加载延迟
     LaunchedEffect(Unit) { GameAudio.preload(context) }
-    var room by remember { mutableStateOf(HomeRoom.HUB) }
+    var room by rememberSaveable { mutableStateOf(HomeRoom.HUB) }
+
+    LaunchedEffect(bearHomeResumeRoom) {
+        val id = bearHomeResumeRoom ?: return@LaunchedEffect
+        homeRoomFromResumeId(id)?.let { room = it }
+        onBearHomeResumeRoomConsumed()
+    }
 
     /** 从阳台/枢纽进街后，返回时回到来处。 */
     var streetReturn by remember { mutableStateOf(HomeRoom.HUB) }
@@ -187,7 +204,16 @@ fun BearHomeScreen(
                     onOpenStreet = { openStreet(HomeRoom.LIVING) },
                     onOpenSummary = { openRoom(HomeRoom.SUMMARY) },
                 )
-            HomeRoom.BEDROOM -> HomeBedroom(date = today, time = now)
+            HomeRoom.BEDROOM ->
+                HomeBedroom(
+                    menuItems =
+                        listOf(
+                            HomeRoomMenuItem(R.string.bear_home_action_album) {
+                                GameAudio.play(GameCue.UI_CLICK)
+                                onOpenBearAlbum()
+                            },
+                        ),
+                )
             HomeRoom.KITCHEN -> HomeKitchen()
             HomeRoom.PLAYROOM ->
                 HomePlayroom(
@@ -559,81 +585,79 @@ private fun HomeRoomHero(
     )
 }
 
+/** 房间内的可点菜单项（卧室、游乐间等共用列表样式，便于以后扩展）。 */
+private data class HomeRoomMenuItem(
+    @androidx.annotation.StringRes val titleRes: Int,
+    val onClick: () -> Unit,
+)
+
 @Composable
-private fun HomeBedroom(
-    date: LocalDate,
-    time: LocalTime,
+private fun HomeBedroom(menuItems: List<HomeRoomMenuItem>) {
+    HomeRoomMenuList(
+        heroRes = R.drawable.ic_bear_home_bedroom,
+        heroContentDescription = stringResource(R.string.bear_home_room_bedroom),
+        menuItems = menuItems,
+        emptyMessageRes = R.string.bear_home_bedroom_empty,
+    )
+}
+
+/** 与游乐间相同的「横幅 + 可点条目」布局。 */
+@Composable
+private fun HomeRoomMenuList(
+    @androidx.annotation.DrawableRes heroRes: Int,
+    heroContentDescription: String,
+    menuItems: List<HomeRoomMenuItem>,
+    @androidx.annotation.StringRes emptyMessageRes: Int,
 ) {
-    val routineDay = homeRoutineDay(date, time)
-    val slots = remember(routineDay) { homeRoutineSlots(routineDay) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             HomeRoomHero(
-                artRes = R.drawable.ic_bear_home_bedroom,
-                contentDescription = stringResource(R.string.bear_home_room_bedroom),
+                artRes = heroRes,
+                contentDescription = heroContentDescription,
             )
         }
-        item {
-            Text(
-                text = stringResource(R.string.bear_home_routine_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
-        items(slots, key = { "${it.moment.name}-${it.startMinute}" }) { slot ->
-            val status = homeRoutineStatus(slot, time)
-            val highlight = status == HomeRoutineStatus.NOW
-            // 换成公共暖纸面板：与其它游戏同一套"描边+高光+投影"规范，
-            // 保留绘本暖色调，不强行改成深色玻璃
-            GamePanel(
-                style =
-                    if (highlight) {
-                        WarmPaperPanelStyle.copy(containerColor = Color(0xFFFFE0B2))
-                    } else {
-                        WarmPaperPanelStyle
-                    },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Image(
-                        bitmap = rememberGameImage(slot.moment.bearResFor(routineDay), 256),
-                        contentDescription = null,
-                        modifier = Modifier.size(52.dp),
-                    )
-                    Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                        Text(
-                            text = stringResource(homeMomentNarrationRes(slot.moment)),
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = formatHomeMinuteRange(slot.startMinute, slot.endMinute),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF8D6E63),
-                        )
-                    }
-                    Text(
-                        text = stringResource(homeRoutineStatusLabel(status)),
-                        style = MaterialTheme.typography.labelMedium,
-                        color =
-                            when (status) {
-                                HomeRoutineStatus.NOW -> Color(0xFFE65100)
-                                HomeRoutineStatus.DONE -> Color(0xFF9E9E9E)
-                                HomeRoutineStatus.SOON -> Color(0xFF5D4037)
-                            },
-                    )
-                }
+        if (menuItems.isEmpty()) {
+            item {
+                Text(
+                    text = stringResource(emptyMessageRes),
+                    color = Color(0xFF8D6E63),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 24.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        } else {
+            items(menuItems, key = { it.titleRes }) { item ->
+                HomeRoomMenuCard(item = item)
             }
         }
+    }
+}
+
+@Composable
+private fun HomeRoomMenuCard(item: HomeRoomMenuItem) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clickable(onClick = item.onClick),
+    ) {
+        Text(
+            text = stringResource(item.titleRes),
+            modifier = Modifier.padding(20.dp),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -906,51 +930,20 @@ private fun HomePlayroom(
     games: List<GameEntry>,
     onOpenGame: (GameEntry) -> Unit,
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            HomeRoomHero(
-                artRes = R.drawable.ic_bear_home_playroom,
-                contentDescription = stringResource(R.string.bear_home_room_playroom),
-            )
-        }
-        if (games.isEmpty()) {
-            item {
-                Text(
-                    text = stringResource(R.string.bear_home_playroom_empty),
-                    color = Color(0xFF8D6E63),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 24.dp),
-                    textAlign = TextAlign.Center,
-                )
-            }
-        } else {
-            items(games, key = { it.password }) { game ->
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .clickable(onClick = { onOpenGame(game) }),
-                ) {
-                    Text(
-                        text = stringResource(game.titleRes),
-                        modifier = Modifier.padding(20.dp),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+    val menuItems =
+        remember(games) {
+            games.map { game ->
+                HomeRoomMenuItem(game.titleRes) {
+                    onOpenGame(game)
                 }
             }
         }
-    }
+    HomeRoomMenuList(
+        heroRes = R.drawable.ic_bear_home_playroom,
+        heroContentDescription = stringResource(R.string.bear_home_room_playroom),
+        menuItems = menuItems,
+        emptyMessageRes = R.string.bear_home_playroom_empty,
+    )
 }
 
 @Composable

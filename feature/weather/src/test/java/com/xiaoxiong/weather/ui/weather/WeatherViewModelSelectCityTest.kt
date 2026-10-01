@@ -435,11 +435,11 @@ class WeatherViewModelSelectCityTest {
             )
             assertEquals(-5, vm.uiState.value.phenologyShiftDays)
 
-            // 换城仍要清空旧城市数据
+            // 换城仍要清空旧城市历史；物候会在天气就绪后后台预拉新城市结果
             vm.selectCity(other)
             advanceUntilIdle()
             assertNull(vm.uiState.value.historyWeather)
-            assertNull(vm.uiState.value.phenologyShiftDays)
+            assertEquals(-5, vm.uiState.value.phenologyShiftDays)
         }
 
     @Test
@@ -541,7 +541,9 @@ class WeatherViewModelSelectCityTest {
             val cityB = WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
             val fetcher =
                 RecordingFetcher(
-                    phenologyBlock = { _, _ -> -5 },
+                    phenologyBlock = { city, _ ->
+                        if (city.name == "济南") -5 else -7
+                    },
                 )
             val phenologyCache = FakePhenologyCache()
             val vm = createTestViewModel(fetcher, phenologyCache = phenologyCache).vm
@@ -554,7 +556,7 @@ class WeatherViewModelSelectCityTest {
 
             vm.selectCity(cityB)
             advanceUntilIdle()
-            assertNull(vm.uiState.value.phenologyShiftDays)
+            assertEquals(-7, vm.uiState.value.phenologyShiftDays)
         }
 
     @Test

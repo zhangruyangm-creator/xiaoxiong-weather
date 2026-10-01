@@ -298,8 +298,8 @@ class PlaneSnapshotTest {
         source.saveSnapshot(prefs)
         val payload = prefs.stringOr(key)
         assertNotNull(payload)
-        assertTrue("新档应为 v=4: $payload", payload!!.startsWith("v=4"))
-        prefs.edit().putString(key, payload.replaceFirst("v=4", "v=3")).apply()
+        assertTrue("新档应为 v=5: $payload", payload!!.startsWith("v=5"))
+        prefs.edit().putString(key, payload.replaceFirst("v=5", "v=4")).apply()
 
         val restored = newGame()
         assertFalse("旧版本 payload 不应被恢复", restored.restoreSnapshot(prefs))
@@ -458,7 +458,7 @@ class PlaneSnapshotTest {
     }
 
     @Test
-    fun saveRestore_preservesStartLivesBounds_oneAndNine() {
+    fun saveRestore_preservesStartLivesBounds_minAndMax() {
         val prefs = FakePlanePrefs()
         for (lives in listOf(PlaneConfig.START_LIVES_MIN, PlaneConfig.START_LIVES_MAX)) {
             val source = newGame()
@@ -528,7 +528,7 @@ class PlaneSnapshotTest {
         val payload = prefs.stringOr(key)
         assertNotNull(payload)
         // hp=0 的实体（如坏档）恢复后不应在首个 tick 被当成击杀计分
-        val broken = payload!! + "\nenemy=9999,GRUNT,50,50,0,0,0,3,100,0,0,50,0,0,0"
+        val broken = payload!! + "\nenemy=9999,GRUNT,50,50,0,0,0,3,100,0,0,STANDARD,50,0,0,0"
         prefs.edit().putString(key, broken).apply()
 
         val restored = newGame()

@@ -46,6 +46,7 @@ internal class PlaneFrameState {
 
     private var prevPlayerX = Float.NaN
     private var prevGrazeCount = 0
+    private var prevCombo = 0
 
     // 机尾拖尾环形缓冲（坐标是逻辑坐标）
     val trailX = FloatArray(TRAIL_CAPACITY)
@@ -67,6 +68,11 @@ internal class PlaneFrameState {
             prevGrazeCount = game.grazeCount
             grazeTicks = GRAZE_FX_TICKS
         }
+        if (game.combo > prevCombo && game.combo > 0 && game.combo % 5 == 0) {
+            // 连杀节点轻震（不走音频门控，短于炸弹震屏）
+            shakeTicks = maxOf(shakeTicks, SHAKE_FX_TICKS / 2)
+        }
+        prevCombo = game.combo
         if (bombTicks > 0) bombTicks--
         if (hitTicks > 0) hitTicks--
         if (grazeTicks > 0) grazeTicks--
@@ -93,8 +99,9 @@ internal class PlaneFrameState {
         onShake(nowMs)
     }
 
-    fun onPlayerHit() {
+    fun onPlayerHit(nowMs: Long = Long.MIN_VALUE) {
         hitTicks = HIT_FX_TICKS
+        if (nowMs != Long.MIN_VALUE) onShake(nowMs, strengthTicks = SHAKE_FX_TICKS / 2)
     }
 
     fun onPowerUp() {
@@ -106,16 +113,20 @@ internal class PlaneFrameState {
     }
 
     /** 震屏短门控：距上次触发不足 [SHAKE_GATE_MS] 时忽略，避免同帧 / 连帧重复起震。 */
-    private fun onShake(nowMs: Long) {
+    private fun onShake(
+        nowMs: Long,
+        strengthTicks: Int = SHAKE_FX_TICKS,
+    ) {
         if (lastShakeMs != Long.MIN_VALUE && nowMs - lastShakeMs < SHAKE_GATE_MS) return
         lastShakeMs = nowMs
-        shakeTicks = maxOf(shakeTicks, SHAKE_FX_TICKS)
+        shakeTicks = maxOf(shakeTicks, strengthTicks)
     }
 
     /** 快照恢复后对齐基线：避免把恢复瞬间的擦弹计数 / 波次误判成新事件。 */
     fun onRestore(game: PlaneGame) {
         lastWaveIndex = game.waveIndex
         prevGrazeCount = game.grazeCount
+        prevCombo = game.combo
         prevPlayerX = game.player.x
         trailHead = 0
         trailCount = 0
@@ -133,6 +144,7 @@ internal class PlaneFrameState {
         tilt = 0f
         prevPlayerX = Float.NaN
         prevGrazeCount = 0
+        prevCombo = 0
         trailHead = 0
         trailCount = 0
         flashCount = 0
@@ -176,11 +188,11 @@ internal class PlaneFrameState {
     }
 }
 
-internal const val BOMB_FX_TICKS = 34
-internal const val HIT_FX_TICKS = 20
-internal const val GRAZE_FX_TICKS = 16
+internal const val BOMB_FX_TICKS = 42
+internal const val HIT_FX_TICKS = 28
+internal const val GRAZE_FX_TICKS = 22
 internal const val PICKUP_FX_TICKS = 18
-internal const val SHAKE_FX_TICKS = 22
+internal const val SHAKE_FX_TICKS = 28
 
 /** 震屏短门控间隔：同一次爆炸链路内的重复触发只保留一次。 */
 private const val SHAKE_GATE_MS = 120L
@@ -446,7 +458,7 @@ internal fun DrawScope.drawBombBlast(
     if (reduceMotion || state.bombTicks <= 0) return
     val p = 1f - state.bombTicks / BOMB_FX_TICKS.toFloat()
     val fade = (1f - p) * (1f - p)
-    drawRect(Color.White.copy(alpha = 0.52f * fade))
+    drawRect(Color.White.copy(alpha = 0.62f * fade))
     val cx = size.width * 0.5f
     val cy = size.height * 0.5f
     val maxR = size.maxDimension
@@ -478,16 +490,27 @@ internal fun DrawScope.drawHitFlash(
 ) {
     if (reduceMotion || state.hitTicks <= 0) return
     val p = state.hitTicks / HIT_FX_TICKS.toFloat()
-    drawRect(PlaneUi.danger.copy(alpha = 0.10f * p))
+    drawRect(PlaneUi.danger.copy(alpha = 0.16f * p))
     drawRect(
-        color = Color(0xFFFF1744).copy(alpha = 0.30f * p),
+        color = Color(0xFFFF1744).copy(alpha = 0.42f * p),
         topLeft = Offset.Zero,
-        size = Size(size.width, size.height * 0.10f),
+        size = Size(size.width, size.height * 0.12f),
     )
     drawRect(
-        color = Color(0xFFFF1744).copy(alpha = 0.30f * p),
-        topLeft = Offset(0f, size.height * 0.90f),
-        size = Size(size.width, size.height * 0.10f),
+        color = Color(0xFFFF1744).copy(alpha = 0.42f * p),
+        topLeft = Offset(0f, size.height * 0.88f),
+        size = Size(size.width, size.height * 0.12f),
+    )
+    // 左右侧边也闪一下，受击感更「包住」屏幕
+    drawRect(
+        color = Color(0xFFFF1744).copy(alpha = 0.22f * p),
+        topLeft = Offset.Zero,
+        size = Size(size.width * 0.06f, size.height),
+    )
+    drawRect(
+        color = Color(0xFFFF1744).copy(alpha = 0.22f * p),
+        topLeft = Offset(size.width * 0.94f, 0f),
+        size = Size(size.width * 0.06f, size.height),
     )
 }
 

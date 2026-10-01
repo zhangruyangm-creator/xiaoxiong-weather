@@ -94,9 +94,10 @@ class PlaneAudioTest {
     }
 
     @Test
-    fun shotCue_usesLaserOnlyAtMaxWeaponLevel() {
+    fun shotCue_usesLaserFromLevel4() {
         assertEquals(GameCue.SHOT, planeShotCue(PlaneConfig.MIN_WEAPON_LEVEL))
-        assertEquals(GameCue.SHOT, planeShotCue(PlaneConfig.MAX_WEAPON_LEVEL - 1))
+        assertEquals(GameCue.SHOT, planeShotCue(3))
+        assertEquals(GameCue.LASER, planeShotCue(4))
         assertEquals(GameCue.LASER, planeShotCue(PlaneConfig.MAX_WEAPON_LEVEL))
         assertEquals(GameCue.LASER, planeShotCue(PlaneConfig.MAX_WEAPON_LEVEL + 3))
     }

@@ -2,7 +2,54 @@ package com.xiaoxiong.weather.ui.game
 
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
+
+/**
+ * 玩法难度：影响跑速 / 障碍间距 / 冰墙解锁门槛与得分倍率。
+ *
+ * [id] 用于 prefs 与排行榜分类键，**必须保持稳定**。
+ */
+enum class RunDifficulty(
+    val id: String,
+    /** 跑速倍率（<1 更慢）。 */
+    val speedMul: Float,
+    /** 障碍间距倍率（>1 更疏、更易）。 */
+    val gapMul: Float,
+    /** 冰墙解锁分数门槛倍率（>1 更晚出现）。 */
+    val iceWallMinScoreMul: Float,
+    /** 金币/擦边得分倍率。 */
+    val scoreMul: Float,
+) {
+    CASUAL(
+        id = "casual",
+        speedMul = 0.85f,
+        gapMul = 1.20f,
+        iceWallMinScoreMul = 1.40f,
+        scoreMul = 0.8f,
+    ),
+    STANDARD(
+        id = "standard",
+        speedMul = 1f,
+        gapMul = 1f,
+        iceWallMinScoreMul = 1f,
+        scoreMul = 1f,
+    ),
+    CHALLENGE(
+        id = "challenge",
+        speedMul = 1.15f,
+        gapMul = 0.85f,
+        iceWallMinScoreMul = 0.70f,
+        scoreMul = 1.5f,
+    ),
+    ;
+
+    companion object {
+        val DEFAULT: RunDifficulty = STANDARD
+
+        fun fromId(id: String?): RunDifficulty = entries.firstOrNull { it.id == id } ?: DEFAULT
+    }
+}
 
 /**
  * 小熊跳跳的纯逻辑层：与 Compose / Android 完全解耦，可被普通 JUnit 单测。
@@ -25,31 +72,73 @@ object BearGameLogic {
 
     fun maxSpeed(s: Float): Float = 950f * s
 
+    // ── 连击 / 擦边得分 ───────────────────────────────────────
+
+    /** 单枚金币基础分。 */
+    const val COIN_BASE = 10
+
+    /** 连击奖励级数上限（与战机击杀掉落同档）。 */
+    const val MAX_COMBO_BONUS_STEPS = 10
+
+    /** 每一连击级额外加分。 */
+    const val COMBO_BONUS_PER_STEP = 5
+
+    /** 擦边基础分。 */
+    const val GRAZE_SCORE = 10
+
+    /** 擦边判定：相对小熊尺寸的外扩比例。 */
+    const val GRAZE_PAD_FRAC = 0.22f
+
     // ── 纯计算 ─────────────────────────────────────────────────
 
     /**
      * 速度曲线：由纯距离分数（不含金币）驱动，而不是按时间线性加速。
      * 开局 340，约 5000 分时达极速 950；前期较快、越到后期增速越缓。
+     * [speedMul] 由 [RunDifficulty] 注入。
      */
     fun speedAt(
         distanceScore: Float,
         s: Float,
+        speedMul: Float = 1f,
     ): Float {
         val p = (distanceScore / 5000f).coerceIn(0f, 1f)
-        return (340f + 610f * sqrt(p)) * s
+        return (340f + 610f * sqrt(p)) * s * speedMul
     }
 
+    /**
+     * 总分 = 距离分 + 已累计金币/擦边分。
+     * [coinScore] 为实际累加值（含连击加成与难度倍率），不再用枚数×10。
+     */
     fun score(
         distance: Float,
-        coinCount: Int,
+        coinScore: Int,
         s: Float,
-    ): Int = if (s <= 0f) 0 else (distance / (60f * s)).toInt() + coinCount * 10
+    ): Int = if (s <= 0f) 0 else (distance / (60f * s)).toInt() + coinScore
+
+    /**
+     * 吃到第 [combo] 枚连击金币时的基础得分（尚未乘难度倍率）。
+     * combo=1 → 10；之后每级 +5，最多 10 级（封顶 60）。
+     */
+    fun coinGain(combo: Int): Int = COIN_BASE + (combo - 1).coerceIn(0, MAX_COMBO_BONUS_STEPS) * COMBO_BONUS_PER_STEP
+
+    /** 基础分 × 难度倍率，四舍五入且不为负。 */
+    fun scaledPoints(
+        base: Int,
+        scoreMul: Float,
+    ): Int = (base * scoreMul).roundToInt().coerceAtLeast(0)
 
     /** 奔跑循环相位速率（rad/s）：开局从容、随速度渐快，步频封顶，避免高速抽帧。 */
     fun runPhaseRate(
         speed: Float,
         s: Float,
     ): Float = min(speed, 640f * s) * 0.031f / s
+
+    /** 下一障碍间距（逻辑像素，含难度疏密）。 */
+    fun nextObstacleGap(
+        roll: Float,
+        s: Float,
+        gapMul: Float = 1f,
+    ): Float = (460f + roll.coerceIn(0f, 1f) * 340f) * s * gapMul
 
     // ── 障碍决策（冰墙几何/门槛）───────────────────────────────
 
@@ -66,12 +155,51 @@ object BearGameLogic {
             else -> 210f * s
         }
 
-    /** 冰墙出现所需的最低分数：雪天 300、冻雨 200，低分段先不出（需二段跳），前松后紧。 */
+    /** 冰墙出现所需的最低分数（场景基准，未乘难度）。雪天 300、冻雨 200。 */
     fun iceWallMinScore(scene: RunScene): Int =
         when (scene) {
             RunScene.SNOW -> 300
             else -> 200
         }
+
+    /** 含难度倍率的冰墙解锁门槛。 */
+    fun iceWallMinScore(
+        scene: RunScene,
+        difficulty: RunDifficulty,
+    ): Int = (iceWallMinScore(scene) * difficulty.iceWallMinScoreMul).roundToInt().coerceAtLeast(1)
+
+    /**
+     * 擦边：小熊判定盒未命中障碍碰撞盒，但落入外扩 [pad] 的近身带。
+     * 每帧可查询；去重由调用方用障碍标记完成。
+     */
+    fun obstacleNearMiss(
+        bearLeft: Float,
+        bearTop: Float,
+        bearRight: Float,
+        bearBottom: Float,
+        obLeft: Float,
+        obTop: Float,
+        obRight: Float,
+        obBottom: Float,
+        pad: Float,
+    ): Boolean {
+        if (pad <= 0f) return false
+        // 已命中硬碰撞盒则不算擦边
+        val hit =
+            bearLeft < obRight &&
+                bearRight > obLeft &&
+                bearTop < obBottom &&
+                bearBottom > obTop
+        if (hit) return false
+        val gLeft = obLeft - pad
+        val gTop = obTop - pad
+        val gRight = obRight + pad
+        val gBottom = obBottom + pad
+        return bearLeft < gRight &&
+            bearRight > gLeft &&
+            bearTop < gBottom &&
+            bearBottom > gTop
+    }
 
     // ── 障碍金币弧（冰墙防空陷阱）────────────────────────────
 

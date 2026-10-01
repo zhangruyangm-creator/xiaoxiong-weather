@@ -20,6 +20,9 @@ object BearGameEntry : GameEntry {
         cityName: String?,
         onExit: () -> Unit,
         @Suppress("UNUSED_PARAMETER") onOpenGame: ((password: String) -> Unit)?,
+        @Suppress("UNUSED_PARAMETER") onOpenBearAlbum: (() -> Unit)?,
+        @Suppress("UNUSED_PARAMETER") bearHomeResumeRoom: String?,
+        @Suppress("UNUSED_PARAMETER") onBearHomeResumeRoomConsumed: (() -> Unit)?,
         @Suppress("UNUSED_PARAMETER") otherGames: List<GameEntry>,
     ) {
         BearGameScreen(

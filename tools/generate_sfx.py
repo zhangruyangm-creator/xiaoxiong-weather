@@ -328,6 +328,14 @@ def sfx_warning(rng: np.random.Generator) -> np.ndarray:
     return first + second + third
 
 
+def sfx_graze(rng: np.random.Generator) -> np.ndarray:
+    """擦弹：短促高亮叮一声（1800→2400Hz），轻薄不抢射击位。"""
+    t = _time(0.05)
+    body = log_sweep(t, 1800.0, 2400.0) * env_decay(t, 0.018, attack=0.0008)
+    spark = bandpass(rng.standard_normal(t.size), 2000.0, 5000.0) * env_decay(t, 0.008, attack=0.0004)
+    return body * 0.85 + spark * 0.22
+
+
 # (文件名, 配方, 淡出秒数)
 CUES: Dict[str, Tuple[Callable[[np.random.Generator], np.ndarray], float]] = {
     "sfx_ui_click": (sfx_ui_click, 0.005),
@@ -355,6 +363,7 @@ CUES: Dict[str, Tuple[Callable[[np.random.Generator], np.ndarray], float]] = {
     "sfx_powerup": (sfx_powerup, 0.008),
     "sfx_bomb": (sfx_bomb, 0.012),
     "sfx_warning": (sfx_warning, 0.008),
+    "sfx_graze": (sfx_graze, 0.004),
 }
 
 

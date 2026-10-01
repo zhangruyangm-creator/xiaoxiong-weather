@@ -135,8 +135,25 @@ class BearGameLogicTest {
         // 60 单位距离(s=1) = 1 分，每金币 +10
         assertEquals(0, BearGameLogic.score(0f, 0, s))
         assertEquals(1, BearGameLogic.score(60f, 0, s))
-        assertEquals(21, BearGameLogic.score(60f, 2, s))
+        assertEquals(21, BearGameLogic.score(60f, 20, s)) // 2 coins ×10 作为累计分
         assertEquals(0, BearGameLogic.score(999f, 5, 0f)) // s<=0 → 0
+    }
+
+    @Test
+    fun coinGain_rampsWithComboThenCaps() {
+        assertEquals(10, BearGameLogic.coinGain(1))
+        assertEquals(15, BearGameLogic.coinGain(2))
+        assertEquals(60, BearGameLogic.coinGain(11))
+        assertEquals(60, BearGameLogic.coinGain(99))
+        assertEquals(10, BearGameLogic.coinGain(0)) // coerce 到起步
+    }
+
+    @Test
+    fun scaledPoints_appliesDifficultyMul() {
+        assertEquals(8, BearGameLogic.scaledPoints(10, 0.8f))
+        assertEquals(10, BearGameLogic.scaledPoints(10, 1f))
+        assertEquals(14, BearGameLogic.scaledPoints(10, 1.35f))
+        assertEquals(0, BearGameLogic.scaledPoints(-3, 1f))
     }
 
     @Test
@@ -163,5 +180,95 @@ class BearGameLogicTest {
     fun iceWallMinScore_snowLateColdRainEarly() {
         assertEquals(300, BearGameLogic.iceWallMinScore(RunScene.SNOW))
         assertEquals(200, BearGameLogic.iceWallMinScore(RunScene.FREEZING_RAIN))
+    }
+
+    @Test
+    fun coinGain_basePlusComboStepsCapped() {
+        assertEquals(10, BearGameLogic.coinGain(1))
+        assertEquals(15, BearGameLogic.coinGain(2))
+        assertEquals(60, BearGameLogic.coinGain(11))
+        assertEquals(60, BearGameLogic.coinGain(99))
+        assertEquals(10, BearGameLogic.coinGain(0))
+    }
+
+    @Test
+    fun scaledPoints_appliesScoreMul() {
+        assertEquals(8, BearGameLogic.scaledPoints(10, 0.8f))
+        assertEquals(15, BearGameLogic.scaledPoints(10, 1.5f))
+        assertEquals(10, BearGameLogic.scaledPoints(10, 1f))
+    }
+
+    @Test
+    fun speedAt_respectsSpeedMul() {
+        val base = BearGameLogic.speedAt(0f, s)
+        assertEquals(base * 0.85f, BearGameLogic.speedAt(0f, s, 0.85f), 1e-3f)
+        assertEquals(base * 1.15f, BearGameLogic.speedAt(0f, s, 1.15f), 1e-3f)
+    }
+
+    @Test
+    fun iceWallMinScore_scaledByDifficulty() {
+        assertEquals(300, BearGameLogic.iceWallMinScore(RunScene.SNOW, RunDifficulty.STANDARD))
+        assertEquals(420, BearGameLogic.iceWallMinScore(RunScene.SNOW, RunDifficulty.CASUAL))
+        assertEquals(210, BearGameLogic.iceWallMinScore(RunScene.SNOW, RunDifficulty.CHALLENGE))
+        assertEquals(200, BearGameLogic.iceWallMinScore(RunScene.FREEZING_RAIN, RunDifficulty.STANDARD))
+        assertEquals(140, BearGameLogic.iceWallMinScore(RunScene.FREEZING_RAIN, RunDifficulty.CHALLENGE))
+    }
+
+    @Test
+    fun nextObstacleGap_scalesWithGapMul() {
+        val base = BearGameLogic.nextObstacleGap(0.5f, s, 1f)
+        assertEquals(base * 1.2f, BearGameLogic.nextObstacleGap(0.5f, s, 1.2f), 1e-3f)
+        assertEquals(base * 0.85f, BearGameLogic.nextObstacleGap(0.5f, s, 0.85f), 1e-3f)
+    }
+
+    @Test
+    fun obstacleNearMiss_padWithoutHit() {
+        assertTrue(
+            BearGameLogic.obstacleNearMiss(
+                bearLeft = 0f,
+                bearTop = 0f,
+                bearRight = 10f,
+                bearBottom = 10f,
+                obLeft = 12f,
+                obTop = 0f,
+                obRight = 22f,
+                obBottom = 10f,
+                pad = 3f,
+            ),
+        )
+        assertFalse(
+            BearGameLogic.obstacleNearMiss(
+                bearLeft = 0f,
+                bearTop = 0f,
+                bearRight = 10f,
+                bearBottom = 10f,
+                obLeft = 8f,
+                obTop = 0f,
+                obRight = 18f,
+                obBottom = 10f,
+                pad = 3f,
+            ),
+        )
+        assertFalse(
+            BearGameLogic.obstacleNearMiss(
+                bearLeft = 0f,
+                bearTop = 0f,
+                bearRight = 10f,
+                bearBottom = 10f,
+                obLeft = 30f,
+                obTop = 0f,
+                obRight = 40f,
+                obBottom = 10f,
+                pad = 3f,
+            ),
+        )
+    }
+
+    @Test
+    fun runDifficulty_fromId_fallsBackToStandard() {
+        assertEquals(RunDifficulty.CASUAL, RunDifficulty.fromId("casual"))
+        assertEquals(RunDifficulty.STANDARD, RunDifficulty.fromId(null))
+        assertEquals(RunDifficulty.STANDARD, RunDifficulty.fromId("nope"))
+        assertEquals("challenge", RunDifficulty.CHALLENGE.id)
     }
 }

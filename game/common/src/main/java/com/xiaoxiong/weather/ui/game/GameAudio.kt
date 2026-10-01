@@ -44,6 +44,7 @@ enum class GameCue(
     POWERUP(R.raw.sfx_powerup, 0.65f),
     BOMB(R.raw.sfx_bomb, 0.80f),
     WARNING(R.raw.sfx_warning, 0.60f),
+    GRAZE(R.raw.sfx_graze, 0.40f),
 }
 
 /**

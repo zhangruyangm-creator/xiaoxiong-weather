@@ -81,8 +81,10 @@ class RefactorParityTest {
     fun score_matchesOriginalInline() {
         for (d in listOf(0f, 60f, 123f, 5000f)) {
             for (c in listOf(0, 1, 5)) {
-                val expected = if (s <= 0f) 0 else (d / (60f * s)).toInt() + c * 10
-                assertEquals(expected, BearGameLogic.score(d, c, s))
+                // score() 第二参为累计金币分（枚数×10）
+                val coinScore = c * 10
+                val expected = if (s <= 0f) 0 else (d / (60f * s)).toInt() + coinScore
+                assertEquals(expected, BearGameLogic.score(d, coinScore, s))
             }
         }
     }

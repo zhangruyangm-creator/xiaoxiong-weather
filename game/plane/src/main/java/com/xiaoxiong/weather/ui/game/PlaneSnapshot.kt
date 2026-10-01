@@ -30,6 +30,7 @@ internal fun PlaneGame.captureSnapshot(): PlaneSnapshot =
                 weaponLevel = player.weaponLevel,
                 invulnTicks = player.invulnTicks,
                 fireCooldownTicks = player.fireCooldownTicks,
+                overdriveTicks = player.overdriveTicks,
                 alive = player.alive,
             ),
         score = score,
@@ -75,6 +76,7 @@ internal fun PlaneGame.applySnapshot(snapshot: PlaneSnapshot) {
     player.weaponLevel = safe.player.weaponLevel
     player.invulnTicks = safe.player.invulnTicks
     player.fireCooldownTicks = safe.player.fireCooldownTicks
+    player.overdriveTicks = safe.player.overdriveTicks
     player.alive = safe.player.alive
     score = safe.score
     kills = safe.kills
@@ -130,7 +132,12 @@ internal fun PlaneGame.purgeOutOfBoundsEntities() {
  * 恢复前统一收敛到合法值，而不是整档丢弃。
  */
 private fun PlaneSnapshot.sanitized(): PlaneSnapshot {
-    val maxInvuln = max(PlaneConfig.HIT_INVULN_TICKS, PlaneConfig.BOMB_INVULN_TICKS)
+    val maxInvuln =
+        maxOf(
+            PlaneConfig.HIT_INVULN_TICKS,
+            PlaneConfig.BOMB_INVULN_TICKS,
+            PlaneConfig.SHIELD_INVULN_TICKS,
+        )
     val maxCooldown =
         (PlaneConfig.MIN_WEAPON_LEVEL..PlaneConfig.MAX_WEAPON_LEVEL)
             .maxOf { PlaneConfig.weaponSpec(it).intervalTicks }
@@ -154,6 +161,7 @@ private fun PlaneSnapshot.sanitized(): PlaneSnapshot {
                 weaponLevel = player.weaponLevel.coerceIn(PlaneConfig.MIN_WEAPON_LEVEL, PlaneConfig.MAX_WEAPON_LEVEL),
                 invulnTicks = player.invulnTicks.coerceIn(0, maxInvuln),
                 fireCooldownTicks = player.fireCooldownTicks.coerceIn(0, maxCooldown),
+                overdriveTicks = player.overdriveTicks.coerceIn(0, PlaneConfig.OVERDRIVE_TICKS),
                 alive = safeLives > 0,
             ),
         tickCount = tickCount.coerceAtLeast(0L),
@@ -183,6 +191,7 @@ private fun PlaneEnemySnap.sanitized(): PlaneEnemySnap {
         fireTimerTicks = fireTimerTicks.coerceAtLeast(0),
         ageTicks = ageTicks.coerceAtLeast(0),
         bossPhase = if (type == PlaneEnemyType.BOSS) bossPhase.coerceIn(0, 2) else 0,
+        bossKind = if (type == PlaneEnemyType.BOSS) bossKind else PlaneBossKind.STANDARD,
         baseX = baseX.finiteOr(0f),
         targetY = targetY.finiteOr(0f),
         side = side.coerceIn(-1, 1),
@@ -229,6 +238,7 @@ internal data class PlanePlayerSnap(
     val weaponLevel: Int,
     val invulnTicks: Int,
     val fireCooldownTicks: Int,
+    val overdriveTicks: Int,
     val alive: Boolean,
 )
 
@@ -244,6 +254,7 @@ internal data class PlaneEnemySnap(
     val fireTimerTicks: Int,
     val ageTicks: Int,
     val bossPhase: Int,
+    val bossKind: PlaneBossKind,
     val baseX: Float,
     val targetY: Float,
     val side: Int,
@@ -335,6 +346,7 @@ private fun PlaneEnemy.toSnapshot(): PlaneEnemySnap =
         fireTimerTicks = fireTimerTicks,
         ageTicks = ageTicks,
         bossPhase = bossPhase,
+        bossKind = bossKind,
         baseX = baseX,
         targetY = targetY,
         side = side,
@@ -354,6 +366,7 @@ private fun PlaneEnemySnap.toEnemy(): PlaneEnemy =
         fireTimerTicks = fireTimerTicks,
         ageTicks = ageTicks,
         bossPhase = bossPhase,
+        bossKind = bossKind,
         baseX = baseX,
         targetY = targetY,
         side = side,
@@ -448,7 +461,7 @@ private fun String.planeIntList(): List<Int>? = if (isBlank()) emptyList() else 
  * 不使用 kotlinx.serialization 以保持游戏模块零序列化运行时依赖。
  */
 internal object PlaneSnapshotCodec {
-    private const val VERSION = 4
+    private const val VERSION = 5
 
     fun encode(snapshot: PlaneSnapshot): String {
         val lines = ArrayList<String>()
@@ -467,14 +480,14 @@ internal object PlaneSnapshotCodec {
         val p = snapshot.player
         lines +=
             "player=${p.x},${p.y},${p.lives},${p.bombs},${p.weaponLevel}," +
-            "${p.invulnTicks},${p.fireCooldownTicks},${planeBool(p.alive)}"
+            "${p.invulnTicks},${p.fireCooldownTicks},${p.overdriveTicks},${planeBool(p.alive)}"
         lines +=
             "stats=${snapshot.score},${snapshot.kills},${snapshot.grazeCount},${snapshot.combo}," +
             "${snapshot.comboWindowTicks},${snapshot.tickCount},${snapshot.nextEntityId},${snapshot.stepAccumulator}"
         for (e in snapshot.enemies) {
             lines +=
                 "enemy=${e.id},${e.type.name},${e.x},${e.y},${e.vx},${e.vy},${e.hp},${e.maxHp}," +
-                "${e.fireTimerTicks},${e.ageTicks},${e.bossPhase},${e.baseX}," +
+                "${e.fireTimerTicks},${e.ageTicks},${e.bossPhase},${e.bossKind.name},${e.baseX}," +
                 "${e.targetY},${e.side},${e.entryTicks}"
         }
         for (b in snapshot.playerBullets) lines += encodeBullet("pbullet", b)
@@ -560,7 +573,7 @@ internal object PlaneSnapshotCodec {
         if (waveIndex < 0 || waveTick < 0 || betweenWaveTicks < 0 || bossWarningTicks < 0 || spawnCursor < 0) return null
 
         val playerParts = values["player"]?.split(',') ?: return null
-        if (playerParts.size != 8) return null
+        if (playerParts.size != 9) return null
         val player =
             PlanePlayerSnap(
                 x = playerParts[0].toFloatOrNull() ?: return null,
@@ -570,11 +583,18 @@ internal object PlaneSnapshotCodec {
                 weaponLevel = playerParts[4].toIntOrNull() ?: return null,
                 invulnTicks = playerParts[5].toIntOrNull() ?: return null,
                 fireCooldownTicks = playerParts[6].toIntOrNull() ?: return null,
-                alive = playerParts[7].planeBoolOrNull() ?: return null,
+                overdriveTicks = playerParts[7].toIntOrNull() ?: return null,
+                alive = playerParts[8].planeBoolOrNull() ?: return null,
             )
         // 坐标 / 速度等语义坏值不在这里整档拒绝，交给 PlaneGame.sanitized() 统一清洗；
         // lives=0 无法继续对局（软锁），整档拒绝并清档。
-        if (player.lives <= 0 || player.lives > 9 || player.bombs < 0 || player.bombs > 9) return null
+        if (player.lives <= 0 ||
+            player.lives > PlaneConfig.START_LIVES_MAX ||
+            player.bombs < 0 ||
+            player.bombs > PlaneConfig.MAX_BOMBS
+        ) {
+            return null
+        }
 
         val statsParts = values["stats"]?.split(',') ?: return null
         if (statsParts.size != 8) return null
@@ -632,7 +652,7 @@ internal object PlaneSnapshotCodec {
 
     private fun parseEnemy(line: String): PlaneEnemySnap? {
         val f = line.split(',')
-        if (f.size != 15) return null
+        if (f.size != 16) return null
         return PlaneEnemySnap(
             id = f[0].toIntOrNull() ?: return null,
             type = planeEnumOrNull<PlaneEnemyType>(f[1]) ?: return null,
@@ -645,10 +665,11 @@ internal object PlaneSnapshotCodec {
             fireTimerTicks = f[8].toIntOrNull() ?: return null,
             ageTicks = f[9].toIntOrNull() ?: return null,
             bossPhase = f[10].toIntOrNull() ?: return null,
-            baseX = f[11].toFloatOrNull() ?: return null,
-            targetY = f[12].toFloatOrNull() ?: return null,
-            side = f[13].toIntOrNull() ?: return null,
-            entryTicks = f[14].toIntOrNull() ?: return null,
+            bossKind = planeEnumOrNull<PlaneBossKind>(f[11]) ?: return null,
+            baseX = f[12].toFloatOrNull() ?: return null,
+            targetY = f[13].toFloatOrNull() ?: return null,
+            side = f[14].toIntOrNull() ?: return null,
+            entryTicks = f[15].toIntOrNull() ?: return null,
         )
     }
 

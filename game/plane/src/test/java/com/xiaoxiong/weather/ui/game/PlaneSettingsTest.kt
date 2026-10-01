@@ -13,14 +13,14 @@ class PlaneSettingsTest {
     // ---------------------------------------------------------------------
 
     @Test
-    fun clampStartLives_boundsTo1To9() {
+    fun clampStartLives_boundsTo1ToMax() {
         assertEquals(1, planeClampStartLives(Int.MIN_VALUE))
         assertEquals(1, planeClampStartLives(-1))
         assertEquals(1, planeClampStartLives(1))
         assertEquals(5, planeClampStartLives(5))
-        assertEquals(9, planeClampStartLives(9))
-        assertEquals(9, planeClampStartLives(10))
-        assertEquals(9, planeClampStartLives(Int.MAX_VALUE))
+        assertEquals(30, planeClampStartLives(30))
+        assertEquals(PlaneConfig.START_LIVES_MAX, planeClampStartLives(31))
+        assertEquals(PlaneConfig.START_LIVES_MAX, planeClampStartLives(Int.MAX_VALUE))
     }
 
     @Test
@@ -32,7 +32,7 @@ class PlaneSettingsTest {
         assertEquals("读回持久化的 7 条", 7, planeStartLivesOf(prefs))
 
         prefs.edit().putInt(PLANE_START_LIVES_KEY, 99).apply()
-        assertEquals("越界存档读取时夹到 9", PlaneConfig.START_LIVES_MAX, planeStartLivesOf(prefs))
+        assertEquals("越界存档读取时夹到上限", PlaneConfig.START_LIVES_MAX, planeStartLivesOf(prefs))
 
         prefs.edit().putInt(PLANE_START_LIVES_KEY, 0).apply()
         assertEquals("越界存档读取时夹到 1", PlaneConfig.START_LIVES_MIN, planeStartLivesOf(prefs))

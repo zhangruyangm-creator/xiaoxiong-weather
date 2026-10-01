@@ -52,6 +52,7 @@ internal fun DrawScope.drawPlaneWorld(
     freezingRain: Boolean,
     hail: Boolean,
     reduceMotion: Boolean,
+    shipTint: PlaneShipTint = PlaneShipTint.CLASSIC,
 ) {
     if (size.width <= 0f || size.height <= 0f) return
     val scale = game.viewScale
@@ -97,7 +98,7 @@ internal fun DrawScope.drawPlaneWorld(
         drawPowerUps(game, isDay, tick, reduceMotion)
         drawEnemies(game, state, isDay, tick, reduceMotion)
         drawPlayerTrailAndFlame(game, state, PLANE_PLAYER_VISUAL_RADIUS, reduceMotion)
-        drawPlayer(game, state, isDay, reduceMotion)
+        drawPlayer(game, state, isDay, reduceMotion, shipTint)
         drawPlayerBullets(game)
         drawEnemyBullets(game, tick)
 
@@ -526,7 +527,7 @@ private fun DrawScope.drawPowerUps(
         if (sprite != null) {
             drawPlaneSprite(sprite, x, y)
         } else {
-            val color = if (p.kind == PlanePowerUpKind.WEAPON) PlaneUi.ok else Color(0xFFFFD740)
+            val color = planePowerUpColor(p.kind)
             drawCircle(color.copy(alpha = 0.25f), r * 1.2f, Offset(x, y))
             drawCircle(color, r * 0.85f, Offset(x, y))
         }
@@ -548,11 +549,24 @@ private fun DrawScope.drawEnemies(
         val y = game.toScreenY(enemy.y)
         val r = planeEnemyVisualRadius(enemy.type) * scale
         val flash = state.flashAlpha(enemy, game.tickCount)
-        val sprite = PlaneSprites.enemy(enemy.type, enemy.bossPhase, r, isDay, this, layoutDirection)
+        val sprite =
+            PlaneSprites.enemy(
+                enemy.type,
+                enemy.bossPhase,
+                r,
+                isDay,
+                this,
+                layoutDirection,
+                bossKind = enemy.bossKind,
+            )
         if (sprite != null) {
             val wobble =
-                if (reduceMotion || enemy.isBoss || enemy.type == PlaneEnemyType.TANK) {
-                    // Boss / 地面装甲车不做空中悬浮摆动；reduceMotion 冻结悬浮摆动
+                if (reduceMotion ||
+                    enemy.isBoss ||
+                    enemy.type == PlaneEnemyType.TANK ||
+                    enemy.type == PlaneEnemyType.SNIPER
+                ) {
+                    // Boss / 装甲车 / 狙击停驻不做空中悬浮摆动；reduceMotion 冻结悬浮摆动
                     0f
                 } else {
                     sin(tick * 0.05f + enemy.id) * 0.7f * scale
@@ -645,6 +659,7 @@ private fun DrawScope.drawPlayer(
     state: PlaneFrameState,
     isDay: Boolean,
     reduceMotion: Boolean,
+    shipTint: PlaneShipTint,
 ) {
     if (!game.player.alive) return
     val scale = game.viewScale
@@ -653,8 +668,12 @@ private fun DrawScope.drawPlayer(
     val x = game.toScreenX(game.player.x)
     val y = game.toScreenY(game.player.y)
     val r = PLANE_PLAYER_VISUAL_RADIUS * scale
+    if (game.player.overdriveTicks > 0 && !blink) {
+        val pulse = if (reduceMotion) 0.55f else 0.45f + 0.35f * sin(state.visualTick * 0.22f)
+        drawCircle(Color(0xFFFFD54F).copy(alpha = 0.18f * pulse), r * 1.55f, Offset(x, y), blendMode = BlendMode.Plus)
+    }
     if (!blink) {
-        val sprite = PlaneSprites.player(r, isDay, this, layoutDirection)
+        val sprite = PlaneSprites.player(r, isDay, this, layoutDirection, tint = shipTint)
         val flash = if (state.hitTicks > 0) state.hitTicks / HIT_FX_TICKS.toFloat() else 0f
         if (sprite != null) {
             drawPlaneSprite(
@@ -666,7 +685,8 @@ private fun DrawScope.drawPlayer(
                 flashAlpha = flash * 0.85f,
             )
         } else {
-            drawCircle(Color.White, r * 0.7f, Offset(x, y))
+            val palette = planePlayerPalette(shipTint)
+            drawCircle(palette.cream, r * 0.7f, Offset(x, y))
             drawCircle(Color(0xFF40C4FF), r * 0.45f, Offset(x, y))
         }
     }

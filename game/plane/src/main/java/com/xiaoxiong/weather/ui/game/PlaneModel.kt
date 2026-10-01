@@ -9,8 +9,11 @@ enum class PlaneBulletShape { CIRCLE, CAPSULE, RECT }
 /** 子弹阵营。 */
 enum class PlaneBulletOwner { PLAYER, ENEMY }
 
-/** 道具类型：P=武器升级 / B=炸弹补给。 */
-enum class PlanePowerUpKind { WEAPON, BOMB }
+/**
+ * 道具类型（仅允许末尾追加，快照按 `.name` 编解码）。
+ * P=武器 / B=炸弹 / S=护盾 / L=续命。
+ */
+enum class PlanePowerUpKind { WEAPON, BOMB, SHIELD, LIFE }
 
 /**
  * 玩家战机运行时状态。
@@ -25,6 +28,8 @@ class PlanePlayer(
     var weaponLevel: Int = PlaneConfig.MIN_WEAPON_LEVEL,
     var invulnTicks: Int = 0,
     var fireCooldownTicks: Int = 0,
+    /** 火力过载剩余 tick：满级再吃 P 时触发，射速提升。 */
+    var overdriveTicks: Int = 0,
     var alive: Boolean = true,
 )
 
@@ -47,6 +52,8 @@ class PlaneEnemy(
     var ageTicks: Int = 0,
     /** Boss 阶段（0..2），非 Boss 恒为 0。 */
     var bossPhase: Int = 0,
+    /** Boss 种类；非 Boss 恒为 [PlaneBossKind.STANDARD]。 */
+    var bossKind: PlaneBossKind = PlaneBossKind.STANDARD,
     /** 摆渡兵的摆动中心（侧向入场后由游戏层在入场结束时重设）。 */
     var baseX: Float = x,
     /** 炮台停靠高度。 */
@@ -93,7 +100,7 @@ class PlaneBullet(
     val hitEnemyIds: MutableSet<Int> = mutableSetOf()
 }
 
-/** 掉落道具：P（武器）/ B（炸弹）。 */
+/** 掉落道具：P / B / S / L。 */
 class PlanePowerUp(
     val id: Int,
     val kind: PlanePowerUpKind,
@@ -128,6 +135,7 @@ data class PlaneEvents(
     val bomb: Boolean = false,
     val bossWarning: Boolean = false,
     val bossDown: Boolean = false,
+    val graze: Boolean = false,
     val win: Boolean = false,
     val lose: Boolean = false,
 )

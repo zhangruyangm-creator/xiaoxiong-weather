@@ -95,9 +95,9 @@ class CatchBotSimulationTest {
                 }
             }
             dangerPeak = maxOf(dangerPeak, items.count { !BearCatchLogic.isGood(it.kind) })
-            goodCaught += ev.caught.count { it != ItemKind.BUBBLE }
+            goodCaught += ev.caught.count { it.kind != ItemKind.BUBBLE }
             hits += ev.hit.count { BearCatchLogic.damageOf(it) > 0 }
-            score += ev.caught.sumOf { BearCatchLogic.scoreOf(it) }
+            score += ev.caught.sumOf { BearCatchLogic.scoreOf(it.kind) }
             time += dt
         }
         return BotReport(

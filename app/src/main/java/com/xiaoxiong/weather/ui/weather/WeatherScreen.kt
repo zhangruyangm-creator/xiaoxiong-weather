@@ -79,6 +79,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.WeatherApp
 import com.xiaoxiong.weather.data.AppSettingsStore
+import com.xiaoxiong.weather.game.BEAR_HOME_ROOM_BEDROOM
 import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_ALBUM
 import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_HOME
 import com.xiaoxiong.weather.game.GameEntry
@@ -152,6 +153,9 @@ private fun WeatherScreenContent(
     // 等 DataStore 真实值读出前不渲染隐私门，避免老用户冷启动闪一下
     var privacyGateResolved by remember { mutableStateOf(false) }
     var gameActive by remember { mutableStateOf(false) }
+
+    /** 关闭相册后重新打开「小熊的家」并落到的房间（仅卧室相册入口会写入）。 */
+    var bearHomeResumeRoom by rememberSaveable { mutableStateOf<String?>(null) }
 
     // 游戏激活期间锁定竖屏：旋转会重建 Activity 并丢失 remember 状态（对局直接重开）。
     // 退出游戏 / 组合销毁时恢复系统默认方向。仅持有 Activity 引用，不做生命周期监听，避免泄漏。
@@ -336,7 +340,15 @@ private fun WeatherScreenContent(
             return
         }
         OverlayScreen.Album -> {
-            BearAlbumScreen(onBack = { overlay = OverlayScreen.None })
+            BearAlbumScreen(
+                onBack = {
+                    overlay = OverlayScreen.None
+                    if (bearHomeResumeRoom != null) {
+                        secretNonce++
+                        secretRequest = secretNonce to EASTER_EGG_BEAR_HOME
+                    }
+                },
+            )
             return
         }
         OverlayScreen.None -> Unit
@@ -551,6 +563,17 @@ private fun WeatherScreenContent(
                                             radarMapRepository = viewModel.radarMapRepository,
                                             cardLayout = appSettings.todayCards,
                                             paused = gameActive,
+                                            phenologyShiftDays = state.phenologyShiftDays,
+                                            phenologyShiftLoading = state.phenologyShiftLoading,
+                                            onOpenDailySeason = {
+                                                scope.launch {
+                                                    if (reduceMotion) {
+                                                        pagerState.scrollToPage(2)
+                                                    } else {
+                                                        pagerState.animateScrollToPage(2)
+                                                    }
+                                                }
+                                            },
                                             errorMessage = state.lastErrorMessage,
                                             onRetry = { viewModel.refresh() },
                                         )
@@ -568,6 +591,7 @@ private fun WeatherScreenContent(
                                             isOffline = state.isOffline,
                                             lastUpdatedText = state.lastUpdatedText,
                                             phenologyShiftDays = state.phenologyShiftDays,
+                                            phenologyShiftLoading = state.phenologyShiftLoading,
                                             onPhenologyPageShown = viewModel::ensurePhenologyShift,
                                             onOpenHistory = { overlay = OverlayScreen.History },
                                             cardLayout = appSettings.dailyCards,
@@ -593,6 +617,12 @@ private fun WeatherScreenContent(
             requestPassword = secretRequest,
             onActiveChange = { gameActive = it },
             onRequestPasswordConsumed = { secretRequest = null },
+            onOpenBearAlbum = {
+                bearHomeResumeRoom = BEAR_HOME_ROOM_BEDROOM
+                overlay = OverlayScreen.Album
+            },
+            bearHomeResumeRoom = bearHomeResumeRoom,
+            onBearHomeResumeRoomConsumed = { bearHomeResumeRoom = null },
         )
     }
 }

@@ -33,6 +33,7 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_exercise_diabolo,
         IllustR.drawable.ic_sun_bear_exercise_tennis,
         IllustR.drawable.ic_sun_bear_exercise_hulahoop,
+        IllustR.drawable.ic_sun_bear_exercise_baseball,
     ),
 
     /**
@@ -211,6 +212,7 @@ enum class SunPathBearMoment(
         IllustR.drawable.ic_sun_bear_exercise_diabolo,
         IllustR.drawable.ic_sun_bear_exercise_tennis,
         IllustR.drawable.ic_sun_bear_exercise_hulahoop,
+        IllustR.drawable.ic_sun_bear_exercise_baseball,
     ),
     WEEKEND_MORNING(
         R.string.sun_bear_weekend_morning,

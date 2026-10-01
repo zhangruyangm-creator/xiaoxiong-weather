@@ -130,6 +130,7 @@ internal val EXERCISE_DRAWABLES =
         IllustR.drawable.ic_sun_bear_exercise_diabolo,
         IllustR.drawable.ic_sun_bear_exercise_tennis,
         IllustR.drawable.ic_sun_bear_exercise_hulahoop,
+        IllustR.drawable.ic_sun_bear_exercise_baseball,
     )
 
 /**
@@ -237,6 +238,9 @@ internal val EXPLORE_DRAWABLES =
         IllustR.drawable.ic_sun_bear_weekend_explore_seaworld,
         IllustR.drawable.ic_sun_bear_weekend_explore_datangbuyecheng,
         IllustR.drawable.ic_sun_bear_weekend_explore_shamian,
+        IllustR.drawable.ic_sun_bear_weekend_explore_xihu,
+        IllustR.drawable.ic_sun_bear_weekend_explore_wuhanjiangtan,
+        IllustR.drawable.ic_sun_bear_weekend_explore_pingjianglu,
     )
 
 internal val EXERCISE_MORNING_CAPTIONS =
@@ -260,6 +264,7 @@ internal val EXERCISE_MORNING_CAPTIONS =
         R.string.sun_bear_exercise_diabolo_morning,
         R.string.sun_bear_exercise_tennis_morning,
         R.string.sun_bear_exercise_hulahoop_morning,
+        R.string.sun_bear_exercise_baseball_morning,
     )
 internal val EXERCISE_EVENING_CAPTIONS =
     intArrayOf(
@@ -282,6 +287,7 @@ internal val EXERCISE_EVENING_CAPTIONS =
         R.string.sun_bear_exercise_diabolo_evening,
         R.string.sun_bear_exercise_tennis_evening,
         R.string.sun_bear_exercise_hulahoop_evening,
+        R.string.sun_bear_exercise_baseball_evening,
     )
 
 internal fun exerciseIndex(

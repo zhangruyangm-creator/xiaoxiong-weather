@@ -18,6 +18,7 @@
     <string name="today_card_air">空气质量</string>
     <string name="today_card_radar">雷达与云图</string>
     <string name="today_card_sun">日出日落</string>
+    <string name="today_card_season">花期时令</string>
     <string name="hourly_card_precip">降水柱状图</string>
     <string name="hourly_card_strip">小时温度条</string>
     <string name="hourly_card_chart">小时走势图</string>

@@ -54,6 +54,7 @@ fun DrawScope.drawWorld(
     sprites: BearSprites,
     /** 减弱动画：跳过雨雪/闪电/冰雹粒子，只保留静态天空与世界。 */
     reduceMotion: Boolean = false,
+    scarfTint: RunScarfTint = RunScarfTint.CLASSIC,
 ) {
     val s = game.s
     // 装饰性运动时钟：减弱动画时冻结为 0（云层/光芒/星星/金币停住），
@@ -83,7 +84,7 @@ fun DrawScope.drawWorld(
         drawObstacles(game)
         drawParticles(game)
         drawFloatTexts(game)
-        drawAnimatedBear(game, sprites, reduceMotion = reduceMotion)
+        drawAnimatedBear(game, sprites, reduceMotion = reduceMotion, scarfTint = scarfTint)
     }
 
     // 雨/雪/闪电盖在最上层，看起来像真的在下
@@ -639,6 +640,7 @@ private fun DrawScope.drawAnimatedBear(
     game: BearGame,
     sprites: BearSprites,
     reduceMotion: Boolean,
+    scarfTint: RunScarfTint = RunScarfTint.CLASSIC,
 ) {
     val s = game.s
     val bs = game.bearSize
@@ -738,4 +740,26 @@ private fun DrawScope.drawAnimatedBear(
                 alpha = alpha,
             ),
     )
+    // 围巾点缀：颈侧一小段色带 + 轻光晕（涂装易读、不改精灵图）
+    if (alpha > 0f) {
+        val accent = runScarfAccent(scarfTint)
+        val neckY = cy - bs * 0.02f
+        drawCircle(
+            color = accent.copy(alpha = 0.22f * alpha),
+            radius = bs * 0.18f,
+            center = Offset(cx + bs * 0.06f, neckY),
+        )
+        drawRoundRect(
+            color = accent.copy(alpha = 0.88f * alpha),
+            topLeft = Offset(cx - bs * 0.10f, neckY - bs * 0.04f),
+            size = Size(bs * 0.28f, bs * 0.09f),
+            cornerRadius = CornerRadius(bs * 0.04f, bs * 0.04f),
+        )
+        drawRoundRect(
+            color = accent.copy(alpha = 0.75f * alpha),
+            topLeft = Offset(cx + bs * 0.12f, neckY - bs * 0.01f),
+            size = Size(bs * 0.10f, bs * 0.20f),
+            cornerRadius = CornerRadius(bs * 0.03f, bs * 0.03f),
+        )
+    }
 }

@@ -44,7 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +64,7 @@ import com.xiaoxiong.weather.data.WeatherAlert
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.ReduceMotionAwareVisibility
+import com.xiaoxiong.weather.ui.rememberSampledDrawable
 import com.xiaoxiong.weather.ui.theme.AccentCoral
 import com.xiaoxiong.weather.ui.theme.Leaf
 import com.xiaoxiong.weather.util.AlertBearIcon
@@ -78,6 +79,7 @@ import com.xiaoxiong.weather.util.weatherCodeDescription
 import com.xiaoxiong.weather.util.windDirectionText
 import java.time.ZoneId
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun TodayPage(
@@ -87,6 +89,9 @@ fun TodayPage(
     radarMapRepository: RadarMapRepository,
     cardLayout: List<TodayCardPref> = TodayCardLayout.defaults,
     paused: Boolean = false,
+    phenologyShiftDays: Int? = null,
+    phenologyShiftLoading: Boolean = false,
+    onOpenDailySeason: () -> Unit = {},
     /** 上一次拉取的失败原因；非空且无数据时渲染常驻错误态与重试按钮。 */
     errorMessage: String? = null,
     onRetry: (() -> Unit)? = null,
@@ -120,6 +125,7 @@ fun TodayPage(
                         TodayCardId.AIR_QUALITY -> weather.airQuality != null
                         TodayCardId.RADAR -> true
                         TodayCardId.SUN_EXTRAS -> true
+                        TodayCardId.SEASON -> true
                     }
             }
         items(
@@ -141,6 +147,14 @@ fun TodayPage(
                         paused = paused,
                     )
                 TodayCardId.SUN_EXTRAS -> SunAndExtrasCard(weather)
+                TodayCardId.SEASON ->
+                    SeasonTeaserCard(
+                        city = weather.city,
+                        elevationMeters = weather.elevationMeters,
+                        phenologyShiftDays = phenologyShiftDays,
+                        phenologyShiftLoading = phenologyShiftLoading,
+                        onOpenDailySeason = onOpenDailySeason,
+                    )
             }
         }
         item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -270,15 +284,25 @@ private fun AlertCard(
                 ).padding(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter =
-                    painterResource(
-                        AlertBearIcon.drawableRes(
-                            alert.kind,
-                            alert.precipMmPerHour,
-                            alert.severity,
-                        ),
+            val alertIconPx =
+                with(LocalDensity.current) {
+                    56
+                        .dp
+                        .toPx()
+                        .roundToInt()
+                        .coerceAtLeast(96)
+                }
+            val alertIcon =
+                rememberSampledDrawable(
+                    AlertBearIcon.drawableRes(
+                        alert.kind,
+                        alert.precipMmPerHour,
+                        alert.severity,
                     ),
+                    alertIconPx,
+                )
+            Image(
+                bitmap = alertIcon.bitmap,
                 // 插画旁即为同一标题文本：读屏会重复朗读，插画本身不再提供语义
                 contentDescription = null,
                 contentScale = ContentScale.Crop,

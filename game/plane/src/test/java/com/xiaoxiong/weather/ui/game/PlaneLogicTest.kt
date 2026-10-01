@@ -70,24 +70,29 @@ class PlaneLogicTest {
         val l2 = PlaneConfig.weaponSpec(2)
         val l3 = PlaneConfig.weaponSpec(3)
         val l4 = PlaneConfig.weaponSpec(4)
+        val l5 = PlaneConfig.weaponSpec(5)
         assertEquals(1, l1.count)
         assertEquals(2, l2.count)
         assertEquals(3, l3.count)
         assertEquals(1, l4.count)
+        assertEquals(2, l5.count)
         assertFalse(l1.piercing)
         assertFalse(l2.piercing)
         assertFalse(l3.piercing)
         assertTrue(l4.piercing)
+        assertTrue(l5.piercing)
         assertTrue("高等级射速更快", l1.intervalTicks > l2.intervalTicks)
         assertTrue("高等级射速更快", l2.intervalTicks > l3.intervalTicks)
         assertTrue("高等级射速更快", l3.intervalTicks > l4.intervalTicks)
+        assertTrue("高等级射速更快", l4.intervalTicks > l5.intervalTicks)
         assertTrue("激光伤害更高", l4.damage > l1.damage)
+        assertEquals(PlaneConfig.MAX_WEAPON_LEVEL, l5.level)
     }
 
     @Test
     fun weaponSpec_outOfRange_isClamped() {
         assertEquals(1, PlaneConfig.weaponSpec(0).level)
-        assertEquals(4, PlaneConfig.weaponSpec(9).level)
+        assertEquals(PlaneConfig.MAX_WEAPON_LEVEL, PlaneConfig.weaponSpec(9).level)
         assertEquals(1, PlaneConfig.weaponSpec(-3).level)
     }
 
@@ -230,6 +235,20 @@ class PlaneLogicTest {
         assertEquals(12, PlaneLogic.bossBulletSpecs(boss, 50f, 150f, 30f, 0f).size)
         boss.bossPhase = 2
         assertEquals(14, PlaneLogic.bossBulletSpecs(boss, 50f, 150f, 30f, 0f).size)
+    }
+
+    @Test
+    fun bossBulletSpecs_kinds_differ() {
+        val standard = enemy(PlaneEnemyType.BOSS, x = 50f, y = 20f).also { it.bossKind = PlaneBossKind.STANDARD }
+        val ring = enemy(PlaneEnemyType.BOSS, x = 50f, y = 20f).also { it.bossKind = PlaneBossKind.RINGMASTER }
+        val striker = enemy(PlaneEnemyType.BOSS, x = 50f, y = 20f).also { it.bossKind = PlaneBossKind.STRIKER }
+        assertEquals(3, PlaneLogic.bossBulletSpecs(standard, 50f, 150f, 30f, 0f).size)
+        assertEquals(8, PlaneLogic.bossBulletSpecs(ring, 50f, 150f, 30f, 0f).size)
+        assertEquals(5, PlaneLogic.bossBulletSpecs(striker, 50f, 150f, 30f, 0f).size)
+        ring.bossPhase = 1
+        assertEquals(16, PlaneLogic.bossBulletSpecs(ring, 50f, 150f, 30f, 0f).size)
+        striker.bossPhase = 1
+        assertEquals(5, PlaneLogic.bossBulletSpecs(striker, 50f, 150f, 30f, 0f).size)
     }
 
     @Test
@@ -461,6 +480,71 @@ class PlaneLogicTest {
         assertTrue("地面线上方（场高变大）应下降归位", above.second > 0f)
         val onLine = PlaneLogic.enemyVelocity(enemy(PlaneEnemyType.TANK, y = groundY), 50f, fieldH, 1f)
         assertEquals("到达地面线后停住", 0f, onLine.second, 1e-4f)
+    }
+
+    @Test
+    fun scout_zigzagsAndFiresAimedShot() {
+        val leftLeg = enemy(PlaneEnemyType.SCOUT, ageTicks = 0)
+        val rightLeg = enemy(PlaneEnemyType.SCOUT, ageTicks = PlaneLogic.SCOUT_ZIG_TICKS)
+        val (vx0, vy0) = PlaneLogic.enemyVelocity(leftLeg, 50f, 180f, 1f)
+        val (vx1, _) = PlaneLogic.enemyVelocity(rightLeg, 50f, 180f, 1f)
+        assertTrue("侦察机持续下降", vy0 > 0f)
+        assertTrue("第一段向右", vx0 > 0f)
+        assertTrue("第二段向左", vx1 < 0f)
+        assertEquals("之字左右对称", vx0, -vx1, 1e-3f)
+
+        val scout = enemy(PlaneEnemyType.SCOUT, x = 40f, y = 40f)
+        assertTrue(PlaneLogic.enemyWantsFire(scout, 180f))
+        val shots = PlaneLogic.enemyBulletSpecs(scout, 50f, 150f, PlaneDifficulty.STANDARD, 0f)
+        assertEquals(1, shots.size)
+        assertTrue("侦察机瞄准玩家", shots[0].vx > 0f && shots[0].vy > 0f)
+    }
+
+    @Test
+    fun bomber_dropsThreeVerticalBombs() {
+        val bomber = enemy(PlaneEnemyType.BOMBER, x = 50f, y = 40f)
+        val (_, vy) = PlaneLogic.enemyVelocity(bomber, 50f, 180f, 1f)
+        assertTrue("轰炸机缓慢下降", vy > 0f)
+        assertTrue(PlaneLogic.enemyWantsFire(bomber, 180f))
+        val bombs = PlaneLogic.enemyBulletSpecs(bomber, 10f, 10f, PlaneDifficulty.STANDARD, 0f)
+        assertEquals(3, bombs.size)
+        assertTrue("落弹全部竖直", bombs.all { it.vx == 0f && it.vy > 0f })
+        assertEquals("左右落弹对称", bombs[0].x + bombs[2].x, 2 * bombs[1].x, 1e-3f)
+    }
+
+    @Test
+    fun sniper_holdsAtTargetThenExits() {
+        val descending = enemy(PlaneEnemyType.SNIPER, y = 10f, targetY = 40f)
+        val (_, downVy) = PlaneLogic.enemyVelocity(descending, 50f, 180f, 1f)
+        assertTrue("未到停靠高度应下降", downVy > 0f)
+        assertFalse(
+            "未停靠不开火",
+            PlaneLogic.enemyWantsFire(enemy(PlaneEnemyType.SNIPER, y = 20f, targetY = 40f), 180f),
+        )
+
+        val holding = enemy(PlaneEnemyType.SNIPER, y = 40f, targetY = 40f, ageTicks = 120)
+        val (holdVx, holdVy) = PlaneLogic.enemyVelocity(holding, 50f, 180f, 1f)
+        assertEquals(0f, holdVx, 1e-4f)
+        assertEquals(0f, holdVy, 1e-4f)
+        assertTrue(PlaneLogic.enemyWantsFire(holding, 180f))
+
+        val leaving =
+            enemy(
+                PlaneEnemyType.SNIPER,
+                y = 40f,
+                targetY = 40f,
+                ageTicks = PlaneLogic.SNIPER_EXIT_AFTER_TICKS,
+            )
+        val (_, exitVy) = PlaneLogic.enemyVelocity(leaving, 50f, 180f, 1f)
+        assertTrue("超时后下撤离场", exitVy > 0f)
+        assertFalse("脱离阶段不开火", PlaneLogic.enemyWantsFire(leaving, 180f))
+
+        val shot = PlaneLogic.enemyBulletSpecs(holding, 50f, 150f, PlaneDifficulty.STANDARD, 0f)
+        assertEquals(1, shot.size)
+        assertTrue(
+            "狙击弹更快",
+            kotlin.math.hypot(shot[0].vx, shot[0].vy) > PlaneEnemyType.GRUNT.baseBulletSpeed * 0.9f,
+        )
     }
 
     // ---------------------------------------------------------------------

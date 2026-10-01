@@ -5,20 +5,16 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,7 +22,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -34,13 +29,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchDifficulty
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchScene
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.ItemKind
+import kotlinx.coroutines.delay
+
+/** 横幅展示时长（毫秒）。 */
+private const val CATCH_BANNER_MS = 1500L
 
 private fun catchSceneFromWeather(
     weather: FarmWeather,
@@ -83,24 +82,43 @@ fun BearCatchScreen(
     val view = LocalView.current
     val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
+    var difficultyState by remember {
+        mutableStateOf(BearCatchGame.loadDifficulty(prefs))
+    }
     val lb =
         rememberLeaderboardState(
             prefs,
-            "leaderboard_catch",
-            BearCatchGame.PREFS_BEST_SCORE_KEY,
+            catchLeaderboardKey(difficultyState),
+            catchBestKey(difficultyState),
         )
     val characterState = rememberBearCharacterState()
     var showCharacterPicker by remember { mutableStateOf(false) }
+    var gearTint by remember {
+        mutableStateOf(CatchGearTint.fromId(prefs.stringOr(CATCH_GEAR_TINT_KEY)))
+    }
+    var unlockBest by remember {
+        mutableIntStateOf(catchBestAcrossDifficulties(prefs).coerceAtLeast(0))
+    }
+    val cueGate = remember { CatchCueGate() }
+    var bannerKind by remember { mutableStateOf<CatchBannerKind?>(null) }
+    var bannerToken by remember { mutableIntStateOf(0) }
     val game =
         remember {
             BearCatchGame().also {
-                it.best = BearCatchGame.loadBestScore(prefs)
-                it.difficulty = BearCatchGame.loadDifficulty(prefs)
+                it.difficulty = difficultyState
+                it.best = BearCatchGame.loadBestScore(prefs, difficultyState)
             }
         }
     // 进程重建（如旋转/被系统回收后重进）时恢复局中快照；坏档/无档保持标题
     LaunchedEffect(Unit) {
         GameAudio.preload(context)
+        migrateCatchBestPrefs(prefs)
+        unlockBest = catchBestAcrossDifficulties(prefs)
+        if (!catchGearTintUnlocked(gearTint, unlockBest)) {
+            gearTint = CatchGearTint.CLASSIC
+            prefs.edit { putString(CATCH_GEAR_TINT_KEY, gearTint.id) }
+        }
+        game.best = BearCatchGame.loadBestScore(prefs, game.difficulty)
     }
     // 快照生命周期统一交给公共件：进入恢复 → OVER 清档 → ON_STOP/onDispose 兜底落盘 → 退出抑制。
     val session =
@@ -117,6 +135,10 @@ fun BearCatchScreen(
             prefs = prefs,
             phase = game.phase,
             shouldClear = ::catchSnapshotShouldClear,
+            onRestored = {
+                difficultyState = game.difficulty
+                game.best = BearCatchGame.loadBestScore(prefs, game.difficulty)
+            },
         )
 
     // 退出流程（HUD 关闭 / 暂停退出 / 返回键）：guard 先清档再抑制兜底落盘，
@@ -125,16 +147,52 @@ fun BearCatchScreen(
         guard.exit(session, prefs)
         onExit()
     }
+
+    fun showBanner(kind: CatchBannerKind) {
+        bannerKind = kind
+        bannerToken++
+    }
+
+    fun pickDifficulty(difficulty: CatchDifficulty) {
+        if (difficulty == difficultyState && difficulty == game.difficulty) return
+        difficultyState = difficulty
+        game.difficulty = difficulty
+        game.persistDifficulty(prefs)
+        game.best = BearCatchGame.loadBestScore(prefs, difficulty)
+        unlockBest = catchBestAcrossDifficulties(prefs)
+        if (!catchGearTintUnlocked(gearTint, unlockBest)) {
+            gearTint = CatchGearTint.CLASSIC
+            prefs.edit { putString(CATCH_GEAR_TINT_KEY, gearTint.id) }
+        }
+        lb.resetLastRank()
+    }
+
+    fun startRun() {
+        lb.resetLastRank()
+        cueGate.reset()
+        bannerKind = null
+        bannerToken = 0
+        game.start()
+    }
+
     // 死亡结算后清档：重进应从标题开始，而不是续到已结束的对局
     LaunchedEffect(game.phase) {
         if (game.phase == GamePhase.OVER) {
             game.clearSnapshot(prefs)
             GameAudio.play(GameCue.LOSE)
+            unlockBest = catchBestAcrossDifficulties(prefs)
+        }
+    }
+    LaunchedEffect(bannerToken) {
+        if (bannerToken > 0) {
+            delay(CATCH_BANNER_MS)
+            bannerKind = null
         }
     }
     val texts = remember { mutableListOf<CatchFloatText>() }
     // 飘字在非组合的帧回调里生成，提前在组合期解析文案
     val blockedText = stringResource(R.string.bear_catch_blocked)
+    val perfectText = stringResource(R.string.bear_catch_perfect)
     val catchWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     // 天气/城市变化时实时更新上报所用值，避免 LaunchedEffect(Unit) 闭包捕获开局时的旧值
     val reportSceneCode by rememberUpdatedState(sceneCode)
@@ -174,35 +232,46 @@ fun BearCatchScreen(
                         t.y = t.y - 46f * game.s * worldDt
                     }
                 }
-                var caughtSoundPlayed = false
                 var powerUpSoundPlayed = false
+                val nowMs = now / 1_000_000L
                 game.tick(
                     worldDt,
-                    onCaught = { kind ->
+                    onCaught = { kind, points, perfect ->
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         when (kind) {
                             ItemKind.GIFT, ItemKind.BUBBLE -> {
                                 if (!powerUpSoundPlayed) {
                                     powerUpSoundPlayed = true
-                                    GameAudio.play(GameCue.STAR)
+                                    GameAudio.play(GameCue.POWERUP)
                                 }
                             }
                             else -> {
-                                if (!caughtSoundPlayed) {
-                                    caughtSoundPlayed = true
+                                if (cueGate.allowCatch(nowMs)) {
                                     GameAudio.play(GameCue.CATCH)
                                 }
                             }
                         }
                         // 护盾泡泡不加分：跳过 "+0" 飘字，避免误导
-                        if (kind != ItemKind.BUBBLE) {
+                        if (kind != ItemKind.BUBBLE && points > 0) {
                             texts.add(
                                 CatchFloatText(
-                                    text = "+${BearCatchLogic.scoreOf(kind)}",
+                                    text = "+$points",
                                     x = game.catchX,
                                     y = game.catchY - game.catchR * 1.4f,
                                     life = 0.8f,
-                                    color = Color(0xFFFFD54F),
+                                    color = if (perfect) Color(0xFFFFF59D) else Color(0xFFFFD54F),
+                                ),
+                            )
+                        }
+                        if (perfect) {
+                            GameAudio.play(GameCue.GRAZE)
+                            texts.add(
+                                CatchFloatText(
+                                    text = perfectText,
+                                    x = game.catchX,
+                                    y = game.catchY - game.catchR * 2.0f,
+                                    life = 0.7f,
+                                    color = Color(0xFFFFECB3),
                                 ),
                             )
                         }
@@ -235,23 +304,26 @@ fun BearCatchScreen(
                         )
                     },
                     onMilestone = { milestone ->
-                        // 里程碑只飘一次大字，不阻塞操作
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        texts.add(
-                            CatchFloatText(
-                                text = context.getString(R.string.bear_catch_milestone, milestone),
-                                x = game.catchX,
-                                y = game.catchY - game.catchR * 2.4f,
-                                life = 1.2f,
-                                color = Color(0xFFFFC107),
-                            ),
-                        )
+                        GameAudio.play(GameCue.POWERUP)
+                        showBanner(CatchBannerKind.Milestone(milestone))
+                    },
+                    onBurstStart = {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        GameAudio.play(GameCue.WARNING)
+                        showBanner(CatchBannerKind.BURST)
+                    },
+                    onSceneIntro = { scene ->
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        GameAudio.play(GameCue.WARNING)
+                        showBanner(CatchBannerKind.SceneIntro(scene))
                     },
                     onDeath = { score ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                         // 死亡即清档：不能只等 LaunchedEffect，进程被回收会漏掉清档而重复续玩
                         game.clearSnapshot(prefs)
                         game.recordBestScore(prefs, score)
+                        unlockBest = catchBestAcrossDifficulties(prefs)
                         if (score > 0) {
                             lb.lastRank =
                                 lb.store.submit(
@@ -336,6 +408,7 @@ fun BearCatchScreen(
                     sprites = bearSprites,
                     texts = texts,
                     reduceMotion = reduceMotion,
+                    gearTint = gearTint,
                 )
             }
         }
@@ -350,6 +423,14 @@ fun BearCatchScreen(
             },
             onCharacter = { showCharacterPicker = true },
         )
+
+        val activeBanner = bannerKind
+        if (activeBanner != null && game.phase == GamePhase.RUNNING) {
+            CatchEventBanner(
+                text = catchBannerText(activeBanner),
+                warning = activeBanner.isWarning,
+            )
+        }
 
         if (showCharacterPicker) {
             GameCharacterPickerDialog(
@@ -367,8 +448,12 @@ fun BearCatchScreen(
                     lb.entries = emptyList()
                     lb.resetLastRank()
                     game.best = 0
-                    // 旧版最高分键一并清掉，避免下次读取时又被迁移回来
-                    prefs.edit { remove(BearCatchGame.PREFS_BEST_SCORE_LEGACY_KEY) }
+                    clearCatchLegacyBestKeys(prefs)
+                    unlockBest = catchBestAcrossDifficulties(prefs)
+                    if (!catchGearTintUnlocked(gearTint, unlockBest)) {
+                        gearTint = CatchGearTint.CLASSIC
+                        prefs.edit { putString(CATCH_GEAR_TINT_KEY, gearTint.id) }
+                    }
                 },
                 onDismiss = { lb.show = false },
             )
@@ -381,32 +466,20 @@ fun BearCatchScreen(
                     hint = stringResource(R.string.bear_catch_hint),
                     bestLine = gameBestLabel() + " ${game.best}",
                     startText = stringResource(R.string.bear_catch_start),
-                    onStart = {
-                        lb.resetLastRank()
-                        game.start()
-                    },
+                    onStart = { startRun() },
                     extra = {
-                        Text(
-                            text = stringResource(R.string.bear_catch_difficulty_label),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        CatchReadyExtras(
+                            selectedDifficulty = difficultyState,
+                            onDifficulty = ::pickDifficulty,
+                            gearTint = gearTint,
+                            unlockBest = unlockBest,
+                            onGearTint = { tint ->
+                                if (catchGearTintUnlocked(tint, unlockBest) && tint != gearTint) {
+                                    gearTint = tint
+                                    prefs.edit { putString(CATCH_GEAR_TINT_KEY, tint.id) }
+                                }
+                            },
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            CatchDifficulty.entries.forEach { difficulty ->
-                                CatchDifficultyChip(
-                                    difficulty = difficulty,
-                                    selected = game.difficulty == difficulty,
-                                    onClick = {
-                                        game.difficulty = difficulty
-                                        game.persistDifficulty(prefs)
-                                    },
-                                )
-                            }
-                        }
                     },
                 )
             }
@@ -417,9 +490,8 @@ fun BearCatchScreen(
                     bestLine = gameBestLabel() + " ${game.best}",
                     restartText = stringResource(R.string.bear_catch_restart),
                     onRestart = {
-                        lb.resetLastRank()
                         game.clearSnapshot(prefs)
-                        game.start()
+                        startRun()
                     },
                     onViewRank = {
                         lb.entries = lb.store.load()
@@ -429,6 +501,37 @@ fun BearCatchScreen(
                     rankLine =
                         if (lb.lastRank > 0) {
                             stringResource(R.string.bear_leaderboard_rank_label, lb.lastRank)
+                        } else {
+                            null
+                        },
+                    extra =
+                        if (game.maxCombo >= 2 || game.perfectCount > 0) {
+                            {
+                                Column {
+                                    if (game.maxCombo >= 2) {
+                                        Text(
+                                            text =
+                                                stringResource(
+                                                    R.string.bear_catch_max_combo,
+                                                    game.maxCombo,
+                                                ),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                    if (game.perfectCount > 0) {
+                                        Text(
+                                            text =
+                                                stringResource(
+                                                    R.string.bear_catch_perfect_count,
+                                                    game.perfectCount,
+                                                ),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
                         } else {
                             null
                         },
@@ -444,9 +547,8 @@ fun BearCatchScreen(
                 onResume = pause::resume,
                 onRestart = {
                     pause.resume()
-                    lb.resetLastRank()
                     game.clearSnapshot(prefs)
-                    game.start()
+                    startRun()
                 },
                 onExit = { exitGame() },
             )

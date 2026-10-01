@@ -818,6 +818,7 @@ class SunPathMathTest {
                 IllustR.drawable.ic_sun_bear_exercise_diabolo,
                 IllustR.drawable.ic_sun_bear_exercise_tennis,
                 IllustR.drawable.ic_sun_bear_exercise_hulahoop,
+                IllustR.drawable.ic_sun_bear_exercise_baseball,
             )
         val morningCaptions =
             listOf(
@@ -840,6 +841,7 @@ class SunPathMathTest {
                 R.string.sun_bear_exercise_diabolo_morning,
                 R.string.sun_bear_exercise_tennis_morning,
                 R.string.sun_bear_exercise_hulahoop_morning,
+                R.string.sun_bear_exercise_baseball_morning,
             )
         val eveningCaptions =
             listOf(
@@ -862,6 +864,7 @@ class SunPathMathTest {
                 R.string.sun_bear_exercise_diabolo_evening,
                 R.string.sun_bear_exercise_tennis_evening,
                 R.string.sun_bear_exercise_hulahoop_evening,
+                R.string.sun_bear_exercise_baseball_evening,
             )
         val morning = SunPathBearMoment.MORNING_EXERCISE.bearResFor(day)
         val evening = SunPathBearMoment.EVENING_EXERCISE.bearResFor(day)
@@ -886,6 +889,6 @@ class SunPathMathTest {
                 .map {
                     SunPathBearMoment.MORNING_EXERCISE.bearResFor(day.plusDays(it))
                 }.toSet()
-        assertEquals(19, morningSeen.size)
+        assertEquals(20, morningSeen.size)
     }
 }

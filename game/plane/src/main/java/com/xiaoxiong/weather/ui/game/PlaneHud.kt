@@ -28,6 +28,8 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
+import kotlin.math.roundToInt
 
 // ---------------------------------------------------------------------
 // 顶栏：得分 / 最高分 / 波次 / 暂停
@@ -224,6 +227,9 @@ internal fun PlaneBottomBar(
     maxLives: Int,
     bombs: Int,
     weaponLevel: Int,
+    combo: Int,
+    graze: Int,
+    overdrive: Boolean,
     bombEnabled: Boolean,
     onBomb: () -> Unit,
 ) {
@@ -242,14 +248,7 @@ internal fun PlaneBottomBar(
             modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = statsCd },
         ) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    repeat(maxLives.coerceAtLeast(1)) { index ->
-                        BearLifeIcon(
-                            filled = index < lives,
-                            modifier = Modifier.padding(end = 4.dp),
-                        )
-                    }
-                }
+                PlaneLivesHud(lives = lives, maxLives = maxLives)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     BombGlyph(
@@ -270,6 +269,15 @@ internal fun PlaneBottomBar(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
+                    if (overdrive) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.bear_plane_overdrive),
+                            color = PlaneUi.accentWarm,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(5.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -281,9 +289,35 @@ internal fun PlaneBottomBar(
                                     .height(4.dp)
                                     .clip(RoundedCornerShape(2.dp))
                                     .background(
-                                        if (index < weaponLevel) PlaneUi.accent else Color.White.copy(alpha = 0.18f),
+                                        if (index < weaponLevel) {
+                                            if (overdrive) PlaneUi.accentWarm else PlaneUi.accent
+                                        } else {
+                                            Color.White.copy(alpha = 0.18f)
+                                        },
                                     ),
                         )
+                    }
+                }
+                if (combo >= 2 || graze > 0) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (combo >= 2) {
+                            Text(
+                                text = stringResource(R.string.bear_plane_combo, combo),
+                                color = PlaneUi.accentWarm,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        if (combo >= 2 && graze > 0) Spacer(Modifier.width(10.dp))
+                        if (graze > 0) {
+                            Text(
+                                text = stringResource(R.string.bear_plane_graze, graze),
+                                color = PlaneUi.accent.copy(alpha = 0.95f),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
             }
@@ -359,6 +393,36 @@ private fun PlaneBombButton(
     }
 }
 
+/** 底部生命显示：少命用小熊头条，多命改「图标 + 当前/上限」避免撑爆 HUD。 */
+@Composable
+private fun PlaneLivesHud(
+    lives: Int,
+    maxLives: Int,
+) {
+    val cappedMax = maxLives.coerceAtLeast(1)
+    if (cappedMax <= PlaneConfig.HUD_LIFE_ICON_MAX) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            repeat(cappedMax) { index ->
+                BearLifeIcon(
+                    filled = index < lives,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
+        }
+    } else {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BearLifeIcon(filled = lives > 0)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.bear_plane_lives_hud, lives.coerceAtLeast(0), cappedMax),
+                color = if (lives > 0) PlaneUi.accentWarm else PlaneUi.danger,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
 /** 小熊头生命图标：存活实心（奶油 + 棕描边），失去为空心轮廓。 */
 @Composable
 internal fun BearLifeIcon(
@@ -420,6 +484,58 @@ internal fun BombGlyph(
 // 横幅 / 主菜单 / 结算
 // ---------------------------------------------------------------------
 
+/** 波次横幅文案：特殊主题 / 里程碑优先于普通「第 N 波」。 */
+@Composable
+internal fun planeWaveBannerText(wave: Int): String {
+    val w = wave.coerceAtLeast(1)
+    if (PlaneConfig.isMilestoneWave(w)) {
+        return stringResource(R.string.bear_plane_wave_milestone, w)
+    }
+    return when (PlaneConfig.waveTheme(w)) {
+        PlaneWaveTheme.SCOUT_SWARM -> stringResource(R.string.bear_plane_wave_scout, w)
+        PlaneWaveTheme.BOMBER_RUN -> stringResource(R.string.bear_plane_wave_bomber, w)
+        PlaneWaveTheme.SNIPER_NEST -> stringResource(R.string.bear_plane_wave_sniper, w)
+        else -> stringResource(R.string.bear_plane_wave, w)
+    }
+}
+
+/** 天气风味一句：标题卡简介下方的轻提示。 */
+@Composable
+internal fun planeWeatherFlavorText(weather: FarmWeather): String =
+    stringResource(
+        when (weather) {
+            FarmWeather.SNOWY -> R.string.bear_plane_weather_snow
+            FarmWeather.STORMY -> R.string.bear_plane_weather_storm
+            FarmWeather.RAINY -> R.string.bear_plane_weather_rain
+            FarmWeather.FOGGY -> R.string.bear_plane_weather_fog
+            FarmWeather.CLOUDY -> R.string.bear_plane_weather_cloudy
+            FarmWeather.SUNNY -> R.string.bear_plane_weather_clear
+        },
+    )
+
+/** Boss 预警文案：按种类区分。 */
+@Composable
+internal fun planeBossWarningText(kind: PlaneBossKind): String =
+    stringResource(
+        when (kind) {
+            PlaneBossKind.STANDARD -> R.string.bear_plane_boss_warning_standard
+            PlaneBossKind.RINGMASTER -> R.string.bear_plane_boss_warning_ringmaster
+            PlaneBossKind.STRIKER -> R.string.bear_plane_boss_warning_striker
+        },
+    )
+
+@Composable
+internal fun planeShipTintLabel(tint: PlaneShipTint): String =
+    stringResource(
+        when (tint) {
+            PlaneShipTint.CLASSIC -> R.string.bear_plane_tint_classic
+            PlaneShipTint.GOLD -> R.string.bear_plane_tint_gold
+            PlaneShipTint.MIDNIGHT -> R.string.bear_plane_tint_midnight
+            PlaneShipTint.ROSE -> R.string.bear_plane_tint_rose
+            PlaneShipTint.AURORA -> R.string.bear_plane_tint_aurora
+        },
+    )
+
 /** 波次横幅：主题玻璃卡片。 */
 @Composable
 internal fun PlaneWaveBanner(text: String) {
@@ -471,19 +587,21 @@ internal fun PlaneBossWarningBanner(text: String) {
     }
 }
 
-/** READY：标题 / 简介 / 难度 3 档 / 开局命数 / 开始 / 最高分 / 排行榜 / 音效开关。 */
+/** READY：标题 / 简介 / 难度 3 档（含说明）/ 开局命数滑条（1..30）/ 开始 / 最高分 / 排行榜 / 音效开关。 */
 @Composable
 internal fun PlaneReadyOverlay(
     game: PlaneGame,
     best: Int,
     bestWave: Int,
     startLives: Int,
+    shipTint: PlaneShipTint,
     soundEnabled: Boolean,
     frame: () -> Long,
     isDay: Boolean,
     reduceMotion: Boolean,
     onPick: (PlaneDifficulty) -> Unit,
     onStartLivesChange: (Int) -> Unit,
+    onShipTint: (PlaneShipTint) -> Unit,
     onStart: () -> Unit,
     onToggleSound: (Boolean) -> Unit,
     onLeaderboard: () -> Unit,
@@ -498,7 +616,12 @@ internal fun PlaneReadyOverlay(
     ) {
         PlaneGlassCard(modifier = Modifier.padding(horizontal = 26.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                PlanePreview(frame = frame, isDay = isDay, reduceMotion = reduceMotion)
+                PlanePreview(
+                    frame = frame,
+                    isDay = isDay,
+                    reduceMotion = reduceMotion,
+                    shipTint = shipTint,
+                )
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
@@ -513,9 +636,21 @@ internal fun PlaneReadyOverlay(
                         style = MaterialTheme.typography.bodySmall,
                         color = PlaneUi.textSecondary,
                     )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = planeWeatherFlavorText(game.weather),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = PlaneUi.accent.copy(alpha = 0.9f),
+                    )
                 }
             }
             Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.bear_plane_diff_section),
+                color = PlaneUi.textSecondary,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -535,7 +670,57 @@ internal fun PlaneReadyOverlay(
                     )
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = planeDifficultyHint(game.difficulty),
+                color = PlaneUi.textSecondary.copy(alpha = 0.92f),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.bear_plane_ship_tint),
+                color = PlaneUi.textSecondary,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Spacer(Modifier.height(6.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                PlaneShipTint.entries.chunked(3).forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        row.forEach { tint ->
+                            val unlocked = planeShipTintUnlocked(tint, bestWave)
+                            FilterChip(
+                                selected = shipTint == tint,
+                                onClick = {
+                                    if (unlocked) onShipTint(tint)
+                                },
+                                enabled = unlocked,
+                                label = {
+                                    Text(
+                                        text = planeShipTintLabel(tint),
+                                        maxLines = 1,
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors =
+                                    FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = planePlayerPalette(tint).brown.copy(alpha = 0.45f),
+                                        selectedLabelColor = Color.White,
+                                        labelColor = PlaneUi.textSecondary,
+                                        disabledContainerColor = Color.White.copy(alpha = 0.06f),
+                                        disabledLabelColor = PlaneUi.textSecondary.copy(alpha = 0.45f),
+                                    ),
+                            )
+                        }
+                        repeat(3 - row.size) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -546,6 +731,32 @@ internal fun PlaneReadyOverlay(
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.weight(1f),
                 )
+                Text(
+                    text = stringResource(R.string.bear_plane_lives_value, startLives),
+                    color = PlaneUi.accentWarm,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Slider(
+                value = startLives.toFloat(),
+                onValueChange = { onStartLivesChange(it.roundToInt()) },
+                valueRange =
+                    PlaneConfig.START_LIVES_MIN.toFloat()..PlaneConfig.START_LIVES_MAX.toFloat(),
+                steps = (PlaneConfig.START_LIVES_MAX - PlaneConfig.START_LIVES_MIN - 1).coerceAtLeast(0),
+                colors =
+                    SliderDefaults.colors(
+                        thumbColor = PlaneUi.accentWarm,
+                        activeTrackColor = PlaneUi.accentWarm.copy(alpha = 0.85f),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.18f),
+                    ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
                 IconButton(
                     onClick = { onStartLivesChange(startLives - 1) },
                     enabled = startLives > PlaneConfig.START_LIVES_MIN,
@@ -557,10 +768,14 @@ internal fun PlaneReadyOverlay(
                     )
                 }
                 Text(
-                    text = stringResource(R.string.bear_plane_lives_value, startLives),
-                    color = PlaneUi.accentWarm,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    text =
+                        stringResource(
+                            R.string.bear_plane_lives_range_hint,
+                            PlaneConfig.START_LIVES_MIN,
+                            PlaneConfig.START_LIVES_MAX,
+                        ),
+                    color = PlaneUi.textSecondary,
+                    style = MaterialTheme.typography.labelSmall,
                 )
                 IconButton(
                     onClick = { onStartLivesChange(startLives + 1) },
@@ -707,6 +922,12 @@ internal fun PlaneSettledOverlay(
                 )
                 Spacer(Modifier.width(14.dp))
                 Text(
+                    text = stringResource(R.string.bear_plane_graze, game.grazeCount),
+                    color = PlaneUi.textSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Spacer(Modifier.width(14.dp))
+                Text(
                     text = stringResource(R.string.bear_plane_wave_reached, game.waveIndex.coerceAtLeast(1)),
                     color = PlaneUi.textSecondary,
                     style = MaterialTheme.typography.labelMedium,
@@ -818,6 +1039,7 @@ private fun PlanePreview(
     frame: () -> Long,
     isDay: Boolean,
     reduceMotion: Boolean,
+    shipTint: PlaneShipTint,
 ) {
     Canvas(modifier = Modifier.size(86.dp)) {
         // 动态模式才在 draw 阶段读取帧状态注册重绘；静态预览不注册帧依赖
@@ -825,11 +1047,12 @@ private fun PlanePreview(
         val r = size.minDimension * 0.30f
         val x = size.width * 0.5f
         val y = size.height * 0.52f
-        val sprite = PlaneSprites.player(r, isDay, this, layoutDirection)
+        val palette = planePlayerPalette(shipTint)
+        val sprite = PlaneSprites.player(r, isDay, this, layoutDirection, tint = shipTint)
         if (sprite != null) {
             drawPlaneSprite(sprite, x, y)
         } else {
-            drawCircle(planePlayerCream, r * 0.7f, Offset(x, y))
+            drawCircle(palette.cream, r * 0.7f, Offset(x, y))
         }
         val propY = y - r * 0.78f
         val angle = (tick * 0.8f) % 360f
@@ -839,7 +1062,7 @@ private fun PlanePreview(
             },
         ) {
             drawLine(
-                planePlayerBrownDark,
+                palette.brownDark,
                 Offset(x - r * 0.78f, propY),
                 Offset(x + r * 0.78f, propY),
                 strokeWidth = r * 0.10f,
@@ -857,6 +1080,17 @@ internal fun planeDifficultyLabel(difficulty: PlaneDifficulty): String =
             PlaneDifficulty.CASUAL -> R.string.bear_plane_diff_casual
             PlaneDifficulty.STANDARD -> R.string.bear_plane_diff_standard
             PlaneDifficulty.CHALLENGE -> R.string.bear_plane_diff_challenge
+        },
+    )
+
+/** 难度说明：标题页 Chip 下方短提示。 */
+@Composable
+internal fun planeDifficultyHint(difficulty: PlaneDifficulty): String =
+    stringResource(
+        when (difficulty) {
+            PlaneDifficulty.CASUAL -> R.string.bear_plane_diff_hint_casual
+            PlaneDifficulty.STANDARD -> R.string.bear_plane_diff_hint_standard
+            PlaneDifficulty.CHALLENGE -> R.string.bear_plane_diff_hint_challenge
         },
     )
 

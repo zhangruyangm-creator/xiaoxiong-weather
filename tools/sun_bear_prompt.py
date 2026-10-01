@@ -56,6 +56,42 @@ SCENE_PRESETS: dict[str, dict[str, str]] = {
         "setting": "bright science lab with beakers and microscope",
         "props": "white lab coat, safety goggles, test tubes",
     },
+    "work_milkdelivery": {
+        "action": "riding a blue three-wheeled scooter delivering fresh milk",
+        "setting": "sunny city street with trees, crosswalk, and shop fronts",
+        "props": (
+            "cream delivery cap, light blue shirt, tan utility vest, "
+            "crates of glass milk bottles and cartons, 送奶 sign on scooter"
+        ),
+    },
+    "weekend_explore_pingjianglu": {
+        "action": "walking down the lane with tea cup and pastry bag",
+        "setting": (
+            "Suzhou Pingjiang Road one-point perspective: long bluestone path, "
+            "canal left, horse-head walls 马头墙, lattice windows, shop fronts, "
+            "overhanging wooden corridor, distant flat bridge — NOT Qushuiting "
+            "park railing / vertical sign / centered canal postcard"
+        ),
+        "props": "green backpack, paper pastry bag and bamboo tea cup, no text",
+    },
+    "weekend_explore_wuhanjiangtan": {
+        "action": "waving on the riverside promenade overlooking the Yangtze",
+        "setting": (
+            "Wuhan Jiangtan: stone promenade, bench, lamppost, green Wuhan "
+            "Yangtze River Bridge, wide river, Wuchang skyline — no text signs"
+        ),
+        "props": "green backpack; bear style flat illustrated like explore_waitan",
+    },
+    "weekend_explore_xihu": {
+        "action": "waving from Su Causeway stone railing at golden hour",
+        "setting": (
+            "Nanping evening bell sunset from Su Causeway: 三潭印月 three towers "
+            "in lake center, Broken Bridge (断桥) visible left across water, "
+            "Leifeng Pagoda on Nanping Hill, faint Baoshi Pagoda, willows, "
+            "lotus, 西湖 marker"
+        ),
+        "props": "green backpack",
+    },
     "home_balcony": {
         "action": "hanging a shirt on a clothesline, holding a wooden hanger",
         "setting": "open-air apartment balcony, balcony railing, blue sky with white clouds visible above, distant city rooftops",

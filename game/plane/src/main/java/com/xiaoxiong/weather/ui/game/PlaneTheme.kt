@@ -28,6 +28,49 @@ internal val planePlayerCream = Color(0xFFFFF4DC)
 internal val planePlayerCreamShade = Color(0xFFE6D2AC)
 internal val planePlayerBrown = Color(0xFF8A5A2C)
 internal val planePlayerBrownDark = Color(0xFF5A3818)
+
+/** 玩家机涂装调色板（烘焙进精灵）。 */
+internal data class PlanePlayerPalette(
+    val cream: Color,
+    val shade: Color,
+    val brown: Color,
+    val brownDark: Color,
+)
+
+internal fun planePlayerPalette(tint: PlaneShipTint): PlanePlayerPalette =
+    when (tint) {
+        PlaneShipTint.CLASSIC ->
+            PlanePlayerPalette(planePlayerCream, planePlayerCreamShade, planePlayerBrown, planePlayerBrownDark)
+        PlaneShipTint.GOLD ->
+            PlanePlayerPalette(
+                cream = Color(0xFFFFF0B8),
+                shade = Color(0xFFE0C56A),
+                brown = Color(0xFFB8860B),
+                brownDark = Color(0xFF6B4E0A),
+            )
+        PlaneShipTint.MIDNIGHT ->
+            PlanePlayerPalette(
+                cream = Color(0xFFD7E3F4),
+                shade = Color(0xFF9AABB8),
+                brown = Color(0xFF3D5A80),
+                brownDark = Color(0xFF1B2838),
+            )
+        PlaneShipTint.ROSE ->
+            PlanePlayerPalette(
+                cream = Color(0xFFFFE4EC),
+                shade = Color(0xFFE8B0C0),
+                brown = Color(0xFFC2185B),
+                brownDark = Color(0xFF6A0F33),
+            )
+        PlaneShipTint.AURORA ->
+            PlanePlayerPalette(
+                cream = Color(0xFFE8FFF6),
+                shade = Color(0xFFA8E6CF),
+                brown = Color(0xFF26A69A),
+                brownDark = Color(0xFF0D4740),
+            )
+    }
+
 internal val planePlayerGlass = Color(0xFF7FD4FF)
 internal val planeBearFur = Color(0xFFF2C79A)
 internal val planeBearEar = Color(0xFFDCA36A)
@@ -95,6 +138,27 @@ internal fun planeEnemyPalette(
                 panel = Color(0xFFB9C49B),
                 accent = Color(0xFFFFB300),
                 dark = Color(0xFF333B26),
+            )
+        PlaneEnemyType.SCOUT ->
+            PlaneEnemyPalette(
+                body = Color(0xFF5B8DB8),
+                panel = Color(0xFFA8D0F0),
+                accent = Color(0xFFFFEB3B),
+                dark = Color(0xFF2A4A66),
+            )
+        PlaneEnemyType.BOMBER ->
+            PlaneEnemyPalette(
+                body = Color(0xFF8B6F5A),
+                panel = Color(0xFFD4B896),
+                accent = Color(0xFFFF7043),
+                dark = Color(0xFF4A3528),
+            )
+        PlaneEnemyType.SNIPER ->
+            PlaneEnemyPalette(
+                body = Color(0xFF6A5B8A),
+                panel = Color(0xFFB5A6D4),
+                accent = Color(0xFF69F0AE),
+                dark = Color(0xFF352A4A),
             )
         PlaneEnemyType.BOSS ->
             when (bossPhase.coerceIn(0, 2)) {

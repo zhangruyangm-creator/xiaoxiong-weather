@@ -168,11 +168,13 @@ class BearGameJumpFeelTest {
         game.coins += Coin(game.bearX + game.bearSize / 2f, game.bearY + game.bearSize / 2f, r)
         game.tick(1f / 60f, onCoin = {}, onDeath = {})
         assertEquals(6, game.combo)
+        assertEquals(6, game.maxCombo)
 
         // 一枚金币飞出左边界未接住：断连击
         game.coins.clear()
         game.coins += Coin(-r - 100f, game.groundY, r)
         game.tick(1f / 60f, onCoin = {}, onDeath = {})
         assertEquals(0, game.combo)
+        assertEquals(6, game.maxCombo)
     }
 }

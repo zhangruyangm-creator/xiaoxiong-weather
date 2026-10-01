@@ -4,11 +4,26 @@
     <string name="bear_game_exit">回到天气</string>
     <string name="bear_star_restart">再来一局</string>
     <string name="bear_game_view_rank">查看排行榜</string>
-    <string name="bear_jump_hint">按住左右拖动控制方向，踩云朵向上跳\n彩虹云跳更高，乌云一踩就碎</string>
+    <string name="bear_jump_hint">按住左右拖动控制方向，踩云朵向上跳\n彩虹云跳更高，乌云一踩就碎；擦边与连跳可加分</string>
     <string name="bear_jump_over">哎呀，掉下来了</string>
     <string name="bear_jump_start">开始摘星</string>
     <string name="bear_jump_title">小熊摘星</string>
     <string name="bear_leaderboard_rank_label">排名 %1$d</string>
     <string name="bear_leaderboard_title">排行榜</string>
     <string name="cd_close_game">退出游戏</string>
+    <string name="bear_star_difficulty_label">难度</string>
+    <string name="bear_star_difficulty_casual">轻松</string>
+    <string name="bear_star_difficulty_standard">标准</string>
+    <string name="bear_star_difficulty_challenge">挑战</string>
+    <string name="bear_star_combo">连跳 ×%1$d</string>
+    <string name="bear_star_graze">擦边 %1$d</string>
+    <string name="bear_star_band_dusk">进入黄昏云层</string>
+    <string name="bear_star_band_night">进入夜空</string>
+    <string name="bear_star_band_space">冲入星海</string>
+    <string name="bear_star_trail_tint">尾迹涂装</string>
+    <string name="bear_star_tint_classic">经典</string>
+    <string name="bear_star_tint_gold">鎏金</string>
+    <string name="bear_star_tint_midnight">夜航</string>
+    <string name="bear_star_tint_rose">蔷薇</string>
+    <string name="bear_star_tint_aurora">极光</string>
 </resources>

@@ -113,6 +113,17 @@ object PlaneLogic {
     /** 直升机向下扇形射击的张角（弧度）。 */
     const val HELI_DOWN_FAN_SPREAD = 0.24f
 
+    /** 侦察机之字形：每段时长（tick）与横向速度相对基准速度的倍率。 */
+    const val SCOUT_ZIG_TICKS = 28
+    const val SCOUT_ZIG_SPEED_MUL = 1.15f
+
+    /** 轰炸机三连落弹的横向间距（逻辑单位）与相对弹速。 */
+    const val BOMBER_BOMB_SPACING = 4.2f
+    const val BOMBER_BOMB_SPEED_MUL = 0.72f
+
+    /** 狙击机停驻开火窗口（从出生计时）；超时后下行脱离，避免卡波。 */
+    const val SNIPER_EXIT_AFTER_TICKS = 360
+
     /** Boss 停靠高度、横向扫射角频率与速度。 */
     const val BOSS_HOLD_Y = 22f
     const val BOSS_SWEEP_OMEGA = 1.1f
@@ -323,7 +334,8 @@ object PlaneLogic {
     /**
      * 敌人本次开火的弹幕。Boss 按 [PlaneEnemy.bossPhase] 切换：
      * 0 追踪扇形 / 1 扇形 + 环形 / 2 旋转环 + 密集扇形。
-     * 直升机固定向下扇形；装甲车发射瞄准炮弹 + 直射跟踪弹。
+     * 直升机固定向下扇形；装甲车发射瞄准炮弹 + 直射跟踪弹；
+     * 侦察机单发瞄准；轰炸机三连垂直落弹；狙击机高速单发瞄准。
      * [waveIndex] 参与弹速的波次成长（与 [PlaneConfig.enemySpec] 口径一致）。
      */
     fun enemyBulletSpecs(
@@ -342,7 +354,7 @@ object PlaneLogic {
         return when (enemy.type) {
             PlaneEnemyType.TRANSPORT -> emptyList()
             PlaneEnemyType.BOSS -> bossBulletSpecs(enemy, playerX, playerY, speed, spinPhaseRad)
-            PlaneEnemyType.GRUNT, PlaneEnemyType.DIVER ->
+            PlaneEnemyType.GRUNT, PlaneEnemyType.DIVER, PlaneEnemyType.SCOUT, PlaneEnemyType.SNIPER ->
                 aimedFan(enemy.x, enemy.y, playerX, playerY, count = 1, spreadRad = 0f, speed = speed)
             PlaneEnemyType.WEAVER ->
                 aimedFan(enemy.x, enemy.y, playerX, playerY, count = 2, spreadRad = 0.20f, speed = speed)
@@ -354,10 +366,30 @@ object PlaneLogic {
                     spreadRad = HELI_DOWN_FAN_SPREAD,
                     speed = speed,
                 )
+            PlaneEnemyType.BOMBER -> bomberBombSpecs(enemy.x, enemy.y, speed)
             PlaneEnemyType.TANK -> tankBulletSpecs(enemy, playerX, playerY, speed)
             PlaneEnemyType.TURRET ->
                 aimedFan(enemy.x, enemy.y, playerX, playerY, count = 2, spreadRad = 0.26f, speed = speed) +
                     turretBarSpec(enemy.x, enemy.y, speed)
+        }
+    }
+
+    /** 轰炸机落弹：机身中线两侧各一发 + 正中一发，全部竖直下落封锁走位。 */
+    fun bomberBombSpecs(
+        x: Float,
+        y: Float,
+        speed: Float,
+    ): List<PlaneBulletSpec> {
+        val vy = speed * BOMBER_BOMB_SPEED_MUL
+        return listOf(-BOMBER_BOMB_SPACING, 0f, BOMBER_BOMB_SPACING).map { dx ->
+            PlaneBulletSpec(
+                x = x + dx,
+                y = y,
+                vx = 0f,
+                vy = vy,
+                radius = PlaneConfig.ENEMY_BULLET_RADIUS * 1.15f,
+                angle = HALF_PI,
+            )
         }
     }
 
@@ -438,8 +470,24 @@ object PlaneLogic {
             else -> bulletHitsCircle(bullet, cx, cy, cr)
         }
 
-    /** Boss 三阶段弹幕（数量确定，便于单测）。 */
+    /** Boss 三阶段弹幕（按 [PlaneEnemy.bossKind] 分支，数量确定便于单测）。 */
     fun bossBulletSpecs(
+        boss: PlaneEnemy,
+        playerX: Float,
+        playerY: Float,
+        speed: Float,
+        spinPhaseRad: Float,
+    ): List<PlaneBulletSpec> =
+        when (boss.bossKind) {
+            PlaneBossKind.STANDARD ->
+                standardBossBulletSpecs(boss, playerX, playerY, speed, spinPhaseRad)
+            PlaneBossKind.RINGMASTER ->
+                ringmasterBossBulletSpecs(boss, playerX, playerY, speed, spinPhaseRad)
+            PlaneBossKind.STRIKER ->
+                strikerBossBulletSpecs(boss, playerX, playerY, speed, spinPhaseRad)
+        }
+
+    private fun standardBossBulletSpecs(
         boss: PlaneEnemy,
         playerX: Float,
         playerY: Float,
@@ -498,6 +546,118 @@ object PlaneLogic {
                     )
         }
 
+    /** 环幕主宰：密环封锁走位，瞄准弹更少。 */
+    private fun ringmasterBossBulletSpecs(
+        boss: PlaneEnemy,
+        playerX: Float,
+        playerY: Float,
+        speed: Float,
+        spinPhaseRad: Float,
+    ): List<PlaneBulletSpec> =
+        when (boss.bossPhase) {
+            0 ->
+                ring(
+                    boss.x,
+                    boss.y,
+                    count = 8,
+                    speed = speed * 0.88f,
+                    phaseRad = spinPhaseRad,
+                    radius = PlaneConfig.BOSS_BULLET_RADIUS,
+                )
+            1 ->
+                ring(
+                    boss.x,
+                    boss.y,
+                    count = 10,
+                    speed = speed * 0.9f,
+                    phaseRad = spinPhaseRad,
+                    radius = PlaneConfig.BOSS_BULLET_RADIUS,
+                ) +
+                    ring(
+                        boss.x,
+                        boss.y,
+                        count = 6,
+                        speed = speed * 0.78f,
+                        phaseRad = spinPhaseRad + 0.35f,
+                        radius = PlaneConfig.BOSS_BULLET_RADIUS * 0.9f,
+                    )
+            else ->
+                ring(
+                    boss.x,
+                    boss.y,
+                    count = 14,
+                    speed = speed * 0.92f,
+                    phaseRad = spinPhaseRad * 1.4f,
+                    radius = PlaneConfig.BOSS_BULLET_RADIUS,
+                ) +
+                    aimedFan(
+                        boss.x,
+                        boss.y,
+                        playerX,
+                        playerY,
+                        count = 2,
+                        spreadRad = 0.18f,
+                        speed = speed,
+                        radius = PlaneConfig.BOSS_BULLET_RADIUS,
+                    )
+        }
+
+    /** 强袭战机：密瞄准扇形 + 阶段 1 两侧长条封锁。 */
+    private fun strikerBossBulletSpecs(
+        boss: PlaneEnemy,
+        playerX: Float,
+        playerY: Float,
+        speed: Float,
+        spinPhaseRad: Float,
+    ): List<PlaneBulletSpec> =
+        when (boss.bossPhase) {
+            0 ->
+                aimedFan(
+                    boss.x,
+                    boss.y,
+                    playerX,
+                    playerY,
+                    count = 5,
+                    spreadRad = 0.14f,
+                    speed = speed * 1.08f,
+                    radius = PlaneConfig.BOSS_BULLET_RADIUS,
+                )
+            1 ->
+                aimedFan(
+                    boss.x,
+                    boss.y,
+                    playerX,
+                    playerY,
+                    count = 3,
+                    spreadRad = 0.22f,
+                    speed = speed * 1.05f,
+                    radius = PlaneConfig.BOSS_BULLET_RADIUS,
+                ) +
+                    listOf(
+                        turretBarSpec(boss.x - 16f, boss.y, speed * 0.85f),
+                        turretBarSpec(boss.x + 16f, boss.y, speed * 0.85f),
+                    )
+            else ->
+                aimedFan(
+                    boss.x,
+                    boss.y,
+                    playerX,
+                    playerY,
+                    count = 7,
+                    spreadRad = 0.28f,
+                    speed = speed * 1.1f,
+                    radius = PlaneConfig.BOSS_BULLET_RADIUS,
+                ) +
+                    ring(
+                        boss.x,
+                        boss.y,
+                        count = 6,
+                        speed = speed * 0.9f,
+                        phaseRad = spinPhaseRad,
+                        radius = PlaneConfig.BOSS_BULLET_RADIUS,
+                    )
+        }
+
     // ---------------------------------------------------------------------
     // 敌人行为
     // ---------------------------------------------------------------------
@@ -505,7 +665,8 @@ object PlaneLogic {
     /**
      * 敌人当前是否允许开火（还须配合 [PlaneEnemy.fireTimerTicks] 计时）：
      * - 小兵按 id 奇偶交替开火，控制弹幕总量；
-     * - 俯冲兵俯冲后才开火；炮台停靠后才开火；直升机悬停后才开火；
+     * - 俯冲兵俯冲后才开火；炮台 / 狙击机停靠后才开火；直升机悬停后才开火；
+     * - 狙击机脱离阶段不再开火；
      * - 装甲车贴地巡行时即可开火（地面单位不适用常规场高限制）。
      */
     fun enemyWantsFire(
@@ -527,6 +688,8 @@ object PlaneLogic {
             PlaneEnemyType.DIVER -> enemy.ageTicks >= DIVER_DIVE_AFTER_TICKS
             PlaneEnemyType.TURRET -> enemy.y >= enemy.targetY - 1f
             PlaneEnemyType.HELI -> enemy.y >= HELI_HOVER_Y - 1f
+            PlaneEnemyType.SNIPER ->
+                enemy.y >= enemy.targetY - 1f && enemy.ageTicks < SNIPER_EXIT_AFTER_TICKS
             else -> true
         }
     }
@@ -550,7 +713,11 @@ object PlaneLogic {
             return enemy.vx to enemy.vy
         }
         return when (enemy.type) {
-            PlaneEnemyType.GRUNT, PlaneEnemyType.TRANSPORT -> 0f to base
+            PlaneEnemyType.GRUNT, PlaneEnemyType.TRANSPORT, PlaneEnemyType.BOMBER -> 0f to base
+            PlaneEnemyType.SCOUT -> {
+                val dir = if ((enemy.ageTicks / SCOUT_ZIG_TICKS) % 2 == 0) 1f else -1f
+                dir * base * SCOUT_ZIG_SPEED_MUL to base
+            }
             PlaneEnemyType.DIVER -> {
                 if (enemy.ageTicks < DIVER_DIVE_AFTER_TICKS) {
                     0f to base
@@ -564,6 +731,12 @@ object PlaneLogic {
             PlaneEnemyType.WEAVER ->
                 (WEAVE_AMP * WEAVE_OMEGA * cos(enemy.ageTicks * WEAVE_OMEGA / 60f)) to base * 0.75f
             PlaneEnemyType.TURRET -> if (enemy.y < enemy.targetY - 0.5f) 0f to base else 0f to 0f
+            PlaneEnemyType.SNIPER ->
+                when {
+                    enemy.y < enemy.targetY - 0.5f -> 0f to base
+                    enemy.ageTicks >= SNIPER_EXIT_AFTER_TICKS -> 0f to base * 1.4f
+                    else -> 0f to 0f
+                }
             PlaneEnemyType.HELI -> {
                 if (enemy.y < HELI_HOVER_Y) {
                     0f to base
@@ -592,10 +765,28 @@ object PlaneLogic {
                 enemy.vx to vy
             }
             PlaneEnemyType.BOSS -> {
-                val vy = if (enemy.y < BOSS_HOLD_Y) base else 0f
+                val holdY =
+                    when (enemy.bossKind) {
+                        PlaneBossKind.RINGMASTER -> 26f
+                        PlaneBossKind.STRIKER -> 18f
+                        PlaneBossKind.STANDARD -> BOSS_HOLD_Y
+                    }
+                val omega =
+                    when (enemy.bossKind) {
+                        PlaneBossKind.STRIKER -> 1.6f
+                        PlaneBossKind.RINGMASTER -> 0.7f
+                        PlaneBossKind.STANDARD -> BOSS_SWEEP_OMEGA
+                    }
+                val sweep =
+                    when (enemy.bossKind) {
+                        PlaneBossKind.STRIKER -> 36f
+                        PlaneBossKind.RINGMASTER -> 16f
+                        PlaneBossKind.STANDARD -> BOSS_SWEEP_SPEED
+                    }
+                val vy = if (enemy.y < holdY) base else 0f
                 // cos（而非 sin）积分后才是围绕出生点左右对称的往返扫射：
                 // sin 速度的积分是单侧振荡，Boss 永远不会扫到出生点左侧，左半场站桩玩家打不到 Boss。
-                (cos(enemy.ageTicks * BOSS_SWEEP_OMEGA / 60f) * BOSS_SWEEP_SPEED) to vy
+                (cos(enemy.ageTicks * omega / 60f) * sweep) to vy
             }
         }
     }

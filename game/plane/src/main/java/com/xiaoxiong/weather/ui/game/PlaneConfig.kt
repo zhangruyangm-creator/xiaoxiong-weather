@@ -77,7 +77,7 @@ enum class PlaneDifficulty(
     }
 }
 
-/** 敌人类型：小兵 / 俯冲 / 摆渡 / 炮台 / 运输机 / 直升机 / 装甲车 / Boss。 */
+/** 敌人类型：小兵 / 俯冲 / 摆渡 / 炮台 / 运输机 / 直升机 / 装甲车 / 侦察 / 轰炸 / 狙击 / Boss。 */
 enum class PlaneEnemyType(
     val baseHp: Int,
     /** 基准速度（逻辑单位 / 秒）。 */
@@ -108,6 +108,15 @@ enum class PlaneEnemyType(
 
     /** 装甲车：从画面下方进场爬升至地面线，横向巡行并向上发射炮弹 / 瞄准弹。 */
     TANK(9, 15f, 260, 3.3f, 165, 60f),
+
+    /** 侦察机：高速之字形穿梭，低血高频瞄准点射。 */
+    SCOUT(2, 32f, 130, 2.0f, 110, 68f),
+
+    /** 轰炸机：缓慢下行，投下三连垂直落弹封锁走位。 */
+    BOMBER(7, 12f, 210, 3.5f, 155, 42f),
+
+    /** 狙击机：下降到 [PlaneSpawnDef.targetY] 停驻，高速点射后脱离。 */
+    SNIPER(4, 24f, 200, 2.5f, 95, 92f),
 
     /** Boss（每 5 波）：三阶段弹幕。 */
     BOSS(120, 20f, 3000, 9f, 95, 58f),
@@ -154,17 +163,39 @@ data class PlaneSpawnDef(
     val vy: Float = 0f,
     /** 入场方向：-1 左侧 / 0 顶部 / 1 右侧。 */
     val side: Int = 0,
-    /** 炮台停靠高度（仅 TURRET 使用）。 */
+    /** 炮台停靠高度（TURRET / SNIPER 使用）。 */
     val targetY: Float = 0f,
     /** 从画面下方进场（仅 TANK 使用；非 0 时 [y] 忽略，按当前场高换算）。 */
     val fromBottom: Boolean = false,
 )
+
+/**
+ * 波次主题：决定刷怪表与标题横幅文案。
+ * 由波次号纯函数推导，不写入快照（恢复时 [PlaneConfig.wave] 重算）。
+ */
+enum class PlaneWaveTheme {
+    /** 常规四编队循环。 */
+    NORMAL,
+
+    /** Boss 波。 */
+    BOSS,
+
+    /** 侦察机潮：高速之字机群。 */
+    SCOUT_SWARM,
+
+    /** 轰炸跑道：重型轰炸机压境。 */
+    BOMBER_RUN,
+
+    /** 狙击巢穴：定点高速点射。 */
+    SNIPER_NEST,
+}
 
 /** 一波的完整定义。 */
 data class PlaneWaveDef(
     val index: Int,
     val isBoss: Boolean,
     val spawns: List<PlaneSpawnDef>,
+    val theme: PlaneWaveTheme = PlaneWaveTheme.NORMAL,
 )
 
 /**
@@ -186,11 +217,17 @@ object PlaneConfig {
     /** 默认开局命数；实际命数由 [PlaneGame.startLives]（设置持久化）决定。 */
     const val START_LIVES = 3
     const val START_LIVES_MIN = 1
-    const val START_LIVES_MAX = 9
+    const val START_LIVES_MAX = 30
+
+    /**
+     * HUD 生命小熊头最多并排几个；超过后改用「图标 + 数字」紧凑显示，
+     * 避免 30 命时底部状态条被图标撑爆。
+     */
+    const val HUD_LIFE_ICON_MAX = 8
     const val START_BOMBS = 2
     const val MAX_BOMBS = 5
     const val MIN_WEAPON_LEVEL = 1
-    const val MAX_WEAPON_LEVEL = 4
+    const val MAX_WEAPON_LEVEL = 5
 
     // 连杀 / 擦弹
     const val COMBO_WINDOW_TICKS = 180
@@ -251,7 +288,13 @@ object PlaneConfig {
     private const val WAVE_FORMATION_STAGE_CAP = 8
 
     // 道具 / 特效
-    const val DROP_BASE_CHANCE = 0.22f
+    const val DROP_BASE_CHANCE = 0.26f
+
+    /** 护盾道具无敌时长（tick）。 */
+    const val SHIELD_INVULN_TICKS = 180
+
+    /** 满级再吃武器时的过载时长（tick，约 5 秒）。 */
+    const val OVERDRIVE_TICKS = 300
     const val POWERUP_RADIUS = 1.8f
     const val POWERUP_PICKUP_PADDING = 1.4f
     const val POWERUP_SCORE = 50
@@ -316,7 +359,7 @@ object PlaneConfig {
             ).roundToInt().coerceAtLeast(MIN_FIRE_INTERVAL_TICKS)
         }
 
-    /** 武器等级规格；越界自动钳制到 1..4。 */
+    /** 武器等级规格；越界自动钳制到 1..[MAX_WEAPON_LEVEL]。 */
     fun weaponSpec(level: Int): PlaneWeaponSpec =
         when (level.coerceIn(MIN_WEAPON_LEVEL, MAX_WEAPON_LEVEL)) {
             1 ->
@@ -349,7 +392,7 @@ object PlaneConfig {
                     offsetX = 0f,
                     speed = 160f,
                 )
-            else ->
+            4 ->
                 PlaneWeaponSpec(
                     level = 4,
                     intervalTicks = 7,
@@ -360,6 +403,58 @@ object PlaneConfig {
                     speed = 205f,
                     piercing = true,
                 )
+            else ->
+                // Lv5 双管穿透激光：火力顶格，吃满道具线的正反馈
+                PlaneWeaponSpec(
+                    level = 5,
+                    intervalTicks = 6,
+                    damage = 2,
+                    count = 2,
+                    spreadRad = 0f,
+                    offsetX = 2.8f,
+                    speed = 220f,
+                    piercing = true,
+                )
+        }
+
+    /**
+     * 非 Boss 波次主题：每 20 波循环插入 3 种特殊内容波，其余走常规编队。
+     * 纯函数，便于横幅文案与单测。
+     */
+    fun waveTheme(index: Int): PlaneWaveTheme {
+        if (index <= 0) return PlaneWaveTheme.NORMAL
+        if (index % PLANE_BOSS_EVERY == 0) return PlaneWaveTheme.BOSS
+        return when (index % 20) {
+            3 -> PlaneWaveTheme.SCOUT_SWARM
+            8 -> PlaneWaveTheme.BOMBER_RUN
+            13 -> PlaneWaveTheme.SNIPER_NEST
+            else -> PlaneWaveTheme.NORMAL
+        }
+    }
+
+    /** 是否展示「里程碑」横幅：第 9 / 19 / 29… 波（Boss 前一波，避开 Boss 与特殊主题冲突）。 */
+    fun isMilestoneWave(index: Int): Boolean = index >= 9 && index % 10 == 9
+
+    /**
+     * Boss 种类：按 Boss 序号轮换（第 5→STANDARD、第 10→RINGMASTER、第 15→STRIKER…）。
+     * 纯函数，与刷怪表一致。
+     */
+    fun bossKindForWave(index: Int): PlaneBossKind {
+        if (index <= 0 || index % PLANE_BOSS_EVERY != 0) return PlaneBossKind.STANDARD
+        val cycle = ((index / PLANE_BOSS_EVERY) - 1).coerceAtLeast(0)
+        return PlaneBossKind.entries[cycle % PlaneBossKind.entries.size]
+    }
+
+    /**
+     * 掉落权重：武器 48 / 炸弹 24 / 护盾 16 / 续命 12。
+     * [roll] 为 [0, 100) 的确定性掷骰结果。
+     */
+    fun rollPowerUpKind(roll: Int): PlanePowerUpKind =
+        when (roll.coerceIn(0, 99)) {
+            in 0 until 48 -> PlanePowerUpKind.WEAPON
+            in 48 until 72 -> PlanePowerUpKind.BOMB
+            in 72 until 88 -> PlanePowerUpKind.SHIELD
+            else -> PlanePowerUpKind.LIFE
         }
 
     /**
@@ -395,6 +490,7 @@ object PlaneConfig {
             return PlaneWaveDef(
                 index = index,
                 isBoss = true,
+                theme = PlaneWaveTheme.BOSS,
                 spawns =
                     listOf(
                         PlaneSpawnDef(
@@ -404,6 +500,15 @@ object PlaneConfig {
                             delayTicks = 0,
                         ),
                     ),
+            )
+        }
+        val theme = waveTheme(index)
+        if (theme != PlaneWaveTheme.NORMAL) {
+            return PlaneWaveDef(
+                index = index,
+                isBoss = false,
+                theme = theme,
+                spawns = specialWaveSpawns(index, theme).sortedBy { it.delayTicks },
             )
         }
         val stage = (index - 1) / PLANE_BOSS_EVERY + 1
@@ -432,6 +537,16 @@ object PlaneConfig {
                             x = 22f + i * 18f,
                             y = -7f,
                             delayTicks = 60 + i * 26,
+                        )
+                }
+                val scouts = (1 + stage / 2).coerceAtMost(4)
+                for (i in 0 until scouts) {
+                    spawns +=
+                        PlaneSpawnDef(
+                            type = PlaneEnemyType.SCOUT,
+                            x = 20f + i * 16f,
+                            y = -5f,
+                            delayTicks = 100 + i * 18,
                         )
                 }
             }
@@ -480,6 +595,16 @@ object PlaneConfig {
                             fromBottom = true,
                         )
                 }
+                val bombers = (1 + stage / 2).coerceAtMost(3)
+                for (i in 0 until bombers) {
+                    spawns +=
+                        PlaneSpawnDef(
+                            type = PlaneEnemyType.BOMBER,
+                            x = 28f + i * 22f,
+                            y = -8f,
+                            delayTicks = 250 + i * 28,
+                        )
+                }
             }
             3 -> {
                 for (i in 0 until 4 + cappedStage) {
@@ -512,6 +637,17 @@ object PlaneConfig {
                         vx = if (stage % 2 == 0) 12f else -12f,
                         fromBottom = true,
                     )
+                val snipers = (1 + stage / 2).coerceAtMost(3)
+                for (i in 0 until snipers) {
+                    spawns +=
+                        PlaneSpawnDef(
+                            type = PlaneEnemyType.SNIPER,
+                            x = if (i % 2 == 0) 34f else 66f,
+                            y = -5f,
+                            delayTicks = 190 + i * 30,
+                            targetY = 40f + i * 4f,
+                        )
+                }
             }
             else -> {
                 for (i in 0 until 3 + cappedStage) {
@@ -565,8 +701,115 @@ object PlaneConfig {
                             fromBottom = true,
                         )
                 }
+                // 编队 4：三种新敌人各露一手，保证高波次也有辨识度
+                spawns +=
+                    PlaneSpawnDef(
+                        type = PlaneEnemyType.SCOUT,
+                        x = 42f,
+                        y = -5f,
+                        delayTicks = 160,
+                    )
+                spawns +=
+                    PlaneSpawnDef(
+                        type = PlaneEnemyType.BOMBER,
+                        x = 58f,
+                        y = -8f,
+                        delayTicks = 280,
+                    )
+                spawns +=
+                    PlaneSpawnDef(
+                        type = PlaneEnemyType.SNIPER,
+                        x = 50f,
+                        y = -5f,
+                        delayTicks = 340,
+                        targetY = 38f,
+                    )
             }
         }
-        return PlaneWaveDef(index, isBoss = false, spawns = spawns.sortedBy { it.delayTicks })
+        return PlaneWaveDef(
+            index = index,
+            isBoss = false,
+            theme = PlaneWaveTheme.NORMAL,
+            spawns = spawns.sortedBy { it.delayTicks },
+        )
+    }
+
+    /** 特殊内容波刷怪表（主题已非 NORMAL）。 */
+    private fun specialWaveSpawns(
+        index: Int,
+        theme: PlaneWaveTheme,
+    ): List<PlaneSpawnDef> {
+        val stage = ((index - 1) / PLANE_BOSS_EVERY + 1).coerceAtMost(WAVE_FORMATION_STAGE_CAP)
+        val spawns = mutableListOf<PlaneSpawnDef>()
+        when (theme) {
+            PlaneWaveTheme.SCOUT_SWARM -> {
+                // 行数 / 列数软封顶，避免高 stage 同屏 60+ 机把峰值与性能冲破
+                val rows = (2 + stage / 2).coerceAtMost(4)
+                val count = (5 + stage / 2).coerceAtMost(9)
+                for (row in 0 until rows) {
+                    for (i in 0 until count) {
+                        spawns +=
+                            PlaneSpawnDef(
+                                type = PlaneEnemyType.SCOUT,
+                                x = 12f + i * (76f / (count - 1).coerceAtLeast(1)),
+                                y = -5f - row * 8f,
+                                delayTicks = 12 + row * 28 + i * 6,
+                            )
+                    }
+                }
+                spawns += PlaneSpawnDef(PlaneEnemyType.TRANSPORT, 50f, -8f, 160 + rows * 20)
+            }
+            PlaneWaveTheme.BOMBER_RUN -> {
+                val bombers = (3 + stage / 2).coerceAtMost(7)
+                for (i in 0 until bombers) {
+                    spawns +=
+                        PlaneSpawnDef(
+                            type = PlaneEnemyType.BOMBER,
+                            x = 18f + i * (64f / (bombers - 1).coerceAtLeast(1)),
+                            y = -8f,
+                            delayTicks = 20 + i * 22,
+                        )
+                }
+                val divers = (2 + stage / 2).coerceAtMost(5)
+                for (i in 0 until divers) {
+                    spawns +=
+                        PlaneSpawnDef(
+                            type = PlaneEnemyType.DIVER,
+                            x = 22f + i * 18f,
+                            y = -5f,
+                            delayTicks = 140 + i * 18,
+                        )
+                }
+                spawns += PlaneSpawnDef(PlaneEnemyType.TRANSPORT, 35f, -8f, 200)
+                spawns += PlaneSpawnDef(PlaneEnemyType.TRANSPORT, 65f, -8f, 230)
+            }
+            PlaneWaveTheme.SNIPER_NEST -> {
+                val snipers = (3 + stage / 2).coerceAtMost(6)
+                for (i in 0 until snipers) {
+                    spawns +=
+                        PlaneSpawnDef(
+                            type = PlaneEnemyType.SNIPER,
+                            x = 18f + i * (64f / (snipers - 1).coerceAtLeast(1)),
+                            y = -5f,
+                            delayTicks = 16 + i * 20,
+                            targetY = 34f + (i % 3) * 8f,
+                        )
+                }
+                spawns += PlaneSpawnDef(PlaneEnemyType.TURRET, 30f, -5f, 120, targetY = 28f)
+                spawns += PlaneSpawnDef(PlaneEnemyType.TURRET, 70f, -5f, 150, targetY = 28f)
+                val weavers = (2 + stage / 2).coerceAtMost(5)
+                for (i in 0 until weavers) {
+                    spawns +=
+                        PlaneSpawnDef(
+                            type = PlaneEnemyType.WEAVER,
+                            x = 20f + i * 20f,
+                            y = -5f,
+                            delayTicks = 200 + i * 16,
+                        )
+                }
+            }
+            else -> Unit
+        }
+        return spawns
     }
 }

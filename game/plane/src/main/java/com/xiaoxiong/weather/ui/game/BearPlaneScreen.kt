@@ -44,7 +44,7 @@ private const val PREF_PLANE_BEST_PREFIX = "plane_best_"
 private const val PREF_PLANE_BEST_WAVE_PREFIX = "plane_best_wave_"
 private const val PREF_PLANE_LEADERBOARD_PREFIX = "leaderboard_plane_"
 
-/** 开局命数持久化 key（1..9，默认 3）。 */
+/** 开局命数持久化 key（1..[PlaneConfig.START_LIVES_MAX]，默认 3）。 */
 internal const val PLANE_START_LIVES_KEY = "plane_start_lives"
 
 /** 波次横幅展示时长（毫秒）。 */
@@ -60,11 +60,11 @@ internal const val PLANE_FINGER_OFFSET_LOGICAL = 10f
 internal fun planeTouchTargetY(touchLogicalY: Float): Float =
     if (touchLogicalY.isFinite()) touchLogicalY - PLANE_FINGER_OFFSET_LOGICAL else touchLogicalY
 
-/** 读取持久化的开局命数并夹到 1..9（缺省 / 坏值回退默认 3）。 */
+/** 读取持久化的开局命数并夹到合法区间（缺省 / 坏值回退默认 3）。 */
 internal fun planeStartLivesOf(prefs: SharedPreferences): Int =
     planeClampStartLives(prefs.intOr(PLANE_START_LIVES_KEY, PlaneConfig.START_LIVES))
 
-/** 开局命数夹取：1..9。 */
+/** 开局命数夹取。 */
 internal fun planeClampStartLives(value: Int): Int = value.coerceIn(PlaneConfig.START_LIVES_MIN, PlaneConfig.START_LIVES_MAX)
 
 private fun planeBestKey(difficulty: PlaneDifficulty): String = PREF_PLANE_BEST_PREFIX + difficulty.id
@@ -125,6 +125,13 @@ fun BearPlaneScreen(
     var hudWeapon by remember { mutableIntStateOf(game.player.weaponLevel) }
     var hudWave by remember { mutableIntStateOf(game.waveIndex) }
     var hudBossActive by remember { mutableStateOf(game.bossActive) }
+    var hudCombo by remember { mutableIntStateOf(game.combo) }
+    var hudGraze by remember { mutableIntStateOf(game.grazeCount) }
+    var hudOverdrive by remember { mutableStateOf(game.player.overdriveTicks > 0) }
+    var shipTint by remember {
+        mutableStateOf(PlaneShipTint.fromId(prefs.stringOr(PLANE_SHIP_TINT_KEY)))
+    }
+    var bossWarningKind by remember { mutableStateOf(PlaneBossKind.STANDARD) }
 
     var difficultyState by remember { mutableStateOf(game.difficulty) }
     var best by remember { mutableIntStateOf(0) }
@@ -163,6 +170,9 @@ fun BearPlaneScreen(
                 // 快照难度可能与 prefs 不同：同步状态与最高分 key，避免读写错档
                 difficultyState = game.difficulty
                 bossWarningVisible = game.bossWarningTicks > 0
+                if (bossWarningVisible) {
+                    bossWarningKind = PlaneConfig.bossKindForWave(game.waveIndex)
+                }
             },
         )
 
@@ -178,6 +188,10 @@ fun BearPlaneScreen(
         if (hudWeapon != game.player.weaponLevel) hudWeapon = game.player.weaponLevel
         if (hudWave != game.waveIndex) hudWave = game.waveIndex
         if (hudBossActive != game.bossActive) hudBossActive = game.bossActive
+        if (hudCombo != game.combo) hudCombo = game.combo
+        if (hudGraze != game.grazeCount) hudGraze = game.grazeCount
+        val overdrive = game.player.overdriveTicks > 0
+        if (hudOverdrive != overdrive) hudOverdrive = overdrive
     }
 
     fun submitResult() {
@@ -238,6 +252,10 @@ fun BearPlaneScreen(
         waveBannerWave = game.waveIndex
         best = bestOf(game.difficulty)
         bestWave = bestWaveOf(game.difficulty)
+        if (!planeShipTintUnlocked(shipTint, bestWave)) {
+            shipTint = PlaneShipTint.CLASSIC
+            prefs.edit { putString(PLANE_SHIP_TINT_KEY, shipTint.id) }
+        }
         syncHud()
         frame++
     }
@@ -276,8 +294,12 @@ fun BearPlaneScreen(
             }
             if (events.playerHit) {
                 view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                frameState.onPlayerHit()
+                frameState.onPlayerHit(nowMs)
                 GameAudio.play(GameCue.HIT)
+            }
+            if (events.graze) {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                if (cueGate.allowGraze(nowMs)) GameAudio.play(GameCue.GRAZE)
             }
             if (events.bomb) {
                 view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
@@ -286,6 +308,7 @@ fun BearPlaneScreen(
             }
             if (events.bossWarning) {
                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                bossWarningKind = PlaneConfig.bossKindForWave(game.waveIndex)
                 bossWarningVisible = true
                 GameAudio.play(GameCue.WARNING)
             }
@@ -385,6 +408,7 @@ fun BearPlaneScreen(
                 freezingRain = freezingRain,
                 hail = hail,
                 reduceMotion = systemReduceMotion,
+                shipTint = shipTint,
             )
         }
 
@@ -421,6 +445,9 @@ fun BearPlaneScreen(
                     maxLives = game.startLives,
                     bombs = hudBombs,
                     weaponLevel = hudWeapon,
+                    combo = hudCombo,
+                    graze = hudGraze,
+                    overdrive = hudOverdrive,
                     bombEnabled = hudBombs > 0 && hudPhase == PlanePhase.PLAYING,
                     onBomb = {
                         game.useBomb()
@@ -432,10 +459,10 @@ fun BearPlaneScreen(
 
         // 波次 / Boss 预警横幅（主题卡片）
         if (waveBannerToken > 0 && !bossWarningVisible) {
-            PlaneWaveBanner(text = stringResource(R.string.bear_plane_wave, waveBannerWave.coerceAtLeast(1)))
+            PlaneWaveBanner(text = planeWaveBannerText(waveBannerWave))
         }
         if (bossWarningVisible) {
-            PlaneBossWarningBanner(text = stringResource(R.string.bear_plane_boss_warning))
+            PlaneBossWarningBanner(text = planeBossWarningText(bossWarningKind))
         }
 
         when (hudPhase) {
@@ -445,6 +472,7 @@ fun BearPlaneScreen(
                     best = best,
                     bestWave = bestWave,
                     startLives = startLives,
+                    shipTint = shipTint,
                     soundEnabled = soundEnabled,
                     frame = { frame },
                     isDay = day,
@@ -456,6 +484,10 @@ fun BearPlaneScreen(
                         prefs.edit { putString(PREF_PLANE_DIFF, difficulty.id) }
                         best = bestOf(difficulty)
                         bestWave = bestWaveOf(difficulty)
+                        if (!planeShipTintUnlocked(shipTint, bestWave)) {
+                            shipTint = PlaneShipTint.CLASSIC
+                            prefs.edit { putString(PLANE_SHIP_TINT_KEY, shipTint.id) }
+                        }
                         frame++
                     },
                     onStartLivesChange = { value ->
@@ -465,6 +497,14 @@ fun BearPlaneScreen(
                             startLives = clamped
                             game.startLives = clamped
                             prefs.edit { putInt(PLANE_START_LIVES_KEY, clamped) }
+                            frame++
+                        }
+                    },
+                    onShipTint = { tint ->
+                        if (planeShipTintUnlocked(tint, bestWave) && tint != shipTint) {
+                            GameAudio.play(GameCue.UI_CLICK)
+                            shipTint = tint
+                            prefs.edit { putString(PLANE_SHIP_TINT_KEY, tint.id) }
                             frame++
                         }
                     },

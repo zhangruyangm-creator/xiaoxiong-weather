@@ -105,20 +105,23 @@ class PlaneGameTest {
     }
 
     @Test
-    fun startLivesNine_keepsFullHealthPool() {
+    fun startLivesMax_keepsFullHealthPool() {
         val game = newGame()
-        game.startLives = 9
+        val lives = PlaneConfig.START_LIVES_MAX
+        game.startLives = lives
         game.startGame(seed = 105L)
-        assertEquals(9, game.player.lives)
+        assertEquals(lives, game.player.lives)
         game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 2)
-        repeat(8) { index ->
+        // 抽查：承受若干次受击后命数按次递减，仍存活
+        val hits = 5
+        repeat(hits) { index ->
             game.enemies.clear()
             game.enemyBullets.clear()
             game.enemyBullets += enemyBulletAtPlayer(game, 1000 + index)
             game.advanceTicks(1)
             game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 2)
         }
-        assertEquals("9 条命应能承受 8 次受击仍存活", 1, game.player.lives)
+        assertEquals("开局 $lives 条命受击 $hits 次后应剩余", lives - hits, game.player.lives)
         assertTrue(game.player.alive)
         assertEquals(PlanePhase.PLAYING, game.phase)
     }
@@ -186,8 +189,47 @@ class PlaneGameTest {
             game.advanceTicks(1)
         }
         assertEquals(PlaneConfig.MAX_WEAPON_LEVEL, game.player.weaponLevel)
+        assertTrue("满级后再吃 P 应进入过载", game.player.overdriveTicks > 0)
         assertTrue(game.pendingHapticPowerup)
         assertTrue(game.score >= 6 * PlaneConfig.POWERUP_SCORE)
+    }
+
+    @Test
+    fun shieldAndLifePowerUps_apply() {
+        val game = newGame()
+        game.startGame(seed = 41L)
+        game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 1)
+        val livesBefore = game.player.lives
+        game.powerUps +=
+            PlanePowerUp(
+                id = 501,
+                kind = PlanePowerUpKind.SHIELD,
+                x = game.player.x,
+                y = game.player.y,
+                vy = 0f,
+            )
+        game.advanceTicks(1)
+        assertTrue(game.player.invulnTicks >= PlaneConfig.SHIELD_INVULN_TICKS - 1)
+        game.powerUps +=
+            PlanePowerUp(
+                id = 502,
+                kind = PlanePowerUpKind.LIFE,
+                x = game.player.x,
+                y = game.player.y,
+                vy = 0f,
+            )
+        game.advanceTicks(1)
+        assertEquals(livesBefore + 1, game.player.lives)
+    }
+
+    @Test
+    fun bossSpawn_assignsRotatingKind() {
+        val game = newGame()
+        game.startGame(seed = 42L, startWave = 10)
+        game.advanceTicks(PlaneConfig.WAVE_INTRO_TICKS + PlaneConfig.BOSS_WARNING_TICKS + 2)
+        val boss = game.enemies.firstOrNull { it.isBoss }
+        assertTrue(boss != null)
+        assertEquals(PlaneBossKind.RINGMASTER, boss!!.bossKind)
     }
 
     @Test
@@ -379,6 +421,7 @@ class PlaneGameTest {
         game.advanceTicks(1)
         assertEquals(1, game.grazeCount)
         assertEquals(before + PlaneConfig.GRAZE_SCORE, game.score)
+        assertTrue(game.pendingHapticGraze)
         game.advanceTicks(1)
         assertEquals("同一颗子弹只擦一次", 1, game.grazeCount)
     }

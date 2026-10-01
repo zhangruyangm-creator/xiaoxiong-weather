@@ -217,6 +217,7 @@
     <string name="search_popular">热门城市</string>
     <string name="search_recent">最近搜索</string>
     <string name="search_recent_clear">清空</string>
+    <string name="season_section_title">花期时令</string>
     <string name="season_autumn_bloom">秋花时令</string>
     <string name="season_blossom_ending">%1$s 等花期接近尾声，想赏花建议抓紧这几天。</string>
     <string name="season_blossom_peak">正值赏花好时节，本地多见 %1$s，晴好天气适合户外走走。</string>
@@ -234,10 +235,14 @@
     <string name="season_phase_upcoming">即将进入</string>
     <string name="season_phenology_early">今年较常年偏暖，物候提前约 %1$d 天</string>
     <string name="season_phenology_late">今年较常年偏冷，物候推迟约 %1$d 天</string>
+    <string name="season_phenology_loading">正在结合今年气温修正时令…</string>
+    <string name="season_gap_headline">下一时令 · %1$s · 约 %2$d 天后</string>
+    <string name="season_gap_body">典型窗口 %1$s，可留意 %2$s 等。</string>
+    <string name="season_teaser_open_daily">查看七日花期详情</string>
     <string name="season_spring_bloom">春花时令</string>
-    <string name="season_sub">%1$s · 按纬度日历推算</string>
+    <string name="season_sub">经验窗口 · 海拔 · 积温修正</string>
     <string name="season_summer_bloom">夏花时令</string>
-    <string name="season_window">%1$d/%2$d–%3$d/%4$d</string>
+    <string name="season_window">%1$d月%2$d日–%3$d月%4$d日</string>
     <string name="season_winter_bloom">冬花时令</string>
     <string name="share_card_cancel">取消</string>
     <string name="share_card_chooser">分享天气卡片</string>

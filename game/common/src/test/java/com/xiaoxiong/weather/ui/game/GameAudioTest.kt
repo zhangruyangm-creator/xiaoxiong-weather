@@ -62,7 +62,7 @@ class GameAudioTest {
     }
 
     @Test
-    fun `cue table exposes the full twenty-four-effect vocabulary`() {
+    fun `cue table exposes the full twenty-five-effect vocabulary`() {
         val expected =
             setOf(
                 "UI_CLICK",
@@ -89,8 +89,9 @@ class GameAudioTest {
                 "POWERUP",
                 "BOMB",
                 "WARNING",
+                "GRAZE",
             )
         assertEquals(expected, GameCue.entries.map { it.name }.toSet())
-        assertEquals(24, GameCue.entries.size)
+        assertEquals(25, GameCue.entries.size)
     }
 }

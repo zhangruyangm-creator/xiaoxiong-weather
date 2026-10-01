@@ -21,6 +21,11 @@ class JumpSnapshotTest {
         source.distance = 1234.5f
         source.speed = 480.25f
         source.coinCount = 7
+        source.coinScore = 95
+        source.combo = 4
+        source.maxCombo = 6
+        source.grazeCount = 3
+        source.difficulty = RunDifficulty.CHALLENGE
         source.bearY = -321.5f
         source.bearVY = 456.75f
         source.jumpsLeft = 1
@@ -35,8 +40,8 @@ class JumpSnapshotTest {
         source.nextGap = 333.5f
         source.best = 999
         source.scene = RunScene.SNOW
-        source.obstacles += Obstacle(ObstacleType.ICE_WALL, 100f, 46f, 210f)
-        source.obstacles += Obstacle(ObstacleType.PUDDLE, 200f, 78f, 20f)
+        source.obstacles += Obstacle(ObstacleType.ICE_WALL, 100f, 46f, 210f, grazed = true)
+        source.obstacles += Obstacle(ObstacleType.PUDDLE, 200f, 78f, 20f, grazed = false)
         source.coins += Coin(50f, 60f, 11f)
         source.clouds.clear()
         source.clouds += BgCloud(10f, 20f, 0.8f, 0.15f)
@@ -49,6 +54,11 @@ class JumpSnapshotTest {
         assertEquals(1234.5f, restored.distance, 1e-3f)
         assertEquals(480.25f, restored.speed, 1e-3f)
         assertEquals(7, restored.coinCount)
+        assertEquals(95, restored.coinScore)
+        assertEquals(4, restored.combo)
+        assertEquals(6, restored.maxCombo)
+        assertEquals(3, restored.grazeCount)
+        assertEquals(RunDifficulty.CHALLENGE, restored.difficulty)
         assertEquals(-321.5f, restored.bearY, 1e-3f)
         assertEquals(456.75f, restored.bearVY, 1e-3f)
         assertEquals(1, restored.jumpsLeft)
@@ -68,6 +78,8 @@ class JumpSnapshotTest {
         assertEquals(100f, restored.obstacles[0].x, 1e-3f)
         assertEquals(46f, restored.obstacles[0].w, 1e-3f)
         assertEquals(210f, restored.obstacles[0].h, 1e-3f)
+        assertTrue("已擦边障碍恢复后不得再计分", restored.obstacles[0].grazed)
+        assertFalse(restored.obstacles[1].grazed)
         assertEquals(1, restored.coins.size)
         assertEquals(50f, restored.coins[0].x, 1e-3f)
         assertEquals(60f, restored.coins[0].y, 1e-3f)
@@ -75,6 +87,30 @@ class JumpSnapshotTest {
         assertEquals(1, restored.clouds.size)
         assertEquals(10f, restored.clouds[0].x, 1e-3f)
         assertEquals(0.8f, restored.clouds[0].scale, 1e-3f)
+    }
+
+    @Test
+    fun restore_legacyMeta_acceptsWithoutComboAndDefaultsCoinScore() {
+        val prefs = FakePrefs()
+        val source = BearGame()
+        source.resize(IntSize(1080, 1920))
+        source.start()
+        source.coinCount = 3
+        source.coinScore = 40
+        source.combo = 3
+        source.saveSnapshot(prefs)
+        // 截断 meta 为旧 22 字段，模拟 legacy 档
+        val raw = prefs.stringOr(key)!!
+        val lines = raw.split('\n').toMutableList()
+        val meta = lines[0].split(',').take(22)
+        lines[0] = meta.joinToString(",")
+        prefs.edit().putString(key, lines.joinToString("\n")).apply()
+
+        val restored = BearGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals(0, restored.combo)
+        assertEquals(3 * BearGameLogic.COIN_BASE, restored.coinScore)
+        assertEquals(RunDifficulty.STANDARD, restored.difficulty)
     }
 
     @Test
@@ -257,6 +293,38 @@ class JumpSnapshotTest {
     }
 
     /** 覆盖 BearGame 用到的 SharedPreferences 子集（String/Int/putString/putInt/remove）。 */
+    @Test
+    fun restore_keepsOnScreenObstacleGrazed_noDoubleScore() {
+        val prefs = FakePrefs()
+        val source = BearGame()
+        source.resize(IntSize(1080, 1920))
+        source.start()
+        source.obstacles.clear()
+        // 仍在小熊前方视野内、但本局已擦边：续玩后不得再加分
+        val near =
+            Obstacle(
+                type = ObstacleType.PUDDLE,
+                x = source.bearX + source.bearSize * 0.4f,
+                w = 60f * source.s,
+                h = 20f * source.s,
+                grazed = true,
+            )
+        source.obstacles += near
+        source.grazeCount = 1
+        source.coinScore = BearGameLogic.GRAZE_SCORE
+        source.saveSnapshot(prefs)
+
+        val restored = BearGame()
+        assertTrue(restored.restoreSnapshot(prefs))
+        assertEquals(1, restored.obstacles.size)
+        assertTrue(restored.obstacles[0].grazed)
+        assertEquals(1, restored.grazeCount)
+        val scoreBefore = restored.score()
+        restored.tick(dt = 1f / 60f, onCoin = {}, onDeath = {})
+        assertEquals("已擦边障碍续玩后不得再加分", scoreBefore, restored.score())
+        assertEquals(1, restored.grazeCount)
+    }
+
     private class FakePrefs : SharedPreferences {
         private val values = mutableMapOf<String, Any>()
 

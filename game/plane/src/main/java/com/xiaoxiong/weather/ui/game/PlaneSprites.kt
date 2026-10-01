@@ -22,7 +22,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * 精灵烘焙缓存（玩家机 / 7 种敌机 / Boss 三阶段 / 道具）。
+ * 精灵烘焙缓存（玩家机 / 10 种敌机 / Boss 三阶段 / 道具）。
  *
  * 键含「类型（kind/variant）+ 尺寸（像素半径取整）+ 阵营 / 昼夜」，同一键只烘焙一次；
  * 新增敌人类型通过 [PlaneEnemyType.ordinal] 进入 variant，缓存键天然区分新类型。
@@ -47,19 +47,23 @@ internal object PlaneSprites {
     const val KIND_ENEMY = 1
     const val KIND_POWERUP = 2
 
-    private const val MAX_ENTRIES = 24
+    private const val MAX_ENTRIES = 40
 
     private val entries = ArrayList<PlaneSprite>(MAX_ENTRIES)
 
-    /** 玩家机：[radiusPx] 为机身视觉半径（像素）。 */
+    /** 玩家机：[radiusPx] 为机身视觉半径（像素）；[tint] 写入 variant。 */
     fun player(
         radiusPx: Float,
         isDay: Boolean,
         density: Density,
         layoutDirection: LayoutDirection,
-    ): PlaneSprite? = sprite(KIND_PLAYER, 0, radiusPx, isDay, 1.30f, density, layoutDirection)
+        tint: PlaneShipTint = PlaneShipTint.CLASSIC,
+    ): PlaneSprite? = sprite(KIND_PLAYER, tint.ordinal, radiusPx, isDay, 1.30f, density, layoutDirection)
 
-    /** 敌机：[variant] = 类型序号；Boss 额外携带阶段（0..2）。 */
+    /**
+     * 敌机：[variant] = 类型序号×4+阶段；Boss 用独立高位区间
+     * `1000 + kind×4 + phase`，避免与小兵 ordinal 冲突。
+     */
     fun enemy(
         type: PlaneEnemyType,
         bossPhase: Int,
@@ -67,13 +71,19 @@ internal object PlaneSprites {
         isDay: Boolean,
         density: Density,
         layoutDirection: LayoutDirection,
+        bossKind: PlaneBossKind = PlaneBossKind.STANDARD,
     ): PlaneSprite? {
-        val variant = type.ordinal * 4 + bossPhase.coerceIn(0, 2)
+        val variant =
+            if (type == PlaneEnemyType.BOSS) {
+                1000 + bossKind.ordinal * 4 + bossPhase.coerceIn(0, 2)
+            } else {
+                type.ordinal * 4 + bossPhase.coerceIn(0, 2)
+            }
         val extent = if (type == PlaneEnemyType.BOSS) 1.30f else 1.22f
         return sprite(KIND_ENEMY, variant, radiusPx, isDay, extent, density, layoutDirection)
     }
 
-    /** 道具（P / B）。 */
+    /** 道具（P / B / S / L）。 */
     fun powerUp(
         kind: PlanePowerUpKind,
         radiusPx: Float,
@@ -114,7 +124,11 @@ internal object PlaneSprites {
             CanvasDrawScope().draw(density, layoutDirection, Canvas(bitmap), Size(side.toFloat(), side.toFloat())) {
                 translate(half, half) {
                     when (kind) {
-                        KIND_PLAYER -> drawPlayerArt(half / 1.30f)
+                        KIND_PLAYER ->
+                            drawPlayerArt(
+                                half / 1.30f,
+                                PlaneShipTint.entries.getOrNull(variant) ?: PlaneShipTint.CLASSIC,
+                            )
                         KIND_ENEMY -> drawEnemyArt(variant, half)
                         else -> drawPowerUpArt(variant, half / 1.45f)
                     }
@@ -195,14 +209,23 @@ internal fun DrawScope.drawPowerUpGlow(
     tick: Long,
     reduceMotion: Boolean,
 ) {
-    val color = if (kind == PlanePowerUpKind.WEAPON) PlaneUi.ok else Color(0xFFFFD740)
+    val color = planePowerUpColor(kind)
     val pulse = if (reduceMotion) 0.5f else 0.5f + 0.5f * sin(tick * 0.16f)
     drawCircle(color.copy(alpha = 0.10f + 0.10f * pulse), r * 1.6f, Offset(cx, cy))
 }
 
+/** 道具主题色：P 绿 / B 琥珀 / S 冰蓝 / L 玫红。 */
+internal fun planePowerUpColor(kind: PlanePowerUpKind): Color =
+    when (kind) {
+        PlanePowerUpKind.WEAPON -> PlaneUi.ok
+        PlanePowerUpKind.BOMB -> Color(0xFFFFD740)
+        PlanePowerUpKind.SHIELD -> Color(0xFF4FC3F7)
+        PlanePowerUpKind.LIFE -> Color(0xFFFF80AB)
+    }
+
 /** 弹幕 / 特效用的复用描边：按 0.1px 取整宽度缓存（同一设备宽度集合有限，热路径零分配）。 */
 internal object PlaneStroke {
-    private const val MAX_ENTRIES = 24
+    private const val MAX_ENTRIES = 40
 
     // 插入序 LinkedHashMap：缓存满时淘汰最旧，而不是整表 clear（避免连带清掉常用宽度）
     private val cache = LinkedHashMap<Int, Stroke>(MAX_ENTRIES)

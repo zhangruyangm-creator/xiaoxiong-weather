@@ -71,6 +71,7 @@ fun DailyPage(
     isOffline: Boolean,
     lastUpdatedText: String?,
     phenologyShiftDays: Int? = null,
+    phenologyShiftLoading: Boolean = false,
     onPhenologyPageShown: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
     cardLayout: List<DailyCardPref> = DailyCardLayout.defaults,
@@ -139,6 +140,7 @@ fun DailyPage(
                             city = weather.city,
                             elevationMeters = weather.elevationMeters,
                             phenologyShiftDays = phenologyShiftDays,
+                            phenologyShiftLoading = phenologyShiftLoading,
                         )
                     }
                 DailyCardId.HISTORY ->

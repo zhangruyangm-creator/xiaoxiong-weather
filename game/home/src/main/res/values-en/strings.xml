@@ -204,6 +204,8 @@
     <string name="bear_home_narration_evening">Winding down for the evening</string>
     <string name="bear_home_narration_bedtime_prep">Getting ready for bed</string>
     <string name="bear_home_narration_sleep">Fast asleep</string>
+    <string name="bear_home_action_album">Bear Album</string>
+    <string name="bear_home_bedroom_empty">Nothing to tap in the bedroom right now — try again later</string>
     <string name="bear_home_playroom_empty">The playroom is quiet — come back a little later</string>
     <string name="bear_home_room_bedroom">Bedroom</string>
     <string name="bear_home_room_closet">Closet</string>

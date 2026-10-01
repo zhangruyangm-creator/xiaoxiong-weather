@@ -87,6 +87,29 @@ fun WeatherIcon(
                             onDrawBehind { drawMoonAndStars(moon, brush, stars) }
                         }
 
+                    WeatherScene.MAINLY_CLEAR -> {
+                        val cloud = cloudArt(cx + 0.14f * u, cy + 0.12f * u, 0.58f * u)
+                        if (isDay) {
+                            val center = Offset(cx, cy)
+                            val radius = 0.23f * u
+                            val rays = sunRays(center, 0.32f * u, 0.43f * u)
+                            val brush = radialBrush(SunCenter, SunEdge, center, radius)
+                            onDrawBehind {
+                                drawSun(rays, brush, center, radius, rayWidth = 0.05f * u)
+                                drawPathBrush(cloud)
+                            }
+                        } else {
+                            val center = Offset(cx - 0.05f * u, cy + 0.05f * u)
+                            val r = 0.27f * u
+                            val moon = moonCrescentPath(center, r)
+                            val brush = radialBrush(MoonCenter, MoonEdge, center, r)
+                            onDrawBehind {
+                                drawPath(moon, brush)
+                                drawPathBrush(cloud)
+                            }
+                        }
+                    }
+
                     WeatherScene.PARTLY_CLOUDY -> {
                         val cloud = cloudArt(cx + 0.10f * u, cy + 0.10f * u, 0.72f * u)
                         if (isDay) {

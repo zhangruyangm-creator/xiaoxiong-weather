@@ -27,12 +27,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +47,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +59,7 @@ import androidx.core.content.FileProvider
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.WeatherSnapshot
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
+import com.xiaoxiong.weather.ui.rememberSampledDrawable
 import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.formatTemperature
 import com.xiaoxiong.weather.util.parseFlexibleDateTime
@@ -73,16 +76,20 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * 天气分享卡片：太阳熊插画（节日覆盖 > 日常片刻）+ 场景渐变 + 当前天气。
  * 预览即所得——弹窗里看到的就是分享出去的图。
+ *
+ * @param onBearReady 插画真实解码完成（或失败回退）后回调；分享录制须等 ready，避免导出占位图。
  */
 @Composable
 fun ShareWeatherCard(
     snapshot: WeatherSnapshot,
     quote: String,
     modifier: Modifier = Modifier,
+    onBearReady: (Boolean) -> Unit = {},
 ) {
     val current = snapshot.current
     val precipRate = WeatherCodes.intensityPrecipMmPerHour(current)
@@ -134,8 +141,20 @@ fun ShareWeatherCard(
 
         Spacer(modifier = Modifier.height(14.dp))
         val bearShape = RoundedCornerShape(20.dp)
+        val bearPx =
+            with(LocalDensity.current) {
+                220
+                    .dp
+                    .toPx()
+                    .roundToInt()
+                    .coerceAtLeast(256)
+            }
+        val bearImage = rememberSampledDrawable(bear.drawableRes, bearPx)
+        LaunchedEffect(bearImage.isReady) {
+            onBearReady(bearImage.isReady)
+        }
         Image(
-            painter = painterResource(bear.drawableRes),
+            bitmap = bearImage.bitmap,
             contentDescription = stringResource(bear.captionRes),
             contentScale = ContentScale.Fit,
             modifier =
@@ -256,6 +275,17 @@ fun ShareWeatherCardDialog(
     val graphicsLayer = rememberGraphicsLayer()
     val recordedOnce = remember(cardKey) { booleanArrayOf(false) }
     var sharing by remember { mutableStateOf(false) }
+    var bearReady by remember(cardKey) { mutableStateOf(false) }
+    var shareEnabled by remember(cardKey) { mutableStateOf(false) }
+    LaunchedEffect(bearReady) {
+        if (!bearReady) {
+            shareEnabled = false
+            return@LaunchedEffect
+        }
+        // 等一帧让 drawWithCache 在插画就绪后完成 GraphicsLayer 录制
+        withFrameNanos { }
+        shareEnabled = recordedOnce[0]
+    }
 
     Dialog(onDismissRequest = { if (!sharing) onDismiss() }) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -265,20 +295,26 @@ fun ShareWeatherCardDialog(
                 ShareWeatherCard(
                     snapshot = snapshot,
                     quote = quote,
+                    onBearReady = { bearReady = it },
                     modifier =
                         Modifier
                             .width(300.dp)
                             // 首帧把卡片内容录进 layer，之后直接重放录制结果；
-                            // 分享时 toImageBitmap() 从录制内容出图
+                            // 分享时 toImageBitmap() 从录制内容出图。
+                            // 须等插画解码完成再录，否则会把透明占位写进导出图。
                             .drawWithCache {
                                 onDrawWithContent {
-                                    if (!recordedOnce[0]) {
+                                    if (bearReady && !recordedOnce[0]) {
                                         graphicsLayer.record {
                                             this@onDrawWithContent.drawContent()
                                         }
                                         recordedOnce[0] = true
                                     }
-                                    drawLayer(graphicsLayer)
+                                    if (recordedOnce[0]) {
+                                        drawLayer(graphicsLayer)
+                                    } else {
+                                        drawContent()
+                                    }
                                 }
                             },
                 )
@@ -290,7 +326,7 @@ fun ShareWeatherCardDialog(
                 }
                 Button(
                     onClick = {
-                        if (sharing) return@Button
+                        if (sharing || !recordedOnce[0]) return@Button
                         sharing = true
                         scope.launch {
                             var raw: Bitmap? = null
@@ -329,7 +365,7 @@ fun ShareWeatherCardDialog(
                             }
                         }
                     },
-                    enabled = !sharing,
+                    enabled = !sharing && shareEnabled,
                 ) {
                     Text(stringResource(R.string.share_card_send))
                 }

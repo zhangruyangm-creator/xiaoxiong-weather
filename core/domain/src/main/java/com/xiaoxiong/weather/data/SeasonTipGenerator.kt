@@ -46,7 +46,137 @@ object SeasonTipGenerator {
          * null = 无积温数据（保持纯经验推算）。
          */
         val phenologyShiftDays: Int? = null,
+        /** 空窗期「下一时令」展望（距窗口起点 [daysUntilNext] 天）。 */
+        val isGapOutlook: Boolean = false,
+        val daysUntilNext: Int? = null,
     )
+
+    /** 合并当前命中时令与空窗展望，供 UI 一次渲染。 */
+    data class SeasonDisplay(
+        val tips: List<Tip>,
+        val nextOutlook: Tip? = null,
+    ) {
+        val hasContent: Boolean get() = tips.isNotEmpty() || nextOutlook != null
+    }
+
+    private val PHASE_ORDER =
+        mapOf(
+            Phase.PEAK to 0,
+            Phase.STARTING to 1,
+            Phase.ENDING to 2,
+            Phase.UPCOMING to 3,
+        )
+
+    /** 当前命中时令（最多 2 条，按阶段优先级）；空窗时附带 [SeasonDisplay.nextOutlook]。 */
+    fun displayFor(
+        latitude: Double,
+        longitude: Double = 0.0,
+        onDate: LocalDate,
+        elevationMeters: Double? = null,
+        admin1: String? = null,
+        phenologyShiftDays: Int? = null,
+    ): SeasonDisplay {
+        val tips = prioritizeTips(tipsFor(latitude, longitude, onDate, elevationMeters, admin1, phenologyShiftDays))
+        val next =
+            if (tips.isEmpty()) {
+                nextSeasonOutlook(latitude, longitude, onDate, elevationMeters, admin1, phenologyShiftDays)
+            } else {
+                null
+            }
+        return SeasonDisplay(tips = tips, nextOutlook = next)
+    }
+
+    fun displayForCity(
+        city: City,
+        referenceIsoTime: String?,
+        elevationMeters: Double? = null,
+        phenologyShiftDays: Int? = null,
+    ): SeasonDisplay {
+        val date =
+            parseFlexibleDateTime(referenceIsoTime.orEmpty())?.toLocalDate()
+                ?: LocalDate.now()
+        return displayFor(
+            latitude = city.latitude,
+            longitude = city.longitude,
+            onDate = date,
+            elevationMeters = elevationMeters,
+            admin1 = city.admin1,
+            phenologyShiftDays = phenologyShiftDays,
+        )
+    }
+
+    /** 阶段优先：正当时 > 刚开始 > 接近尾声 > 即将进入；最多 2 条以免七日页刷屏。 */
+    internal fun prioritizeTips(tips: List<Tip>): List<Tip> = tips.sortedBy { PHASE_ORDER[it.phase] ?: 99 }.take(2)
+
+    /**
+     * 各时令均未命中且不在 14 日「即将进入」内时，取最近将开始的窗口（如济南 8 月底空窗 → 秋花）。
+     */
+    internal fun nextSeasonOutlook(
+        latitude: Double,
+        longitude: Double = 0.0,
+        onDate: LocalDate,
+        elevationMeters: Double? = null,
+        admin1: String? = null,
+        phenologyShiftDays: Int? = null,
+    ): Tip? {
+        val southern = latitude < 0
+        val lat = abs(latitude)
+        val band =
+            if (southern) {
+                ReliefBand.PLAIN
+            } else {
+                reliefBand(elevationMeters, lat, longitude, admin1)
+            }
+        val date = if (southern) onDate.plusMonths(6) else onDate
+        val md = MonthDay.from(date)
+        val highlandish = band == ReliefBand.HIGHLAND || band == ReliefBand.PLATEAU
+
+        val best =
+            Kind.entries
+                .mapNotNull { kind ->
+                    val raw = windowForKind(kind, lat) ?: return@mapNotNull null
+                    val window =
+                        shiftWindow(raw, days = totalShift(kind, band, phenologyShiftDays))
+                            ?: return@mapNotNull null
+                    val (start, end) = window
+                    if (inWindow(md, start, end)) return@mapNotNull null
+                    val nextStart = nextOccurrence(start, date)
+                    val days =
+                        java.time.temporal.ChronoUnit.DAYS
+                            .between(date, nextStart)
+                            .toInt()
+                    if (days < 0) return@mapNotNull null
+                    Triple(kind, days, window)
+                }.minByOrNull { it.second }
+                ?: return null
+
+        val (kind, days, window) = best
+        var tip =
+            Tip(
+                kind = kind,
+                phase = Phase.UPCOMING,
+                windowStart = window.first,
+                windowEnd = window.second,
+                subjectsRes = R.string.season_subjects_spring_north,
+                phenologyShiftDays = phenologyShiftFor(kind, phenologyShiftDays),
+                isGapOutlook = true,
+                daysUntilNext = days,
+            ).withSubjects(lat, highlandish)
+        if (southern) tip = tip.withLocalSouthernWindow()
+        return tip
+    }
+
+    private fun windowForKind(
+        kind: Kind,
+        absLat: Double,
+    ): Pair<MonthDay, MonthDay>? =
+        when (kind) {
+            Kind.WINTER_BLOOM -> winterBloomWindow(absLat)
+            Kind.SPRING_BLOOM -> springBloomWindow(absLat)
+            Kind.SUMMER_BLOOM -> summerBloomWindow(absLat)
+            Kind.AUTUMN_BLOOM -> autumnBloomWindow(absLat)
+            Kind.FOLIAGE -> foliageWindow(absLat)
+        }
 
     /** 当前所有命中的时令（含即将进入）；重叠时全部返回。 */
     fun tipsFor(

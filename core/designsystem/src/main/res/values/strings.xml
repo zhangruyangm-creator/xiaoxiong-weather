@@ -23,6 +23,7 @@
     <string name="sun_bear_exercise_diabolo_morning">小熊晨练抖空竹</string>
     <string name="sun_bear_exercise_tennis_morning">小熊晨练打网球</string>
     <string name="sun_bear_exercise_hulahoop_morning">小熊晨练呼啦圈</string>
+    <string name="sun_bear_exercise_baseball_morning">小熊晨练打棒球</string>
     <string name="sun_bear_morning_out">小熊出门上班啦</string>
     <string name="sun_bear_commute_walk_out">小熊走路上班啦</string>
     <string name="sun_bear_commute_metro_out">小熊坐地铁上班</string>
@@ -99,6 +100,7 @@
     <string name="sun_bear_exercise_diabolo_evening">小熊傍晚抖空竹</string>
     <string name="sun_bear_exercise_tennis_evening">小熊傍晚打网球</string>
     <string name="sun_bear_exercise_hulahoop_evening">小熊傍晚转呼啦圈</string>
+    <string name="sun_bear_exercise_baseball_evening">小熊傍晚打棒球</string>
     <string name="sun_bear_morning_stroll">小熊晨间逛逛</string>
     <string name="sun_bear_weekend_morning">小熊周末出门玩啦</string>
     <string name="sun_bear_weekend_explore">小熊在旅行中</string>

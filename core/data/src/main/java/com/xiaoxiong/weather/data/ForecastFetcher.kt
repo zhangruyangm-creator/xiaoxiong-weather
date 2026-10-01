@@ -8,6 +8,7 @@ import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
 import com.xiaoxiong.weather.util.WeatherCodes
 import com.xiaoxiong.weather.util.indexOfCurrentHour
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
@@ -48,7 +49,18 @@ class ForecastFetcher(
 
     private val primaryHealth = PrimarySourceHealth(primaryFailureTtlMs)
 
+    /**
+     * 同城并发合并：UI / Worker / 小组件同时刷新时只打一轮网络与生成。
+     * block 包在 [NonCancellable] 里，避免某一调用方取消（如切城）把共享请求掐断。
+     */
+    private val singleFlight = SingleFlight<String, WeatherSnapshot>()
+
     suspend fun fetchWeather(city: City): WeatherSnapshot =
+        singleFlight.run(flightKey(city)) {
+            withContext(NonCancellable) { fetchWeatherUnshared(city) }
+        }
+
+    private suspend fun fetchWeatherUnshared(city: City): WeatherSnapshot =
         withContext(Dispatchers.IO) {
             coroutineScope {
                 val forecastDeferred = async { fetchForecastWithFallback(city) }
@@ -103,6 +115,9 @@ class ForecastFetcher(
                 )
             }
         }
+
+    /** 按坐标合并；同一点不同 City.id（定位 vs 收藏）仍共享一次请求。 */
+    internal fun flightKey(city: City): String = "%.4f,%.4f|%s".format(city.latitude, city.longitude, city.timezone.orEmpty())
 
     /**
      * 主预报失败时先按 [forecastBaseFallbacks] 换 base URL（同格式镜像），

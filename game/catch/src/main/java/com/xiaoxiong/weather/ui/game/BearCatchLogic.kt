@@ -1,5 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
+import kotlin.math.roundToInt
+
 /**
  * 小熊接雨雪核心逻辑：与 Compose / Android 完全解耦，可被普通 JUnit 单测。
  *
@@ -70,10 +72,12 @@ object BearCatchLogic {
         val burstPeriodSec: Float,
         /** 爆发波次内下落速度倍率。 */
         val burstSpeedMultiplier: Float,
+        /** 得分倍率：挑战档更高分、休闲档略低（对齐战机 / 摘星口径）。 */
+        val scoreMul: Float,
     ) {
-        CASUAL("casual", 0.65f, 0.5f, 22f, 1.20f),
-        STANDARD("standard", 1.0f, 1.0f, 18f, 1.30f),
-        CHALLENGE("challenge", 1.45f, 1.5f, 15f, 1.40f),
+        CASUAL("casual", 0.65f, 0.5f, 22f, 1.20f, 0.85f),
+        STANDARD("standard", 1.0f, 1.0f, 18f, 1.30f, 1.0f),
+        CHALLENGE("challenge", 1.45f, 1.5f, 15f, 1.40f, 1.35f),
         ;
 
         companion object {
@@ -93,9 +97,15 @@ object BearCatchLogic {
         var vy: Float = 0f
     }
 
+    /** 一次接住：种类 + 是否精准（物心距 ≤ [PERFECT_CATCH_FRAC]·catchR）。 */
+    data class CaughtHit(
+        val kind: ItemKind,
+        val perfect: Boolean = false,
+    )
+
     /** 一帧推进结果：接住/中招/漏接 + 累计生成时钟 + 本帧新生成个数。 */
     data class FrameEvents(
-        val caught: List<ItemKind>,
+        val caught: List<CaughtHit>,
         val hit: List<ItemKind>,
         val missedGood: Int,
         val spawnAccum: Float,
@@ -286,6 +296,44 @@ object BearCatchLogic {
             combo < 2 -> 1
             else -> minOf(combo, 5)
         }
+
+    /** 精准接住半径占 [catchR] 的比例：物心距小于此值计 perfect。 */
+    const val PERFECT_CATCH_FRAC = 0.35f
+
+    /** 精准接住固定加分（叠在 combo×double×scoreMul 之后）。 */
+    const val PERFECT_CATCH_BONUS = 5
+
+    /** 需要场景开场横幅的天气（每局每种只提示一次）。 */
+    val SCENE_INTRO_SCENES: Set<CatchScene> =
+        setOf(CatchScene.STORM, CatchScene.HAIL, CatchScene.SNOW)
+
+    /**
+     * 实际入账分：基础分 × 连击 × 双倍 × 难度倍率，可选叠加精准加分。
+     * 泡泡 / 惩罚物基础为 0 → 返回 0（不显示 "+0"）。
+     */
+    fun pointsAwarded(
+        kind: ItemKind,
+        combo: Int,
+        doubleActive: Boolean,
+        difficulty: CatchDifficulty,
+        perfect: Boolean = false,
+    ): Int {
+        val base = scoreOf(kind)
+        if (base <= 0) return 0
+        val mult = (if (doubleActive) 2 else 1) * comboScoreMultiplier(combo)
+        val scaled = (base * mult * difficulty.scoreMul).roundToInt()
+        return scaled + if (perfect) PERFECT_CATCH_BONUS else 0
+    }
+
+    /** 圆心距是否落入精准区。 */
+    fun isPerfectCatch(
+        dx: Float,
+        dy: Float,
+        catchR: Float,
+    ): Boolean {
+        val limit = catchR * PERFECT_CATCH_FRAC
+        return dx * dx + dy * dy < limit * limit
+    }
 
     /** 惩罚物扣血。 */
     fun damageOf(kind: ItemKind): Int =
@@ -532,7 +580,7 @@ object BearCatchLogic {
             spawned++
         }
 
-        val caught = ArrayList<ItemKind>()
+        val caught = ArrayList<CaughtHit>()
         val hit = ArrayList<ItemKind>()
         var missedGood = 0
 
@@ -549,7 +597,12 @@ object BearCatchLogic {
             if (dx * dx + dy * dy < reach * reach) {
                 iter.remove()
                 if (isGood(it.kind)) {
-                    caught.add(it.kind)
+                    caught.add(
+                        CaughtHit(
+                            kind = it.kind,
+                            perfect = isPerfectCatch(dx, dy, catchR),
+                        ),
+                    )
                 } else {
                     hit.add(it.kind)
                 }

@@ -25,11 +25,15 @@ private object PlaneArt {
 // 玩家机：奶油白 + 棕的小熊飞行员飞机
 // ---------------------------------------------------------------------
 
-internal fun DrawScope.drawPlayerArt(r: Float) {
-    val cream = planePlayerCream
-    val shade = planePlayerCreamShade
-    val brown = planePlayerBrown
-    val brownDark = planePlayerBrownDark
+internal fun DrawScope.drawPlayerArt(
+    r: Float,
+    tint: PlaneShipTint = PlaneShipTint.CLASSIC,
+) {
+    val palette = planePlayerPalette(tint)
+    val cream = palette.cream
+    val shade = palette.shade
+    val brown = palette.brown
+    val brownDark = palette.brownDark
     val outline = Stroke(r * 0.07f)
 
     // 地面投影
@@ -148,13 +152,21 @@ internal fun DrawScope.drawPlayerArt(r: Float) {
 }
 
 // ---------------------------------------------------------------------
-// 敌机：5 种小怪 + Boss 三阶段
+// 敌机：10 种小怪 + Boss 三阶段
 // ---------------------------------------------------------------------
 
 internal fun DrawScope.drawEnemyArt(
     variant: Int,
     half: Float,
 ) {
+    if (variant >= 1000) {
+        val kind = PlaneBossKind.entries.getOrNull((variant - 1000) / 4) ?: PlaneBossKind.STANDARD
+        val phase = (variant - 1000) % 4
+        val r = half / 1.30f
+        val palette = planeEnemyPalette(PlaneEnemyType.BOSS, phase)
+        drawBossArt(r, phase, palette, kind)
+        return
+    }
     val type = PlaneEnemyType.entries.getOrNull(variant / 4) ?: PlaneEnemyType.GRUNT
     val phase = variant % 4
     val r = half / (if (type == PlaneEnemyType.BOSS) 1.30f else 1.22f)
@@ -167,7 +179,10 @@ internal fun DrawScope.drawEnemyArt(
         PlaneEnemyType.TRANSPORT -> drawTransportArt(r, palette)
         PlaneEnemyType.HELI -> drawHeliArt(r, palette)
         PlaneEnemyType.TANK -> drawTankArt(r, palette)
-        PlaneEnemyType.BOSS -> drawBossArt(r, phase, palette)
+        PlaneEnemyType.SCOUT -> drawScoutArt(r, palette)
+        PlaneEnemyType.BOMBER -> drawBomberArt(r, palette)
+        PlaneEnemyType.SNIPER -> drawSniperArt(r, palette)
+        PlaneEnemyType.BOSS -> drawBossArt(r, phase, palette, PlaneBossKind.STANDARD)
     }
 }
 
@@ -687,10 +702,178 @@ private fun DrawScope.drawTankArt(
     drawCircle(Color(0xFFFFF176), r * 0.05f, Offset(r * 0.94f, r * 0.00f))
 }
 
+// ---------------------------------------------------------------------
+// 侦察机：细长机身 + 大后掠翼，强调高速感
+// ---------------------------------------------------------------------
+
+private fun DrawScope.drawScoutArt(
+    r: Float,
+    p: PlaneEnemyPalette,
+) {
+    val outline = Stroke(r * 0.08f)
+    for (side in intArrayOf(-1, 1)) {
+        PlaneArt.path.reset()
+        PlaneArt.path.moveTo(side * r * 0.08f, -r * 0.10f)
+        PlaneArt.path.lineTo(side * r * 1.05f, r * 0.06f)
+        PlaneArt.path.lineTo(side * r * 0.92f, r * 0.28f)
+        PlaneArt.path.lineTo(side * r * 0.12f, r * 0.18f)
+        PlaneArt.path.close()
+        drawPath(PlaneArt.path, p.panel)
+        drawPath(PlaneArt.path, p.dark, style = outline)
+        drawLine(
+            p.accent,
+            Offset(side * r * 0.40f, r * 0.04f),
+            Offset(side * r * 0.88f, r * 0.16f),
+            strokeWidth = r * 0.07f,
+        )
+    }
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(0f, r * 1.02f)
+    PlaneArt.path.lineTo(r * 0.18f, r * 0.20f)
+    PlaneArt.path.lineTo(r * 0.16f, -r * 0.72f)
+    PlaneArt.path.lineTo(-r * 0.16f, -r * 0.72f)
+    PlaneArt.path.lineTo(-r * 0.18f, r * 0.20f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.body)
+    drawPath(PlaneArt.path, p.dark, style = outline)
+    drawCircle(Color(0xFF1E2A38), r * 0.10f, Offset(0f, r * 0.18f))
+    drawCircle(Color(0xFF8FD8FF).copy(alpha = 0.75f), r * 0.045f, Offset(-r * 0.02f, r * 0.15f))
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(-r * 0.16f, -r * 0.58f)
+    PlaneArt.path.lineTo(-r * 0.42f, -r * 0.90f)
+    PlaneArt.path.lineTo(-r * 0.06f, -r * 0.72f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.dark)
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(r * 0.16f, -r * 0.58f)
+    PlaneArt.path.lineTo(r * 0.42f, -r * 0.90f)
+    PlaneArt.path.lineTo(r * 0.06f, -r * 0.72f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.dark)
+    drawCircle(p.accent, r * 0.06f, Offset(0f, -r * 0.42f))
+}
+
+// ---------------------------------------------------------------------
+// 轰炸机：宽机身 + 双发动机舱 + 弹舱门
+// ---------------------------------------------------------------------
+
+private fun DrawScope.drawBomberArt(
+    r: Float,
+    p: PlaneEnemyPalette,
+) {
+    val outline = Stroke(r * 0.08f)
+    drawRoundRect(
+        color = p.panel,
+        topLeft = Offset(-r * 1.05f, -r * 0.08f),
+        size = Size(r * 2.10f, r * 0.36f),
+        cornerRadius = CornerRadius(r * 0.10f),
+    )
+    drawRoundRect(
+        color = p.dark,
+        topLeft = Offset(-r * 1.05f, -r * 0.08f),
+        size = Size(r * 2.10f, r * 0.36f),
+        cornerRadius = CornerRadius(r * 0.10f),
+        style = outline,
+    )
+    for (side in intArrayOf(-1, 1)) {
+        drawRoundRect(
+            color = p.dark,
+            topLeft = Offset(side * r * 0.52f - r * 0.16f, -r * 0.28f),
+            size = Size(r * 0.32f, r * 0.55f),
+            cornerRadius = CornerRadius(r * 0.10f),
+        )
+        drawCircle(Color(0xFFFF8A65), r * 0.07f, Offset(side * r * 0.52f, r * 0.22f))
+    }
+    drawRoundRect(
+        color = p.body,
+        topLeft = Offset(-r * 0.38f, -r * 0.70f),
+        size = Size(r * 0.76f, r * 1.30f),
+        cornerRadius = CornerRadius(r * 0.18f),
+    )
+    drawRoundRect(
+        color = p.dark,
+        topLeft = Offset(-r * 0.38f, -r * 0.70f),
+        size = Size(r * 0.76f, r * 1.30f),
+        cornerRadius = CornerRadius(r * 0.18f),
+        style = outline,
+    )
+    // 弹舱门
+    drawRoundRect(
+        color = Color(0xFF2A2218),
+        topLeft = Offset(-r * 0.22f, r * 0.10f),
+        size = Size(r * 0.44f, r * 0.36f),
+        cornerRadius = CornerRadius(r * 0.06f),
+    )
+    drawLine(p.accent, Offset(0f, r * 0.12f), Offset(0f, r * 0.44f), strokeWidth = r * 0.05f)
+    drawCircle(Color(0xFF243244), r * 0.12f, Offset(0f, -r * 0.28f))
+    drawCircle(Color(0xFF8FD8FF).copy(alpha = 0.65f), r * 0.05f, Offset(-r * 0.03f, -r * 0.30f))
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(-r * 0.38f, -r * 0.62f)
+    PlaneArt.path.lineTo(r * 0.38f, -r * 0.62f)
+    PlaneArt.path.lineTo(r * 0.22f, -r * 0.42f)
+    PlaneArt.path.lineTo(-r * 0.22f, -r * 0.42f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.dark)
+}
+
+// ---------------------------------------------------------------------
+// 狙击机：窄机身 + 长机鼻瞄准感
+// ---------------------------------------------------------------------
+
+private fun DrawScope.drawSniperArt(
+    r: Float,
+    p: PlaneEnemyPalette,
+) {
+    val outline = Stroke(r * 0.08f)
+    for (side in intArrayOf(-1, 1)) {
+        PlaneArt.path.reset()
+        PlaneArt.path.moveTo(side * r * 0.14f, -r * 0.22f)
+        PlaneArt.path.lineTo(side * r * 0.88f, r * 0.02f)
+        PlaneArt.path.lineTo(side * r * 0.78f, r * 0.22f)
+        PlaneArt.path.lineTo(side * r * 0.16f, r * 0.12f)
+        PlaneArt.path.close()
+        drawPath(PlaneArt.path, p.panel)
+        drawPath(PlaneArt.path, p.dark, style = outline)
+    }
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(0f, r * 1.10f)
+    PlaneArt.path.lineTo(r * 0.14f, r * 0.30f)
+    PlaneArt.path.lineTo(r * 0.18f, -r * 0.55f)
+    PlaneArt.path.lineTo(-r * 0.18f, -r * 0.55f)
+    PlaneArt.path.lineTo(-r * 0.14f, r * 0.30f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.body)
+    drawPath(PlaneArt.path, p.dark, style = outline)
+    // 长机鼻 / 瞄准器
+    drawRoundRect(
+        color = p.dark,
+        topLeft = Offset(-r * 0.07f, r * 0.42f),
+        size = Size(r * 0.14f, r * 0.55f),
+        cornerRadius = CornerRadius(r * 0.05f),
+    )
+    drawCircle(p.accent, r * 0.08f, Offset(0f, r * 0.55f))
+    drawCircle(Color(0xFF1A2430), r * 0.035f, Offset(0f, r * 0.55f))
+    drawCircle(Color(0xFF243244), r * 0.10f, Offset(0f, -r * 0.08f))
+    drawCircle(Color(0xFF69F0AE).copy(alpha = 0.7f), r * 0.04f, Offset(-r * 0.02f, -r * 0.10f))
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(-r * 0.18f, -r * 0.48f)
+    PlaneArt.path.lineTo(-r * 0.36f, -r * 0.78f)
+    PlaneArt.path.lineTo(-r * 0.04f, -r * 0.58f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.dark)
+    PlaneArt.path.reset()
+    PlaneArt.path.moveTo(r * 0.18f, -r * 0.48f)
+    PlaneArt.path.lineTo(r * 0.36f, -r * 0.78f)
+    PlaneArt.path.lineTo(r * 0.04f, -r * 0.58f)
+    PlaneArt.path.close()
+    drawPath(PlaneArt.path, p.dark)
+}
+
 private fun DrawScope.drawBossArt(
     r: Float,
     phase: Int,
     p: PlaneEnemyPalette,
+    kind: PlaneBossKind = PlaneBossKind.STANDARD,
 ) {
     val outline = Stroke(r * 0.05f)
     val coreColor =
@@ -699,12 +882,18 @@ private fun DrawScope.drawBossArt(
             1 -> Color(0xFFFFD54F)
             else -> Color(0xFFFF5252)
         }
+    val wingSpan =
+        when (kind) {
+            PlaneBossKind.RINGMASTER -> 1.05f
+            PlaneBossKind.STRIKER -> 1.22f
+            PlaneBossKind.STANDARD -> 1.14f
+        }
     // 大后掠主翼 + 引擎舱
     for (side in intArrayOf(-1, 1)) {
         PlaneArt.path.reset()
         PlaneArt.path.moveTo(side * r * 0.36f, -r * 0.28f)
-        PlaneArt.path.lineTo(side * r * 1.14f, r * 0.04f)
-        PlaneArt.path.lineTo(side * r * 1.02f, r * 0.42f)
+        PlaneArt.path.lineTo(side * r * wingSpan, r * 0.04f)
+        PlaneArt.path.lineTo(side * r * (wingSpan - 0.12f), r * 0.42f)
         PlaneArt.path.lineTo(side * r * 0.40f, r * 0.34f)
         PlaneArt.path.close()
         drawPath(PlaneArt.path, p.panel)
@@ -720,6 +909,10 @@ private fun DrawScope.drawBossArt(
         // 翼端炮座（动态炮塔的底座）
         drawCircle(p.body, r * 0.13f, Offset(side * r * 0.60f, r * 0.34f))
         drawCircle(p.dark, r * 0.075f, Offset(side * r * 0.60f, r * 0.34f))
+    }
+    // 环幕主宰：外环标记；强袭：前掠尖鼻
+    if (kind == PlaneBossKind.RINGMASTER) {
+        drawCircle(coreColor.copy(alpha = 0.22f), r * 1.05f, Offset.Zero, style = Stroke(r * 0.06f))
     }
     // 尾翼（朝上）
     PlaneArt.path.reset()
@@ -783,16 +976,29 @@ private fun DrawScope.drawBossArt(
 }
 
 // ---------------------------------------------------------------------
-// 道具：P（武器）/ B（炸弹）
+// 道具：P（武器）/ B（炸弹）/ S（护盾）/ L（续命）
 // ---------------------------------------------------------------------
 
 internal fun DrawScope.drawPowerUpArt(
     variant: Int,
     r: Float,
 ) {
-    val weapon = variant == PlanePowerUpKind.WEAPON.ordinal
-    val body = if (weapon) Color(0xFF2E7D4F) else Color(0xFF8A5A12)
-    val ring = if (weapon) PlaneUi.ok else Color(0xFFFFD740)
+    val kind = PlanePowerUpKind.entries.getOrNull(variant) ?: PlanePowerUpKind.WEAPON
+    val ring = planePowerUpColor(kind)
+    val body =
+        when (kind) {
+            PlanePowerUpKind.WEAPON -> Color(0xFF2E7D4F)
+            PlanePowerUpKind.BOMB -> Color(0xFF8A5A12)
+            PlanePowerUpKind.SHIELD -> Color(0xFF1565A0)
+            PlanePowerUpKind.LIFE -> Color(0xFF8E2454)
+        }
+    val letter =
+        when (kind) {
+            PlanePowerUpKind.WEAPON -> "P"
+            PlanePowerUpKind.BOMB -> "B"
+            PlanePowerUpKind.SHIELD -> "S"
+            PlanePowerUpKind.LIFE -> "L"
+        }
     // 外辉光
     drawCircle(ring.copy(alpha = 0.18f), r * 1.30f, Offset.Zero)
     drawCircle(ring.copy(alpha = 0.24f), r * 1.05f, Offset.Zero)
@@ -805,5 +1011,5 @@ internal fun DrawScope.drawPowerUpArt(
     val paint = PlaneArt.textPaint
     paint.color = android.graphics.Color.WHITE
     paint.textSize = r * 0.92f
-    drawContext.canvas.nativeCanvas.drawText(if (weapon) "P" else "B", 0f, r * 0.33f, paint)
+    drawContext.canvas.nativeCanvas.drawText(letter, 0f, r * 0.33f, paint)
 }

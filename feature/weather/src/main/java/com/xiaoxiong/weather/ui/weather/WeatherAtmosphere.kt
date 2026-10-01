@@ -297,7 +297,13 @@ private fun Density.atmosphereArt(
     val fogBands = if (scene == WeatherScene.FOG) buildFogBands(size) else emptyList()
     val iceBand = if (scene == WeatherScene.FREEZING_RAIN) buildIceBand(size) else null
     val stormLight = if (scene == WeatherScene.THUNDER) buildStormLight(size) else null
-    val nightSky = !isDay && (scene == WeatherScene.CLEAR || scene == WeatherScene.PARTLY_CLOUDY)
+    val nightSky =
+        !isDay &&
+            (
+                scene == WeatherScene.CLEAR ||
+                    scene == WeatherScene.MAINLY_CLEAR ||
+                    scene == WeatherScene.PARTLY_CLOUDY
+            )
     val moon = if (nightSky) buildMoonCrescent(size) else null
     val rippleStroke = if (scene.isRainScene()) Stroke(width = 1.2f.dp.toPx()) else null
     val boltStroke = if (scene == WeatherScene.THUNDER) Stroke(width = 2.4f.dp.toPx(), cap = StrokeCap.Round) else null
@@ -380,6 +386,11 @@ private fun DrawScope.drawAtmosphere(
     when (scene) {
         WeatherScene.CLEAR -> if (isDay) drawDaySky(phase, drift) else drawNightSky(phase, art)
 
+        WeatherScene.MAINLY_CLEAR -> {
+            if (isDay) drawDaySky(phase, drift) else drawNightSky(phase, art)
+            drawSceneClouds(scene, drift)
+        }
+
         WeatherScene.PARTLY_CLOUDY -> {
             if (isDay) drawDaySky(phase, drift) else drawNightSky(phase, art)
             drawSceneClouds(scene, drift)
@@ -435,6 +446,17 @@ private fun DrawScope.drawSceneClouds(
     val swayB = sin(d * TWO_PI_F + 2.1f) * size.width * 0.025f
     val swayC = sin(d * TWO_PI_F + 3.2f) * size.width * 0.02f
     when (scene) {
+        WeatherScene.MAINLY_CLEAR ->
+            drawCloudLayered(
+                size.width * 0.68f + swayB,
+                size.height * 0.18f,
+                0.72f,
+                3.8f,
+                CloudPartlyBody,
+                CloudPartlyBase,
+                0.72f,
+            )
+
         WeatherScene.PARTLY_CLOUDY -> {
             drawCloudLayered(
                 size.width * 0.26f + swayA,

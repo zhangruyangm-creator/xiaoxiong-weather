@@ -27,12 +27,23 @@ internal object StarJumpLogic {
 
     // ── 纯计算 ─────────────────────────────────────────────────
 
-    /** 得分：按到达最高高度 + 收集星星（+25/颗）。 */
+    /** 得分：高度分 + 星星×25，再乘难度倍率，加上连杀 / 擦边奖励。 */
     fun scoreFor(
         maxHeight: Float,
         starsCollected: Int,
         s: Float,
-    ): Int = ((-maxHeight) / (60f * s)).toInt().coerceAtLeast(0) + starsCollected * 25
+        difficulty: StarDifficulty = StarDifficulty.STANDARD,
+        comboBonusTotal: Int = 0,
+        grazeCount: Int = 0,
+    ): Int {
+        val base = ((-maxHeight) / (60f * s)).toInt().coerceAtLeast(0) + starsCollected * 25
+        return (base * difficulty.scoreMul).toInt() +
+            comboBonusTotal +
+            grazeCount * STAR_GRAZE_SCORE
+    }
+
+    /** 单次起跳连杀加分：第 2 跳起算，每级 +[STAR_COMBO_BONUS_PER_STEP]，最多 10 级。 */
+    fun bounceComboBonus(combo: Int): Int = (combo - 1).coerceIn(0, STAR_MAX_COMBO_BONUS_STEPS) * STAR_COMBO_BONUS_PER_STEP
 
     /** 相机顶对应的海拔（公里）。 */
     fun altitudeKm(
@@ -139,10 +150,8 @@ internal object StarJumpLogic {
 
     /**
      * 下一块平台的**类型与宽度**决策（不含 x 与 vx——它们由调用方用独立的随机数决定，
-     * 以免 type 与落点相关而改变生成分布）。规则与 [StarJumpGame.genPlatforms] 逐字对齐：
-     * 早期必为普通台；随后按 roll 分布到 弹簧/碎台/移动台；移动台宽度被钳到可移动区间 55% 内。
-     *
-     * @return `(类型, 宽度)`；宽度已含缩放与各类钳制。
+     * 以免 type 与落点相关而改变生成分布）。
+     * 早期必为普通台；随后按 roll 分布到 弹簧/碎台/移动台；碎台占比受 [difficulty.breakShareMul] 缩放。
      */
     fun platformShape(
         progress: Float,
@@ -150,16 +159,25 @@ internal object StarJumpLogic {
         roll: Float,
         w: Float,
         s: Float,
+        difficulty: StarDifficulty = StarDifficulty.STANDARD,
     ): Pair<PlatType, Float> {
         val margin = 8f * s
         val maxTravel = (w - margin * 2f).coerceAtLeast(1f)
         var pw = (150f - 26f * progress.coerceIn(0f, 1f)) * s
+        val breakEnd = (0.17f + 0.08f * progress) * difficulty.breakShareMul
+        // STANDARD 保持历史阈值，保证旧单测 / 手感不漂移；其它档位按碎台区后接移动带
+        val movingEnd =
+            if (difficulty == StarDifficulty.STANDARD) {
+                0.32f + 0.18f * progress
+            } else {
+                breakEnd + (0.15f + 0.10f * progress)
+            }
         val type =
             when {
                 early -> PlatType.NORMAL
                 roll < 0.07f -> PlatType.SPRING
-                roll < 0.17f + 0.08f * progress -> PlatType.BREAK
-                roll < 0.32f + 0.18f * progress -> PlatType.MOVING
+                roll < breakEnd -> PlatType.BREAK
+                roll < movingEnd -> PlatType.MOVING
                 else -> PlatType.NORMAL
             }
         pw =
@@ -169,5 +187,33 @@ internal object StarJumpLogic {
                 min(pw, maxTravel)
             }
         return type to pw
+    }
+
+    /**
+     * 擦边判定：脚线越过台面 y，但水平偏差落在「刚好踩空」的窄带内。
+     * 每块平台只计一次（由调用方用 broken/已 graze 标记去重）。
+     */
+    fun nearMissGraze(
+        bearX: Float,
+        prevFeetY: Float,
+        newFeetY: Float,
+        bearVY: Float,
+        platform: Platform,
+        w: Float,
+        s: Float,
+        cameraY: Float,
+        h: Float,
+    ): Boolean {
+        if (bearVY <= 0f || platform.broken) return false
+        val bs = bearSize(s)
+        if (platform.y - cameraY > h + bs) return false
+        if (!(prevFeetY <= platform.y && newFeetY >= platform.y)) return false
+        var dx = bearX - (platform.x + platform.w / 2f)
+        if (dx > w / 2f) dx -= w + bs
+        if (dx < -w / 2f) dx += w + bs
+        val absDx = abs(dx)
+        val hitHalf = platform.w / 2f + bs * 0.24f
+        val grazeHalf = hitHalf + bs * STAR_GRAZE_PAD_FRAC
+        return absDx >= hitHalf && absDx < grazeHalf
     }
 }

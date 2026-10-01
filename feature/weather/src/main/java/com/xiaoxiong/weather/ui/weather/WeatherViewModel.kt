@@ -65,9 +65,11 @@ data class WeatherUiState(
     val infoMessage: String? = null,
     /** 隐藏调试模式已开启 */
     val debugEnabled: Boolean = false,
+    /** 物候偏移拉取中（Archive 积温）；与 null shift 区分，避免 UI 误判为「无数据」。 */
+    val phenologyShiftLoading: Boolean = false,
     /**
-     * 物候偏移天数（正 = 推迟，负 = 提前），进入七日页时按需拉取；
-     * 独立于天气快照，主天气刷新不影响该值；null = 无数据/尚未拉取。
+     * 物候偏移天数（正 = 推迟，负 = 提前），天气加载成功后后台预拉；进入七日页也会补齐；
+     * 独立于天气快照；null = 无数据且未在加载。
      */
     val phenologyShiftDays: Int? = null,
     /**
@@ -345,6 +347,7 @@ class WeatherViewModel(
                 // 换城后物候/历史天气属于旧城市，等再进入相关页面按需补齐；
                 // 同城刷新保留已有结果，避免静默刷新把刚查到的东西清空
                 phenologyShiftDays = if (samePlace) it.phenologyShiftDays else null,
+                phenologyShiftLoading = if (samePlace) it.phenologyShiftLoading else false,
                 historyWeather = if (samePlace) it.historyWeather else null,
                 isHistoryLoading = if (samePlace) it.isHistoryLoading else false,
                 historyFailed = if (samePlace) it.historyFailed else false,
@@ -781,6 +784,9 @@ class WeatherViewModel(
             }
             if (refreshWidgets) {
                 presentationEffects.refreshWidgets(getApplication())
+            }
+            if (!isLoadingWeather) {
+                ensurePhenologyShift()
             }
         }
     }

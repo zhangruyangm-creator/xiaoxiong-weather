@@ -53,17 +53,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.LocalReduceMotion
+import com.xiaoxiong.weather.ui.rememberSampledDrawable
+import kotlin.math.roundToInt
 
 private const val COLUMNS = 4
 
@@ -211,7 +215,15 @@ private fun AlbumRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        val thumbPx =
+            with(LocalDensity.current) {
+                ((LocalConfiguration.current.screenWidthDp.dp / COLUMNS) - 8.dp)
+                    .toPx()
+                    .roundToInt()
+                    .coerceIn(96, 256)
+            }
         drawables.forEachIndexed { i, drawable ->
+            val thumb = rememberSampledDrawable(drawable, thumbPx)
             Box(
                 modifier =
                     Modifier
@@ -223,7 +235,7 @@ private fun AlbumRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
-                    painter = painterResource(drawable),
+                    bitmap = thumb.bitmap,
                     contentDescription =
                         stringResource(
                             R.string.cd_album_thumbnail,
@@ -260,13 +272,23 @@ private fun BearAlbumViewer(
                 .fillMaxSize()
                 .background(Color.Black),
     ) {
+        val viewerPx =
+            with(LocalDensity.current) {
+                maxOf(
+                    LocalConfiguration.current.screenWidthDp.dp
+                        .toPx(),
+                    LocalConfiguration.current.screenHeightDp.dp
+                        .toPx(),
+                ).roundToInt().coerceIn(512, 1280)
+            }
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = !anyZoomed,
             modifier = Modifier.fillMaxSize(),
         ) { page ->
+            val pageImage = rememberSampledDrawable(drawables[page], viewerPx)
             ZoomableImage(
-                painter = painterResource(drawables[page]),
+                bitmap = pageImage.bitmap,
                 contentDescription =
                     stringResource(
                         R.string.cd_album_viewer,
@@ -315,7 +337,7 @@ private fun BearAlbumViewer(
  */
 @Composable
 private fun ZoomableImage(
-    painter: androidx.compose.ui.graphics.painter.Painter,
+    bitmap: ImageBitmap,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     onZoomChange: (Boolean) -> Unit = {},
@@ -362,7 +384,7 @@ private fun ZoomableImage(
     }
 
     Image(
-        painter = painter,
+        bitmap = bitmap,
         contentDescription = contentDescription,
         contentScale = ContentScale.Fit,
         modifier =
@@ -374,7 +396,7 @@ private fun ZoomableImage(
                     translationX = offset.x
                     translationY = offset.y
                 }.onSizeChanged { container = it }
-                .pointerInput(painter) {
+                .pointerInput(bitmap) {
                     detectTapGestures(
                         onDoubleTap = { tap ->
                             if (scale > 1.01f) {
@@ -388,7 +410,7 @@ private fun ZoomableImage(
                         },
                         onTap = { onSingleTap() },
                     )
-                }.pointerInput(painter) {
+                }.pointerInput(bitmap) {
                     // 手写手势循环：未放大的单指不消费 → 交给 pager 翻页；
                     // 出现两指后消费全部移动做「两指中心缩放 + 平移」；
                     // 放大状态下单指消费做平移。

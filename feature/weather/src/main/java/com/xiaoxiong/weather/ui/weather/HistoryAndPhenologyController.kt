@@ -73,6 +73,9 @@ class HistoryAndPhenologyController(
         phenologyCity = city
         phenologyJob =
             scope.launch {
+                if (stillOnCity(city)) {
+                    updateState { it.copy(phenologyShiftLoading = true) }
+                }
                 val today = LocalDate.now()
                 val cached = phenologyCache.get(city, today.year)
                 val shift =
@@ -85,18 +88,21 @@ class HistoryAndPhenologyController(
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
-                                // 网络/服务端失败：不落缓存直接返回。物候接口很重（拉 6 年
-                                // 逐日均温），但一次断网不该被当成"确实无数据"缓存一整天，
-                                // 否则当天后续进入七日页的重试全被抑制。
+                                if (stillOnCity(city)) {
+                                    updateState { it.copy(phenologyShiftLoading = false) }
+                                }
                                 return@launch
                             }
-                        // null = 确实无数据，非 null = 有结果：两者都缓存，保证一天最多拉一次
                         phenologyCache.save(city, today.year, fetched)
                         fetched
                     }
-                // 拉取期间换城则不覆盖新城市的显示
                 if (stillOnCity(city)) {
-                    updateState { it.copy(phenologyShiftDays = shift) }
+                    updateState {
+                        it.copy(
+                            phenologyShiftDays = shift,
+                            phenologyShiftLoading = false,
+                        )
+                    }
                 }
             }
     }

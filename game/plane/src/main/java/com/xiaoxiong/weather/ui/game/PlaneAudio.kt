@@ -16,6 +16,9 @@ package com.xiaoxiong.weather.ui.game
 /** 爆炸类 cue 最小间隔（毫秒）：成簇击毁时避免声音糊在一起。 */
 internal const val PLANE_EXPLOSION_CUE_MIN_INTERVAL_MS = 80L
 
+/** 擦弹 cue 最小间隔（毫秒）：擦弹高频，短门控保留「叮」感又不刷屏。 */
+internal const val PLANE_GRAZE_CUE_MIN_INTERVAL_MS = 55L
+
 /** `nowMs - lastPlayedMs >= minIntervalMs` 时允许播放；[lastPlayedMs] 用 [Long.MIN_VALUE] 表示「从未播放」。 */
 internal fun planeCueAllowed(
     nowMs: Long,
@@ -40,6 +43,7 @@ internal fun planeShotCueAllowed(
 internal class PlaneCueGate {
     private var lastShotCount = Long.MIN_VALUE
     private var lastExplosionMs = Long.MIN_VALUE
+    private var lastGrazeMs = Long.MIN_VALUE
 
     /** 本帧 shot 事件是否允许播放；[shotCount] 取 [PlaneGame.shotCount]（累计开火轮次）。 */
     fun allowShot(shotCount: Long): Boolean {
@@ -55,12 +59,20 @@ internal class PlaneCueGate {
         return true
     }
 
+    /** 本帧 graze 事件是否允许播放。 */
+    fun allowGraze(nowMs: Long): Boolean {
+        if (!planeCueAllowed(nowMs, lastGrazeMs, PLANE_GRAZE_CUE_MIN_INTERVAL_MS)) return false
+        lastGrazeMs = nowMs
+        return true
+    }
+
     /** 开新局可复位计时，避免上一局的最后一声把新局首声吞掉。 */
     fun reset() {
         lastShotCount = Long.MIN_VALUE
         lastExplosionMs = Long.MIN_VALUE
+        lastGrazeMs = Long.MIN_VALUE
     }
 }
 
-/** 武器等级 4 的穿透激光使用独立音色。 */
-internal fun planeShotCue(weaponLevel: Int): GameCue = if (weaponLevel >= PlaneConfig.MAX_WEAPON_LEVEL) GameCue.LASER else GameCue.SHOT
+/** 武器等级 ≥4（单管 / 双管穿透激光）使用独立音色。 */
+internal fun planeShotCue(weaponLevel: Int): GameCue = if (weaponLevel >= 4) GameCue.LASER else GameCue.SHOT

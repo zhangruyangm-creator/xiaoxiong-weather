@@ -40,7 +40,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -49,9 +49,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.ui.rememberSampledDrawable
 import java.time.LocalDate
 import java.time.LocalTime
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 @Composable
@@ -283,8 +285,17 @@ private fun SunPathBearChip(
                     onClick = { enlarged = true },
                 ).padding(horizontal = 8.dp, vertical = 8.dp),
     ) {
+        val thumbPx =
+            with(LocalDensity.current) {
+                148
+                    .dp
+                    .toPx()
+                    .roundToInt()
+                    .coerceAtLeast(128)
+            }
+        val thumb = rememberSampledDrawable(bearRes, thumbPx)
         Image(
-            painter = painterResource(bearRes),
+            bitmap = thumb.bitmap,
             // 相邻 Text(caption) 已朗读描述，图片置 null 避免重复
             contentDescription = null,
             contentScale = ContentScale.Fit,
@@ -342,8 +353,17 @@ private fun SunPathBearEnlargedDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
             ) {
+                val enlargePx =
+                    with(LocalDensity.current) {
+                        360
+                            .dp
+                            .toPx()
+                            .roundToInt()
+                            .coerceAtLeast(256)
+                    }
+                val enlarged = rememberSampledDrawable(bearRes, enlargePx)
                 Image(
-                    painter = painterResource(bearRes),
+                    bitmap = enlarged.bitmap,
                     contentDescription = caption,
                     contentScale = ContentScale.Fit,
                     modifier =

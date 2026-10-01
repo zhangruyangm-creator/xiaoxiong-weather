@@ -105,6 +105,7 @@ class PlaneGame {
     var pendingHapticBomb = false
     var pendingHapticBossWarning = false
     var pendingHapticBossDown = false
+    var pendingHapticGraze = false
     var pendingHapticWin = false
     var pendingHapticLose = false
 
@@ -189,6 +190,7 @@ class PlaneGame {
         player.weaponLevel = PlaneConfig.MIN_WEAPON_LEVEL
         player.invulnTicks = PlaneConfig.HIT_INVULN_TICKS
         player.fireCooldownTicks = 0
+        player.overdriveTicks = 0
         player.alive = true
         enemies.clear()
         playerBullets.clear()
@@ -269,6 +271,7 @@ class PlaneGame {
         tickCount++
         spinPhaseRad = (spinPhaseRad + 0.12f) % TAU
         if (player.invulnTicks > 0) player.invulnTicks--
+        if (player.overdriveTicks > 0) player.overdriveTicks--
         advanceWaves()
         if (phase != PlanePhase.PLAYING) return
         updatePlayerFire()
@@ -290,6 +293,8 @@ class PlaneGame {
         if (player.fireCooldownTicks > 0) player.fireCooldownTicks--
         if (player.fireCooldownTicks > 0) return
         val spec = PlaneConfig.weaponSpec(player.weaponLevel)
+        val overdrive = player.overdriveTicks > 0
+        val damage = if (overdrive) spec.damage + 1 else spec.damage
         for (muzzle in PlaneLogic.muzzleSpecs(spec)) {
             val angle = UP_ANGLE + muzzle.angleRad
             playerBullets +=
@@ -301,7 +306,7 @@ class PlaneGame {
                     y = player.y - 3f,
                     vx = cos(angle) * spec.speed,
                     vy = sin(angle) * spec.speed,
-                    damage = spec.damage,
+                    damage = damage,
                     radius = if (spec.piercing) PlaneConfig.LASER_RADIUS else PlaneConfig.PLAYER_BULLET_RADIUS,
                     halfLength = if (spec.piercing) PlaneConfig.LASER_HALF_LENGTH else 0f,
                     angle = angle,
@@ -309,7 +314,13 @@ class PlaneGame {
                     piercing = spec.piercing,
                 )
         }
-        player.fireCooldownTicks = spec.intervalTicks
+        val interval =
+            if (overdrive) {
+                (spec.intervalTicks * 2 / 3).coerceAtLeast(4)
+            } else {
+                spec.intervalTicks
+            }
+        player.fireCooldownTicks = interval
         shotCount++
         pendingHapticShot = true
     }
@@ -393,6 +404,12 @@ class PlaneGame {
                 hp = spec.hp,
                 maxHp = spec.hp,
                 fireTimerTicks = spec.fireIntervalTicks,
+                bossKind =
+                    if (def.type == PlaneEnemyType.BOSS) {
+                        PlaneConfig.bossKindForWave(waveIndex)
+                    } else {
+                        PlaneBossKind.STANDARD
+                    },
                 baseX = spawnX,
                 targetY = def.targetY,
                 side = def.side,
@@ -538,6 +555,7 @@ class PlaneGame {
                 bullet.grazed = true
                 grazeCount++
                 score += PlaneConfig.GRAZE_SCORE
+                pendingHapticGraze = true
             }
         }
     }
@@ -596,6 +614,7 @@ class PlaneGame {
         if (!player.alive || player.invulnTicks > 0) return
         player.lives--
         player.weaponLevel = max(PlaneConfig.MIN_WEAPON_LEVEL, player.weaponLevel - 1)
+        player.overdriveTicks = 0
         combo = 0
         comboWindowTicks = 0
         player.invulnTicks = PlaneConfig.HIT_INVULN_TICKS
@@ -627,16 +646,26 @@ class PlaneGame {
                 PlaneConfig.DROP_BASE_CHANCE * difficulty.dropChanceMul
             }
         if (chance < 1f && rng.nextFloat() >= chance) return
-        val kind = if (rng.nextInt(4) == 0) PlanePowerUpKind.BOMB else PlanePowerUpKind.WEAPON
+        val kind = PlaneConfig.rollPowerUpKind(rng.nextInt(100))
         powerUps += PlanePowerUp(id = nextEntityId++, kind = kind, x = enemy.x, y = enemy.y)
     }
 
     private fun applyPowerUp(kind: PlanePowerUpKind) {
         when (kind) {
             PlanePowerUpKind.WEAPON ->
-                player.weaponLevel = min(PlaneConfig.MAX_WEAPON_LEVEL, player.weaponLevel + 1)
+                if (player.weaponLevel >= PlaneConfig.MAX_WEAPON_LEVEL) {
+                    player.overdriveTicks =
+                        max(player.overdriveTicks, PlaneConfig.OVERDRIVE_TICKS)
+                } else {
+                    player.weaponLevel += 1
+                }
             PlanePowerUpKind.BOMB ->
                 player.bombs = min(PlaneConfig.MAX_BOMBS, player.bombs + 1)
+            PlanePowerUpKind.SHIELD ->
+                player.invulnTicks =
+                    max(player.invulnTicks, PlaneConfig.SHIELD_INVULN_TICKS)
+            PlanePowerUpKind.LIFE ->
+                player.lives = min(PlaneConfig.START_LIVES_MAX, player.lives + 1)
         }
         score += PlaneConfig.POWERUP_SCORE
         pendingHapticPowerup = true
@@ -727,6 +756,9 @@ class PlaneGame {
             PlaneEnemyType.TRANSPORT -> 0xFFFFF59D.toInt()
             PlaneEnemyType.HELI -> 0xFF80CBC4.toInt()
             PlaneEnemyType.TANK -> 0xFFB0BEC5.toInt()
+            PlaneEnemyType.SCOUT -> 0xFF81D4FA.toInt()
+            PlaneEnemyType.BOMBER -> 0xFFFFAB91.toInt()
+            PlaneEnemyType.SNIPER -> 0xFFB39DDB.toInt()
             PlaneEnemyType.BOSS -> 0xFFFF8A80.toInt()
         }
 
@@ -757,6 +789,7 @@ class PlaneGame {
                 bomb = pendingHapticBomb,
                 bossWarning = pendingHapticBossWarning,
                 bossDown = pendingHapticBossDown,
+                graze = pendingHapticGraze,
                 win = pendingHapticWin,
                 lose = pendingHapticLose,
             )
@@ -773,6 +806,7 @@ class PlaneGame {
         pendingHapticBomb = false
         pendingHapticBossWarning = false
         pendingHapticBossDown = false
+        pendingHapticGraze = false
         pendingHapticWin = false
         pendingHapticLose = false
     }

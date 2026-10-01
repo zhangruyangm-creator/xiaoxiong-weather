@@ -1,14 +1,20 @@
 package com.xiaoxiong.weather.ui.game
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -19,6 +25,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -31,9 +38,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchDifficulty
+import com.xiaoxiong.weather.ui.game.BearCatchLogic.CatchScene
 
 @Composable
 internal fun CatchHud(
@@ -196,10 +205,169 @@ internal fun CatchDifficultyChip(
     )
 }
 
+/** 雨具涂装选择胶囊：未解锁灰显不可点。 */
+@Composable
+internal fun CatchGearTintChip(
+    tint: CatchGearTint,
+    selected: Boolean,
+    unlocked: Boolean,
+    onClick: () -> Unit,
+) {
+    val palette = catchGearPalette(tint)
+    FilterChip(
+        selected = selected,
+        onClick = { if (unlocked) onClick() },
+        enabled = unlocked,
+        label = { Text(stringResource(gearTintLabelRes(tint)), maxLines = 1) },
+        colors =
+            FilterChipDefaults.filterChipColors(
+                selectedContainerColor = palette.canopy.copy(alpha = 0.35f),
+                selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+            ),
+    )
+}
+
+/** READY 扩展区：难度行 + 雨具涂装行。 */
+@Composable
+internal fun ColumnScope.CatchReadyExtras(
+    selectedDifficulty: CatchDifficulty,
+    onDifficulty: (CatchDifficulty) -> Unit,
+    gearTint: CatchGearTint,
+    unlockBest: Int,
+    onGearTint: (CatchGearTint) -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.bear_catch_difficulty_label),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(modifier = Modifier.height(6.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        CatchDifficulty.entries.forEach { difficulty ->
+            CatchDifficultyChip(
+                difficulty = difficulty,
+                selected = selectedDifficulty == difficulty,
+                onClick = { onDifficulty(difficulty) },
+            )
+        }
+    }
+    Spacer(modifier = Modifier.height(12.dp))
+    Text(
+        text = stringResource(R.string.bear_catch_gear_tint),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(modifier = Modifier.height(6.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        CatchGearTint.entries.chunked(3).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                row.forEach { tint ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        CatchGearTintChip(
+                            tint = tint,
+                            selected = gearTint == tint,
+                            unlocked = catchGearTintUnlocked(tint, unlockBest),
+                            onClick = { onGearTint(tint) },
+                        )
+                    }
+                }
+                repeat(3 - row.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+/** 局中横幅：爆发 / 里程碑 / 场景开场。 */
+@Composable
+internal fun CatchEventBanner(
+    text: String,
+    warning: Boolean = false,
+) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color =
+                if (warning) {
+                    Color(0xE62A0A10)
+                } else {
+                    Color(0xE6121A24)
+                },
+            border =
+                BorderStroke(
+                    1.dp,
+                    if (warning) Color(0xFFFF8A80) else Color(0xFFFFD54F).copy(alpha = 0.65f),
+                ),
+            shadowElevation = 12.dp,
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = text,
+                    color = if (warning) Color(0xFFFF8A80) else Color(0xFFFFD54F),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun catchBannerText(kind: CatchBannerKind): String =
+    when (kind) {
+        CatchBannerKind.BURST -> stringResource(R.string.bear_catch_banner_burst)
+        is CatchBannerKind.Milestone -> stringResource(R.string.bear_catch_milestone, kind.value)
+        is CatchBannerKind.SceneIntro ->
+            stringResource(
+                when (kind.scene) {
+                    CatchScene.STORM -> R.string.bear_catch_scene_storm
+                    CatchScene.HAIL -> R.string.bear_catch_scene_hail
+                    CatchScene.SNOW -> R.string.bear_catch_scene_snow
+                    else -> R.string.bear_catch_banner_burst
+                },
+            )
+    }
+
+/** 横幅种类：爆发上升沿 / 分数里程碑 / 危险场景开场。 */
+sealed class CatchBannerKind {
+    data object BURST : CatchBannerKind()
+
+    data class Milestone(
+        val value: Int,
+    ) : CatchBannerKind()
+
+    data class SceneIntro(
+        val scene: CatchScene,
+    ) : CatchBannerKind()
+
+    val isWarning: Boolean
+        get() = this is BURST || this is SceneIntro
+}
+
 @StringRes
 private fun difficultyLabelRes(difficulty: CatchDifficulty): Int =
     when (difficulty) {
         CatchDifficulty.CASUAL -> R.string.bear_catch_difficulty_casual
         CatchDifficulty.STANDARD -> R.string.bear_catch_difficulty_standard
         CatchDifficulty.CHALLENGE -> R.string.bear_catch_difficulty_challenge
+    }
+
+@StringRes
+private fun gearTintLabelRes(tint: CatchGearTint): Int =
+    when (tint) {
+        CatchGearTint.CLASSIC -> R.string.bear_catch_tint_classic
+        CatchGearTint.GOLD -> R.string.bear_catch_tint_gold
+        CatchGearTint.MIDNIGHT -> R.string.bear_catch_tint_midnight
+        CatchGearTint.ROSE -> R.string.bear_catch_tint_rose
+        CatchGearTint.AURORA -> R.string.bear_catch_tint_aurora
     }

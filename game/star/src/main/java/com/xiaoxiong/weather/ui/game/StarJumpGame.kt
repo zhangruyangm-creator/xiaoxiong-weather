@@ -15,8 +15,9 @@ import kotlin.random.Random
 /** 摘星快照键：对局进行中落盘，结束/重开/退出时清除。 */
 private const val STAR_SNAPSHOT_KEY = "star_snapshot_v1"
 
-/** 快照 meta 段的字段数，用于坏档校验。 */
+/** 快照 meta 段的字段数，用于坏档校验（≥19 兼容旧档；≥24 含难度/连杀/擦边）。 */
 private const val STAR_SNAPSHOT_META_FIELDS = 19
+private const val STAR_SNAPSHOT_META_FIELDS_V2 = 24
 
 internal enum class PlatType { NORMAL, MOVING, BREAK, SPRING }
 
@@ -28,6 +29,8 @@ internal class Platform(
     var vx: Float = 0f,
     var broken: Boolean = false,
     var breakT: Float = 0f,
+    /** 本局是否已计过擦边（每台一次）。 */
+    var grazed: Boolean = false,
 )
 
 internal class StarItem(
@@ -79,6 +82,8 @@ internal class StarJumpGame {
     var phase by mutableStateOf(GamePhase.READY)
     var best by mutableIntStateOf(0)
     var score by mutableIntStateOf(0)
+    var difficulty by mutableStateOf(StarDifficulty.STANDARD)
+    var trailTint by mutableStateOf(StarTrailTint.CLASSIC)
 
     /** 当前天气场景；由 [BearStarJumpScreen] 在天气变化时刷新。 */
     var scene by mutableStateOf(JumpScene.SUNNY)
@@ -96,6 +101,13 @@ internal class StarJumpGame {
     var cameraY = 0f // 屏幕顶对应的世界 y
     var maxHeight = 0f // 到达过的最小 bearY
     var starsCollected by mutableIntStateOf(0)
+    var combo by mutableIntStateOf(0)
+    var comboWindowSec = 0f
+    var comboBonusTotal = 0
+    var grazeCount by mutableIntStateOf(0)
+    var pendingGraze = false
+    var pendingBandTheme: StarAltitudeTheme? = null
+    private var lastBandTheme = StarAltitudeTheme.DAY
 
     var touchX: Float? = null
     var squashT = -1f
@@ -169,6 +181,13 @@ internal class StarJumpGame {
         maxHeight = bearY
         starsCollected = 0
         score = 0
+        combo = 0
+        comboWindowSec = 0f
+        comboBonusTotal = 0
+        grazeCount = 0
+        pendingGraze = false
+        pendingBandTheme = null
+        lastBandTheme = StarAltitudeTheme.DAY
         time = 0f
         squashT = -1f
         shakeT = 0f
@@ -195,18 +214,19 @@ internal class StarJumpGame {
             val roll = Random.nextFloat()
             val early = nextPlatY > -700f * s
             // 类型与宽度决策委托引擎层（可测）；x 与 vx 仍用独立随机，保持原生成分布
-            val (type, pw) = StarJumpLogic.platformShape(progress, early, roll, w, s)
+            val (type, pw) = StarJumpLogic.platformShape(progress, early, roll, w, s, difficulty)
             val xSpan = (maxTravel - pw).coerceAtLeast(1f)
             val x = margin + Random.nextFloat() * xSpan
             val vx =
                 if (type == PlatType.MOVING) {
-                    (50f + 85f * progress) * s * if (Random.nextBoolean()) 1f else -1f
+                    (50f + 85f * progress) * s * difficulty.movingSpeedMul * if (Random.nextBoolean()) 1f else -1f
                 } else {
                     0f
                 }
             platforms.add(Platform(x, nextPlatY, pw, type, vx))
-            val gap = (95f + 78f * progress + Random.nextFloat() * 30f) * s
-            if (!early && Random.nextFloat() < 0.26f) {
+            val gap = (95f + 78f * progress + Random.nextFloat() * 30f) * s * difficulty.gapMul
+            val starChance = 0.26f * difficulty.starChanceMul
+            if (!early && Random.nextFloat() < starChance) {
                 stars.add(
                     StarItem(
                         x = 30f * s + Random.nextFloat() * (w - 60f * s).coerceAtLeast(1f),
@@ -275,6 +295,13 @@ internal class StarJumpGame {
         }
 
         if (phase == GamePhase.RUNNING) {
+            if (comboWindowSec > 0f) {
+                comboWindowSec -= dt
+                if (comboWindowSec <= 0f) {
+                    comboWindowSec = 0f
+                    combo = 0
+                }
+            }
             // 踩平台：仅下落时、脚线穿越台面（判定委托引擎层）
             if (bearVY > 0f) {
                 val contact =
@@ -292,6 +319,13 @@ internal class StarJumpGame {
                 if (contact.hit && contact.platform != null) {
                     val p = contact.platform
                     bearY = contact.landY
+                    combo = (combo + 1).coerceAtMost(99)
+                    comboWindowSec = STAR_COMBO_WINDOW_SEC
+                    val bounceBonus = StarJumpLogic.bounceComboBonus(combo)
+                    comboBonusTotal += bounceBonus
+                    if (bounceBonus > 0) {
+                        texts.add(JumpFloatText("×$combo +$bounceBonus", bearX, bearY - bs, 0.85f))
+                    }
                     if (p.type == PlatType.BREAK) {
                         p.broken = true
                         p.breakT = 0f
@@ -304,6 +338,7 @@ internal class StarJumpGame {
                     }
                     bearVY = contact.bounceVY
                     squashT = 0f
+                    val trailColor = starTrailParticleColor(trailTint)
                     repeat(8) {
                         particles.add(
                             Particle(
@@ -312,9 +347,33 @@ internal class StarJumpGame {
                                 (Random.nextFloat() - 0.5f) * 160f * s,
                                 -Random.nextFloat() * 120f * s,
                                 0.4f + Random.nextFloat() * 0.3f,
-                                color = Color.White.copy(alpha = 0.85f),
+                                color = trailColor,
                             ),
                         )
+                    }
+                } else {
+                    // 擦边：贴台未踩中
+                    for (p in platforms) {
+                        if (p.grazed || p.broken) continue
+                        if (
+                            StarJumpLogic.nearMissGraze(
+                                bearX = bearX,
+                                prevFeetY = prevY + bs / 2f,
+                                newFeetY = bearY + bs / 2f,
+                                bearVY = bearVY,
+                                platform = p,
+                                w = w,
+                                h = h,
+                                s = s,
+                                cameraY = cameraY,
+                            )
+                        ) {
+                            p.grazed = true
+                            grazeCount++
+                            pendingGraze = true
+                            texts.add(JumpFloatText("+${STAR_GRAZE_SCORE}", bearX, p.y, 0.7f))
+                            break
+                        }
                     }
                 }
             }
@@ -347,7 +406,20 @@ internal class StarJumpGame {
             val target = bearY - h * 0.42f
             if (target < cameraY) cameraY = target
             maxHeight = min(maxHeight, bearY)
-            score = StarJumpLogic.scoreFor(maxHeight, starsCollected, s)
+            score =
+                StarJumpLogic.scoreFor(
+                    maxHeight = maxHeight,
+                    starsCollected = starsCollected,
+                    s = s,
+                    difficulty = difficulty,
+                    comboBonusTotal = comboBonusTotal,
+                    grazeCount = grazeCount,
+                )
+            val band = starAltitudeTheme(altitudeKm)
+            if (band != lastBandTheme) {
+                lastBandTheme = band
+                if (band != StarAltitudeTheme.DAY) pendingBandTheme = band
+            }
 
             genPlatforms(cameraY - h * 0.5f)
             platforms.removeAll { it.y > cameraY + h + 120f * s }
@@ -410,10 +482,24 @@ internal class StarJumpGame {
                 h,
                 s,
                 nextPlatY,
+                difficulty.ordinal,
+                combo,
+                comboWindowSec,
+                comboBonusTotal,
+                grazeCount,
             )
         val platformGroups =
             platforms.map {
-                listOf<Number>(it.type.ordinal, it.x, it.y, it.w, it.vx, if (it.broken) 1 else 0, it.breakT)
+                listOf<Number>(
+                    it.type.ordinal,
+                    it.x,
+                    it.y,
+                    it.w,
+                    it.vx,
+                    if (it.broken) 1 else 0,
+                    it.breakT,
+                    if (it.grazed) 1 else 0,
+                )
             }
         val starGroups = stars.map { listOf<Number>(it.x, it.y, if (it.taken) 1 else 0, it.seed) }
         val payload =
@@ -449,7 +535,16 @@ internal class StarJumpGame {
             platformGroups.mapNotNull { g ->
                 if (g.size < 7) return@mapNotNull null
                 val type = PlatType.values().getOrNull(g[0].toInt()) ?: return@mapNotNull null
-                Platform(g[1], g[2], g[3], type, vx = g[4], broken = g[5] >= 0.5f, breakT = g[6])
+                Platform(
+                    g[1],
+                    g[2],
+                    g[3],
+                    type,
+                    vx = g[4],
+                    broken = g[5] >= 0.5f,
+                    breakT = g[6],
+                    grazed = g.size >= 8 && g[7] >= 0.5f,
+                )
             }
         val newStars =
             starGroups.mapNotNull { g ->
@@ -475,6 +570,21 @@ internal class StarJumpGame {
         scene = JumpScene.values().getOrElse(meta[14].toInt()) { JumpScene.SUNNY }
         restoredDims = Triple(meta[15], meta[16], meta[17])
         nextPlatY = meta[18]
+        if (meta.size >= STAR_SNAPSHOT_META_FIELDS_V2) {
+            difficulty = StarDifficulty.entries.getOrElse(meta[19].toInt()) { StarDifficulty.STANDARD }
+            combo = meta[20].toInt().coerceAtLeast(0)
+            comboWindowSec = meta[21].coerceAtLeast(0f)
+            comboBonusTotal = meta[22].toInt().coerceAtLeast(0)
+            grazeCount = meta[23].toInt().coerceAtLeast(0)
+        } else {
+            combo = 0
+            comboWindowSec = 0f
+            comboBonusTotal = 0
+            grazeCount = 0
+        }
+        lastBandTheme = starAltitudeTheme(altitudeKm)
+        pendingBandTheme = null
+        pendingGraze = false
         touchX = null
         snapshotDiscarded = false
         platforms.clear()

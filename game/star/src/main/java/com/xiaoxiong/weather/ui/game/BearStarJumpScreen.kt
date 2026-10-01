@@ -5,19 +5,27 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,7 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
+import kotlinx.coroutines.delay
 import kotlin.random.Random
 
 /** 快照清档条件：只有结算态不可续玩（与既有死亡清档时机一致）。 */
@@ -62,18 +72,53 @@ fun BearStarJumpScreen(
     val density = LocalDensity.current.density
     val pause = rememberGamePauseState()
     val prefs = rememberGamePrefs()
-    val lb = rememberLeaderboardState(prefs, "leaderboard_jump", "best_jump")
+    // 迁移旧版单一最高分 → 标准档
+    remember {
+        val legacy = prefs.intOr(STAR_LEGACY_BEST_KEY, 0)
+        val stdKey = starBestKey(StarDifficulty.STANDARD)
+        if (legacy > 0 && prefs.intOr(stdKey, 0) == 0) {
+            prefs.edit { putInt(stdKey, legacy) }
+        }
+        true
+    }
+    var difficulty by remember {
+        mutableStateOf(StarDifficulty.fromId(prefs.stringOr(STAR_DIFFICULTY_KEY)))
+    }
+
+    fun bestOf(d: StarDifficulty): Int =
+        maxOf(prefs.intOr(starBestKey(d), 0), if (d == StarDifficulty.STANDARD) prefs.intOr(STAR_LEGACY_BEST_KEY, 0) else 0)
+    val lb = rememberLeaderboardState(prefs, starLeaderboardKey(difficulty), starBestKey(difficulty))
     val characterState = rememberBearCharacterState()
     var showCharacterPicker by remember { mutableStateOf(false) }
+    var trailTint by remember {
+        mutableStateOf(StarTrailTint.fromId(prefs.stringOr(STAR_TRAIL_TINT_KEY)))
+    }
+    var bandBanner by remember { mutableStateOf<StarAltitudeTheme?>(null) }
+    var bandBannerToken by remember { mutableStateOf(0) }
     val game =
         remember {
-            StarJumpGame().also { it.best = prefs.intOr("best_jump", 0) }
+            StarJumpGame().also {
+                it.difficulty = difficulty
+                it.best = bestOf(difficulty)
+                it.trailTint = trailTint
+            }
         }
     val jumpWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     // 进程重建（旋转/被杀）后恢复局中对局：由 GameSnapshotLifecycle 在进入时恢复，
     // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。
     LaunchedEffect(Unit) {
         GameAudio.preload(context)
+        if (!starTrailTintUnlocked(trailTint, bestOf(difficulty))) {
+            trailTint = StarTrailTint.CLASSIC
+            game.trailTint = trailTint
+            prefs.edit { putString(STAR_TRAIL_TINT_KEY, trailTint.id) }
+        }
+    }
+    LaunchedEffect(bandBannerToken) {
+        if (bandBannerToken > 0) {
+            delay(1400L)
+            bandBanner = null
+        }
     }
     // 快照生命周期统一交给公共件：进入恢复 → OVER 清档 → ON_STOP/onDispose 兜底落盘 → 退出抑制。
     val session =
@@ -136,16 +181,19 @@ fun BearStarJumpScreen(
                     },
                     onSpring = {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        GameAudio.play(GameCue.JUMP)
+                        GameAudio.play(GameCue.POWERUP)
                     },
                     onDeath = { score ->
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                         GameAudio.play(GameCue.HIT)
-                        // 对局结束：清除快照，避免下次重进续上已死的一局
                         game.clearSnapshot(prefs)
+                        val key = starBestKey(game.difficulty)
                         if (score > game.best) {
                             game.best = score
-                            prefs.edit { putInt("best_jump", score) }
+                            prefs.edit {
+                                putInt(key, score)
+                                if (game.difficulty == StarDifficulty.STANDARD) putInt(STAR_LEGACY_BEST_KEY, score)
+                            }
                         }
                         if (score > 0) {
                             lb.lastRank =
@@ -160,6 +208,17 @@ fun BearStarJumpScreen(
                         }
                     },
                 )
+                if (game.pendingGraze) {
+                    game.pendingGraze = false
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    GameAudio.play(GameCue.GRAZE)
+                }
+                game.pendingBandTheme?.let { theme ->
+                    game.pendingBandTheme = null
+                    bandBanner = theme
+                    bandBannerToken++
+                    GameAudio.play(GameCue.WARNING)
+                }
                 frame = now
             }
             if (!running) slowTick++
@@ -260,9 +319,35 @@ fun BearStarJumpScreen(
                     lb.entries = emptyList()
                     lb.resetLastRank()
                     game.best = 0
+                    prefs.edit { putInt(starBestKey(difficulty), 0) }
                 },
                 onDismiss = { lb.show = false },
             )
+        }
+
+        if (bandBanner != null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xE61A2430),
+                ) {
+                    Text(
+                        text =
+                            stringResource(
+                                when (bandBanner) {
+                                    StarAltitudeTheme.DUSK -> R.string.bear_star_band_dusk
+                                    StarAltitudeTheme.NIGHT -> R.string.bear_star_band_night
+                                    StarAltitudeTheme.SPACE -> R.string.bear_star_band_space
+                                    else -> R.string.bear_star_band_dusk
+                                },
+                            ),
+                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                        color = Color(0xFFFFD54F),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
         }
 
         when (game.phase) {
@@ -270,10 +355,90 @@ fun BearStarJumpScreen(
                 GameReadyCard(
                     title = stringResource(R.string.bear_jump_title),
                     hint = stringResource(R.string.bear_jump_hint),
+                    bestLine = gameBestLabel() + " ${game.best}",
                     startText = stringResource(R.string.bear_jump_start),
                     onStart = {
                         lb.resetLastRank()
+                        game.difficulty = difficulty
+                        game.trailTint = trailTint
                         game.start()
+                    },
+                    extra = {
+                        Text(
+                            text = stringResource(R.string.bear_star_difficulty_label),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            StarDifficulty.entries.forEach { d ->
+                                FilterChip(
+                                    selected = difficulty == d,
+                                    onClick = {
+                                        difficulty = d
+                                        game.difficulty = d
+                                        prefs.edit { putString(STAR_DIFFICULTY_KEY, d.id) }
+                                        game.best = bestOf(d)
+                                        lb.entries = emptyList()
+                                        lb.resetLastRank()
+                                    },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                when (d) {
+                                                    StarDifficulty.CASUAL -> R.string.bear_star_difficulty_casual
+                                                    StarDifficulty.STANDARD -> R.string.bear_star_difficulty_standard
+                                                    StarDifficulty.CHALLENGE -> R.string.bear_star_difficulty_challenge
+                                                },
+                                            ),
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = stringResource(R.string.bear_star_trail_tint),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            StarTrailTint.entries.forEach { tint ->
+                                val unlocked = starTrailTintUnlocked(tint, bestOf(difficulty))
+                                FilterChip(
+                                    selected = trailTint == tint,
+                                    enabled = unlocked,
+                                    onClick = {
+                                        if (!unlocked) return@FilterChip
+                                        trailTint = tint
+                                        game.trailTint = tint
+                                        prefs.edit { putString(STAR_TRAIL_TINT_KEY, tint.id) }
+                                    },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                when (tint) {
+                                                    StarTrailTint.CLASSIC -> R.string.bear_star_tint_classic
+                                                    StarTrailTint.GOLD -> R.string.bear_star_tint_gold
+                                                    StarTrailTint.MIDNIGHT -> R.string.bear_star_tint_midnight
+                                                    StarTrailTint.ROSE -> R.string.bear_star_tint_rose
+                                                    StarTrailTint.AURORA -> R.string.bear_star_tint_aurora
+                                                },
+                                            ),
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(),
+                                )
+                            }
+                        }
                     },
                 )
             }
@@ -354,8 +519,19 @@ private fun JumpHud(
             )
             Text(
                 text =
-                    "★ ${game.starsCollected} · " +
-                        stringResource(R.string.bear_game_best_label) + " ${game.best}",
+                    buildString {
+                        append("★ ${game.starsCollected} · ")
+                        append(stringResource(R.string.bear_game_best_label))
+                        append(" ${game.best}")
+                        if (game.combo >= 2) {
+                            append(" · ")
+                            append(stringResource(R.string.bear_star_combo, game.combo))
+                        }
+                        if (game.grazeCount > 0) {
+                            append(" · ")
+                            append(stringResource(R.string.bear_star_graze, game.grazeCount))
+                        }
+                    },
                 style = MaterialTheme.typography.labelMedium,
                 color = Color.White.copy(alpha = 0.85f),
             )

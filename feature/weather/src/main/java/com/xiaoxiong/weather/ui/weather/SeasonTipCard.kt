@@ -1,19 +1,31 @@
 package com.xiaoxiong.weather.ui.weather
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Park
+import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
@@ -26,13 +38,11 @@ internal fun SeasonTipsSection(
     city: City,
     elevationMeters: Double? = null,
     phenologyShiftDays: Int? = null,
+    phenologyShiftLoading: Boolean = false,
 ) {
-    // 物候是「当下」该看的时令：不依赖天气快照的 current.time（缓存快照日期
-    // 可能滞后，落到物候空窗期会让整卡消失），始终按真实今天推算。
-    // 跨零点自动刷新：否则用户停留过夜时，时令提示仍按昨天的日期推算
     val todayEpochDay = rememberTodayEpochDay().value
     val todayIso = remember(todayEpochDay) { LocalDate.ofEpochDay(todayEpochDay).toString() }
-    val tips =
+    val display =
         remember(
             city.latitude,
             city.longitude,
@@ -41,90 +51,131 @@ internal fun SeasonTipsSection(
             elevationMeters,
             phenologyShiftDays,
         ) {
-            SeasonTipGenerator.tipsForCity(city, todayIso, elevationMeters, phenologyShiftDays)
+            SeasonTipGenerator.displayForCity(city, todayIso, elevationMeters, phenologyShiftDays)
         }
-    if (tips.isEmpty()) return
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+    if (!display.hasContent && !phenologyShiftLoading) return
+
+    SeasonTipsCardContent(
+        display = display,
+        globalPhenologyShiftDays = phenologyShiftDays,
+        phenologyShiftLoading = phenologyShiftLoading,
+        compact = false,
+    )
+}
+
+/** 今日页精简入口：一行摘要，点击跳转七日页看全文。 */
+@Composable
+internal fun SeasonTeaserCard(
+    city: City,
+    elevationMeters: Double? = null,
+    phenologyShiftDays: Int? = null,
+    phenologyShiftLoading: Boolean = false,
+    onOpenDailySeason: () -> Unit,
+) {
+    val todayEpochDay = rememberTodayEpochDay().value
+    val todayIso = remember(todayEpochDay) { LocalDate.ofEpochDay(todayEpochDay).toString() }
+    val display =
+        remember(
+            city.latitude,
+            city.longitude,
+            city.admin1,
+            todayIso,
+            elevationMeters,
+            phenologyShiftDays,
+        ) {
+            SeasonTipGenerator.displayForCity(city, todayIso, elevationMeters, phenologyShiftDays)
+        }
+    if (!display.hasContent && !phenologyShiftLoading) return
+
+    SoftCard(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onOpenDailySeason),
     ) {
-        tips.forEach { tip ->
-            SeasonTipCard(tip)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.season_section_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                SeasonTeaserLine(
+                    display = display,
+                    phenologyShiftLoading = phenologyShiftLoading,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.season_teaser_open_daily),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-private fun SeasonTipCard(tip: SeasonTipGenerator.Tip) {
-    val icon =
-        when (tip.kind) {
-            SeasonTipGenerator.Kind.FOLIAGE -> Icons.Filled.Park
-            else -> Icons.Filled.LocalFlorist
-        }
-    val kindTitle =
-        when (tip.kind) {
-            SeasonTipGenerator.Kind.WINTER_BLOOM -> stringResource(R.string.season_winter_bloom)
-            SeasonTipGenerator.Kind.SPRING_BLOOM -> stringResource(R.string.season_spring_bloom)
-            SeasonTipGenerator.Kind.SUMMER_BLOOM -> stringResource(R.string.season_summer_bloom)
-            SeasonTipGenerator.Kind.AUTUMN_BLOOM -> stringResource(R.string.season_autumn_bloom)
-            SeasonTipGenerator.Kind.FOLIAGE -> stringResource(R.string.season_foliage)
-        }
-    val phaseLabel =
-        when (tip.phase) {
-            SeasonTipGenerator.Phase.UPCOMING -> stringResource(R.string.season_phase_upcoming)
-            SeasonTipGenerator.Phase.STARTING -> stringResource(R.string.season_phase_starting)
-            SeasonTipGenerator.Phase.PEAK -> stringResource(R.string.season_phase_peak)
-            SeasonTipGenerator.Phase.ENDING -> stringResource(R.string.season_phase_ending)
-        }
-    val windowText =
-        stringResource(
-            R.string.season_window,
-            tip.windowStart.monthValue,
-            tip.windowStart.dayOfMonth,
-            tip.windowEnd.monthValue,
-            tip.windowEnd.dayOfMonth,
-        )
-    val subjects = stringResource(tip.subjectsRes)
-    val summary =
-        when (tip.kind) {
-            SeasonTipGenerator.Kind.FOLIAGE ->
-                when (tip.phase) {
-                    SeasonTipGenerator.Phase.UPCOMING ->
-                        stringResource(R.string.season_foliage_upcoming, windowText, subjects)
-                    SeasonTipGenerator.Phase.STARTING ->
-                        stringResource(R.string.season_foliage_starting, subjects)
-                    SeasonTipGenerator.Phase.PEAK ->
-                        stringResource(R.string.season_foliage_peak, subjects)
-                    SeasonTipGenerator.Phase.ENDING ->
-                        stringResource(R.string.season_foliage_ending, subjects)
-                }
-            else ->
-                when (tip.phase) {
-                    SeasonTipGenerator.Phase.UPCOMING ->
-                        stringResource(R.string.season_blossom_upcoming, windowText, subjects)
-                    SeasonTipGenerator.Phase.STARTING ->
-                        stringResource(R.string.season_blossom_starting, subjects)
-                    SeasonTipGenerator.Phase.PEAK ->
-                        stringResource(R.string.season_blossom_peak, subjects)
-                    SeasonTipGenerator.Phase.ENDING ->
-                        stringResource(R.string.season_blossom_ending, subjects)
-                }
-        }
-
-    SoftCard(modifier = Modifier.fillMaxWidth()) {
-        SectionHeader(
-            title = kindTitle,
-            subtitle = stringResource(R.string.season_sub, phaseLabel),
-            icon = icon,
-        )
-        Spacer(modifier = Modifier.height(10.dp))
+private fun SeasonTeaserLine(
+    display: SeasonTipGenerator.SeasonDisplay,
+    phenologyShiftLoading: Boolean,
+) {
+    if (phenologyShiftLoading && display.tips.isEmpty() && display.nextOutlook == null) {
         Text(
-            text = summary,
-            style = MaterialTheme.typography.bodyMedium,
+            text = stringResource(R.string.season_phenology_loading),
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        tip.phenologyShiftDays?.takeIf { it != 0 }?.let { shiftDays ->
-            Spacer(modifier = Modifier.height(6.dp))
+        return
+    }
+    val tip = display.tips.firstOrNull() ?: display.nextOutlook
+    if (tip == null) return
+    Text(
+        text = seasonTipHeadline(tip, includeWindow = false),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 2,
+    )
+}
+
+@Composable
+internal fun SeasonTipsCardContent(
+    display: SeasonTipGenerator.SeasonDisplay,
+    globalPhenologyShiftDays: Int? = null,
+    phenologyShiftLoading: Boolean = false,
+    compact: Boolean = false,
+) {
+    SoftCard(modifier = Modifier.fillMaxWidth()) {
+        SectionHeader(
+            title = stringResource(R.string.season_section_title),
+            subtitle = stringResource(R.string.season_sub),
+            icon = Icons.Filled.LocalFlorist,
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (phenologyShiftLoading) {
+            Text(
+                text = stringResource(R.string.season_phenology_loading),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
+            display.tips.forEach { tip ->
+                SeasonTipRow(tip)
+            }
+            display.nextOutlook?.let { outlook ->
+                SeasonTipRow(outlook, isGapOutlook = true)
+            }
+        }
+
+        globalPhenologyShiftDays?.takeIf { it != 0 && !phenologyShiftLoading }?.let { shiftDays ->
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text =
                     if (shiftDays < 0) {
@@ -136,7 +187,8 @@ private fun SeasonTipCard(tip: SeasonTipGenerator.Tip) {
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
+
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.season_disclaimer),
             style = MaterialTheme.typography.labelSmall,
@@ -144,3 +196,132 @@ private fun SeasonTipCard(tip: SeasonTipGenerator.Tip) {
         )
     }
 }
+
+@Composable
+private fun SeasonTipRow(
+    tip: SeasonTipGenerator.Tip,
+    isGapOutlook: Boolean = tip.isGapOutlook,
+) {
+    val icon = iconForKind(tip.kind)
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(modifier = Modifier.size(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = seasonTipHeadline(tip, includeWindow = true, forceGapCopy = isGapOutlook),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = seasonTipBody(tip, isGapOutlook),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun seasonTipHeadline(
+    tip: SeasonTipGenerator.Tip,
+    includeWindow: Boolean,
+    forceGapCopy: Boolean = tip.isGapOutlook,
+): String {
+    val kindTitle = kindTitle(tip.kind)
+    val phaseLabel = phaseLabel(tip.phase)
+    if (forceGapCopy) {
+        val days = tip.daysUntilNext ?: return "$kindTitle · $phaseLabel"
+        val windowText = formatSeasonWindow(tip.windowStart, tip.windowEnd)
+        return stringResource(
+            R.string.season_gap_headline,
+            kindTitle,
+            days,
+            windowText,
+        )
+    }
+    return "$kindTitle · $phaseLabel"
+}
+
+@Composable
+private fun seasonTipBody(
+    tip: SeasonTipGenerator.Tip,
+    isGapOutlook: Boolean,
+): String {
+    val windowText = formatSeasonWindow(tip.windowStart, tip.windowEnd)
+    val subjects = stringResource(tip.subjectsRes)
+    if (isGapOutlook) {
+        return stringResource(R.string.season_gap_body, windowText, subjects)
+    }
+    return when (tip.kind) {
+        SeasonTipGenerator.Kind.FOLIAGE ->
+            when (tip.phase) {
+                SeasonTipGenerator.Phase.UPCOMING ->
+                    stringResource(R.string.season_foliage_upcoming, windowText, subjects)
+                SeasonTipGenerator.Phase.STARTING ->
+                    stringResource(R.string.season_foliage_starting, subjects)
+                SeasonTipGenerator.Phase.PEAK ->
+                    stringResource(R.string.season_foliage_peak, subjects)
+                SeasonTipGenerator.Phase.ENDING ->
+                    stringResource(R.string.season_foliage_ending, subjects)
+            }
+        else ->
+            when (tip.phase) {
+                SeasonTipGenerator.Phase.UPCOMING ->
+                    stringResource(R.string.season_blossom_upcoming, windowText, subjects)
+                SeasonTipGenerator.Phase.STARTING ->
+                    stringResource(R.string.season_blossom_starting, subjects)
+                SeasonTipGenerator.Phase.PEAK ->
+                    stringResource(R.string.season_blossom_peak, subjects)
+                SeasonTipGenerator.Phase.ENDING ->
+                    stringResource(R.string.season_blossom_ending, subjects)
+            }
+    }
+}
+
+@Composable
+private fun formatSeasonWindow(
+    start: java.time.MonthDay,
+    end: java.time.MonthDay,
+): String =
+    stringResource(
+        R.string.season_window,
+        start.monthValue,
+        start.dayOfMonth,
+        end.monthValue,
+        end.dayOfMonth,
+    )
+
+@Composable
+private fun kindTitle(kind: SeasonTipGenerator.Kind): String =
+    when (kind) {
+        SeasonTipGenerator.Kind.WINTER_BLOOM -> stringResource(R.string.season_winter_bloom)
+        SeasonTipGenerator.Kind.SPRING_BLOOM -> stringResource(R.string.season_spring_bloom)
+        SeasonTipGenerator.Kind.SUMMER_BLOOM -> stringResource(R.string.season_summer_bloom)
+        SeasonTipGenerator.Kind.AUTUMN_BLOOM -> stringResource(R.string.season_autumn_bloom)
+        SeasonTipGenerator.Kind.FOLIAGE -> stringResource(R.string.season_foliage)
+    }
+
+@Composable
+private fun phaseLabel(phase: SeasonTipGenerator.Phase): String =
+    when (phase) {
+        SeasonTipGenerator.Phase.UPCOMING -> stringResource(R.string.season_phase_upcoming)
+        SeasonTipGenerator.Phase.STARTING -> stringResource(R.string.season_phase_starting)
+        SeasonTipGenerator.Phase.PEAK -> stringResource(R.string.season_phase_peak)
+        SeasonTipGenerator.Phase.ENDING -> stringResource(R.string.season_phase_ending)
+    }
+
+private fun iconForKind(kind: SeasonTipGenerator.Kind): ImageVector =
+    when (kind) {
+        SeasonTipGenerator.Kind.WINTER_BLOOM -> Icons.Filled.AcUnit
+        SeasonTipGenerator.Kind.SPRING_BLOOM -> Icons.Filled.LocalFlorist
+        SeasonTipGenerator.Kind.SUMMER_BLOOM -> Icons.Filled.WbSunny
+        SeasonTipGenerator.Kind.AUTUMN_BLOOM -> Icons.Filled.Spa
+        SeasonTipGenerator.Kind.FOLIAGE -> Icons.Filled.Park
+    }

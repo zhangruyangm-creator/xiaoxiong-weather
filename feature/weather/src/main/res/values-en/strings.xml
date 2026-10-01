@@ -217,6 +217,7 @@
     <string name="search_popular">Popular</string>
     <string name="search_recent">Recent</string>
     <string name="search_recent_clear">Clear</string>
+    <string name="season_section_title">Season &amp; bloom</string>
     <string name="season_autumn_bloom">Autumn bloom</string>
     <string name="season_blossom_ending">%1$s and similar are winding down — catch them while you can.</string>
     <string name="season_blossom_peak">Peak bloom season — common locally: %1$s. Fair weather is good for walks.</string>
@@ -234,8 +235,12 @@
     <string name="season_phase_upcoming">Coming soon</string>
     <string name="season_phenology_early">Warmer year than usual — phenology about %1$d days early</string>
     <string name="season_phenology_late">Cooler year than usual — phenology about %1$d days late</string>
+    <string name="season_phenology_loading">Adjusting season timing from this year\'s temperatures…</string>
+    <string name="season_gap_headline">Next · %1$s · in about %2$d days</string>
+    <string name="season_gap_body">Typical window %1$s — watch for %2$s and similar.</string>
+    <string name="season_teaser_open_daily">Open 7-day season details</string>
     <string name="season_spring_bloom">Spring bloom</string>
-    <string name="season_sub">%1$s · calendar estimate by latitude</string>
+    <string name="season_sub">Calendar window · elevation · heat (GDD)</string>
     <string name="season_summer_bloom">Summer bloom</string>
     <string name="season_window">%1$d/%2$d–%3$d/%4$d</string>
     <string name="season_winter_bloom">Winter bloom</string>

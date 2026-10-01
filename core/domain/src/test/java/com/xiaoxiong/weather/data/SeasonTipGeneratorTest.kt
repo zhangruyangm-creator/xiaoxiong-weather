@@ -92,14 +92,17 @@ class SeasonTipGeneratorTest {
     }
 
     @Test
-    fun jinan_endOfAugustCanHitEmptyWindow() {
-        // 根因复现：8/26（夏花 8/25 收尾、桂花 9/10 才开始）存在空窗，
-        // 缓存快照日期若落在这里，时令物候整卡会消失。
-        assertTrue(
-            SeasonTipGenerator
-                .tipsFor(36.6512, 117.1201, LocalDate.of(2026, 8, 26))
-                .isEmpty(),
-        )
+    fun jinan_endOfAugust_showsNextSeasonOutlook() {
+        val display =
+            SeasonTipGenerator.displayFor(
+                latitude = 36.6512,
+                longitude = 117.1201,
+                onDate = LocalDate.of(2026, 8, 26),
+            )
+        assertTrue(display.tips.isEmpty())
+        assertEquals(SeasonTipGenerator.Kind.AUTUMN_BLOOM, display.nextOutlook?.kind)
+        assertTrue(display.nextOutlook!!.isGapOutlook)
+        assertTrue(display.hasContent)
     }
 
     @Test
@@ -277,6 +280,38 @@ class SeasonTipGeneratorTest {
                 phenologyShiftDays = -1,
             )
         assertTrue(tips.any { it.kind == SeasonTipGenerator.Kind.SPRING_BLOOM })
+    }
+
+    @Test
+    fun prioritizeTips_prefersPeakAndCapsAtTwo() {
+        val tips =
+            listOf(
+                SeasonTipGenerator.Tip(
+                    SeasonTipGenerator.Kind.SUMMER_BLOOM,
+                    SeasonTipGenerator.Phase.UPCOMING,
+                    MonthDay.of(6, 1),
+                    MonthDay.of(8, 31),
+                    R.string.season_subjects_summer_central,
+                ),
+                SeasonTipGenerator.Tip(
+                    SeasonTipGenerator.Kind.AUTUMN_BLOOM,
+                    SeasonTipGenerator.Phase.PEAK,
+                    MonthDay.of(9, 10),
+                    MonthDay.of(10, 25),
+                    R.string.season_subjects_autumn_central,
+                ),
+                SeasonTipGenerator.Tip(
+                    SeasonTipGenerator.Kind.SPRING_BLOOM,
+                    SeasonTipGenerator.Phase.STARTING,
+                    MonthDay.of(3, 1),
+                    MonthDay.of(4, 25),
+                    R.string.season_subjects_spring_central,
+                ),
+            )
+        val picked = SeasonTipGenerator.prioritizeTips(tips)
+        assertEquals(2, picked.size)
+        assertEquals(SeasonTipGenerator.Kind.AUTUMN_BLOOM, picked[0].kind)
+        assertEquals(SeasonTipGenerator.Phase.PEAK, picked[0].phase)
     }
 
     @Test

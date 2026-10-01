@@ -43,7 +43,7 @@ class WeatherSceneTest {
     @Test
     fun clearCloudAndUnknownScenes() {
         assertEquals(WeatherScene.CLEAR, weatherSceneOf(0, true))
-        assertEquals(WeatherScene.CLEAR, weatherSceneOf(1, true))
+        assertEquals(WeatherScene.MAINLY_CLEAR, weatherSceneOf(1, true))
         assertEquals(WeatherScene.PARTLY_CLOUDY, weatherSceneOf(2, true))
         assertEquals(WeatherScene.OVERCAST, weatherSceneOf(3, true))
         assertEquals(WeatherScene.FOG, weatherSceneOf(45, true))
@@ -59,6 +59,16 @@ class WeatherSceneTest {
         assertEquals(weatherSceneOf(0, true), weatherSceneOf(0, false))
         assertEquals(WeatherScene.UNKNOWN, weatherSceneOf(999, true))
         assertEquals(WeatherScene.UNKNOWN, weatherSceneOf(null, null))
+    }
+
+    @Test
+    fun mainlyClearNight_usesDarkGradientLikeClearNight() {
+        val clearNight = weatherSceneStyle(0, isDay = false)
+        val mainlyNight = weatherSceneStyle(1, isDay = false)
+        val mainlyDay = weatherSceneStyle(1, isDay = true)
+        assertEquals(clearNight.gradient, mainlyNight.gradient)
+        assertNotEquals(mainlyDay.gradient, weatherSceneStyle(0, isDay = true).gradient)
+        assertNotEquals(mainlyDay.gradient, weatherSceneStyle(2, isDay = true).gradient)
     }
 
     @Test
