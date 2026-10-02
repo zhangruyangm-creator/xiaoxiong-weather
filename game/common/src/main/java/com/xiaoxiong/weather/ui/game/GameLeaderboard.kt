@@ -104,7 +104,7 @@ private val leaderboardJson =
  * 每个游戏一个 key。
  *
  * 保留策略由 [retainRecent] 决定：
- *  - false：只保留分数最高的前 [MAX_ENTRIES] 条（跳跳 / 摘星 / 接雨雪等计分游戏）；
+ *  - false：只保留分数最高的前 [MAX_ENTRIES] 条（跳跳 / 摘星等计分游戏）；
  *  - true：保留最近 [MAX_ENTRIES] 条，展示时仍按分数排序（冰球等对局：大胜在前、惨败在后，
  *    惨败的局不会被挤出榜外）。
  */

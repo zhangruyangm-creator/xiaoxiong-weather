@@ -14,7 +14,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
  * 统一的对局快照会话：把各游戏「保存 / 恢复 / 清档」三个动作收口成同一接口，
  * 供 [GameSnapshotLifecycle] 驱动。
  *
- * 各游戏底层方法命名与职责可能不同（如跑酷/摘星/接雨雪/冰球/台球/战机为
+ * 各游戏底层方法命名与职责可能不同（如跑酷/摘星/冰球/台球/战机为
  * `saveSnapshot`/`restoreSnapshot`/`clearSnapshot`，迷宫为 `saveSession`/
  * `restoreSession`/`abandonSession`），用 [gameSnapshotSession] 适配即可：
  *

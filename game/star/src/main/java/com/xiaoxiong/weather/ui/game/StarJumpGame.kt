@@ -151,7 +151,7 @@ internal class StarJumpGame {
         restoredDims = null
         if (keepRestored) return
         when (phase) {
-            // 结算界面改窗口（旋转/分屏）：只更新尺寸，保留本局分数（对齐接雨雪）
+            // 结算界面改窗口（旋转/分屏）：只更新尺寸，保留本局分数（对齐摘星/台球的结算改窗处理）
             GamePhase.OVER -> Unit
             // 对局中改尺寸会让平台像素与碰撞错位，整局回准备态（与跑酷一致）；
             // 同时标记快照失效，避免停在 READY 被兜底落盘写回复活。

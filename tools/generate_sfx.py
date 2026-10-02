@@ -157,13 +157,6 @@ def sfx_star(rng: np.random.Generator) -> np.ndarray:
     return out
 
 
-def sfx_catch(rng: np.random.Generator) -> np.ndarray:
-    t = _time(0.10)
-    body = sine(t, 520.0) * env_ar(t, attack=0.015, release=0.045)
-    air = bandpass(rng.standard_normal(t.size), 900.0, 2400.0) * env_ar(t, attack=0.010, release=0.035)
-    return body + air * 0.35
-
-
 def sfx_block(rng: np.random.Generator) -> np.ndarray:
     t = _time(0.14)
     metal = 0.65 * sine(t, 2000.0) + 0.45 * sine(t, 3000.0) + 0.15 * sine(t, 4200.0)
@@ -342,7 +335,6 @@ CUES: Dict[str, Tuple[Callable[[np.random.Generator], np.ndarray], float]] = {
     "sfx_jump": (sfx_jump, 0.008),
     "sfx_coin": (sfx_coin, 0.006),
     "sfx_star": (sfx_star, 0.008),
-    "sfx_catch": (sfx_catch, 0.008),
     "sfx_block": (sfx_block, 0.008),
     "sfx_hit": (sfx_hit, 0.008),
     "sfx_bump": (sfx_bump, 0.006),

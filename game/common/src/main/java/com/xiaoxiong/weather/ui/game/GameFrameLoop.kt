@@ -39,7 +39,7 @@ fun computeFrameDt(
 /**
  * 生命周期感知的游戏帧循环。
  *
- * 各游戏（跳跳 / 摘星 / 迷宫 / 接雨雪 / 农场）在 [withFrameNanos] 里重复写着
+ * 各游戏（跳跳 / 摘星 / 迷宫 / 农场）在 [withFrameNanos] 里重复写着
  * 「切后台不推进 → dt 钳制 → 掉帧慢动作」三段逻辑。这里统一收口：
  *
  *  - 后台（低于 [Lifecycle.State.STARTED]）不推进、重置上一帧时间并降频轮询；

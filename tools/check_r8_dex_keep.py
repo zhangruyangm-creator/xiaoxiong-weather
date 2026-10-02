@@ -48,7 +48,6 @@ FALLBACK_EXPECTED_PROVIDERS = [
     "com.xiaoxiong.weather.ui.game.BearMazeEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearFarmEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearHomeEntryProvider",
-    "com.xiaoxiong.weather.ui.game.BearCatchEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearHockeyEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearPoolEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearPlaneEntryProvider",

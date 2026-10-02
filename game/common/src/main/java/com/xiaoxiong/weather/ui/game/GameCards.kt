@@ -62,7 +62,7 @@ class GameCardAction(
 /**
  * 统一的 READY 卡片：Material 卡片 + 居中标题 / 提示 / 可选最高分 + 开始按钮。
  *
- * 视觉对齐摘星 / 接雨雪现有 READY 卡（Surface 20dp 圆角、居中 Column、主按钮）。
+ * 视觉对齐摘星 / 冰球现有 READY 卡（Surface 20dp 圆角、居中 Column、主按钮）。
  * 字符串全部由调用方传入（游戏模块用自己的 R 解析），公共的「最高」/「查看排行榜」等
  * 用 [gameBestLabel] / [gameViewRank] 等公共方法。
  *
@@ -71,8 +71,8 @@ class GameCardAction(
  * @param bestLine 可选的最高分展示行；为 null 不显示（跑酷/摘星 READY 不展示最高分）
  * @param startText 开始按钮文案
  * @param onStart 开始回调
- * @param secondary 可选的次级动作（如接雨雪 READY 的难度选择之外的入口）
- * @param extra 可选扩展内容（如接雨雪的难度 Chip 行），渲染在主按钮上方
+ * @param secondary 可选的次级动作（如 READY 卡难度选择之外的入口）
+ * @param extra 可选扩展内容（如难度 Chip 行），渲染在主按钮上方
  */
 @Composable
 fun GameReadyCard(
@@ -137,7 +137,7 @@ fun GameReadyCard(
 
 /**
  * 统一的结算卡片：半透明遮罩（吞掉画布手势）+ Surface 卡片 + 分数 / 最高分 / 名次 /
- * 查看排行榜 / 退出 / 重开按钮，视觉对齐跑酷 / 摘星 / 接雨雪现有结算卡。
+ * 查看排行榜 / 退出 / 重开按钮，视觉对齐跑酷 / 摘星现有结算卡。
  *
  * 「查看排行榜」「回到天气」由 common 解析公共文案；其余全部由调用方传入。
  *

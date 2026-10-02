@@ -22,7 +22,6 @@ enum class GameCue(
     JUMP(R.raw.sfx_jump, 0.6f),
     COIN(R.raw.sfx_coin, 0.7f),
     STAR(R.raw.sfx_star, 0.7f),
-    CATCH(R.raw.sfx_catch, 0.7f),
     BLOCK(R.raw.sfx_block, 0.7f),
     HIT(R.raw.sfx_hit, 0.6f),
     BUMP(R.raw.sfx_bump, 0.55f),
