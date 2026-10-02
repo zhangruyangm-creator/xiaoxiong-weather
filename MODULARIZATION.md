@@ -290,13 +290,13 @@ val intent = Intent(context, MainActivity::class.java).apply {
 | `:game:farm` | `gameFarm/*`（Farm{…} 11 文件）+ 156 张插画 + 5 测试 |
 | `:game:home` | `gameHome/*`（BearHomeScreen/HomeRoutine/HomeMealDex）+ 90 张生活片刻插画 + 1 测试 |
 
-> 后续新增的 `:game:catch`（小熊接雨雪）、`:game:hockey`（小熊冰球）、`:game:pool`（小熊台球）、`:game:plane`（小熊战机）按同一模式下沉为独立模块（各持 res/strings + `GameEntryProvider` + 测试），当前游戏模块共 9 个。
+> 后续新增的 `:game:hockey`（小熊冰球）、`:game:pool`（小熊台球）、`:game:plane`（小熊战机）按同一模式下沉为独立模块（各持 res/strings + `GameEntryProvider` + 测试），当前游戏模块共 8 个。
 
 > 1.13.0 后各游戏模块又做了一轮机械拆分：`jump` 拆出 `BearGame.kt`/`GameRunHud.kt`，`catch` 拆出 `CatchRender.kt`/`CatchHud.kt`，`pool` 拆出 `PoolSnapshot.kt`/`PoolRenderCache.kt`/`PoolTableStatic.kt`/`PoolBalls.kt`/`PoolAim.kt`/`PoolWeather.kt`/`PoolHud.kt`/`PoolDialogs.kt`/`PoolPrefsStore.kt`，`hockey` 拆出 `HockeyRenderCache.kt`/`HockeyTableStatic.kt`/`HockeyMarkings.kt`/`HockeyArt.kt`/`HockeyAmbient.kt`/`HockeyDialogs.kt`/`HockeyFormControls.kt`，`plane` 拆出 `PlaneSnapshot.kt`/`PlaneSpriteArt.kt`；同时 jump/star/catch/hockey/pool/plane/maze 的 Screen 快照生命周期统一迁移到 `:game:common` 的 `GameSnapshotLifecycle`（`GameSnapshotSession.kt`），jump/star/catch 的 READY/结算卡改用 `GameCards.kt`，公共层新增 `GameRenderPrimitives.kt`（`BakedLayerLru`/`strokeOf`/`gameHash01`）供各游戏渲染复用。
 
 **核心机制——`-Pgames` 退役，改动态依赖 + ServiceLoader 装配**：
 
-1. `:app` 依 `-Pgames`（默认 all、`none`、逗号列表）对九个游戏模块做 `fullImplementation` **条件动态依赖**；未选中的模块不参与编译，classpath 上不存在其字节码。
+1. `:app` 依 `-Pgames`（默认 all、`none`、逗号列表）对八个游戏模块做 `fullImplementation` **条件动态依赖**；未选中的模块不参与编译，classpath 上不存在其字节码。
 2. 各游戏模块通过 `META-INF/services/com.xiaoxiong.weather.game.GameEntryProvider` 注册 provider（`GameEntryProvider.entry` 暴露各自的 `GameEntry` object）。provider 必须是**普通 class**（public 无参构造器），不能用 Kotlin `object`——`ServiceLoader` 靠反射 `newInstance()` 实例化，`object` 构造器是 private 的，启动即抛 `ServiceConfigurationError`。
 3. `MainActivity` 用 `:game:api` 的 `loadGameEntryProviders()`（`ServiceLoader`）装配 `gameEntries`——比旧源码集机制更彻底：未选中的游戏**连字节码都不存在**，无需 Empty 门面。
 4. `gameXxxEmpty` 门面、`app/src/lite` 的游戏禁用 facade、`src/gameXxxTest` 测试源集全部删除；游戏测试随各模块走。
@@ -312,7 +312,7 @@ val intent = Intent(context, MainActivity::class.java).apply {
 **验收（已全部通过）**：
 - `-Pgames=all` / `jump` / `none` 三档编译 ✓
 - APK 实测：默认 all 45.7MB（含全部游戏）→ `-Pgames=none` 33.5MB（**零游戏类**）→ `-Pgames=jump` 仅注册 jump 入口 ✓
-- 全量 `test`（含 9 个游戏模块测试）+ `lintKotlin` + `:app:lint{Full,Lite}Debug` + `assemble{Lite,Full}{Debug,Release}` 全部通过 ✓
+- 全量 `test`（含 8 个游戏模块测试）+ `lintKotlin` + `:app:lint{Full,Lite}Debug` + `assemble{Lite,Full}{Debug,Release}` 全部通过 ✓
 
 ### 阶段 6（可选）：`:app` 薄壳收尾（已完成）
 
