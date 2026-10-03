@@ -12,6 +12,8 @@ import wave
 from pathlib import Path
 from typing import Callable, Dict, Tuple
 
+import zlib
+
 import numpy as np
 
 SAMPLE_RATE = 22050
@@ -368,13 +370,23 @@ def write_wav(path: Path, signal: np.ndarray) -> None:
         handle.writeframes(data.tobytes())
 
 
+def cue_rng(name: str) -> np.random.Generator:
+    """按音效名派生**独立**的随机流。
+
+    刻意不用「一条共享 rng 按顺序喂给所有音效」：那样新增任何一个音效都会
+    改变其后所有音效的噪声实现（体积不变但波形全变），历史音频无法复现、
+    diff 也失去意义。按名字派生种子后，增删音效互不影响，结果可复现。
+    """
+    seed = zlib.crc32(name.encode("utf-8")) & 0xFFFFFFFF
+    return np.random.default_rng(seed)
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    rng = np.random.default_rng(20260913)
     total_bytes = 0
     print(f"输出目录: {OUTPUT_DIR}")
     for name, (recipe, fade_out) in CUES.items():
-        signal = finalize(recipe(rng), fade_out)
+        signal = finalize(recipe(cue_rng(name)), fade_out)
         path = OUTPUT_DIR / f"{name}.wav"
         write_wav(path, signal)
         peak = float(np.max(np.abs(signal))) if signal.size else 0.0
