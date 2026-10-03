@@ -45,6 +45,7 @@ PROVIDER_SERVICE = "META-INF/services/com.xiaoxiong.weather.game.GameEntryProvid
 FALLBACK_EXPECTED_PROVIDERS = [
     "com.xiaoxiong.weather.ui.game.BearGameEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearStarJumpEntryProvider",
+    "com.xiaoxiong.weather.ui.game.BearRainEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearMazeEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearFarmEntryProvider",
     "com.xiaoxiong.weather.ui.game.BearHomeEntryProvider",

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rain_title">小熊雨幕</string>
+    <string name="rain_hint">雨滴落线前点掉，冰雹千万别碰\n漏接或误碰都会立刻结束，方块会越落越快</string>
+    <string name="rain_start">开始接雨</string>
+    <string name="rain_over_miss">漏接了…</string>
+    <string name="rain_over_hail">碰到冰雹了！</string>
+    <string name="rain_restart">再来一次</string>
+    <string name="rain_score">接住 %1$d 滴</string>
+    <string name="rain_best">最高 %1$d</string>
+    <string name="rain_combo">连击 ×%1$d</string>
+    <string name="rain_rank">排名 %1$d</string>
+    <string name="rain_leaderboard">小熊雨幕 · 排行榜</string>
+    <string name="rain_legend_drop">金色圆雨滴：点掉它</string>
+    <string name="rain_legend_hail">蓝色冰雹（带斜杠）：碰不得</string>
+</resources>
