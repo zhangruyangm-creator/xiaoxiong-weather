@@ -59,7 +59,11 @@ class RainFallTest {
         for (t in 0..600 step 7) {
             val d = difficultyAt(t.toFloat())
             assertTrue("速度越界: $d", d.fallSpeed in RAIN_FALL_SPEED_START..RAIN_FALL_SPEED_END)
-            assertTrue("间隔越界: $d", d.spawnInterval in RAIN_SPAWN_GAP_END..RAIN_SPAWN_GAP_START)
+            assertTrue(
+                "间隔越界: $d",
+                d.spawnInterval >= RAIN_SPAWN_GAP_END - 1e-3f &&
+                    d.spawnInterval <= RAIN_SPAWN_GAP_START + 1e-3f,
+            )
             assertTrue("冰雹概率越界: $d", d.hailChance in 0f..RAIN_HAIL_MAX)
         }
     }
@@ -189,25 +193,23 @@ class RainFallTest {
 
     @Test
     fun `tapping hail ends the game with the right reason`() {
-        val g = newFallHeavyGame()
+        val g = newGame(seed = 3L)
         g.start()
         var guard = 0
-        while (!g.isOver() && guard++ < 3000) {
+        while (!g.isOver() && guard++ < 60 * 240) {
             g.tick(1f / 60f)
-            val inWindow =
-                g.activeTiles().firstOrNull { g.isHittable(it) && it.kind == RainKind.HAIL }
-            if (inWindow != null) {
+            val hail = g.activeTiles().firstOrNull { g.isHittable(it) && it.kind == RainKind.HAIL }
+            if (hail != null) {
                 assertEquals(RainTapResult.TAPPED_HAIL, g.tap(0.5f))
                 assertTrue(g.isOver())
                 assertEquals(RainOverReason.TAPPED_HAIL, g.overReason)
                 return
             }
+            val drop = g.activeTiles().firstOrNull { g.isHittable(it) && it.kind == RainKind.DROP }
+            if (drop != null) g.tap(0.5f)
         }
-        // 没等到冰雹进窗也不算失败（种子问题），但不应崩
+        throw AssertionError("长时间点雨滴后仍未遇到可点冰雹")
     }
-
-    /** 直接构造一局「立刻有冰雹」的引擎，绕过随机与宽限期。 */
-    private fun newFallHeavyGame(): RainFall = RainFall().apply { prepare(3L) }
 
     @Test
     fun `same tile cannot be scored twice`() {
@@ -474,7 +476,7 @@ class RainFallTest {
             g.tick(1f / 60f)
             ticks++
             val inWindow = g.activeTiles().firstOrNull { g.isHittable(it) }
-            if (inWindow != null) g.tap(0.5f)
+            if (inWindow != null && inWindow.kind == RainKind.DROP) g.tap(0.5f)
         }
         assertTrue("正常游玩应能得分（得分 $  ${g.score}）", g.score > 5)
         assertEquals("全命中则连击应等于分数", g.score, g.maxCombo)
@@ -501,6 +503,40 @@ class RainFallTest {
         assertEquals(RainPhase.READY, g.phase)
         assertEquals(0f, g.elapsed, 1e-6f)
         assertEquals(0, g.flyingCount())
+    }
+
+    @Test
+    fun `tile spacing stays above the hit-window uniqueness floor`() {
+        for (t in 0..300 step 3) {
+            val spacing = spawnIntervalAt(t.toFloat()) * fallSpeedAt(t.toFloat())
+            assertTrue(
+                "t=${t}s 间距 $spacing 小于最小 ${RainFall.RAIN_MIN_TILE_SPACING}",
+                spacing + 1e-4f >= RainFall.RAIN_MIN_TILE_SPACING,
+            )
+        }
+    }
+
+    @Test
+    fun `catch-up spawns keep distinct birth times`() {
+        val g = newGame()
+        g.start()
+        g.tick(3f)
+        val times = g.activeTiles().map { it.spawnTime }
+        assertEquals("卡顿补出不应叠在同一时刻", times.size, times.toSet().size)
+    }
+
+    @Test
+    fun `positive modulo wraps negatives onto the canvas`() {
+        assertEquals(10f, rainPositiveModulo(-10f, 20f), 1e-4f)
+        assertEquals(0f, rainPositiveModulo(20f, 20f), 1e-4f)
+        assertEquals(3f, rainPositiveModulo(23f, 20f), 1e-4f)
+    }
+
+    @Test
+    fun `rain snapshot is never treated as resumable`() {
+        assertTrue(rainSnapshotShouldClear(RainPersistPhase.READY))
+        assertTrue(rainSnapshotShouldClear(RainPersistPhase.PLAYING))
+        assertTrue(rainSnapshotShouldClear(RainPersistPhase.OVER))
     }
 
     @Test

@@ -96,14 +96,11 @@ internal fun GameHud(
     }
 }
 
-/** READY：难度三档 + 围巾色选择。 */
+/** READY：难度三档。 */
 @Composable
 internal fun ColumnScope.RunReadyExtras(
     difficulty: RunDifficulty,
-    scarfTint: RunScarfTint,
-    best: Int,
     onPickDifficulty: (RunDifficulty) -> Unit,
-    onPickScarf: (RunScarfTint) -> Unit,
 ) {
     Text(
         text = stringResource(R.string.bear_run_diff_section),
@@ -133,32 +130,6 @@ internal fun ColumnScope.RunReadyExtras(
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth(),
     )
-    Spacer(Modifier.height(12.dp))
-    Text(
-        text = stringResource(R.string.bear_run_scarf_tint),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Spacer(Modifier.height(6.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        RunScarfTint.entries.forEach { tint ->
-            val unlocked = runScarfTintUnlocked(tint, best)
-            FilterChip(
-                selected = scarfTint == tint,
-                onClick = { if (unlocked) onPickScarf(tint) },
-                enabled = unlocked,
-                label = { Text(runScarfTintLabel(tint), maxLines = 1) },
-                modifier = Modifier.weight(1f),
-                colors =
-                    FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = runScarfAccent(tint).copy(alpha = 0.35f),
-                    ),
-            )
-        }
-    }
 }
 
 /** 里程碑 / 冰墙解锁横幅。 */
@@ -202,18 +173,6 @@ internal fun runDifficultyHint(difficulty: RunDifficulty): String =
             RunDifficulty.CASUAL -> R.string.bear_run_diff_hint_casual
             RunDifficulty.STANDARD -> R.string.bear_run_diff_hint_standard
             RunDifficulty.CHALLENGE -> R.string.bear_run_diff_hint_challenge
-        },
-    )
-
-@Composable
-internal fun runScarfTintLabel(tint: RunScarfTint): String =
-    stringResource(
-        when (tint) {
-            RunScarfTint.CLASSIC -> R.string.bear_run_tint_classic
-            RunScarfTint.GOLD -> R.string.bear_run_tint_gold
-            RunScarfTint.MIDNIGHT -> R.string.bear_run_tint_midnight
-            RunScarfTint.ROSE -> R.string.bear_run_tint_rose
-            RunScarfTint.AURORA -> R.string.bear_run_tint_aurora
         },
     )
 

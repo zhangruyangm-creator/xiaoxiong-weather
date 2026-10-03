@@ -188,7 +188,7 @@ class PlaneGame {
         player.lives = startLives
         player.bombs = PlaneConfig.START_BOMBS
         player.weaponLevel = PlaneConfig.MIN_WEAPON_LEVEL
-        player.invulnTicks = PlaneConfig.HIT_INVULN_TICKS
+        player.invulnTicks = difficulty.hitInvulnTicks
         player.fireCooldownTicks = 0
         player.overdriveTicks = 0
         player.alive = true
@@ -617,7 +617,7 @@ class PlaneGame {
         player.overdriveTicks = 0
         combo = 0
         comboWindowTicks = 0
-        player.invulnTicks = PlaneConfig.HIT_INVULN_TICKS
+        player.invulnTicks = difficulty.hitInvulnTicks
         pendingHapticPlayerHit = true
         spawnExplosion(player.x, player.y, 10, 0xFFFF8A65.toInt())
         if (player.lives <= 0) {

@@ -314,6 +314,23 @@ class PlaneLogicTest {
     }
 
     @Test
+    fun hitInvulnTicks_tightenByDifficulty_andCapAtConfig() {
+        assertEquals(75, PlaneDifficulty.CASUAL.hitInvulnTicks)
+        assertEquals(45, PlaneDifficulty.STANDARD.hitInvulnTicks)
+        assertEquals(30, PlaneDifficulty.CHALLENGE.hitInvulnTicks)
+        assertTrue(PlaneDifficulty.CASUAL.hitInvulnTicks > PlaneDifficulty.STANDARD.hitInvulnTicks)
+        assertTrue(PlaneDifficulty.STANDARD.hitInvulnTicks > PlaneDifficulty.CHALLENGE.hitInvulnTicks)
+        assertEquals(
+            "HIT_INVULN_TICKS 须覆盖 CASUAL 上限，供快照清洗",
+            PlaneDifficulty.CASUAL.hitInvulnTicks,
+            PlaneConfig.HIT_INVULN_TICKS,
+        )
+        for (d in PlaneDifficulty.entries) {
+            assertTrue(d.hitInvulnTicks <= PlaneConfig.HIT_INVULN_TICKS)
+        }
+    }
+
+    @Test
     fun weatherSpeedMul_onlySnowAndStorm() {
         assertEquals(1f, PlaneConfig.weatherSpeedMul(FarmWeather.SUNNY), 1e-6f)
         assertTrue(PlaneConfig.weatherSpeedMul(FarmWeather.SNOWY) < 1f)

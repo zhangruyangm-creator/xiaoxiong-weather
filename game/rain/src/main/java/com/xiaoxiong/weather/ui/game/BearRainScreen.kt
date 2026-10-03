@@ -1,5 +1,6 @@
 package com.xiaoxiong.weather.ui.game
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,19 +59,19 @@ fun BearRainScreen(
     val prefs = rememberGamePrefs()
     val game = remember { RainFall() }
 
-    val scene = remember(sceneCode, isDay) { rainSceneOf(sceneCode) }
+    val scene = remember(sceneCode, isDay) { rainSceneOf(sceneCode, isDay) }
     val palette = remember(scene) { rainPaletteOf(scene) }
     val lb = rememberLeaderboardState(prefs, RAIN_LEADERBOARD_KEY)
     val characterState = rememberBearCharacterState()
     val bearSprites = rememberBearSprites(characterState.selected)
 
-    // 快照：只存「已点数量 + 最高连击 + 种子」，谱块序列由种子确定性重建
+    // 快照：本玩法不中途续玩，生命周期只负责清档
     val session =
         remember(game, prefs) {
             gameSnapshotSession(
                 save = { p -> rainSaveSnapshot(p, seed = game.seed, score = game.score, maxCombo = game.maxCombo, elapsed = game.elapsed) },
                 restore = { p -> rainRestoreSnapshot(game, p) },
-                clear = { p -> p.edit().remove(RAIN_SNAPSHOT_KEY).apply() },
+                clear = { p -> rainClearSnapshot(p) },
             )
         }
     val exitGuard =
@@ -78,8 +79,13 @@ fun BearRainScreen(
             session = session,
             prefs = prefs,
             phase = rainPersistPhase(game.phase),
-            shouldClear = { it == RainPersistPhase.OVER },
+            shouldClear = ::rainSnapshotShouldClear,
         )
+
+    val exitGame: () -> Unit = {
+        exitGuard.exit(session, prefs)
+        onExit()
+    }
 
     // 离散 UI 状态（只在点击 / 结算时更新）
     var frame by remember { mutableIntStateOf(0) }
@@ -93,6 +99,13 @@ fun BearRainScreen(
     var showLeaderboard by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { GameAudio.preload(context) }
+
+    BackHandler {
+        when {
+            showLeaderboard -> showLeaderboard = false
+            else -> exitGame()
+        }
+    }
 
     // 帧循环：推进 + 衰减闪光 + 唤醒重绘
     GameFrameLoop(
@@ -123,7 +136,7 @@ fun BearRainScreen(
                         ),
                     ) ?: 0
             }
-            prefs.edit().remove(RAIN_SNAPSHOT_KEY).apply()
+            rainClearSnapshot(prefs)
         }
     }
 
@@ -213,6 +226,7 @@ fun BearRainScreen(
                 bestLine = stringResource(R.string.rain_best, rainBestScore(prefs)),
                 startText = stringResource(R.string.rain_start),
                 onStart = { startRound() },
+                secondary = GameCardAction(text = gameExit(), onClick = exitGame),
                 extra = { RainLegend(palette = palette) },
             )
         }
@@ -232,10 +246,7 @@ fun BearRainScreen(
                 restartText = stringResource(R.string.rain_restart),
                 onRestart = { startRound() },
                 onViewRank = { showLeaderboard = true },
-                onExit = {
-                    exitGuard.exit(session, prefs)
-                    onExit()
-                },
+                onExit = exitGame,
                 rankLine =
                     lb.lastRank
                         .takeIf { it > 0 }

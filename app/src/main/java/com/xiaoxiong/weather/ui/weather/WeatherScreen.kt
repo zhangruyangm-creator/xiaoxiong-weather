@@ -563,17 +563,6 @@ private fun WeatherScreenContent(
                                             radarMapRepository = viewModel.radarMapRepository,
                                             cardLayout = appSettings.todayCards,
                                             paused = gameActive,
-                                            phenologyShiftDays = state.phenologyShiftDays,
-                                            phenologyShiftLoading = state.phenologyShiftLoading,
-                                            onOpenDailySeason = {
-                                                scope.launch {
-                                                    if (reduceMotion) {
-                                                        pagerState.scrollToPage(2)
-                                                    } else {
-                                                        pagerState.animateScrollToPage(2)
-                                                    }
-                                                }
-                                            },
                                             errorMessage = state.lastErrorMessage,
                                             onRetry = { viewModel.refresh() },
                                         )

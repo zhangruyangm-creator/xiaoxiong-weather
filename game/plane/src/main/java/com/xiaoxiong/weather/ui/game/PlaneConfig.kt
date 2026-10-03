@@ -20,7 +20,7 @@ const val PLANE_MAX_WAVE = 9999
 const val PLANE_BOSS_EVERY = 5
 
 /**
- * 玩法难度：影响敌人 HP / 速度 / 弹速 / 弹幕密度 / 道具掉率与分数倍率。
+ * 玩法难度：影响敌人 HP / 速度 / 弹速 / 弹幕密度 / 道具掉率、分数倍率与受击无敌时长。
  *
  * [id] 用于 prefs 持久化与排行榜分类键，**必须保持稳定**（修改会丢存档与榜单分类）。
  */
@@ -38,6 +38,8 @@ enum class PlaneDifficulty(
     val dropChanceMul: Float,
     /** 击毁得分的难度倍率。 */
     val scoreMul: Float,
+    /** 开局 / 受击后无敌时长（逻辑 tick，60Hz）。须 ≤ [PlaneConfig.HIT_INVULN_TICKS]。 */
+    val hitInvulnTicks: Int,
 ) {
     CASUAL(
         id = "casual",
@@ -47,6 +49,7 @@ enum class PlaneDifficulty(
         fireDensityMul = 0.8f,
         dropChanceMul = 1.3f,
         scoreMul = 0.8f,
+        hitInvulnTicks = 75,
     ),
     STANDARD(
         id = "standard",
@@ -56,6 +59,7 @@ enum class PlaneDifficulty(
         fireDensityMul = 1f,
         dropChanceMul = 1f,
         scoreMul = 1f,
+        hitInvulnTicks = 45,
     ),
     CHALLENGE(
         id = "challenge",
@@ -65,6 +69,7 @@ enum class PlaneDifficulty(
         fireDensityMul = 1.2f,
         dropChanceMul = 0.85f,
         scoreMul = 1.5f,
+        hitInvulnTicks = 30,
     ),
     ;
 
@@ -236,7 +241,9 @@ object PlaneConfig {
     const val GRAZE_SCORE = 10
 
     // 受击 / 炸弹
-    const val HIT_INVULN_TICKS = 120
+
+    /** 受击无敌上限（= CASUAL）；实际时长见 [PlaneDifficulty.hitInvulnTicks]。 */
+    const val HIT_INVULN_TICKS = 75
     const val BOMB_INVULN_TICKS = 90
     const val BOMB_DAMAGE = 40
     const val BOSS_RAM_DAMAGE = 5

@@ -238,7 +238,6 @@
     <string name="season_phenology_loading">Adjusting season timing from this year\'s temperatures…</string>
     <string name="season_gap_headline">Next · %1$s · in about %2$d days</string>
     <string name="season_gap_body">Typical window %1$s — watch for %2$s and similar.</string>
-    <string name="season_teaser_open_daily">Open 7-day season details</string>
     <string name="season_spring_bloom">Spring bloom</string>
     <string name="season_sub">Calendar window · elevation · heat (GDD)</string>
     <string name="season_summer_bloom">Summer bloom</string>

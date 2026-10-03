@@ -237,7 +237,7 @@ class PlaneGameTest {
         val game = newGame()
         game.startGame(seed = 5L)
         game.player.weaponLevel = 3
-        // 初始无敌（1.2s）耗尽
+        // 初始无敌耗尽
         game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS + 2)
         game.enemyBullets += enemyBulletAtPlayer(game, 900)
         game.advanceTicks(1)
@@ -268,7 +268,8 @@ class PlaneGameTest {
         game.enemies.clear()
         game.enemyBullets.clear()
         game.enemyBullets += enemyBulletAtPlayer(game, 961)
-        game.advanceTicks(PlaneConfig.HIT_INVULN_TICKS - 1)
+        val invuln = game.difficulty.hitInvulnTicks
+        game.advanceTicks(invuln - 1)
         assertEquals("无敌结束前不掉命", 2, game.player.lives)
         assertTrue(game.enemyBullets.any { it.id == 961 })
 

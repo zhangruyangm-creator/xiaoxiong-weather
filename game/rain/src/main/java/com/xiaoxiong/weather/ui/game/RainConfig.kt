@@ -21,10 +21,11 @@ const val RAIN_BEST_KEY = "rain_best"
 /** 对局快照在 prefs 中的标记键。 */
 const val RAIN_SNAPSHOT_KEY = "rain_snapshot_v1"
 
-private const val KEY_SEED = "seed"
-private const val KEY_SCORE = "score"
-private const val KEY_MAX_COMBO = "max_combo"
-private const val KEY_ELAPSED = "elapsed"
+/** 旧版曾把 seed/score 写进公共 `bear_game` 顶层键，清档时一并删掉。 */
+private const val LEGACY_KEY_SEED = "seed"
+private const val LEGACY_KEY_SCORE = "score"
+private const val LEGACY_KEY_MAX_COMBO = "max_combo"
+private const val LEGACY_KEY_ELAPSED = "elapsed"
 
 /**
  * 对局快照的"可续玩阶段"。
@@ -51,8 +52,11 @@ fun rainPersistPhase(phase: RainPhase): RainPersistPhase =
 fun rainSessionKey(seed: Long): Any = seed
 
 /** 天气码 → 场景（只影响背景氛围）。复用公共天气判定，不重复解析码表。 */
-fun rainSceneOf(sceneCode: Int?): RainScene =
-    when (farmWeatherFromScene(sceneCode, null)) {
+fun rainSceneOf(
+    sceneCode: Int?,
+    isDay: Boolean? = null,
+): RainScene =
+    when (farmWeatherFromScene(sceneCode, isDay)) {
         FarmWeather.SUNNY -> RainScene.SUNNY
         FarmWeather.STORMY -> RainScene.STORM
         else -> RainScene.RAIN
@@ -95,51 +99,47 @@ fun rainRecordScore(
 }
 
 /**
- * 保存对局快照。
- *
- * 快照很轻：只存种子、当前分数、最高连击与已进行时间。
- * 方块序列由种子**确定性重建**，因此不需要把已生成的方块列表写进存档——
- * 这也是本玩法比"按拍判定"类玩法更省状态的地方。
- *
- * 不存"已点掉哪几块"：本玩法是**一击即结算**（漏接/误点立刻结束），
- * 所以对局中不可能存在"点了一半"的中间态，进度只需分数与时间。
+ * 本玩法漏接即结束，已点块不进档，中途无法忠实续玩。
+ * 生命周期件在任何阶段都应清档，避免往公共 prefs 写半成品。
  */
-fun rainSaveSnapshot(
-    prefs: SharedPreferences,
-    seed: Long,
-    score: Int,
-    maxCombo: Int,
-    elapsed: Float,
-) {
+fun rainSnapshotShouldClear(
+    @Suppress("UNUSED_PARAMETER") phase: RainPersistPhase,
+): Boolean = true
+
+/** 清掉本游戏快照，以及旧版误写到 `bear_game` 顶层的 seed/score 键。 */
+fun rainClearSnapshot(prefs: SharedPreferences) {
     prefs
         .edit()
-        .putString(RAIN_SNAPSHOT_KEY, "1")
-        .putLong(KEY_SEED, seed)
-        .putInt(KEY_SCORE, score)
-        .putInt(KEY_MAX_COMBO, maxCombo)
-        .putFloat(KEY_ELAPSED, elapsed)
+        .remove(RAIN_SNAPSHOT_KEY)
+        .remove(LEGACY_KEY_SEED)
+        .remove(LEGACY_KEY_SCORE)
+        .remove(LEGACY_KEY_MAX_COMBO)
+        .remove(LEGACY_KEY_ELAPSED)
         .apply()
 }
 
 /**
- * 恢复快照；无档 / 坏档返回 false（引擎保持 READY，不崩）。
- *
- * 恢复后仍处于 READY：**本玩法不支持"接着玩"**——继续一局中途的接雨雪没有意义，
- * 因为漏接即结束、进度只以分数体现。玩家回到 READY 后重开即可。
+ * 保存入口保留给生命周期件调用；本玩法不续玩，因此只清档、不写进度。
+ */
+fun rainSaveSnapshot(
+    prefs: SharedPreferences,
+    @Suppress("UNUSED_PARAMETER") seed: Long,
+    @Suppress("UNUSED_PARAMETER") score: Int,
+    @Suppress("UNUSED_PARAMETER") maxCombo: Int,
+    @Suppress("UNUSED_PARAMETER") elapsed: Float,
+) {
+    rainClearSnapshot(prefs)
+}
+
+/**
+ * 恢复快照。始终返回 false：不中途续玩，并清掉旧版脏键。
  */
 internal fun rainRestoreSnapshot(
-    game: RainFall,
+    @Suppress("UNUSED_PARAMETER") game: RainFall,
     prefs: SharedPreferences,
 ): Boolean {
-    if (!prefs.contains(RAIN_SNAPSHOT_KEY)) return false
-    val seed = prefs.getLong(KEY_SEED, Long.MIN_VALUE)
-    if (seed == Long.MIN_VALUE) return false
-    val score = prefs.getInt(KEY_SCORE, -1)
-    val maxCombo = prefs.getInt(KEY_MAX_COMBO, -1)
-    if (score < 0 || maxCombo < 0) return false
-    // 只重建谱块序列与既有成绩，阶段仍为 READY（不中途续玩）
-    game.prepare(seed)
-    return true
+    rainClearSnapshot(prefs)
+    return false
 }
 
 /** 音效是否可用（供测试与设置页判断，避免在无声环境下做无意义反馈）。 */

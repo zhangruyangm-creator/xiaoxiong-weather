@@ -19,12 +19,6 @@
     <string name="bear_run_diff_hint_casual">更慢更疏，练手与轻松闯关</string>
     <string name="bear_run_diff_hint_standard">速度与间距平衡，推荐日常游玩</string>
     <string name="bear_run_diff_hint_challenge">更快更密，得分倍率更高</string>
-    <string name="bear_run_scarf_tint">围巾色</string>
-    <string name="bear_run_tint_classic">经典</string>
-    <string name="bear_run_tint_gold">鎏金</string>
-    <string name="bear_run_tint_midnight">夜航</string>
-    <string name="bear_run_tint_rose">蔷薇</string>
-    <string name="bear_run_tint_aurora">极光</string>
     <string name="bear_run_milestone_banner">里程碑 · %1$d 分</string>
     <string name="bear_run_ice_unlock_banner">冰墙解锁！二段跳越过</string>
     <string name="bear_run_graze">擦边 %1$d</string>

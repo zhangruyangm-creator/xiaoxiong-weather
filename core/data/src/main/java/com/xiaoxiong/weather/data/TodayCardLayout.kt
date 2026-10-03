@@ -13,9 +13,6 @@ enum class TodayCardId(
     AIR_QUALITY(R.string.today_card_air),
     RADAR(R.string.today_card_radar),
     SUN_EXTRAS(R.string.today_card_sun),
-
-    /** 花期时令摘要，点击进入七日页详情。 */
-    SEASON(R.string.today_card_season),
     ;
 
     /** 实况始终展示，不可关闭。 */

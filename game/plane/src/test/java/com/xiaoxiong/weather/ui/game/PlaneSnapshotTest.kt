@@ -25,8 +25,11 @@ class PlaneSnapshotTest {
         source.setWeather(51, isDay = false)
         source.difficulty = PlaneDifficulty.CHALLENGE
         source.startGame(seed = 77L, startWave = 3)
+        // 本用例只验证快照往返，不测生存；强制无敌避免更紧的受击无敌导致 SETTLED 清档
+        source.player.invulnTicks = 99999
         source.advanceTicks(500)
         assertTrue("500 tick 后应有活动实体", source.enemies.isNotEmpty() || source.playerBullets.isNotEmpty())
+        assertTrue("对局仍应进行中", source.phase == PlanePhase.PLAYING)
 
         source.saveSnapshot(prefs)
         assertTrue("进行中应写入快照", prefs.contains(key))

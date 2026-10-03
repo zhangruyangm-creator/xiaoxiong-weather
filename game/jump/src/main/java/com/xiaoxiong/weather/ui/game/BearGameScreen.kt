@@ -31,7 +31,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
-import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.weather.weatherSceneStyle
 import kotlinx.coroutines.delay
@@ -81,6 +80,7 @@ fun BearGameScreen(
     val pause = rememberGamePauseState()
 
     val prefs = rememberGamePrefs()
+
     var difficultyState by remember { mutableStateOf(loadRunDifficulty(prefs)) }
     val lbKey = remember(difficultyState) { ensureRunLeaderboardMigrated(prefs, difficultyState) }
     val bestKey = remember(difficultyState) { runBestKey(difficultyState) }
@@ -88,9 +88,6 @@ fun BearGameScreen(
     val characterState = rememberBearCharacterState()
     var showCharacterPicker by remember { mutableStateOf(false) }
     val gameWeather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
-    var scarfTint by remember {
-        mutableStateOf(RunScarfTint.fromId(prefs.stringOr(RUN_SCARF_TINT_KEY)))
-    }
     val game =
         remember {
             BearGame().also {
@@ -102,10 +99,6 @@ fun BearGameScreen(
     // 避免组合期写 snapshot state 触发额外重组；恢复失败保持 READY 不自动弹暂停。
     LaunchedEffect(Unit) {
         GameAudio.preload(context)
-        if (!runScarfTintUnlocked(scarfTint, game.best)) {
-            scarfTint = RunScarfTint.CLASSIC
-            prefs.edit { putString(RUN_SCARF_TINT_KEY, scarfTint.id) }
-        }
     }
     // 快照生命周期统一交给公共件：进入恢复 → OVER 清档 → ON_STOP/onDispose 兜底落盘 → 退出抑制。
     val session =
@@ -157,10 +150,6 @@ fun BearGameScreen(
         game.difficulty = difficulty
         persistRunDifficulty(prefs, difficulty)
         game.best = loadRunBest(prefs, difficulty)
-        if (!runScarfTintUnlocked(scarfTint, game.best)) {
-            scarfTint = RunScarfTint.CLASSIC
-            prefs.edit { putString(RUN_SCARF_TINT_KEY, scarfTint.id) }
-        }
     }
 
     BackHandler {
@@ -301,7 +290,6 @@ fun BearGameScreen(
                 isDay = isDay ?: true,
                 sprites = bearSprites,
                 reduceMotion = reduceMotion,
-                scarfTint = scarfTint,
             )
         }
 
@@ -365,15 +353,7 @@ fun BearGameScreen(
                     extra = {
                         RunReadyExtras(
                             difficulty = difficultyState,
-                            scarfTint = scarfTint,
-                            best = game.best,
                             onPickDifficulty = { applyDifficulty(it) },
-                            onPickScarf = { tint ->
-                                if (runScarfTintUnlocked(tint, game.best) && tint != scarfTint) {
-                                    scarfTint = tint
-                                    prefs.edit { putString(RUN_SCARF_TINT_KEY, tint.id) }
-                                }
-                            },
                         )
                     },
                 )

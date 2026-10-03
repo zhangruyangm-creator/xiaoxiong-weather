@@ -64,6 +64,17 @@ SCENE_PRESETS: dict[str, dict[str, str]] = {
             "crates of glass milk bottles and cartons, 送奶 sign on scooter"
         ),
     },
+    "work_gasstation": {
+        "action": (
+            "refueling a small blue car parked at the pump island — "
+            "nozzle at fuel cap, customer car clearly waiting beside dispenser"
+        ),
+        "setting": "sunny outdoor gas station, red-white canopy, paved pump lane, blue sky",
+        "props": (
+            "red cap with bear logo, tan apron or red vest, fuel nozzle and hose; "
+            "parked sedan at pump — NOT cashier counter, NOT mechanic, NOT open hood"
+        ),
+    },
     "weekend_explore_pingjianglu": {
         "action": "walking down the lane with tea cup and pastry bag",
         "setting": (

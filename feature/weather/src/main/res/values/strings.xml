@@ -238,7 +238,6 @@
     <string name="season_phenology_loading">正在结合今年气温修正时令…</string>
     <string name="season_gap_headline">下一时令 · %1$s · 约 %2$d 天后</string>
     <string name="season_gap_body">典型窗口 %1$s，可留意 %2$s 等。</string>
-    <string name="season_teaser_open_daily">查看七日花期详情</string>
     <string name="season_spring_bloom">春花时令</string>
     <string name="season_sub">经验窗口 · 海拔 · 积温修正</string>
     <string name="season_summer_bloom">夏花时令</string>

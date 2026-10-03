@@ -373,6 +373,7 @@ internal val WORK_FIELD_JOBS =
         IllustR.drawable.ic_sun_bear_work_athlete,
         IllustR.drawable.ic_sun_bear_work_pharmacist,
         IllustR.drawable.ic_sun_bear_work_tailor,
+        IllustR.drawable.ic_sun_bear_work_gasstation,
         IllustR.drawable.ic_sun_bear_work_archaeologist,
     )
 

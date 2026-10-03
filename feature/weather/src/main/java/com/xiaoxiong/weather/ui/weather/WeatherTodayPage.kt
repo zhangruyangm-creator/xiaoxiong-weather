@@ -89,9 +89,6 @@ fun TodayPage(
     radarMapRepository: RadarMapRepository,
     cardLayout: List<TodayCardPref> = TodayCardLayout.defaults,
     paused: Boolean = false,
-    phenologyShiftDays: Int? = null,
-    phenologyShiftLoading: Boolean = false,
-    onOpenDailySeason: () -> Unit = {},
     /** 上一次拉取的失败原因；非空且无数据时渲染常驻错误态与重试按钮。 */
     errorMessage: String? = null,
     onRetry: (() -> Unit)? = null,
@@ -125,7 +122,6 @@ fun TodayPage(
                         TodayCardId.AIR_QUALITY -> weather.airQuality != null
                         TodayCardId.RADAR -> true
                         TodayCardId.SUN_EXTRAS -> true
-                        TodayCardId.SEASON -> true
                     }
             }
         items(
@@ -147,14 +143,6 @@ fun TodayPage(
                         paused = paused,
                     )
                 TodayCardId.SUN_EXTRAS -> SunAndExtrasCard(weather)
-                TodayCardId.SEASON ->
-                    SeasonTeaserCard(
-                        city = weather.city,
-                        elevationMeters = weather.elevationMeters,
-                        phenologyShiftDays = phenologyShiftDays,
-                        phenologyShiftLoading = phenologyShiftLoading,
-                        onOpenDailySeason = onOpenDailySeason,
-                    )
             }
         }
         item { Spacer(modifier = Modifier.height(8.dp)) }

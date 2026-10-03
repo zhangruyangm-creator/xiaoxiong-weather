@@ -30,7 +30,6 @@ class TodayCardLayoutTest {
                 TodayCardId.LIFE_INDICES,
                 TodayCardId.AIR_QUALITY,
                 TodayCardId.SUN_EXTRAS,
-                TodayCardId.SEASON,
             ),
             merged.map { it.id },
         )

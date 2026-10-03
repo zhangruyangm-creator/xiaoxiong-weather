@@ -18,7 +18,6 @@
     <string name="today_card_air">Air quality</string>
     <string name="today_card_radar">Radar &amp; clouds</string>
     <string name="today_card_sun">Sunrise &amp; sunset</string>
-    <string name="today_card_season">Season &amp; bloom</string>
     <string name="hourly_card_precip">Precipitation bar chart</string>
     <string name="hourly_card_strip">Hourly temperature strip</string>
     <string name="hourly_card_chart">Hourly chart</string>

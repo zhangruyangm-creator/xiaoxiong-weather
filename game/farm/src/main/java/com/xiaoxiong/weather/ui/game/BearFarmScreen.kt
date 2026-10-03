@@ -13,14 +13,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -246,8 +244,11 @@ fun BearFarmScreen(
                     .statusBarsPadding()
                     .padding(12.dp),
         ) {
-            // 顶栏
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // 标题独占一行，避免金币/商店把「小熊农场」挤成竖排或挡住
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 IconButton(onClick = {
                     farm.saveBlocking()
                     onExit()
@@ -260,6 +261,9 @@ fun BearFarmScreen(
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip,
+                        softWrap = false,
                     )
                     Text(
                         stringResource(fx.labelRes),
@@ -269,19 +273,20 @@ fun BearFarmScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                // 金币胶囊：改用公共深色玻璃面板，亮天空上的对比度也一起解决
-                GamePanel(
-                    style = GamePanelStyleDefaults,
-                    modifier = Modifier.padding(vertical = 2.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.bear_farm_coins, farm.coins),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFE082),
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.bear_farm_coins, farm.coins),
+                    modifier = Modifier.padding(end = 8.dp),
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFE082),
+                    maxLines = 1,
+                    softWrap = false,
+                )
                 TextButton(onClick = { farm.showShop = true }) {
                     Text(stringResource(R.string.bear_farm_shop), color = Color.White)
                 }

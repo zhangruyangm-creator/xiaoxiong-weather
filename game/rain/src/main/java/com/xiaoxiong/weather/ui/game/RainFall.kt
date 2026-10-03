@@ -193,8 +193,8 @@ internal class RainFall {
 
         var guard = 0
         while (elapsed >= nextSpawnAt && guard++ < MAX_SPAWNS_PER_TICK) {
-            spawnOne()
-            nextSpawnAt += spawnIntervalAt(elapsed)
+            spawnOne(at = nextSpawnAt)
+            nextSpawnAt += spawnIntervalAt(nextSpawnAt)
         }
 
         // 漏接判定：雨滴越过判定线即结束。用位置比较而非下标推进，掉帧也不会漏判。
@@ -212,14 +212,14 @@ internal class RainFall {
         prune()
     }
 
-    private fun spawnOne() {
-        val kind = pickKind(elapsed, rng)
+    private fun spawnOne(at: Float) {
+        val kind = pickKind(at, rng)
         flying +=
             RainTile(
                 id = nextId++,
                 kind = kind,
-                spawnTime = elapsed,
-                speed = fallSpeedAt(elapsed),
+                spawnTime = at,
+                speed = fallSpeedAt(at),
             )
     }
 
@@ -407,12 +407,12 @@ const val RAIN_HAIL_RAMP_SECONDS = 150f
 const val RAIN_SPAWN_GAP_START = 0.85f
 
 /**
- * 出怪间隔终值（秒）——后期密集（约 5.9 次/秒，接近人类连点上限）。
+ * 出怪间隔终值（秒）——后期约 5 次/秒。
  *
- * 下限受 [RAIN_FALL.HIT_WINDOW_FRACTION] / [RAIN_FALL.RAIN_MIN_TILE_SPACING] 约束：
- * 再密就会出现"窗内两块、无法判断该点哪块"的公平性问题。
+ * 下限受命中窗与 [RainFall.RAIN_MIN_TILE_SPACING] 约束：
+ * 间距 ≈ 间隔 × 速度，再密就会出现「窗内两块、无法判断该点哪块」。
  */
-const val RAIN_SPAWN_GAP_END = 0.17f
+const val RAIN_SPAWN_GAP_END = 0.20f
 
 /** 下落速度初值（屏高/秒）。 */
 const val RAIN_FALL_SPEED_START = 0.42f
@@ -466,8 +466,12 @@ private fun lerp(
 /** 下落速度（屏高/秒）。 */
 fun fallSpeedAt(t: Float): Float = difficultyAt(t).fallSpeed
 
-/** 出怪间隔（秒）。 */
-fun spawnIntervalAt(t: Float): Float = difficultyAt(t).spawnInterval
+/** 出怪间隔（秒）；不低于「速度 × 最小间距」所需时间。 */
+fun spawnIntervalAt(t: Float): Float {
+    val d = difficultyAt(t)
+    val minInterval = RainFall.RAIN_MIN_TILE_SPACING / d.fallSpeed.coerceAtLeast(0.01f)
+    return max(d.spawnInterval, minInterval)
+}
 
 /** 冰雹出现概率（0..1）；宽限期内恒为 0。 */
 fun hailChanceAt(t: Float): Float =

@@ -1,16 +1,13 @@
 package com.xiaoxiong.weather.ui.weather
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Park
@@ -60,84 +57,6 @@ internal fun SeasonTipsSection(
         globalPhenologyShiftDays = phenologyShiftDays,
         phenologyShiftLoading = phenologyShiftLoading,
         compact = false,
-    )
-}
-
-/** 今日页精简入口：一行摘要，点击跳转七日页看全文。 */
-@Composable
-internal fun SeasonTeaserCard(
-    city: City,
-    elevationMeters: Double? = null,
-    phenologyShiftDays: Int? = null,
-    phenologyShiftLoading: Boolean = false,
-    onOpenDailySeason: () -> Unit,
-) {
-    val todayEpochDay = rememberTodayEpochDay().value
-    val todayIso = remember(todayEpochDay) { LocalDate.ofEpochDay(todayEpochDay).toString() }
-    val display =
-        remember(
-            city.latitude,
-            city.longitude,
-            city.admin1,
-            todayIso,
-            elevationMeters,
-            phenologyShiftDays,
-        ) {
-            SeasonTipGenerator.displayForCity(city, todayIso, elevationMeters, phenologyShiftDays)
-        }
-    if (!display.hasContent && !phenologyShiftLoading) return
-
-    SoftCard(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onOpenDailySeason),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.season_section_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                SeasonTeaserLine(
-                    display = display,
-                    phenologyShiftLoading = phenologyShiftLoading,
-                )
-            }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.season_teaser_open_daily),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SeasonTeaserLine(
-    display: SeasonTipGenerator.SeasonDisplay,
-    phenologyShiftLoading: Boolean,
-) {
-    if (phenologyShiftLoading && display.tips.isEmpty() && display.nextOutlook == null) {
-        Text(
-            text = stringResource(R.string.season_phenology_loading),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        return
-    }
-    val tip = display.tips.firstOrNull() ?: display.nextOutlook
-    if (tip == null) return
-    Text(
-        text = seasonTipHeadline(tip, includeWindow = false),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 2,
     )
 }
 

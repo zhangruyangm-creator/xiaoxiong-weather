@@ -19,12 +19,6 @@
     <string name="bear_run_diff_hint_casual">Slower, wider gaps — great for practice</string>
     <string name="bear_run_diff_hint_standard">Balanced speed and spacing — recommended</string>
     <string name="bear_run_diff_hint_challenge">Faster denser obstacles — higher score multiplier</string>
-    <string name="bear_run_scarf_tint">Scarf tint</string>
-    <string name="bear_run_tint_classic">Classic</string>
-    <string name="bear_run_tint_gold">Gold</string>
-    <string name="bear_run_tint_midnight">Midnight</string>
-    <string name="bear_run_tint_rose">Rose</string>
-    <string name="bear_run_tint_aurora">Aurora</string>
     <string name="bear_run_milestone_banner">Milestone · %1$d</string>
     <string name="bear_run_ice_unlock_banner">Ice walls unlocked! Double-jump over them</string>
     <string name="bear_run_graze">Graze %1$d</string>
