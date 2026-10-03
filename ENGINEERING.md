@@ -90,6 +90,22 @@ test + lintKotlin + R8 + 签名 APK 全量构建。tag push 不触发 `ci.yml`�
 `tools/check_duplicate_game_strings.py`（构建前）与 `tools/check_r8_dex_keep.py`（APK 构建后），
 保证「被发布的 APK 自己」经过资源重名与 R8 keep 守卫，而不是只看过 main 分支的 CI 结果。
 
+## 游戏音频（只有音效，无 BGM）
+
+**当前只有 24 个程序合成音效，没有背景音乐。** 这是刻意的体积决策，不是待补的缺口：
+
+- 音效（`tools/generate_sfx.py`，24 个，合计约 240KB）承担全部玩法反馈；
+- 曾尝试为 7 款游戏各配一首循环 BGM，共 9.3MB，**占 APK 的 26%**（WAV 是 PCM，
+  deflate 压不动，压缩率 100%），换来的"每款游戏都有音乐"并不改善任何一款的可玩性；
+- 故整体下线。玩法反馈靠音效已足够，体积留给更值得的内容。
+
+音效生成器的两条约定：
+
+- **按音效名派生独立随机种子**（`cue_rng`），不用"一条共享 rng 顺序喂给所有音效"——
+  否则新增任何音效都会改变其后所有音效的波形，历史音频无法复现；
+- 音效是短采样（几十到几百毫秒），继续用 WAV：SoundPool 对解码后 PCM 有约 1MB 上限，
+  WAV 可直接解码，且总量极小。
+
 ## 崩溃监控（Crashlytics）
 
 代码已就绪（`CrashReporting.kt` 门面 + `build.gradle.kts` 条件启用），放入 `app/google-services.json`
