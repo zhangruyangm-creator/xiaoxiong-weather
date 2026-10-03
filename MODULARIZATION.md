@@ -286,7 +286,6 @@ val intent = Intent(context, MainActivity::class.java).apply {
 | `:game:common` | `app/src/gameCommon/*`（GameBear/GameScaffold/GameLeaderboard/GameWeatherFx/GameSkyFx/GameTypes/FarmWeatherCommon）+ 11 张精灵表 + 排行榜字符串；后续拆分新增 `GameSnapshotSession.kt`/`GameCards.kt`/`GameRenderPrimitives.kt` |
 | `:game:jump` | `gameJump/*`（BearGameScreen/GameRunRender/BearGameEntry）+ 3 测试 |
 | `:game:star` | `gameStar/*`（BearStarJumpScreen） |
-| `:game:rain` | `gameRain/*`（BearRainScreen） |
 | `:game:maze` | `gameMaze/*`（BearMazeScreen/Maze{Generator,Levels,Solvability}）+ 2 测试 |
 | `:game:farm` | `gameFarm/*`（Farm{…} 11 文件）+ 156 张插画 + 5 测试 |
 | `:game:home` | `gameHome/*`（BearHomeScreen/HomeRoutine/HomeMealDex）+ 90 张生活片刻插画 + 1 测试 |
@@ -308,7 +307,7 @@ val intent = Intent(context, MainActivity::class.java).apply {
 2. **`GameWeatherFx` 的 DrawScope 特效改 public**——`drawStormLightning`/`drawRainLayered` 等被 jump/star 跨模块调用，从 internal 放开。
 3. **HomePlayroom 不再判 `DISABLED` 哨兵**——动态依赖下口令恒为真实值，游乐间四个入口恒展示；某游戏未装配时其入口无效由装配层（`onOpenGame` → overlay 注册表）兜底。
 4. ~~**生活片刻插画 85 张随 home 拷贝**~~（阶段 6 已取消）——`ic_sun_bear_{breakfast,lunch,dinner}_*` 已在 `:core:designsystem`，但 Android Library 编译期 `R` 只含自持资源，曾把 gameHome 所需插画按「代码引用 → 同步迁移」拷入 `:game:home` res；阶段 6 起统一收至 `:core:res-illustrations`，home 直接 `api` 依赖，插画处处只打一份。
-5. **lite 版零游戏实现**——动态游戏依赖仅挂 `fullImplementation`，lite 不含任何游戏实现模块（jump/star/rain/maze/farm/home/hockey/pool/plane 字节码为零）。注意 `:game:api` 接口契约层仍由 `:app` 无条件依赖（MainActivity/WeatherGameOverlay 需引用 `GameEntry` 类型），lite 包保留约 1-2KB 接口字节码，属预期——「零痕迹」指零游戏实现，非零接口契约。
+5. **lite 版零游戏实现**——动态游戏依赖仅挂 `fullImplementation`，lite 不含任何游戏实现模块（jump/star/maze/farm/home/hockey/pool/plane 字节码为零）。注意 `:game:api` 接口契约层仍由 `:app` 无条件依赖（MainActivity/WeatherGameOverlay 需引用 `GameEntry` 类型），lite 包保留约 1-2KB 接口字节码，属预期——「零痕迹」指零游戏实现，非零接口契约。
 
 **验收（已全部通过）**：
 - `-Pgames=all` / `jump` / `none` 三档编译 ✓
