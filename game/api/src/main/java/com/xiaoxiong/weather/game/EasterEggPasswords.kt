@@ -9,6 +9,10 @@ package com.xiaoxiong.weather.game
  */
 const val EASTER_EGG_BEAR_GAME = "#小熊跳跳"
 const val EASTER_EGG_BEAR_STAR = "#小熊摘星"
+const val EASTER_EGG_BEAR_TILES = "#小熊方块"
+
+/** @deprecated 旧雨幕玩法口令，仅作别名兼容。 */
+const val EASTER_EGG_BEAR_RAIN_LEGACY = "#小熊雨幕"
 const val EASTER_EGG_BEAR_MAZE = "#小熊迷宫"
 const val EASTER_EGG_BEAR_FARM = "#小熊农场"
 const val EASTER_EGG_BEAR_HOME = "#小熊回家"

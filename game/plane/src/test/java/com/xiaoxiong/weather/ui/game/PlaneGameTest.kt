@@ -614,6 +614,53 @@ class PlaneGameTest {
     }
 
     @Test
+    fun dpadAxis_movesAtCappedSpeed_andClampsBounds() {
+        val game = newGame()
+        game.startGame(seed = 21L)
+        val startX = game.player.x
+        val startY = game.player.y
+        game.setMoveAxis(1f, 0f)
+        game.advanceTicks(15)
+        val expected = PlaneConfig.DPAD_SPEED * PlaneConfig.LOGIC_STEP_SECONDS * 15f
+        assertEquals(startX + expected, game.player.x, 0.02f)
+        assertEquals(startY, game.player.y, 0.02f)
+
+        game.setMoveAxis(-1f, 0f)
+        game.advanceTicks(600)
+        assertEquals(PlaneConfig.PLAYER_RADIUS, game.player.x, 0.02f)
+
+        game.setMoveAxis(Float.NaN, 1f)
+        assertEquals(-1f, game.moveAxisX, 0f)
+        assertEquals(0f, game.moveAxisY, 0f)
+    }
+
+    @Test
+    fun pause_clearsMoveAxis_soResumeDoesNotKeepSliding() {
+        val game = newGame()
+        game.startGame(seed = 22L)
+        game.setMoveAxis(1f, 1f)
+        game.pause()
+        assertEquals(0f, game.moveAxisX, 0f)
+        assertEquals(0f, game.moveAxisY, 0f)
+        val x = game.player.x
+        val y = game.player.y
+        game.resume()
+        game.advanceTicks(12)
+        assertEquals(x, game.player.x, 0.02f)
+        assertEquals(y, game.player.y, 0.02f)
+    }
+
+    @Test
+    fun startGame_clearsMoveAxis() {
+        val game = newGame()
+        game.startGame(seed = 23L)
+        game.setMoveAxis(0f, -1f)
+        game.startGame(seed = 24L)
+        assertEquals(0f, game.moveAxisX, 0f)
+        assertEquals(0f, game.moveAxisY, 0f)
+    }
+
+    @Test
     fun snowWeather_slowsEnemyMotion() {
         val game = newGame()
         val enemy =

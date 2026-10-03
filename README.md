@@ -14,7 +14,7 @@
 - **通知提醒**：仅在天气码变化、气温明显变化或临近降水时提醒，避免刷屏
 - **分享卡片**：把当前天气渲染成图片分享
 - **隐私合规门**：未同意前不初始化 Crashlytics / 不入队 WorkManager
-- **彩蛋游戏**（仅 `full` flavor）：搜索框输入口令可进入「小熊跳跳 / 小熊摘星 / 小熊迷宫 / 小熊农场 / 小熊冰球 / 小熊台球 / 小熊战机 / 小熊的家」
+- **彩蛋游戏**（仅 `full` flavor）：搜索框输入口令可进入「小熊跳跳 / 小熊摘星 / 小熊方块 / 小熊迷宫 / 小熊农场 / 小熊冰球 / 小熊台球 / 小熊战机 / 小熊的家」
 - **小熊的家**：客厅枢纽 + 卧室作息 / 厨房三餐图鉴 / 游乐间游戏入口 / 储物间
 - **调试模式**：隐藏入口可覆盖天气数据用于测试预警/图标
 - **Baseline Profile**：`:baselineprofile` module 通过 macrobenchmark 生成启动性能基线
@@ -54,14 +54,14 @@
 
 ### full 版游戏可选编译
 
-游戏代码分散在独立模块 `:game:jump / :game:star / :game:maze / :game:farm / :game:home / :game:hockey / :game:pool / :game:plane`（共享部分在 `:game:common`），`full` 版默认全部编译进去；需要裁剪时用 `-Pgames` 让 `:app` 只对选中模块建立动态依赖：
+游戏代码分散在独立模块 `:game:jump / :game:star / :game:rain / :game:maze / :game:farm / :game:home / :game:hockey / :game:pool / :game:plane`（共享部分在 `:game:common`），`full` 版默认全部编译进去；需要裁剪时用 `-Pgames` 让 `:app` 只对选中模块建立动态依赖：
 
 ```bash
 ./gradlew assembleFullRelease -Pgames=jump,maze          # 只编译跳跳 + 迷宫
 ./gradlew assembleFullRelease -Pgames=none               # 不含任何游戏
 ```
 
-- 游戏 id：`jump`（小熊跳跳）、`star`（小熊摘星）、`maze`（小熊迷宫）、`farm`（小熊农场）、`home`（小熊的家）、`hockey`（小熊冰球）、`pool`（小熊台球）、`plane`（小熊战机）
+- 游戏 id：`jump`（小熊跳跳）、`star`（小熊摘星）、`rain`（小熊方块）、`maze`（小熊迷宫）、`farm`（小熊农场）、`home`（小熊的家）、`hockey`（小熊冰球）、`pool`（小熊台球）、`plane`（小熊战机）
 - 未选中的游戏模块**不参与编译**（不存在字节码），其代码、插画、单元测试都不进包——`-Pgames=none` 的 full 包实测比默认小约 12MB（1.10 量级，随游戏与资源增减浮动，仅作参考）
 - 入口装配用 `ServiceLoader`（`GameEntryProvider`）：`MainActivity` 发现 `:game:*` 在 classpath 的 provider 组装游戏列表，未选模块自然不出现
 - 缺省（不传 `-Pgames`）等价于 `all`
@@ -148,7 +148,7 @@ xiaoxiong-weather/
 ├── game/
 │   ├── api/                  # GameEntry + GameEntryProvider（ServiceLoader） + 口令常量
 │   ├── common/               # 共享精灵表 / 排行榜 / 天气特效
-│   ├── jump/ star/ maze/ farm/ home/ hockey/ pool/ plane/   # 各游戏模块（代码 + 插画 + 字符串 + 测试）
+│   ├── jump/ star/ rain/ maze/ farm/ home/ hockey/ pool/ plane/   # 各游戏模块（代码 + 插画 + 字符串 + 测试）
 ├── baselineprofile/          # macrobenchmark 生成 Baseline Profile
 └── build.gradle.kts          # 根构建脚本
 ```

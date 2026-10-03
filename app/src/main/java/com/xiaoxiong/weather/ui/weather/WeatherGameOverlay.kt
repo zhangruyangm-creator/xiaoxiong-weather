@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
 import com.xiaoxiong.weather.game.GameEntry
+import com.xiaoxiong.weather.game.matchesGamePassword
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -59,7 +60,7 @@ fun BearGameOverlay(
     // keys 含 enabledEntries：ServiceLoader 预载完成前输入口令/连点标题不会丢信号，
     // 入口由空变有值时 effect 会重跑并用最新 query/requestPassword 重新匹配
     LaunchedEffect(query, enabledEntries) {
-        enabledEntries.firstOrNull { it.password == query.trim() }?.let(launchGame)
+        enabledEntries.firstOrNull { it.matchesGamePassword(query) }?.let(launchGame)
     }
 
     // 外部直接激活信号（如标题连点彩蛋）：nonce 变化即重新尝试，口令相同也生效
@@ -72,7 +73,7 @@ fun BearGameOverlay(
         val nonce = requestPassword?.first
         val password = requestPassword?.second
         if (nonce != null && password != null) {
-            enabledEntries.firstOrNull { it.password == password }?.let(launchGame)
+            enabledEntries.firstOrNull { it.matchesGamePassword(password) }?.let(launchGame)
         }
         if (nonce != null) currentOnConsumed()
     }

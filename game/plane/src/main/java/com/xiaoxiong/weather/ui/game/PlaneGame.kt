@@ -192,6 +192,7 @@ class PlaneGame {
         player.fireCooldownTicks = 0
         player.overdriveTicks = 0
         player.alive = true
+        clearMoveAxis()
         enemies.clear()
         playerBullets.clear()
         enemyBullets.clear()
@@ -219,7 +220,10 @@ class PlaneGame {
     }
 
     fun pause() {
-        if (phase == PlanePhase.PLAYING) phase = PlanePhase.PAUSED
+        if (phase == PlanePhase.PLAYING) {
+            clearMoveAxis()
+            phase = PlanePhase.PAUSED
+        }
     }
 
     fun resume() {
@@ -235,6 +239,26 @@ class PlaneGame {
         if (!x.isFinite() || !y.isFinite()) return
         player.x = x.coerceIn(PlaneConfig.PLAYER_RADIUS, PLANE_LOGICAL_WIDTH - PlaneConfig.PLAYER_RADIUS)
         player.y = y.coerceIn(PlaneConfig.PLAYER_RADIUS * 2f, fieldH - PlaneConfig.PLAYER_RADIUS * 2f)
+    }
+
+    /** 方向键轴向（-1..1）。松手或暂停时清零。 */
+    internal var moveAxisX: Float = 0f
+        private set
+    internal var moveAxisY: Float = 0f
+        private set
+
+    fun setMoveAxis(
+        x: Float,
+        y: Float,
+    ) {
+        if (!x.isFinite() || !y.isFinite()) return
+        moveAxisX = x.coerceIn(-1f, 1f)
+        moveAxisY = y.coerceIn(-1f, 1f)
+    }
+
+    fun clearMoveAxis() {
+        moveAxisX = 0f
+        moveAxisY = 0f
     }
 
     // ---------------------------------------------------------------------
@@ -272,6 +296,7 @@ class PlaneGame {
         spinPhaseRad = (spinPhaseRad + 0.12f) % TAU
         if (player.invulnTicks > 0) player.invulnTicks--
         if (player.overdriveTicks > 0) player.overdriveTicks--
+        applyMoveAxis()
         advanceWaves()
         if (phase != PlanePhase.PLAYING) return
         updatePlayerFire()
@@ -282,6 +307,13 @@ class PlaneGame {
         updatePowerUps()
         updateEffects()
         updateCombo()
+    }
+
+    private fun applyMoveAxis() {
+        if (!player.alive) return
+        if (moveAxisX == 0f && moveAxisY == 0f) return
+        val dist = PlaneConfig.DPAD_SPEED * PlaneConfig.LOGIC_STEP_SECONDS
+        movePlayerTo(player.x + moveAxisX * dist, player.y + moveAxisY * dist)
     }
 
     // ---------------------------------------------------------------------

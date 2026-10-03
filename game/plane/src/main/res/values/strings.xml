@@ -6,7 +6,7 @@
     <string name="cd_plane_hud_stats">生命 %1$d/%2$d，炸弹 %3$d，火力等级 %4$d</string>
     <string name="cd_plane_boss_hp">Boss 生命值</string>
     <string name="bear_plane_start">开始战斗</string>
-    <string name="bear_plane_intro">拖动躲避、自动开火；P 升火力（满级变过载）、B 炸弹、S 护盾、L 续命。三种 Boss 轮换，特殊波与擦弹连杀交织——走得越远，涂装解锁越多。</string>
+    <string name="bear_plane_intro">拖动或方向键躲避、自动开火；P 升火力（满级变过载）、B 炸弹、S 护盾、L 续命。三种 Boss 轮换，特殊波与擦弹连杀交织——走得越远，涂装解锁越多。</string>
     <string name="bear_plane_best">最高分 %1$d</string>
     <string name="bear_plane_best_wave">历史最远第 %1$d 波</string>
     <string name="bear_plane_new_wave_record">刷新最远波次！</string>
@@ -23,6 +23,12 @@
     <string name="bear_plane_diff_hint_casual">敌机更慢、血更薄，练手与轻松闯关</string>
     <string name="bear_plane_diff_hint_standard">速度与弹幕平衡，推荐日常游玩</string>
     <string name="bear_plane_diff_hint_challenge">敌更快更密，得分倍率更高</string>
+    <string name="bear_plane_control_section">操作</string>
+    <string name="bear_plane_control_drag">拖动</string>
+    <string name="bear_plane_control_dpad">方向键</string>
+    <string name="bear_plane_control_hint_drag">手指跟手瞬移，容错更高</string>
+    <string name="bear_plane_control_hint_dpad">左下八向按住移动，速度封顶</string>
+    <string name="cd_plane_dpad">虚拟方向键</string>
     <string name="bear_plane_score">得分 %1$d</string>
     <string name="bear_plane_score_label">得分</string>
     <string name="bear_plane_win">任务完成！</string>

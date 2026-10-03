@@ -6,6 +6,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.PI
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 /**
@@ -311,6 +312,32 @@ class PlaneLogicTest {
         assertEquals(PlaneDifficulty.STANDARD, PlaneDifficulty.fromId("bogus"))
         assertEquals(PlaneDifficulty.CASUAL, PlaneDifficulty.fromId("casual"))
         assertEquals(PlaneDifficulty.CHALLENGE, PlaneDifficulty.fromId("challenge"))
+    }
+
+    @Test
+    fun controlModeIds_areStableAndDefaultDrag() {
+        assertEquals(PlaneControlMode.DRAG, PlaneControlMode.fromId(null))
+        assertEquals(PlaneControlMode.DRAG, PlaneControlMode.fromId("bogus"))
+        assertEquals(PlaneControlMode.DRAG, PlaneControlMode.fromId("drag"))
+        assertEquals(PlaneControlMode.DPAD, PlaneControlMode.fromId("dpad"))
+    }
+
+    @Test
+    fun dpadAxis_deadzoneAndEightWayUnitVectors() {
+        assertEquals(0f to 0f, planeDpadAxisFromOffset(0f, 0f, 8f))
+        assertEquals(0f to 0f, planeDpadAxisFromOffset(3f, 4f, 8f))
+        assertEquals(0f to 0f, planeDpadAxisFromOffset(Float.NaN, 10f, 4f))
+        val right = planeDpadAxisFromOffset(20f, 0f, 4f)
+        assertEquals(1f, right.first, 0.001f)
+        assertEquals(0f, right.second, 0.001f)
+        val up = planeDpadAxisFromOffset(0f, -20f, 4f)
+        assertEquals(0f, up.first, 0.001f)
+        assertEquals(-1f, up.second, 0.001f)
+        val diag = planeDpadAxisFromOffset(20f, 20f, 4f)
+        assertEquals(0.7071f, diag.first, 0.001f)
+        assertEquals(0.7071f, diag.second, 0.001f)
+        assertEquals(1f, hypot(diag.first, diag.second), 0.001f)
+        assertEquals(1f, hypot(right.first, right.second), 0.001f)
     }
 
     @Test

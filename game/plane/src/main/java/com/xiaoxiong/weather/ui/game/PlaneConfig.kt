@@ -82,6 +82,27 @@ enum class PlaneDifficulty(
     }
 }
 
+/**
+ * 操作方式：拖动瞬移跟手，或虚拟方向键按住匀速移动。
+ * [id] 写入 prefs，必须保持稳定。
+ */
+enum class PlaneControlMode(
+    val id: String,
+) {
+    /** 手指拖到哪，战机跟到哪。 */
+    DRAG("drag"),
+
+    /** 左下虚拟方向键：八向按住移动，速度封顶。 */
+    DPAD("dpad"),
+    ;
+
+    companion object {
+        val DEFAULT: PlaneControlMode = DRAG
+
+        fun fromId(id: String?): PlaneControlMode = entries.firstOrNull { it.id == id } ?: DEFAULT
+    }
+}
+
 /** 敌人类型：小兵 / 俯冲 / 摆渡 / 炮台 / 运输机 / 直升机 / 装甲车 / 侦察 / 轰炸 / 狙击 / Boss。 */
 enum class PlaneEnemyType(
     val baseHp: Int,
@@ -218,6 +239,12 @@ object PlaneConfig {
     // 玩家
     const val PLAYER_RADIUS = 1.6f
     const val PLAYER_GRAZE_RADIUS = 4.6f
+
+    /**
+     * 方向键移动速度（逻辑单位 / 秒）。场宽 100，约 1.25 秒横穿；
+     * 比拖动瞬移慢，用来压低「指哪打哪」的容错。
+     */
+    const val DPAD_SPEED = 80f
 
     /** 默认开局命数；实际命数由 [PlaneGame.startLives]（设置持久化）决定。 */
     const val START_LIVES = 3

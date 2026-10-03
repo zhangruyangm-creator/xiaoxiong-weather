@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -393,6 +396,76 @@ private fun PlaneBombButton(
     }
 }
 
+/**
+ * 左下虚拟方向键：按住后按八向匀速移动。炸弹键在右侧，互不重叠。
+ */
+@Composable
+internal fun PlaneDPad(
+    enabled: Boolean,
+    onAxis: (Float, Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val cd = stringResource(R.string.cd_plane_dpad)
+    Box(
+        modifier =
+            modifier
+                .size(148.dp)
+                .semantics { contentDescription = cd }
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val dead = minOf(size.width, size.height) * 0.16f
+
+                        fun emit(position: Offset) {
+                            val axis = planeDpadAxisFromOffset(position.x - center.x, position.y - center.y, dead)
+                            onAxis(axis.first, axis.second)
+                        }
+                        emit(down.position)
+                        down.consume()
+                        try {
+                            do {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+                                if (change.pressed) {
+                                    emit(change.position)
+                                    change.consume()
+                                }
+                            } while (event.changes.any { it.pressed })
+                        } finally {
+                            onAxis(0f, 0f)
+                        }
+                    }
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.size(148.dp)) {
+            val r = size.minDimension * 0.48f
+            drawCircle(color = PlaneUi.glass.copy(alpha = 0.82f), radius = r, center = center)
+            drawCircle(
+                color = PlaneUi.skyBorder.copy(alpha = 0.7f),
+                radius = r,
+                center = center,
+                style = Stroke(width = 2.dp.toPx()),
+            )
+            val arm = r * 0.42f
+            val tick = r * 0.12f
+            val accents =
+                listOf(
+                    Offset(center.x, center.y - arm),
+                    Offset(center.x, center.y + arm),
+                    Offset(center.x - arm, center.y),
+                    Offset(center.x + arm, center.y),
+                )
+            accents.forEach { tip ->
+                drawCircle(color = PlaneUi.accent.copy(alpha = 0.55f), radius = tick, center = tip)
+            }
+            drawCircle(color = PlaneUi.accent.copy(alpha = 0.28f), radius = r * 0.16f, center = center)
+        }
+    }
+}
+
 /** 底部生命显示：少命用小熊头条，多命改「图标 + 当前/上限」避免撑爆 HUD。 */
 @Composable
 private fun PlaneLivesHud(
@@ -587,7 +660,7 @@ internal fun PlaneBossWarningBanner(text: String) {
     }
 }
 
-/** READY：标题 / 简介 / 难度 3 档（含说明）/ 开局命数滑条（1..30）/ 开始 / 最高分 / 排行榜 / 音效开关。 */
+/** READY：标题 / 简介 / 难度 3 档 / 操作方式 / 开局命数滑条（1..30）/ 开始 / 最高分 / 排行榜 / 音效开关。 */
 @Composable
 internal fun PlaneReadyOverlay(
     game: PlaneGame,
@@ -600,6 +673,8 @@ internal fun PlaneReadyOverlay(
     isDay: Boolean,
     reduceMotion: Boolean,
     onPick: (PlaneDifficulty) -> Unit,
+    controlMode: PlaneControlMode,
+    onControl: (PlaneControlMode) -> Unit,
     onStartLivesChange: (Int) -> Unit,
     onShipTint: (PlaneShipTint) -> Unit,
     onStart: () -> Unit,
@@ -673,6 +748,38 @@ internal fun PlaneReadyOverlay(
             Spacer(Modifier.height(6.dp))
             Text(
                 text = planeDifficultyHint(game.difficulty),
+                color = PlaneUi.textSecondary.copy(alpha = 0.92f),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.bear_plane_control_section),
+                color = PlaneUi.textSecondary,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PlaneControlMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = controlMode == mode,
+                        onClick = { onControl(mode) },
+                        label = { Text(planeControlLabel(mode)) },
+                        modifier = Modifier.weight(1f),
+                        colors =
+                            FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PlaneUi.accent.copy(alpha = 0.28f),
+                                selectedLabelColor = Color.White,
+                                labelColor = PlaneUi.textSecondary,
+                            ),
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = planeControlHint(controlMode),
                 color = PlaneUi.textSecondary.copy(alpha = 0.92f),
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -1091,6 +1198,24 @@ internal fun planeDifficultyHint(difficulty: PlaneDifficulty): String =
             PlaneDifficulty.CASUAL -> R.string.bear_plane_diff_hint_casual
             PlaneDifficulty.STANDARD -> R.string.bear_plane_diff_hint_standard
             PlaneDifficulty.CHALLENGE -> R.string.bear_plane_diff_hint_challenge
+        },
+    )
+
+@Composable
+internal fun planeControlLabel(mode: PlaneControlMode): String =
+    stringResource(
+        when (mode) {
+            PlaneControlMode.DRAG -> R.string.bear_plane_control_drag
+            PlaneControlMode.DPAD -> R.string.bear_plane_control_dpad
+        },
+    )
+
+@Composable
+internal fun planeControlHint(mode: PlaneControlMode): String =
+    stringResource(
+        when (mode) {
+            PlaneControlMode.DRAG -> R.string.bear_plane_control_hint_drag
+            PlaneControlMode.DPAD -> R.string.bear_plane_control_hint_dpad
         },
     )
 

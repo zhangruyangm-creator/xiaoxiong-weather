@@ -9,13 +9,14 @@ plugins {
     alias(libs.plugins.androidx.baselineprofile)
 }
 
-// 彩蛋游戏可选编译：把 jump/star/maze/farm/home/hockey/pool/plane 依 -Pgames 动态接入（默认 all）。
+// 彩蛋游戏可选编译：把 jump/star/rain/maze/farm/home/hockey/pool/plane 依 -Pgames 动态接入（默认 all）。
 // 与旧「源码集裁剪」不同：未选中的游戏模块不参与编译与打包，classpath 上不存在其字节码，
 // 装配侧用 ServiceLoader（:game:api 的 loadGameEntryProviders()）发现已在 classpath 的入口，天然更彻底。
 val gameProjects =
     mapOf(
         "jump" to ":game:jump",
         "star" to ":game:star",
+        "rain" to ":game:rain",
         "maze" to ":game:maze",
         "farm" to ":game:farm",
         "home" to ":game:home",

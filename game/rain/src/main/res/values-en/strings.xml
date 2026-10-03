@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rain_title">Bear Tiles</string>
+    <string name="cd_rain_board">Bear Tiles board</string>
+    <string name="rain_hint">The board waits until your first black tile, then scrolls. After that, skip white. Bear tiles sparkle; ear hints need two taps.</string>
+    <string name="rain_start">Start</string>
+    <string name="rain_score">%1$d</string>
+    <string name="rain_over_white">You tapped white</string>
+    <string name="rain_over_miss">A black tile slipped by</string>
+    <string name="rain_leaderboard">Bear Tiles · Leaderboard</string>
+    <string name="rain_option_double">Double-tap tiles</string>
+    <string name="rain_option_double_off_hint">Off: only plain and bear tiles</string>
+    <string name="rain_speed_cap_note">Speed cap %1$.0f rows/s (about %2$s s per screen at max)</string>
+</resources>

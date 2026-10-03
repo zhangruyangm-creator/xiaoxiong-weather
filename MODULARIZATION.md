@@ -290,7 +290,7 @@ val intent = Intent(context, MainActivity::class.java).apply {
 | `:game:farm` | `gameFarm/*`（Farm{…} 11 文件）+ 156 张插画 + 5 测试 |
 | `:game:home` | `gameHome/*`（BearHomeScreen/HomeRoutine/HomeMealDex）+ 90 张生活片刻插画 + 1 测试 |
 
-> 后续新增的 `:game:hockey`（小熊冰球）、`:game:pool`（小熊台球）、`:game:plane`（小熊战机）按同一模式下沉为独立模块（各持 res/strings + `GameEntryProvider` + 测试），当前游戏模块共 8 个。
+> 后续新增的 `:game:hockey`（小熊冰球）、`:game:pool`（小熊台球）、`:game:plane`（小熊战机）、`:game:rain`（小熊方块）按同一模式下沉为独立模块（各持 res/strings + `GameEntryProvider` + 测试），当前游戏模块共 9 个。
 
 > 1.13.0 后各游戏模块又做了一轮机械拆分：`jump` 拆出 `BearGame.kt`/`GameRunHud.kt`，`catch` 拆出 `CatchRender.kt`/`CatchHud.kt`，`pool` 拆出 `PoolSnapshot.kt`/`PoolRenderCache.kt`/`PoolTableStatic.kt`/`PoolBalls.kt`/`PoolAim.kt`/`PoolWeather.kt`/`PoolHud.kt`/`PoolDialogs.kt`/`PoolPrefsStore.kt`，`hockey` 拆出 `HockeyRenderCache.kt`/`HockeyTableStatic.kt`/`HockeyMarkings.kt`/`HockeyArt.kt`/`HockeyAmbient.kt`/`HockeyDialogs.kt`/`HockeyFormControls.kt`，`plane` 拆出 `PlaneSnapshot.kt`/`PlaneSpriteArt.kt`；同时 jump/star/catch/hockey/pool/plane/maze 的 Screen 快照生命周期统一迁移到 `:game:common` 的 `GameSnapshotLifecycle`（`GameSnapshotSession.kt`），jump/star/catch 的 READY/结算卡改用 `GameCards.kt`，公共层新增 `GameRenderPrimitives.kt`（`BakedLayerLru`/`strokeOf`/`gameHash01`）供各游戏渲染复用。
 

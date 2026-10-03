@@ -6,7 +6,7 @@
     <string name="cd_plane_hud_stats">Lives %1$d of %2$d, bombs %3$d, power level %4$d</string>
     <string name="cd_plane_boss_hp">Boss health</string>
     <string name="bear_plane_start">Start mission</string>
-    <string name="bear_plane_intro">Drag to dodge and auto-fire. P powers up (overdrive at max), B bombs, S shield, L life. Three rotating bosses, special waves, graze combos — push farther to unlock ship tints.</string>
+    <string name="bear_plane_intro">Drag or use the D-pad to dodge and auto-fire. P powers up (overdrive at max), B bombs, S shield, L life. Three rotating bosses, special waves, graze combos — push farther to unlock ship tints.</string>
     <string name="bear_plane_best">Best %1$d</string>
     <string name="bear_plane_best_wave">Farthest wave %1$d</string>
     <string name="bear_plane_new_wave_record">New farthest wave!</string>
@@ -63,4 +63,10 @@
     <string name="bear_plane_diff_hint_casual">Slower, thinner enemies — great for practice</string>
     <string name="bear_plane_diff_hint_standard">Balanced speed and bullets — recommended</string>
     <string name="bear_plane_diff_hint_challenge">Faster denser fire — higher score multiplier</string>
+    <string name="bear_plane_control_section">Controls</string>
+    <string name="bear_plane_control_drag">Drag</string>
+    <string name="bear_plane_control_dpad">D-pad</string>
+    <string name="bear_plane_control_hint_drag">Follow your finger instantly — more forgiving</string>
+    <string name="bear_plane_control_hint_dpad">Hold the 8-way pad; movement is speed-capped</string>
+    <string name="cd_plane_dpad">Virtual D-pad</string>
 </resources>

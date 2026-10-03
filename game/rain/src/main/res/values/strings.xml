@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rain_title">小熊方块</string>
+    <string name="cd_rain_board">小熊方块棋盘</string>
+    <string name="rain_hint">开局棋盘先停住，点中第一块黑块后开始滚。之后别点白块。带小熊的块有特效；露耳朵的要连点两次。</string>
+    <string name="rain_start">开始</string>
+    <string name="rain_score">%1$d</string>
+    <string name="rain_over_white">点到白块了</string>
+    <string name="rain_over_miss">黑块漏下去了</string>
+    <string name="rain_leaderboard">小熊方块 · 排行榜</string>
+    <string name="rain_option_double">双连点块</string>
+    <string name="rain_option_double_off_hint">关闭后只有普通块与小熊块</string>
+    <string name="rain_speed_cap_note">速度软顶 %1$.0f 行/秒（最快约 %2$s 秒滚过一屏）</string>
+</resources>

@@ -4,6 +4,7 @@ import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -790,4 +791,31 @@ object PlaneLogic {
             }
         }
     }
+}
+
+/**
+ * 虚拟方向键：超过 [deadzone] 后吸附八向，对角线与十字同速（单位向量）。
+ * 屏幕坐标 y 向下为正，与战机逻辑场一致。
+ */
+internal fun planeDpadAxisFromOffset(
+    dx: Float,
+    dy: Float,
+    deadzone: Float,
+): Pair<Float, Float> {
+    if (!dx.isFinite() || !dy.isFinite() || !deadzone.isFinite()) return 0f to 0f
+    val len = hypot(dx, dy)
+    if (len < deadzone.coerceAtLeast(0f) || len <= 0f) return 0f to 0f
+    val octant = ((atan2(dy, dx) / (PI.toFloat() / 4f)).roundToInt() + 8) % 8
+    val axis =
+        when (octant) {
+            0 -> 1f to 0f
+            1 -> 0.70710677f to 0.70710677f
+            2 -> 0f to 1f
+            3 -> -0.70710677f to 0.70710677f
+            4 -> -1f to 0f
+            5 -> -0.70710677f to -0.70710677f
+            6 -> 0f to -1f
+            else -> 0.70710677f to -0.70710677f
+        }
+    return axis
 }

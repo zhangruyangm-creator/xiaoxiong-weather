@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -21,6 +22,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
@@ -30,6 +32,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.game.intOr
@@ -40,6 +43,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.max
 
 private const val PREF_PLANE_DIFF = "plane_difficulty"
+private const val PREF_PLANE_CONTROL = "plane_control"
 private const val PREF_PLANE_BEST_PREFIX = "plane_best_"
 private const val PREF_PLANE_BEST_WAVE_PREFIX = "plane_best_wave_"
 private const val PREF_PLANE_LEADERBOARD_PREFIX = "leaderboard_plane_"
@@ -134,6 +138,7 @@ fun BearPlaneScreen(
     var bossWarningKind by remember { mutableStateOf(PlaneBossKind.STANDARD) }
 
     var difficultyState by remember { mutableStateOf(game.difficulty) }
+    var controlMode by remember { mutableStateOf(PlaneControlMode.fromId(prefs.stringOr(PREF_PLANE_CONTROL))) }
     var best by remember { mutableIntStateOf(0) }
     var bestWave by remember { mutableIntStateOf(0) }
     var startLives by remember { mutableIntStateOf(planeStartLivesOf(prefs)) }
@@ -370,7 +375,8 @@ fun BearPlaneScreen(
                     .onSizeChanged {
                         game.resize(it.width.toFloat(), it.height.toFloat())
                         frame++
-                    }.pointerInput(Unit) {
+                    }.pointerInput(controlMode) {
+                        if (controlMode != PlaneControlMode.DRAG) return@pointerInput
                         // 无 touch slop 的即时拖动：按下即跟手，逐事件更新（对齐 pool / hockey / star 的指针写法）。
                         // 偏移固定为手指上方少量逻辑单位；非有限值由 movePlayerTo 忽略，边界由其钳制。
                         awaitEachGesture {
@@ -457,6 +463,26 @@ fun BearPlaneScreen(
             }
         }
 
+        if (controlMode == PlaneControlMode.DPAD && hudPhase == PlanePhase.PLAYING) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                        .padding(start = 10.dp, bottom = 88.dp),
+                contentAlignment = Alignment.BottomStart,
+            ) {
+                PlaneDPad(
+                    enabled = true,
+                    onAxis = { x, y ->
+                        game.setMoveAxis(x, y)
+                        frame++
+                    },
+                )
+            }
+        }
+
         // 波次 / Boss 预警横幅（主题卡片）
         if (waveBannerToken > 0 && !bossWarningVisible) {
             PlaneWaveBanner(text = planeWaveBannerText(waveBannerWave))
@@ -489,6 +515,16 @@ fun BearPlaneScreen(
                             prefs.edit { putString(PLANE_SHIP_TINT_KEY, shipTint.id) }
                         }
                         frame++
+                    },
+                    controlMode = controlMode,
+                    onControl = { mode ->
+                        if (mode != controlMode) {
+                            GameAudio.play(GameCue.UI_CLICK)
+                            controlMode = mode
+                            prefs.edit { putString(PREF_PLANE_CONTROL, mode.id) }
+                            game.clearMoveAxis()
+                            frame++
+                        }
                     },
                     onStartLivesChange = { value ->
                         val clamped = planeClampStartLives(value)
