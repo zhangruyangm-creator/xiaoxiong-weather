@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
+import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.game.GameAudioPrefsContract
 import kotlin.random.Random
 
@@ -56,6 +57,14 @@ fun rainSceneOf(sceneCode: Int?): RainScene =
         FarmWeather.STORMY -> RainScene.STORM
         else -> RainScene.RAIN
     }
+
+/**
+ * 底部小熊条的高度。
+ *
+ * 必须是显式常量：`Canvas` 无内在尺寸，只写 `fillMaxWidth()` 会量成 0 高度，
+ * 导致小熊完全不显示（曾发生）。
+ */
+val RAIN_BEAR_STRIP_HEIGHT = 76.dp
 
 /** 新一局的种子。 */
 fun rainNewSeed(): Long = Random.nextLong()

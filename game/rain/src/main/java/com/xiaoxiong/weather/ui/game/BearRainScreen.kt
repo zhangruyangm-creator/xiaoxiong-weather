@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
@@ -177,13 +178,11 @@ fun BearRainScreen(
         }
 
         // 小熊在判定线下方（命中时轻微弹跳）
-        if (frame >= 0) {
-            RainBearStrip(
-                sprites = bearSprites,
-                jumping = hitFlash > 0.15f,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
-        }
+        RainBearStrip(
+            sprites = bearSprites,
+            jumping = hitFlash > 0.15f,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
 
         // 顶部信息
         Row(
@@ -319,13 +318,16 @@ private fun RainBearStrip(
     jumping: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    androidx.compose.foundation.Canvas(modifier = modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-        val bearH = size.height * 0.9f
-        val bearW = bearH * 0.9f
+    // 必须给**显式高度**：Canvas 底层是 Spacer，没有内在尺寸，
+    // 只写 fillMaxWidth() 会因最小约束为 0 而量成 0 高度——小熊将完全不显示。
+    androidx.compose.foundation.Canvas(
+        modifier = modifier.fillMaxWidth().height(RAIN_BEAR_STRIP_HEIGHT).padding(bottom = 6.dp),
+    ) {
+        val bearH = size.height * 0.92f
         drawGameBear(
             sprites = sprites,
             centerX = size.width / 2f,
-            centerY = size.height * 0.55f,
+            centerY = size.height * 0.58f,
             bs = bearH,
             pose = BearPose(frame = BearFrame.JUMP, scaleY = if (jumping) 0.92f else 1f),
         )

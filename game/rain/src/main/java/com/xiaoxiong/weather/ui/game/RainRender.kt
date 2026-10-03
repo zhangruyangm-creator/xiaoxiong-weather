@@ -226,8 +226,11 @@ internal fun DrawScope.drawRainWorld(
     // 背景雨丝：纯装饰，走 decorativeTime（减弱动画时冻结）
     drawBackdropRain(palette.rainColor, decorativeTime, reduceMotion, w, h)
 
+    // activeTiles() 每次调用都会新建列表；本函数每帧遍历它两次，先取一次复用
+    val tiles = game.activeTiles()
+
     // 可点光环（画在方块下层，形成"这一块现在该点"的引导）
-    for (tile in game.activeTiles()) {
+    for (tile in tiles) {
         if (!game.isHittable(tile)) continue
         // 引擎给的是屏高比例，必须换算成像素
         val pos = rainCanvasY(game.tilePositionAt(tile), h)
@@ -257,7 +260,7 @@ internal fun DrawScope.drawRainWorld(
     )
 
     // 方块
-    for (tile in game.activeTiles()) {
+    for (tile in tiles) {
         // 引擎给的是屏高比例，必须换算成像素（见 rainCanvasY 的修复记录）
         val pos = rainCanvasY(game.tilePositionAt(tile), h)
         if (pos < -radius * 2f || pos > lineY + radius * 2f) continue
@@ -357,8 +360,9 @@ private fun DrawScope.drawBackdropRain(
         val h1 = pseudoHash(i * 1.7f + 0.3f)
         val h2 = pseudoHash(i * 3.1f + 1.9f)
         val speed = height * (0.55f + h2 * 0.5f)
-        val y = (time * speed + h1 * height) % height
-        val x = ((h2 * width) + 8f * sin(time * 0.7f + i)) % width
+        // 用正取模而非 `%`：sin 项为负时 Kotlin 的 `%` 给出负余数，雨丝会被画到屏幕外
+        val y = rainPositiveModulo(time * speed + h1 * height, height)
+        val x = rainPositiveModulo(h2 * width + 8f * sin(time * 0.7f + i), width)
         drawLine(
             color = color.copy(alpha = 0.16f + h1 * 0.12f),
             start = Offset(x, y),
@@ -373,6 +377,22 @@ private fun DrawScope.drawBackdropRain(
 private fun pseudoHash(x: Float): Float {
     val v = sin(x * 12.9898f) * 43758.5453f
     return v - v.toInt()
+}
+
+/**
+ * 正取模：结果恒在 `[0, span)`。
+ *
+ * Kotlin 的 `%` 保留被除数符号，负余数会让绘制坐标落到屏幕外。
+ * （`:game:common` 的 `GameWeatherFx.positiveModulo` 是 internal，跨模块不可复用，
+ * 故此处本地实现一份最小版本。）
+ */
+internal fun rainPositiveModulo(
+    value: Float,
+    span: Float,
+): Float {
+    if (span <= 0f) return 0f
+    val m = value % span
+    return if (m < 0f) m + span else m
 }
 
 /** 命中闪光衰减步进（每帧调用）。 */
