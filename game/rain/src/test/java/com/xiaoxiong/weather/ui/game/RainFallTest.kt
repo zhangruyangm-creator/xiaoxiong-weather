@@ -337,6 +337,76 @@ class RainFallTest {
         assertTrue(RainFall.HIT_WINDOW_FRACTION in 0.05f..0.2f)
     }
 
+    // ---------------------------------------------------------- 单位契约（渲染层回归）
+
+    @Test
+    fun `engine positions are normalized to screen height not pixels`() {
+        // 引擎刻意用「屏高比例」坐标：0 = 顶端，判定线 = HIT_LINE_RATIO。
+        // 渲染层必须乘画布高度换算成像素。
+        // 回归背景：渲染层曾把本值直接当像素用，方块被画在 y≈0 处、看起来卡住不下落，
+        // 而当时 50 个纯逻辑测试全绿——因为它们只验证引擎内部自洽。
+        val g = newGame()
+        g.start()
+        var maxPos = 0f
+        var guard = 0
+        while (!g.isOver() && guard++ < 1200) {
+            g.tick(1f / 60f)
+            g.activeTiles().forEach { maxPos = maxOf(maxPos, g.tilePositionAt(it)) }
+        }
+        // 允许略微越过判定线：tick 与采样之间方块可能已过线但尚未被判 Miss
+        assertTrue(
+            "引擎位置必须始终是 0..1 的屏高比例（实测最大 $maxPos）",
+            maxPos <= RainFall.HIT_LINE_RATIO + 0.1f,
+        )
+        // 关键断言：绝不应达到像素量级（若渲染层把像素值传回引擎就会到几百）
+        assertTrue(
+            "引擎位置不应达到像素量级（实测最大 $maxPos）",
+            maxPos < 5f,
+        )
+    }
+
+    @Test
+    fun `a tile crosses the judge line at exactly the normalized distance`() {
+        val g = newGame()
+        g.start()
+        g.tick(RainFall.FIRST_SPAWN_DELAY + 1f / 60f)
+        val tile = g.activeTiles().firstOrNull() ?: return
+        val t = RainFall.travelDistance() / tile.speed
+        assertEquals(
+            "到线时刻的位置应等于 HIT_LINE_RATIO（归一化值）",
+            RainFall.HIT_LINE_RATIO,
+            g.tilePositionAt(tile, tile.spawnTime + t),
+            1e-3f,
+        )
+    }
+
+    @Test
+    fun `canvas conversion scales normalized position to pixels`() {
+        // 渲染侧换算：0.82 屏高 → 0.82 * 画布高
+        assertEquals(820f, rainCanvasY(0.82f, 1000f), 1e-3f)
+        assertEquals(0f, rainCanvasY(0f, 1000f), 1e-3f)
+        assertEquals(393.6f, rainCanvasY(RainFall.HIT_LINE_RATIO, 480f), 1e-2f)
+    }
+
+    @Test
+    fun `converted position moves down the canvas over time`() {
+        // 端到端 sanity：换算后 y 必须随时间单调增大（真正"往下落"）
+        val g = newGame()
+        g.start()
+        g.tick(RainFall.FIRST_SPAWN_DELAY + 1f / 60f)
+        val tile = g.activeTiles().firstOrNull() ?: return
+        val canvasH = 1000f
+        var prev = -1f
+        var t = tile.spawnTime
+        while (t < tile.spawnTime + 1.0f) {
+            val y = rainCanvasY(g.tilePositionAt(tile, t), canvasH)
+            assertTrue("方块应随时间向下移动（y 递增）", y > prev)
+            prev = y
+            t += 0.05f
+        }
+        assertTrue("1 秒后应已落到画面中下部", prev > canvasH * 0.2f)
+    }
+
     // ---------------------------------------------------------- 结算可达性（UI 契约）
 
     @Test

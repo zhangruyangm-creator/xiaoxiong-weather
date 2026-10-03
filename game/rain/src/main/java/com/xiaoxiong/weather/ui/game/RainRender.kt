@@ -128,6 +128,23 @@ fun rainPaletteOf(scene: RainScene): RainPalette =
             )
     }
 
+/**
+ * **引擎纵向坐标（屏高比例）→ 画布像素 y**。
+ *
+ * 引擎层刻意使用「屏高归一化」坐标（0 = 屏幕顶端，[RainFall.HIT_LINE_RATIO] = 判定线），
+ * 这样难度参数与设备尺寸无关。渲染层必须经过本函数换算成像素。
+ *
+ * 修复记录：此前渲染层把引擎返回值**直接当像素**用，导致方块被画在 y≈0 处、
+ * 看起来"卡在屏幕顶端不下落"，约 2 秒后引擎判漏接结束（0 分）。
+ * 该 bug 逃过了 50 个纯逻辑测试——它们只验证引擎内部的归一化数学自洽，
+ * 而渲染层从未被测试；预览脚本也自行手算了像素坐标、没复用真实绘制函数。
+ * 故把换算收敛成这一个函数并加测试锁死两侧契约。
+ */
+fun rainCanvasY(
+    normalizedY: Float,
+    canvasHeight: Float,
+): Float = normalizedY * canvasHeight
+
 /** 天气场景（只影响背景氛围，不影响玩法判定）。 */
 enum class RainScene {
     SUNNY,
@@ -190,7 +207,7 @@ internal fun DrawScope.drawRainWorld(
     val w = size.width
     val h = size.height
     val radius = h * RAIN_DROP_RADIUS
-    val lineY = h * RainFall.HIT_LINE_RATIO
+    val lineY = rainCanvasY(RainFall.HIT_LINE_RATIO, h) // 判定线像素 y
 
     // 背景渐变
     drawRect(Brush.verticalGradient(listOf(palette.skyTop, palette.skyBottom)))
@@ -212,7 +229,8 @@ internal fun DrawScope.drawRainWorld(
     // 可点光环（画在方块下层，形成"这一块现在该点"的引导）
     for (tile in game.activeTiles()) {
         if (!game.isHittable(tile)) continue
-        val pos = game.tilePositionAt(tile)
+        // 引擎给的是屏高比例，必须换算成像素
+        val pos = rainCanvasY(game.tilePositionAt(tile), h)
         if (pos < 0f || pos > lineY) continue
         val cx = w / 2f
         val cy = pos
@@ -240,7 +258,8 @@ internal fun DrawScope.drawRainWorld(
 
     // 方块
     for (tile in game.activeTiles()) {
-        val pos = game.tilePositionAt(tile)
+        // 引擎给的是屏高比例，必须换算成像素（见 rainCanvasY 的修复记录）
+        val pos = rainCanvasY(game.tilePositionAt(tile), h)
         if (pos < -radius * 2f || pos > lineY + radius * 2f) continue
         drawRainTile(
             kind = tile.kind,
