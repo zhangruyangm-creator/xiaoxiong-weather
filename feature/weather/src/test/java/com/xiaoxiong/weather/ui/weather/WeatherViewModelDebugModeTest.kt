@@ -93,9 +93,9 @@ class WeatherViewModelDebugModeTest {
             vm.clearDebugOverride()
             advanceUntilIdle()
 
-            assertTrue(vm.uiState.value.debugEnabled)
-            assertEquals("已清除覆盖，恢复实况字段", vm.uiState.value.infoMessage)
+            awaitInfo(vm, "已清除覆盖，恢复实况字段")
             awaitTemperature(vm, 20.0)
+            assertTrue(vm.uiState.value.debugEnabled)
         }
 
     @Test
@@ -179,4 +179,16 @@ private fun awaitTemperature(
         Thread.sleep(10)
     }
     throw AssertionError("weather temperature not republished as $expected")
+}
+
+private fun awaitInfo(
+    vm: WeatherViewModel,
+    expected: String,
+) {
+    val deadline = System.currentTimeMillis() + 5_000
+    while (System.currentTimeMillis() < deadline) {
+        if (vm.uiState.value.infoMessage == expected) return
+        Thread.sleep(10)
+    }
+    throw AssertionError("infoMessage still ${vm.uiState.value.infoMessage}, expected $expected")
 }
