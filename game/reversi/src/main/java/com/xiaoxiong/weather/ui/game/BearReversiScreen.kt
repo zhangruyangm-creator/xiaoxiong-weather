@@ -43,7 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.game.intOr
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 private val TABLE_TOP = Color(0xFF1E4D38)
 private val TABLE_BOTTOM = Color(0xFF0F2419)
@@ -102,8 +104,8 @@ fun BearReversiScreen(
         frame++
     }
 
-    LaunchedEffect(game.turn, game.phase, game.board) {
-        if (game.phase != ReversiPhase.PLAYING) return@LaunchedEffect
+    LaunchedEffect(game.turn, game.phase, game.board, pause.paused) {
+        if (game.phase != ReversiPhase.PLAYING || pause.paused) return@LaunchedEffect
         while (game.passTurnIfNoLegalMove()) {
             frame++
             if (game.phase == ReversiPhase.OVER && !resultSubmitted) {
@@ -114,16 +116,24 @@ fun BearReversiScreen(
         }
         if (game.phase == ReversiPhase.PLAYING && game.turn == REVERSI_WHITE) {
             delay(320)
-            if (game.phase == ReversiPhase.PLAYING && game.turn == REVERSI_WHITE) {
-                game.playAiMove()
-                if (game.phase == ReversiPhase.OVER && !resultSubmitted) {
-                    submitIfNeeded()
-                    GameAudio.play(if (game.outcome == ReversiOutcome.BLACK_WIN) GameCue.WIN else GameCue.LOSE)
-                } else {
-                    GameAudio.play(GameCue.KEY)
-                }
-                frame++
+            if (game.phase != ReversiPhase.PLAYING || game.turn != REVERSI_WHITE || pause.paused) {
+                return@LaunchedEffect
             }
+            // 搜索放后台线程：8×8 minimax（最高深度 7）在主线程会卡帧甚至 ANR
+            val boardSnapshot = game.board.copyOf()
+            val diff = difficulty
+            val index = withContext(Dispatchers.Default) { reversiChooseAiMove(boardSnapshot, diff) }
+            if (game.phase != ReversiPhase.PLAYING || game.turn != REVERSI_WHITE || pause.paused) {
+                return@LaunchedEffect
+            }
+            if (index != null) game.applyAiMove(index) else game.passTurnIfNoLegalMove()
+            if (game.phase == ReversiPhase.OVER && !resultSubmitted) {
+                submitIfNeeded()
+                GameAudio.play(if (game.outcome == ReversiOutcome.BLACK_WIN) GameCue.WIN else GameCue.LOSE)
+            } else {
+                GameAudio.play(GameCue.KEY)
+            }
+            frame++
         }
     }
 

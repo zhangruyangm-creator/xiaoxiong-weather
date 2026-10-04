@@ -49,6 +49,12 @@ class WeatherCodesTest {
     }
 
     @Test
+    fun rainIntensity_nonFiniteIsTreatedAsNone() {
+        assertEquals(WeatherCodes.RainIntensity.NONE, WeatherCodes.rainIntensity(Double.NaN))
+        assertEquals(WeatherCodes.RainIntensity.NONE, WeatherCodes.rainIntensity(Double.POSITIVE_INFINITY))
+    }
+
+    @Test
     fun intensityPrecipMmPerHour_usesStoredHourlyBucket() {
         val current =
             com.xiaoxiong.weather.data.CurrentWeather(
@@ -121,6 +127,20 @@ class WeatherCodesTest {
             WeatherCodes.snowIntensity(71, 0.2, dailyPrecipSumMm = 10.0),
         )
         assertEquals(WeatherCodes.SnowIntensity.NONE, WeatherCodes.snowIntensity(61, 3.0))
+    }
+
+    @Test
+    fun snowIntensity_dailyBlizzardRequiresOngoingSnow() {
+        // 日累计达暴雪阈值但此刻已停雪（瞬时量 0）：不应升级为暴雪
+        assertEquals(
+            WeatherCodes.SnowIntensity.LIGHT,
+            WeatherCodes.snowIntensity(71, 0.0, dailyPrecipSumMm = 10.0),
+        )
+        // 此刻仍在降雪时，日累计达阈值才升为暴雪
+        assertEquals(
+            WeatherCodes.SnowIntensity.BLIZZARD,
+            WeatherCodes.snowIntensity(71, 0.2, dailyPrecipSumMm = 10.0),
+        )
     }
 
     @Test

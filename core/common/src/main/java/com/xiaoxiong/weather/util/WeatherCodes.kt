@@ -265,6 +265,8 @@ object WeatherCodes {
 
     fun rainIntensity(precipMmPerHour: Double?): RainIntensity {
         val mm = precipMmPerHour ?: return RainIntensity.NONE
+        // 非有限值（NaN/±Inf）视为无有效降水，避免落到最猛烈档
+        if (!mm.isFinite()) return RainIntensity.NONE
         return when {
             mm < 0.1 -> RainIntensity.NONE
             mm <= PRECIP_LIGHT_MAX_MM_H -> RainIntensity.LIGHT
@@ -296,6 +298,7 @@ object WeatherCodes {
                 null -> SnowIntensity.NONE
                 else ->
                     when {
+                        !mm.isFinite() -> SnowIntensity.NONE
                         mm < 0.1 -> SnowIntensity.NONE
                         mm < SNOW_LIGHT_MAX_MM_H -> SnowIntensity.LIGHT
                         mm < SNOW_MODERATE_MAX_MM_H -> SnowIntensity.MODERATE
@@ -309,7 +312,9 @@ object WeatherCodes {
             } else {
                 maxOf(byCode, byPrecip)
             }
-        val stillSnowing = (precipMmPerHour ?: 0.0) >= 0.1 || byCode != SnowIntensity.NONE
+        // 仅以瞬时降雪量为准：显式 0 表示此刻已停雪，不因日累计升级为暴雪；
+        // 瞬时量缺失（null）时才退回顾天气码是否在下雪
+        val stillSnowing = precipMmPerHour == null || precipMmPerHour >= 0.1
         return if (dailyPrecipSumMm >= SNOW_DAILY_BLIZZARD_MM && stillSnowing) {
             maxOf(combined, SnowIntensity.BLIZZARD)
         } else {

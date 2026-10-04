@@ -79,7 +79,7 @@ object WeatherWidgetData {
         val selection = container.selectedCityStore.getOnce() ?: return null
         if (!settings.privacyAccepted) {
             // 隐私未同意：不联网、不定位，尽量展示已有缓存；无缓存则空白占位
-            val stamp = presentationStampOf(context.resources.configuration.locales[0], settings.temperatureUnit)
+            val stamp = presentationStampOf(context.resources.configuration.locales[0] ?: Locale.getDefault(), settings.temperatureUnit)
             val cached = container.weatherCacheStore.get(selection.city, stamp) ?: return null
             return toUi(
                 context = context,
@@ -116,7 +116,7 @@ object WeatherWidgetData {
                 selection.city
             }
 
-        val stamp = presentationStampOf(context.resources.configuration.locales[0], unit)
+        val stamp = presentationStampOf(context.resources.configuration.locales[0] ?: Locale.getDefault(), unit)
         val cached = cacheStore.get(city, stamp)
         val now = System.currentTimeMillis()
         val moved = selection.useLocation && !selection.city.isSamePlace(city)

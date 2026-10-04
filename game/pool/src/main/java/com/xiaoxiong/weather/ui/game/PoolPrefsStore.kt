@@ -280,7 +280,7 @@ internal fun loadPoolProgress(prefs: SharedPreferences): PoolProgress =
         bestPractice = prefs.intOr(PREF_STAT_BEST_PRACTICE, 0),
         unlocked =
             prefs
-                .getString(PREF_STAT_ACH_SEEN, null)
+                .stringOr(PREF_STAT_ACH_SEEN)
                 ?.split(',')
                 ?.filter { it.isNotEmpty() }
                 ?.toSet()

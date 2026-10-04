@@ -40,9 +40,14 @@ class PerformanceInterceptor : Interceptor {
      */
     private fun extractPathLabel(encodedPath: String): String {
         val segments = encodedPath.split('/').filter { it.isNotEmpty() }
-        // 取最后一个有意义的路径段（跳过 "v1" 版本号）
-        return segments.lastOrNull { !it.startsWith('v') && it != "api" }
-            ?: segments.lastOrNull()
+        // 取第一个有意义的路径段（跳过 "v1" 版本号与 "api"）：否则雷达瓦片末段
+        // （如 24.png）会各自成为标签，令 PerformanceMonitor 的指标键无限增长
+        return segments.firstOrNull { !VERSION_SEGMENT.matches(it) && it != "api" }
+            ?: segments.firstOrNull()
             ?: "unknown"
+    }
+
+    private companion object {
+        val VERSION_SEGMENT = Regex("^v\\d+$")
     }
 }

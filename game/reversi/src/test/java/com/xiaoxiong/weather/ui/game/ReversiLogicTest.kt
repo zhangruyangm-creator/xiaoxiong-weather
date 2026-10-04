@@ -23,6 +23,19 @@ class ReversiLogicTest {
     }
 
     @Test
+    fun countAndHasLegalMove_matchListVersion() {
+        val board = reversiInitialBoard()
+        assertEquals(reversiLegalMoves(board, REVERSI_BLACK).size, reversiCountLegalMoves(board, REVERSI_BLACK))
+        assertEquals(reversiLegalMoves(board, REVERSI_WHITE).size, reversiCountLegalMoves(board, REVERSI_WHITE))
+        assertEquals(reversiLegalMoves(board, REVERSI_BLACK).isNotEmpty(), reversiHasLegalMove(board, REVERSI_BLACK))
+        assertEquals(reversiLegalMoves(board, REVERSI_WHITE).isNotEmpty(), reversiHasLegalMove(board, REVERSI_WHITE))
+        assertEquals(
+            reversiIsGameOver(board),
+            !reversiHasLegalMove(board, REVERSI_BLACK) && !reversiHasLegalMove(board, REVERSI_WHITE),
+        )
+    }
+
+    @Test
     fun chooseAiMove_returnsLegalWhenMovesExist() {
         val board = reversiInitialBoard()
         val blackMove = reversiLegalMoves(board, REVERSI_BLACK).first()

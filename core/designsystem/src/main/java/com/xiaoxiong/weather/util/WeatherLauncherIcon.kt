@@ -101,6 +101,7 @@ object WeatherLauncherIcon {
             63, 81 -> Style.MODERATE_RAIN
             65, 82 -> Style.HEAVY_RAIN
             56, 57, 66, 67 -> Style.FREEZING_RAIN
+            68, 69 -> Style.SNOWY
             71, 77, 85 -> Style.SNOWY
             73 -> Style.MODERATE_SNOW
             75 -> Style.HEAVY_SNOW

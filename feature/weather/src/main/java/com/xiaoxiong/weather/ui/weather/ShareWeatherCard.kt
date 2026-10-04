@@ -270,7 +270,7 @@ fun ShareWeatherCardDialog(
     //   · 温度单位与语言来自 CompositionLocal，不在 snapshot 里但影响温度格式与文案语言。
     // List 的相等是逐元素的，因此这里用列表组合即可，无需自定义类。
     val tempUnit = LocalTemperatureUnit.current
-    val locale = LocalConfiguration.current.locales[0]
+    val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
     val cardKey = listOf(snapshot, quote, tempUnit, locale)
     val graphicsLayer = rememberGraphicsLayer()
     val recordedOnce = remember(cardKey) { booleanArrayOf(false) }

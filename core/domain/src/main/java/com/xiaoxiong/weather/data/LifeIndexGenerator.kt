@@ -347,8 +347,10 @@ object LifeIndexGenerator {
         val level =
             when {
                 effectiveFeels == null -> LifeIndexLevel.FAIR
-                effectiveFeels in 18.0..26.0 -> LifeIndexLevel.GOOD
-                effectiveFeels in 10.0..32.0 -> LifeIndexLevel.FAIR
+                effectiveFeels >= 32 -> LifeIndexLevel.POOR
+                effectiveFeels >= 26 -> LifeIndexLevel.FAIR
+                effectiveFeels >= 18 -> LifeIndexLevel.GOOD
+                effectiveFeels >= 10 -> LifeIndexLevel.FAIR
                 else -> LifeIndexLevel.POOR
             }
         val (labelRes, summaryRes) =

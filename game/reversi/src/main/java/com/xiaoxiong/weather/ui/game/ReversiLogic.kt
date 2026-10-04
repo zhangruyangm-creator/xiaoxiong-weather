@@ -97,12 +97,35 @@ internal fun reversiLegalMoves(
     return moves
 }
 
+/** 是否存在合法落子（不分配列表，供终局判定热路径使用）。 */
+internal fun reversiHasLegalMove(
+    board: IntArray,
+    color: Int,
+): Boolean {
+    for (i in 0 until REVERSI_CELLS) {
+        if (board[i] == REVERSI_EMPTY && reversiFlipsIfMove(board, i, color) > 0) return true
+    }
+    return false
+}
+
+/** 合法落子数（不分配列表，供评估函数计算机动性）。 */
+internal fun reversiCountLegalMoves(
+    board: IntArray,
+    color: Int,
+): Int {
+    var count = 0
+    for (i in 0 until REVERSI_CELLS) {
+        if (board[i] == REVERSI_EMPTY && reversiFlipsIfMove(board, i, color) > 0) count++
+    }
+    return count
+}
+
 internal fun reversiFlipsIfMove(
     board: IntArray,
     index: Int,
     color: Int,
 ): Int {
-    if (board[index] != REVERSI_EMPTY) return 0
+    if (index !in 0 until REVERSI_CELLS || board[index] != REVERSI_EMPTY) return 0
     var total = 0
     val opp = reversiOpponent(color)
     val row = reversiRow(index)
@@ -199,11 +222,8 @@ internal fun reversiAdvanceTurn(
     return turn to true
 }
 
-internal fun reversiIsGameOver(board: IntArray): Boolean {
-    val b = reversiLegalMoves(board, REVERSI_BLACK)
-    val w = reversiLegalMoves(board, REVERSI_WHITE)
-    return b.isEmpty() && w.isEmpty()
-}
+internal fun reversiIsGameOver(board: IntArray): Boolean =
+    !reversiHasLegalMove(board, REVERSI_BLACK) && !reversiHasLegalMove(board, REVERSI_WHITE)
 
 internal fun reversiOutcome(board: IntArray): ReversiOutcome {
     val black = reversiCount(board, REVERSI_BLACK)
@@ -223,6 +243,40 @@ internal fun reversiCornerBonus(index: Int): Int {
     return 0
 }
 
+/** 四角下标（0,0 / 0,7 / 7,0 / 7,7）。 */
+private val REVERSI_CORNER_INDICES = intArrayOf(0, 7, 56, 63)
+
+/**
+ * 空角相邻格（X/C 方块）的危险度：占据者会"送角"，故对自己扣分、对对手加分；
+ * 对角（X）比正交（C）更危险。四角已占时对应邻格不再惩罚。
+ */
+private fun reversiDangerPenalty(
+    board: IntArray,
+    forColor: Int,
+): Int {
+    val opp = reversiOpponent(forColor)
+    var danger = 0
+    for (corner in REVERSI_CORNER_INDICES) {
+        if (board[corner] != REVERSI_EMPTY) continue
+        val cr = reversiRow(corner)
+        val cc = reversiCol(corner)
+        for (dr in -1..1) {
+            for (dc in -1..1) {
+                if (dr == 0 && dc == 0) continue
+                val r = cr + dr
+                val c = cc + dc
+                if (r !in 0 until REVERSI_SIZE || c !in 0 until REVERSI_SIZE) continue
+                val weight = if (dr != 0 && dc != 0) 40 else 20
+                when (board[reversiIndex(r, c)]) {
+                    forColor -> danger -= weight
+                    opp -> danger += weight
+                }
+            }
+        }
+    }
+    return danger
+}
+
 internal fun reversiEvaluate(
     board: IntArray,
     forColor: Int,
@@ -231,7 +285,7 @@ internal fun reversiEvaluate(
     val mine = reversiCount(board, forColor)
     val theirs = reversiCount(board, opp)
     val mobility =
-        reversiLegalMoves(board, forColor).size - reversiLegalMoves(board, opp).size
+        reversiCountLegalMoves(board, forColor) - reversiCountLegalMoves(board, opp)
     var corners = 0
     for (i in 0 until REVERSI_CELLS) {
         if (board[i] == forColor) {
@@ -240,7 +294,70 @@ internal fun reversiEvaluate(
             corners -= reversiCornerBonus(i)
         }
     }
-    return (mine - theirs) * 2 + mobility * 5 + corners
+    // 机动性权重提高、避开空角相邻的"送角"格；子数只在残局（空位 ≤12）才计入，避免中局贪子
+    val empties = board.count { it == REVERSI_EMPTY }
+    val discWeight = if (empties <= 12) 3 else 1
+    return (mine - theirs) * discWeight + mobility * 8 + corners + reversiDangerPenalty(board, forColor)
+}
+
+/** 单盘 apply/undo 的翻转栈上限：搜索最深 7 层，每层单步最多翻转 63 格。 */
+private const val REVERSI_FLIP_LOG_CAPACITY = REVERSI_CELLS * 8
+
+/**
+ * 原地落子，并把被翻转的格子按顺序写入 [flipLog]（自 [top] 起），返回新的栈顶下标，
+ * 供 [reversiUndoMove] 回退。翻转语义与 [reversiApplyMove] 完全一致。
+ */
+private fun reversiApplyMoveLogged(
+    board: IntArray,
+    index: Int,
+    color: Int,
+    flipLog: IntArray,
+    top: Int,
+): Int {
+    board[index] = color
+    val row = reversiRow(index)
+    val col = reversiCol(index)
+    val opp = reversiOpponent(color)
+    var t = top
+    for (dr in -1..1) {
+        for (dc in -1..1) {
+            if (dr == 0 && dc == 0) continue
+            var r = row + dr
+            var c = col + dc
+            var run = 0
+            while (r in 0 until REVERSI_SIZE && c in 0 until REVERSI_SIZE && board[reversiIndex(r, c)] == opp) {
+                run++
+                r += dr
+                c += dc
+            }
+            if (run == 0 || r !in 0 until REVERSI_SIZE || c !in 0 until REVERSI_SIZE) continue
+            if (board[reversiIndex(r, c)] != color) continue
+            var fr = row + dr
+            var fc = col + dc
+            repeat(run) {
+                val fi = reversiIndex(fr, fc)
+                board[fi] = color
+                flipLog[t++] = fi
+                fr += dr
+                fc += dc
+            }
+        }
+    }
+    return t
+}
+
+/** 回退 [reversiApplyMoveLogged]：把 [top, newTop) 记录的格子还原为对手色，并清空落子点。 */
+private fun reversiUndoMove(
+    board: IntArray,
+    index: Int,
+    color: Int,
+    flipLog: IntArray,
+    top: Int,
+    newTop: Int,
+) {
+    val opp = reversiOpponent(color)
+    for (i in top until newTop) board[flipLog[i]] = opp
+    board[index] = REVERSI_EMPTY
 }
 
 internal fun reversiChooseAiMove(
@@ -252,12 +369,24 @@ internal fun reversiChooseAiMove(
     if (difficulty.greedyOnly) {
         return moves.minByOrNull { it.flips + reversiCornerBonus(it.index) }?.index
     }
+    // 单盘原地 apply/undo：避免每个搜索节点 copyOf(64) 的分配
+    val work = board.copyOf()
+    val flipLog = IntArray(REVERSI_FLIP_LOG_CAPACITY)
     var bestScore = Int.MIN_VALUE
     var best: Int? = null
     for (move in moves) {
-        val copy = board.copyOf()
-        reversiApplyMove(copy, move.index, REVERSI_WHITE)
-        val score = -reversiMinimax(copy, difficulty.searchDepth - 1, REVERSI_BLACK, Int.MIN_VALUE / 4, Int.MAX_VALUE / 4)
+        val newTop = reversiApplyMoveLogged(work, move.index, REVERSI_WHITE, flipLog, 0)
+        val score =
+            reversiMinimax(
+                work,
+                difficulty.searchDepth - 1,
+                REVERSI_BLACK,
+                Int.MIN_VALUE / 4,
+                Int.MAX_VALUE / 4,
+                flipLog,
+                newTop,
+            )
+        reversiUndoMove(work, move.index, REVERSI_WHITE, flipLog, 0, newTop)
         if (score > bestScore || (score == bestScore && best != null && reversiCornerBonus(move.index) > reversiCornerBonus(best))) {
             bestScore = score
             best = move.index
@@ -272,24 +401,25 @@ private fun reversiMinimax(
     turn: Int,
     alpha: Int,
     beta: Int,
+    flipLog: IntArray,
+    flipTop: Int,
 ): Int {
     if (depth <= 0 || reversiIsGameOver(board)) {
         return reversiEvaluate(board, REVERSI_WHITE)
     }
     val moves = reversiLegalMoves(board, turn)
     if (moves.isEmpty()) {
-        val (_, skipped) = reversiAdvanceTurn(board, turn)
-        if (skipped && reversiIsGameOver(board)) return reversiEvaluate(board, REVERSI_WHITE)
-        return reversiMinimax(board, depth - 1, reversiOpponent(turn), alpha, beta)
+        // 该方无子可下（过手）：终局已在函数开头排除，故由对方续走
+        return reversiMinimax(board, depth - 1, reversiOpponent(turn), alpha, beta, flipLog, flipTop)
     }
     var a = alpha
     var b = beta
     if (turn == REVERSI_WHITE) {
         var best = Int.MIN_VALUE / 2
         for (move in moves) {
-            val copy = board.copyOf()
-            reversiApplyMove(copy, move.index, REVERSI_WHITE)
-            val score = reversiMinimax(copy, depth - 1, REVERSI_BLACK, a, b)
+            val newTop = reversiApplyMoveLogged(board, move.index, REVERSI_WHITE, flipLog, flipTop)
+            val score = reversiMinimax(board, depth - 1, REVERSI_BLACK, a, b, flipLog, newTop)
+            reversiUndoMove(board, move.index, REVERSI_WHITE, flipLog, flipTop, newTop)
             best = maxOf(best, score)
             a = maxOf(a, score)
             if (a >= b) break
@@ -298,9 +428,9 @@ private fun reversiMinimax(
     }
     var best = Int.MAX_VALUE / 2
     for (move in moves) {
-        val copy = board.copyOf()
-        reversiApplyMove(copy, move.index, REVERSI_BLACK)
-        val score = reversiMinimax(copy, depth - 1, REVERSI_WHITE, a, b)
+        val newTop = reversiApplyMoveLogged(board, move.index, REVERSI_BLACK, flipLog, flipTop)
+        val score = reversiMinimax(board, depth - 1, REVERSI_WHITE, a, b, flipLog, newTop)
+        reversiUndoMove(board, move.index, REVERSI_BLACK, flipLog, flipTop, newTop)
         best = minOf(best, score)
         b = minOf(b, score)
         if (a >= b) break

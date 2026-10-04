@@ -51,15 +51,22 @@ internal class ReversiGame {
         return afterMove()
     }
 
-    fun playAiMove(): Boolean {
+    /** 应用外部（后台线程）算好的 AI 落子；越权或非法时返回 false。 */
+    fun applyAiMove(index: Int): Boolean {
         if (phase != ReversiPhase.PLAYING || turn != REVERSI_WHITE) return false
-        val index = reversiChooseAiMove(board, difficulty) ?: return endIfStuck()
+        if (!isLegal(index)) return false
         val next = board.copyOf()
         reversiApplyMove(next, index, REVERSI_WHITE)
         board = next
         lastMove = index
         passNotice = false
         return afterMove()
+    }
+
+    fun playAiMove(): Boolean {
+        if (phase != ReversiPhase.PLAYING || turn != REVERSI_WHITE) return false
+        val index = reversiChooseAiMove(board, difficulty) ?: return passTurnIfNoLegalMove()
+        return applyAiMove(index)
     }
 
     /** 当前方无子可下时过手；返回 true 表示局面有变化（含终局）。 */
@@ -93,18 +100,6 @@ internal class ReversiGame {
         if (reversiIsGameOver(board)) {
             finish()
         }
-        return true
-    }
-
-    private fun endIfStuck(): Boolean {
-        if (reversiIsGameOver(board)) {
-            finish()
-            return true
-        }
-        val (nextTurn, skipped) = reversiAdvanceTurn(board, turn)
-        turn = nextTurn
-        passNotice = skipped
-        if (reversiIsGameOver(board)) finish()
         return true
     }
 

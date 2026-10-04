@@ -152,7 +152,7 @@ private fun WeatherScreenContent(
     var showShareCard by rememberSaveable { mutableStateOf(false) }
     // 等 DataStore 真实值读出前不渲染隐私门，避免老用户冷启动闪一下
     var privacyGateResolved by remember { mutableStateOf(false) }
-    var gameActive by remember { mutableStateOf(false) }
+    var gameActive by rememberSaveable { mutableStateOf(false) }
 
     /** 关闭相册后重新打开「小熊的家」并落到的房间（仅卧室相册入口会写入）。 */
     var bearHomeResumeRoom by rememberSaveable { mutableStateOf<String?>(null) }
@@ -179,8 +179,8 @@ private fun WeatherScreenContent(
     // 统一用 elapsedRealtime：uptimeMillis 不计深睡时间，旧机型上窗口会被睡眠拉长。
     val secretTapCounter = remember { SecretTitleTapCounter() }
     // nonce 自增保证退出枢纽后再次连点仍能重新触发
-    var secretRequest by remember { mutableStateOf<Pair<Int, String>?>(null) }
-    var secretNonce by remember { mutableIntStateOf(0) }
+    var secretRequest by rememberSaveable { mutableStateOf<Pair<Int, String>?>(null) }
+    var secretNonce by rememberSaveable { mutableIntStateOf(0) }
     val onTitleSecretTap: () -> Unit = {
         if (secretTapCounter.onTap(SystemClock.elapsedRealtime())) {
             secretNonce++

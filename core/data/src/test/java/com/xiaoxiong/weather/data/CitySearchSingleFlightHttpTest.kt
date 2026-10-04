@@ -4,6 +4,7 @@ import android.content.res.Resources
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.Dispatcher
@@ -79,6 +80,19 @@ class CitySearchSingleFlightHttpTest {
             assertEquals(1, server.requestCount)
             assertEquals(results.first.map { it.name }, results.second.map { it.name })
             assertEquals("济南", results.first.firstOrNull()?.name)
+        }
+
+    @Test
+    fun cancelledOwner_doesNotCancelConcurrentSameQuery() =
+        runBlocking {
+            val owner = launch { repository.searchCities("Jinan") }
+            delay(50)
+            val waiter = async { repository.searchCities("Jinan") }
+            delay(10)
+            owner.cancel()
+            // 等待者应仍拿到合并结果，而不是随被取消的 owner 一起抛出取消
+            val result = waiter.await()
+            assertEquals("济南", result.firstOrNull()?.name)
         }
 
     @Test

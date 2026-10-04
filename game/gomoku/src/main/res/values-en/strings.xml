@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gomoku_title">Bear Gomoku</string>
+    <string name="cd_gomoku_board">Bear Gomoku board</string>
+    <string name="gomoku_hint">15×15 board. You play black first; connect five to win. Dots mark suggested moves.</string>
+    <string name="gomoku_start">Start</string>
+    <string name="gomoku_turn_black">Your turn (black)</string>
+    <string name="gomoku_turn_white">Bear is thinking…</string>
+    <string name="gomoku_over_win">You win</string>
+    <string name="gomoku_over_lose">Bear wins</string>
+    <string name="gomoku_over_draw">Draw</string>
+    <string name="gomoku_match_score">This game %1$d</string>
+    <string name="gomoku_best_line">Best %1$d</string>
+    <string name="gomoku_leaderboard">Bear Gomoku · Leaderboard</string>
+    <string name="gomoku_diff_section">AI difficulty</string>
+    <string name="gomoku_diff_beginner">Rookie</string>
+    <string name="gomoku_diff_easy">Easy</string>
+    <string name="gomoku_diff_normal">Normal</string>
+    <string name="gomoku_diff_advanced">Advanced</string>
+    <string name="gomoku_diff_hard">Hard</string>
+    <string name="gomoku_diff_master">Master</string>
+    <string name="gomoku_diff_expert">Expert</string>
+</resources>

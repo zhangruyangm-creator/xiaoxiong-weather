@@ -9,6 +9,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
 import com.xiaoxiong.weather.game.GameEntry
@@ -48,8 +49,9 @@ fun BearGameOverlay(
     // 口令注册表直接来自装配方（ServiceLoader），无需过滤
     val enabledEntries = entries
 
-    // 当前激活的游戏口令；null 表示未打开任何游戏
-    var activePassword by remember { mutableStateOf<String?>(null) }
+    // 当前激活的游戏口令；null 表示未打开任何游戏。
+    // rememberSaveable：旋转/其它 config change 重建后仍保持当前游戏，不被弹回天气页
+    var activePassword by rememberSaveable { mutableStateOf<String?>(null) }
 
     val launchGame: (GameEntry) -> Unit = { entry ->
         onClearQuery()
@@ -73,9 +75,12 @@ fun BearGameOverlay(
         val nonce = requestPassword?.first
         val password = requestPassword?.second
         if (nonce != null && password != null) {
+            // 入口预载完成前（enabledEntries 为空）不消费信号：等入口由空变有值时
+            // 本 effect 会因 keys 变化重跑并完成匹配，避免连点口令被提前丢弃
+            if (enabledEntries.isEmpty()) return@LaunchedEffect
             enabledEntries.firstOrNull { it.matchesGamePassword(password) }?.let(launchGame)
+            currentOnConsumed()
         }
-        if (nonce != null) currentOnConsumed()
     }
 
     // transitionSpec/回调内不是 composable 上下文，先在组合期读出

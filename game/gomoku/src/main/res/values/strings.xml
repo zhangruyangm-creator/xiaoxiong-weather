@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gomoku_title">小熊五子棋</string>
+    <string name="cd_gomoku_board">小熊五子棋棋盘</string>
+    <string name="gomoku_hint">15×15 棋盘，你执黑先手，先连成五子即胜。绿色圆点为推荐落点，任意空点均可落子。</string>
+    <string name="gomoku_start">开始对弈</string>
+    <string name="gomoku_turn_black">轮到你（黑）</string>
+    <string name="gomoku_turn_white">小熊思考中…</string>
+    <string name="gomoku_over_win">你赢了</string>
+    <string name="gomoku_over_lose">小熊赢了</string>
+    <string name="gomoku_over_draw">和棋</string>
+    <string name="gomoku_match_score">本局 %1$d</string>
+    <string name="gomoku_best_line">最佳 %1$d</string>
+    <string name="gomoku_leaderboard">小熊五子棋 · 排行榜</string>
+    <string name="gomoku_diff_section">AI 难度</string>
+    <string name="gomoku_diff_beginner">入门</string>
+    <string name="gomoku_diff_easy">轻松</string>
+    <string name="gomoku_diff_normal">普通</string>
+    <string name="gomoku_diff_advanced">进阶</string>
+    <string name="gomoku_diff_hard">挑战</string>
+    <string name="gomoku_diff_master">大师</string>
+    <string name="gomoku_diff_expert">宗师</string>
+</resources>

@@ -6,6 +6,7 @@ import com.xiaoxiong.weather.data.remote.GeocodingResponse
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
@@ -37,7 +38,10 @@ class CitySearchFetcher(
             val normalized = normalizePlaceQuery(trimmed)
             resultCache.get(normalized, System.currentTimeMillis())?.let { return@withContext it }
 
-            val result = singleFlight.run(normalized) { searchUpstream(normalized) }
+            val result =
+                singleFlight.run(normalized) {
+                    withContext(NonCancellable) { searchUpstream(normalized) }
+                }
             resultCache.put(normalized, result, System.currentTimeMillis())
             result
         }

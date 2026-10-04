@@ -25,6 +25,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -139,42 +140,47 @@ fun <T : CardId> CardsSettingsScreen(
                 }
 
                 cards.forEachIndexed { index, pref ->
-                    val dragging = draggingIndex == index
-                    CardPrefRow(
-                        modifier = Modifier.onSizeChanged { rowHeightsPx[pref.id] = it.height.toFloat() },
-                        title = stringResource(pref.id.titleRes),
-                        locked = pref.id.alwaysVisible,
-                        lockedHint = stringResource(config.lockedHintRes),
-                        checked = pref.visible,
-                        dragging = dragging,
-                        dragOffsetY = if (dragging) dragOffsetY else 0f,
-                        onVisibleChange = { visible ->
-                            persist(config.layout.withVisibility(cards, pref.id, visible))
-                        },
-                        onDragStart = {
-                            draggingIndex = index
-                            dragOffsetY = 0f
-                        },
-                        onDrag = { dy ->
-                            dragOffsetY += dy
-                            val from = draggingIndex
-                            if (from < 0) return@CardPrefRow
-                            // 步进取被拖行自身高度 + 行间距（列表整体等高时即精确值）
-                            val stride = rowHeight(cards[from].id) + rowSpacingPx
-                            val step = cardDragStep(from, dragOffsetY, stride, cards.size)
-                            if (step.to != from) {
-                                val moved = config.layout.move(cards, from, step.to)
-                                cards = moved
-                                draggingIndex = step.to
-                                dragOffsetY = step.remainingOffsetY
-                            }
-                        },
-                        onDragEnd = {
-                            draggingIndex = -1
-                            dragOffsetY = 0f
-                            persist(cards)
-                        },
-                    )
+                    // key(pref.id)：让行随卡片身份而非下标移动。否则换位后同一 slot 会
+                    // 换到另一张卡，CardPrefRow 内以标题为 key 的 pointerInput 被重置，
+                    // 拖动只换一格就中断（连续拖动/残余位移逻辑失效）
+                    key(pref.id) {
+                        val dragging = draggingIndex == index
+                        CardPrefRow(
+                            modifier = Modifier.onSizeChanged { rowHeightsPx[pref.id] = it.height.toFloat() },
+                            title = stringResource(pref.id.titleRes),
+                            locked = pref.id.alwaysVisible,
+                            lockedHint = stringResource(config.lockedHintRes),
+                            checked = pref.visible,
+                            dragging = dragging,
+                            dragOffsetY = if (dragging) dragOffsetY else 0f,
+                            onVisibleChange = { visible ->
+                                persist(config.layout.withVisibility(cards, pref.id, visible))
+                            },
+                            onDragStart = {
+                                draggingIndex = index
+                                dragOffsetY = 0f
+                            },
+                            onDrag = { dy ->
+                                dragOffsetY += dy
+                                val from = draggingIndex
+                                if (from < 0) return@CardPrefRow
+                                // 步进取被拖行自身高度 + 行间距（列表整体等高时即精确值）
+                                val stride = rowHeight(cards[from].id) + rowSpacingPx
+                                val step = cardDragStep(from, dragOffsetY, stride, cards.size)
+                                if (step.to != from) {
+                                    val moved = config.layout.move(cards, from, step.to)
+                                    cards = moved
+                                    draggingIndex = step.to
+                                    dragOffsetY = step.remainingOffsetY
+                                }
+                            },
+                            onDragEnd = {
+                                draggingIndex = -1
+                                dragOffsetY = 0f
+                                persist(cards)
+                            },
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))

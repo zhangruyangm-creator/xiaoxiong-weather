@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -278,20 +279,23 @@ internal fun HistoryDatePickerDialog(
                 .toInstant()
                 .toEpochMilli()
         }
-    val maxUtc =
-        remember {
-            today
-                .minusDays(1)
-                .atStartOfDay(ZoneOffset.UTC)
-                .toInstant()
-                .toEpochMilli()
-        }
+    // selectableDates 传给 DatePickerState 后被其长期持有（State 不随参数变化重建），
+    // 故保持对象身份稳定，内部用 rememberUpdatedState 读取"今天"，跨零点的上限随之生效。
+    val todayState = rememberUpdatedState(today)
     val selectableDates =
         remember {
             object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis in minUtc..maxUtc
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val maxUtc =
+                        todayState.value
+                            .minusDays(1)
+                            .atStartOfDay(ZoneOffset.UTC)
+                            .toInstant()
+                            .toEpochMilli()
+                    return utcTimeMillis in minUtc..maxUtc
+                }
 
-                override fun isSelectableYear(year: Int): Boolean = year in 1940..today.year
+                override fun isSelectableYear(year: Int): Boolean = year in 1940..todayState.value.year
             }
         }
     val state = rememberDatePickerState(selectableDates = selectableDates)

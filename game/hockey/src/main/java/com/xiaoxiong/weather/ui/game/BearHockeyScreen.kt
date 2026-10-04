@@ -61,7 +61,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.game.booleanOr
+import com.xiaoxiong.weather.game.floatOr
 import com.xiaoxiong.weather.game.intOr
+import com.xiaoxiong.weather.game.stringOr
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Difficulty
 import com.xiaoxiong.weather.ui.game.HockeyLogic.Phase
@@ -144,7 +146,7 @@ fun BearHockeyScreen(
         remember {
             HockeyGame().also {
                 it.difficulty =
-                    when (prefs.getString(PREF_DIFF, "normal")) {
+                    when (prefs.stringOr(PREF_DIFF, "normal")) {
                         "beginner" -> Difficulty.BEGINNER
                         "easy" -> Difficulty.EASY
                         "advanced" -> Difficulty.ADVANCED
@@ -155,26 +157,26 @@ fun BearHockeyScreen(
                     }
                 it.customLevel =
                     prefs
-                        .getInt(PREF_DIFF_LEVEL, 5)
+                        .intOr(PREF_DIFF_LEVEL, 5)
                         .coerceIn(HockeyLogic.CUSTOM_LEVEL_MIN, HockeyLogic.CUSTOM_LEVEL_MAX)
                 it.winScore =
                     prefs
-                        .getInt(PREF_WIN, 5)
+                        .intOr(PREF_WIN, 5)
                         .coerceIn(HockeyLogic.WIN_SCORE_MIN, HockeyLogic.WIN_SCORE_MAX)
                 it.paddleScale =
                     prefs
-                        .getFloat(PREF_PADDLE, HockeyLogic.PADDLE_SCALE_DEFAULT)
+                        .floatOr(PREF_PADDLE, HockeyLogic.PADDLE_SCALE_DEFAULT)
                         .coerceIn(HockeyLogic.PADDLE_SCALE_MIN, HockeyLogic.PADDLE_SCALE_MAX)
                 it.paddleScaleBoth = prefs.booleanOr(PREF_PADDLE_BOTH, true)
                 it.puckScale =
                     prefs
-                        .getFloat(PREF_PUCK, HockeyLogic.PUCK_SCALE_DEFAULT)
+                        .floatOr(PREF_PUCK, HockeyLogic.PUCK_SCALE_DEFAULT)
                         .coerceIn(HockeyLogic.PUCK_SCALE_MIN, HockeyLogic.PUCK_SCALE_MAX)
                 it.goalScale =
                     prefs
-                        .getFloat(PREF_GOAL, HockeyLogic.GOAL_SCALE_DEFAULT)
+                        .floatOr(PREF_GOAL, HockeyLogic.GOAL_SCALE_DEFAULT)
                         .coerceIn(HockeyLogic.GOAL_SCALE_MIN, HockeyLogic.GOAL_SCALE_MAX)
-                it.rinkTheme = RinkTheme.fromId(prefs.getString(PREF_RINK_THEME, RinkTheme.DEFAULT.id))
+                it.rinkTheme = RinkTheme.fromId(prefs.stringOr(PREF_RINK_THEME, RinkTheme.DEFAULT.id))
                 it.bestWins = prefs.intOr(PREF_BEST, 0)
             }
         }

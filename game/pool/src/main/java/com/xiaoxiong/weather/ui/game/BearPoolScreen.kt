@@ -115,8 +115,8 @@ fun BearPoolScreen(
     val game =
         remember {
             PoolGame().also {
-                it.difficulty = difficultyOf(prefs.getString(PREF_POOL_DIFF, "normal"))
-                it.aids = aidsOf(prefs.getString(PREF_POOL_AIDS, "full"))
+                it.difficulty = difficultyOf(prefs.stringOr(PREF_POOL_DIFF, "normal"))
+                it.aids = aidsOf(prefs.stringOr(PREF_POOL_AIDS, "full"))
                 it.raceTo = clampRaceTo(prefs.intOr(PREF_POOL_RACE, 2))
                 it.mode = modeOf(prefs.stringOr(PREF_POOL_MODE))
                 it.best = prefs.intOr(bestModeKey(it.mode), 0)

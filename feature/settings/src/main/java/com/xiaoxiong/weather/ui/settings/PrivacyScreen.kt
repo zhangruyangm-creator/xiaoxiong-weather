@@ -47,7 +47,7 @@ private val urlRegex = Regex("https?://[^\\s]+")
 private val mailRegex = Regex("[\\w.+-]+@[\\w-]+\\.[\\w.-]+")
 
 /** 文本里的一处可点击链接：字符范围 + 打开地址。 */
-private class LinkSpan(
+internal class LinkSpan(
     val start: Int,
     val end: Int,
     val url: String,
@@ -57,13 +57,18 @@ private class LinkSpan(
  * 把纯文本里的网址与邮箱标注为链接样式，并返回链接范围。
  * 邮箱会转成 mailto 打开。
  */
-private fun linkifyText(
+internal fun linkifyText(
     raw: String,
     linkStyle: SpanStyle,
 ): Pair<AnnotatedString, List<LinkSpan>> {
     val candidates =
         buildList {
-            urlRegex.findAll(raw).forEach { add(it.range to it.value.trimEnd('。', '，', '；', '）', ']', '》')) }
+            urlRegex.findAll(raw).forEach {
+                // 只取去掉尾部标点后的范围：否则 range.last 会越过标点，
+                // 而 last = range.last + 1 会把这些标点整体丢弃（渲染时凭空消失）
+                val value = it.value.trimEnd('。', '，', '；', '）', ']', '》')
+                add((it.range.first until it.range.first + value.length) to value)
+            }
             mailRegex.findAll(raw).forEach { add(it.range to it.value) }
         }.sortedBy { it.first.first }
 
