@@ -3,12 +3,12 @@ package com.xiaoxiong.weather.ui.game
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import com.xiaoxiong.weather.R
-import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_TILES
+import com.xiaoxiong.weather.game.EASTER_EGG_BEAR_WHITE
 import com.xiaoxiong.weather.game.GameEntry
 
-/** 小熊方块（口令 [EASTER_EGG_BEAR_TILES]）：别踩白块儿 + 小熊块 / 双连点块。 */
+/** 小熊白块（口令 [EASTER_EGG_BEAR_WHITE]）：别踩白块 + 小熊块 / 双连点块。 */
 object BearRainEntry : GameEntry {
-    override val password: String = EASTER_EGG_BEAR_TILES
+    override val password: String = EASTER_EGG_BEAR_WHITE
 
     @get:StringRes
     override val titleRes: Int = R.string.rain_title

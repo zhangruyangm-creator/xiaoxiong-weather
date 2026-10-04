@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reversi_title">小熊黑白棋</string>
+    <string name="cd_reversi_board">小熊黑白棋棋盘</string>
+    <string name="reversi_hint">你执黑先手，和小熊 AI 对弈。落子必须能夹吃对方棋子；无子可下时对方连续行棋。</string>
+    <string name="reversi_start">开始对弈</string>
+    <string name="reversi_score">黑 %1$d · 白 %2$d</string>
+    <string name="reversi_turn_black">轮到你（黑）</string>
+    <string name="reversi_turn_white">小熊思考中…</string>
+    <string name="reversi_pass">无子可下，跳过一手</string>
+    <string name="reversi_over_win">你赢了</string>
+    <string name="reversi_over_lose">小熊赢了</string>
+    <string name="reversi_over_tie">和棋</string>
+    <string name="reversi_leaderboard">小熊黑白棋 · 排行榜</string>
+    <string name="reversi_diff_section">AI 难度</string>
+    <string name="reversi_diff_beginner">入门</string>
+    <string name="reversi_diff_easy">轻松</string>
+    <string name="reversi_diff_normal">普通</string>
+    <string name="reversi_diff_advanced">进阶</string>
+    <string name="reversi_diff_hard">挑战</string>
+    <string name="reversi_diff_master">大师</string>
+    <string name="reversi_diff_expert">宗师</string>
+</resources>

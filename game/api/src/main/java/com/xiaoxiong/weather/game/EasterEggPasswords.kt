@@ -9,6 +9,11 @@ package com.xiaoxiong.weather.game
  */
 const val EASTER_EGG_BEAR_GAME = "#小熊跳跳"
 const val EASTER_EGG_BEAR_STAR = "#小熊摘星"
+
+/** 别踩白块主口令（2–4 列可设）。 */
+const val EASTER_EGG_BEAR_WHITE = "#小熊白块"
+
+/** 旧名「小熊方块」，仅作别名兼容。 */
 const val EASTER_EGG_BEAR_TILES = "#小熊方块"
 
 /** @deprecated 旧雨幕玩法口令，仅作别名兼容。 */
@@ -19,6 +24,7 @@ const val EASTER_EGG_BEAR_HOME = "#小熊回家"
 const val EASTER_EGG_BEAR_HOCKEY = "#小熊冰球"
 const val EASTER_EGG_BEAR_POOL = "#小熊台球"
 const val EASTER_EGG_BEAR_PLANE = "#小熊战机"
+const val EASTER_EGG_BEAR_REVERSI = "#小熊黑白棋"
 
 /** 插画相册：以全屏页呈现全部生活片刻/节日插画（非游戏）。 */
 const val EASTER_EGG_BEAR_ALBUM = "#小熊相册"

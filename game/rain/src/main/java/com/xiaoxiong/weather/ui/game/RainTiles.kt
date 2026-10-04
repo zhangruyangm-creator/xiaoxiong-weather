@@ -1,12 +1,21 @@
 package com.xiaoxiong.weather.ui.game
 
 import android.content.SharedPreferences
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.xiaoxiong.weather.game.booleanOr
+import com.xiaoxiong.weather.game.intOr
 import kotlin.math.ceil
 
-/** 四列，一屏四行：和「别踩白块儿」同一套格子。 */
-internal const val RAIN_COLUMNS = 4
+/** 默认列数；一屏四行：和「别踩白块儿」同一套格子。 */
+internal const val TILES_COLUMNS_DEFAULT = 4
+internal const val TILES_COLUMNS_MIN = 2
+internal const val TILES_COLUMNS_MAX = 4
 internal const val RAIN_ROWS_ON_SCREEN = 4
+
+/** @deprecated 测试与文档沿用；运行期列数以 [RainTiles.columnCount] 为准。 */
+internal const val RAIN_COLUMNS = TILES_COLUMNS_DEFAULT
 
 internal const val RAIN_BEST_KEY = "tiles_best"
 internal const val RAIN_LEADERBOARD_KEY = "leaderboard_tiles_v1"
@@ -14,7 +23,13 @@ internal const val RAIN_LEADERBOARD_KEY = "leaderboard_tiles_v1"
 /** 是否生成「露耳朵、连点两次」的黑块；默认开。 */
 internal const val TILES_PREF_DOUBLE = "tiles_double_tap"
 
+/** 棋盘列数 2 / 3 / 4；默认 4。 */
+internal const val TILES_PREF_COLUMNS = "tiles_columns"
+
 internal fun tilesDoubleTapEnabled(prefs: SharedPreferences): Boolean = prefs.booleanOr(TILES_PREF_DOUBLE, default = true)
+
+internal fun tilesColumnCount(prefs: SharedPreferences): Int =
+    prefs.intOr(TILES_PREF_COLUMNS, TILES_COLUMNS_DEFAULT).coerceIn(TILES_COLUMNS_MIN, TILES_COLUMNS_MAX)
 
 internal enum class RainPhase {
     READY,
@@ -55,7 +70,7 @@ internal enum class RainFail {
  * 下落速度（行 / 秒）。点中第一块之后才开始动。
  *
  * 曲线分三段，避免一上来就逼手速、后期又无限变快：
- * - 0–10 分：几乎不涨（练熟四列与整块判定）
+ * - 0–10 分：几乎不涨（练熟列数与整块判定）
  * - 11–40 分：正常线性加速
  * - 40 分后：边际递减，软顶 [MAX]
  *
@@ -92,9 +107,13 @@ internal object RainSpeed {
     fun secondsPerScreen(score: Int): Float = RAIN_ROWS_ON_SCREEN / rowsPerSecond(score)
 }
 
-internal fun rainColAt(nx: Float): Int {
+internal fun rainColAt(
+    nx: Float,
+    columns: Int = TILES_COLUMNS_DEFAULT,
+): Int {
     if (!nx.isFinite()) return 0
-    return (nx.coerceIn(0f, 0.9999f) * RAIN_COLUMNS).toInt()
+    val cols = columns.coerceIn(TILES_COLUMNS_MIN, TILES_COLUMNS_MAX)
+    return (nx.coerceIn(0f, 0.9999f) * cols).toInt()
 }
 
 internal fun rainRowAt(
@@ -115,14 +134,20 @@ internal fun rainCellTopPx(
 internal fun rainCellLeftPx(
     col: Int,
     canvasW: Float,
-): Float = col * (canvasW / RAIN_COLUMNS)
+    columns: Int = TILES_COLUMNS_DEFAULT,
+): Float {
+    val cols = columns.coerceIn(TILES_COLUMNS_MIN, TILES_COLUMNS_MAX)
+    return col * (canvasW / cols)
+}
 
 internal fun rainBlackCol(
     row: Int,
     seed: Long,
+    columns: Int = TILES_COLUMNS_DEFAULT,
 ): Int {
+    val cols = columns.coerceIn(TILES_COLUMNS_MIN, TILES_COLUMNS_MAX)
     val mixed = seed xor (row.toLong() * -7046029254386353131L)
-    return (mixed ushr 32).toInt() and (RAIN_COLUMNS - 1)
+    return (mixed ushr 32).toInt().mod(cols)
 }
 
 /** 黑块玩法类型：由 [row] + [seed] 决定，档位看已解锁的行号（不用分数，避免双连点第一击后变型）。 */
@@ -158,12 +183,12 @@ internal fun rainBlackKind(
 }
 
 /**
- * 小熊方块引擎：别踩白块儿 + 小熊块 / 双连点块。
+ * 小熊白块引擎：别踩白块儿 + 小熊块 / 双连点块。
  *
  * 坐标全是行/列，不含像素。画布换算只走 [rainCellTopPx] / [rainRowAt]。
  */
 internal class RainTiles {
-    var phase: RainPhase = RainPhase.READY
+    var phase by mutableStateOf(RainPhase.READY)
         private set
     var scroll: Float = 0f
         private set
@@ -178,6 +203,8 @@ internal class RainTiles {
     var failRow: Int = 0
         private set
     var failCol: Int = 0
+        private set
+    var columnCount: Int = TILES_COLUMNS_DEFAULT
         private set
 
     private val cleared = HashSet<Int>()
@@ -195,9 +222,11 @@ internal class RainTiles {
     fun start(
         seed: Long = 1L,
         allowDouble: Boolean = true,
+        columns: Int = TILES_COLUMNS_DEFAULT,
     ) {
         this.seed = seed
         allowDoubleTap = allowDouble
+        columnCount = columns.coerceIn(TILES_COLUMNS_MIN, TILES_COLUMNS_MAX)
         phase = RainPhase.PLAYING
         scroll = (RAIN_ROWS_ON_SCREEN - 1).toFloat()
         score = 0
@@ -223,7 +252,7 @@ internal class RainTiles {
     ): RainTapResult {
         if (phase != RainPhase.PLAYING) return RainTapResult.IGNORE
         if (!nx.isFinite() || !ny.isFinite()) return RainTapResult.IGNORE
-        val col = rainColAt(nx)
+        val col = rainColAt(nx, columnCount)
         val row = rainRowAt(scroll, ny)
         if (row == Int.MIN_VALUE || row < 0) {
             if (!moving) return RainTapResult.WHITE_WARMUP
@@ -231,7 +260,7 @@ internal class RainTiles {
             return RainTapResult.WHITE
         }
         if (row in cleared) return RainTapResult.IGNORE
-        if (rainBlackCol(row, seed) != col) {
+        if (rainBlackCol(row, seed, columnCount) != col) {
             if (!moving) return RainTapResult.WHITE_WARMUP
             lose(RainFail.WHITE, row, col)
             return RainTapResult.WHITE
@@ -264,7 +293,7 @@ internal class RainTiles {
     private fun drainMissed() {
         while (nextMissRow + RAIN_ROWS_ON_SCREEN <= scroll) {
             if (nextMissRow !in cleared) {
-                lose(RainFail.MISS, nextMissRow, rainBlackCol(nextMissRow, seed))
+                lose(RainFail.MISS, nextMissRow, rainBlackCol(nextMissRow, seed, columnCount))
                 return
             }
             primed.remove(nextMissRow)

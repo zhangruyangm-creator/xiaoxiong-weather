@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reversi_title">Bear Reversi</string>
+    <string name="reversi_hint">You are black and move first vs bear AI. Each move must flip at least one disc.</string>
+    <string name="cd_reversi_board">Bear Reversi board</string>
+    <string name="reversi_start">Start</string>
+    <string name="reversi_score">Black %1$d · White %2$d</string>
+    <string name="reversi_turn_black">Your turn (black)</string>
+    <string name="reversi_turn_white">Bear is thinking…</string>
+    <string name="reversi_pass">No move — pass</string>
+    <string name="reversi_over_win">You win</string>
+    <string name="reversi_over_lose">Bear wins</string>
+    <string name="reversi_over_tie">Draw</string>
+    <string name="reversi_leaderboard">Bear Reversi · Leaderboard</string>
+    <string name="reversi_diff_section">AI difficulty</string>
+    <string name="reversi_diff_beginner">Rookie</string>
+    <string name="reversi_diff_easy">Easy</string>
+    <string name="reversi_diff_normal">Normal</string>
+    <string name="reversi_diff_advanced">Advanced</string>
+    <string name="reversi_diff_hard">Hard</string>
+    <string name="reversi_diff_master">Master</string>
+    <string name="reversi_diff_expert">Expert</string>
+</resources>

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -48,6 +50,8 @@ import kotlin.math.min
 
 private val TILE_DARK = Color(0xFF1C2733)
 private val TILE_DARK_PRIMED = Color(0xFF2E4054)
+private val TILE_DARK_DOUBLE = Color(0xFF352E28)
+private val TILE_DARK_BEAR = Color(0xFF243040)
 private val TILE_LIGHT = Color(0xFFF3EFE6)
 private val TILE_HIT = Color(0xFF3DDC97)
 private val TILE_FAIL = Color(0xFFE85D4C)
@@ -63,7 +67,7 @@ private data class RainHitFx(
 )
 
 /**
- * 小熊方块：四列点黑块；部分黑块带小熊图案或需连点两次。
+ * 小熊白块：点黑块、别点白；列数 2–4 可设。
  */
 @Composable
 fun BearRainScreen(
@@ -79,6 +83,7 @@ fun BearRainScreen(
     val lb = rememberLeaderboardState(prefs, RAIN_LEADERBOARD_KEY, RAIN_BEST_KEY)
     var best by remember { mutableIntStateOf(prefs.intOr(RAIN_BEST_KEY, 0)) }
     var doubleTapEnabled by remember { mutableStateOf(tilesDoubleTapEnabled(prefs)) }
+    var columnCount by remember { mutableIntStateOf(tilesColumnCount(prefs)) }
     var frame by remember { mutableLongStateOf(0L) }
     var resultSubmitted by remember { mutableStateOf(false) }
     val hitFx = remember { mutableStateListOf<RainHitFx>() }
@@ -165,7 +170,7 @@ fun BearRainScreen(
         lb.resetLastRank()
         pause.resume()
         hitFx.clear()
-        game.start(seed = System.nanoTime(), allowDouble = doubleTapEnabled)
+        game.start(seed = System.nanoTime(), allowDouble = doubleTapEnabled, columns = columnCount)
         frame++
     }
 
@@ -219,19 +224,20 @@ fun BearRainScreen(
             val now = System.currentTimeMillis()
             val w = size.width
             val h = size.height
+            val cols = game.columnCount
             drawRect(BOARD_GAP)
             val first = floor(game.scroll - RAIN_ROWS_ON_SCREEN).toInt()
             val last = ceil(game.scroll.toDouble()).toInt()
-            val colW = w / RAIN_COLUMNS
+            val colW = w / cols
             val rowH = h / RAIN_ROWS_ON_SCREEN
             for (row in first..last) {
                 if (row < 0) continue
                 val top = rainCellTopPx(game.scroll, row, h)
                 if (top >= h || top + rowH <= 0f) continue
-                val blackCol = rainBlackCol(row, game.seed)
+                val blackCol = rainBlackCol(row, game.seed, cols)
                 val kind = game.kindAt(row)
                 val primed = game.isPrimed(row)
-                for (col in 0 until RAIN_COLUMNS) {
+                for (col in 0 until cols) {
                     val failed = game.phase == RainPhase.OVER && row == game.failRow && col == game.failCol
                     val cleared = game.isCleared(row)
                     val isBlack = col == blackCol
@@ -240,10 +246,12 @@ fun BearRainScreen(
                             failed -> TILE_FAIL
                             cleared && isBlack -> TILE_HIT
                             isBlack && primed -> TILE_DARK_PRIMED
+                            isBlack && kind == RainBlackKind.DOUBLE -> TILE_DARK_DOUBLE
+                            isBlack && kind == RainBlackKind.BEAR -> TILE_DARK_BEAR
                             isBlack -> TILE_DARK
                             else -> TILE_LIGHT
                         }
-                    val left = rainCellLeftPx(col, w) + 1f
+                    val left = rainCellLeftPx(col, w, cols) + 1f
                     val cellTop = top + 1f
                     val cellW = colW - 2f
                     val cellH = rowH - 2f
@@ -253,6 +261,9 @@ fun BearRainScreen(
                         size = Size(cellW, cellH),
                     )
                     if (!isBlack || cleared) continue
+                    if (kind == RainBlackKind.DOUBLE && !primed) {
+                        drawRainTileDoubleFrame(left, cellTop, cellW, cellH)
+                    }
                     val cx = left + cellW * 0.5f
                     val cy = cellTop + cellH * 0.5f
                     val cellMin = min(cellW, cellH)
@@ -268,7 +279,7 @@ fun BearRainScreen(
             for (fx in hitFx) {
                 if (fx.row < first || fx.row > last) continue
                 val top = rainCellTopPx(game.scroll, fx.row, h)
-                val left = rainCellLeftPx(fx.col, w)
+                val left = rainCellLeftPx(fx.col, w, cols)
                 val cx = left + colW * 0.5f
                 val cy = top + rowH * 0.5f
                 val phase = ((now - fx.startedAt).toFloat() / HIT_FX_MS).coerceIn(0f, 1f)
@@ -314,6 +325,32 @@ fun BearRainScreen(
                             lb.show = true
                         },
                     extra = {
+                        Text(
+                            text = stringResource(R.string.rain_option_columns),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(
+                                2 to R.string.rain_columns_2,
+                                3 to R.string.rain_columns_3,
+                                4 to R.string.rain_columns_4,
+                            ).forEach { (value, labelRes) ->
+                                FilterChip(
+                                    selected = columnCount == value,
+                                    onClick = {
+                                        columnCount = value
+                                        prefs.edit { putInt(TILES_PREF_COLUMNS, value) }
+                                    },
+                                    label = { Text(stringResource(labelRes)) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,

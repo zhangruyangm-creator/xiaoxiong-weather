@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.androidx.baselineprofile)
 }
 
-// 彩蛋游戏可选编译：把 jump/star/rain/maze/farm/home/hockey/pool/plane 依 -Pgames 动态接入（默认 all）。
+// 彩蛋游戏可选编译：把 jump/star/rain/maze/farm/home/hockey/pool/plane/reversi 依 -Pgames 动态接入（默认 all）。
 // 与旧「源码集裁剪」不同：未选中的游戏模块不参与编译与打包，classpath 上不存在其字节码，
 // 装配侧用 ServiceLoader（:game:api 的 loadGameEntryProviders()）发现已在 classpath 的入口，天然更彻底。
 val gameProjects =
@@ -23,6 +23,7 @@ val gameProjects =
         "hockey" to ":game:hockey",
         "pool" to ":game:pool",
         "plane" to ":game:plane", // 小熊战机
+        "reversi" to ":game:reversi", // 小熊黑白棋
     )
 
 // gameIds 作为顺序与校验来源：未知 id 只告警、不作为依赖接入。
@@ -66,8 +67,8 @@ android {
         applicationId = "com.xiaoxiong.weather"
         minSdk = 26
         targetSdk = 37
-        versionCode = 90
-        versionName = "1.18.1"
+        versionCode = 91
+        versionName = "1.19.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             // 仅保留 ARM 架构：x86/x86_64 只服务于模拟器，2026 年已无实际设备使用

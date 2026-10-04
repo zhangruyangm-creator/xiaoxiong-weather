@@ -19,6 +19,19 @@ class RainTilesTest {
     }
 
     @Test
+    fun blackCol_respectsColumnCount() {
+        assertTrue(rainBlackCol(0, 99L, columns = 3) in 0..2)
+        assertTrue(rainBlackCol(0, 99L, columns = 2) in 0..1)
+    }
+
+    @Test
+    fun start_storesColumnCount() {
+        val game = RainTiles()
+        game.start(seed = 1L, columns = 3)
+        assertEquals(3, game.columnCount)
+    }
+
+    @Test
     fun mapping_row0AtBottom_matchesPixelTap() {
         val canvasW = 400f
         val canvasH = 800f
@@ -27,9 +40,9 @@ class RainTilesTest {
         assertEquals(600f, top, 0.01f)
         val ny = (top + 100f) / canvasH
         assertEquals(0, rainRowAt(scroll, ny))
-        assertEquals(0, rainColAt(50f / canvasW))
-        assertEquals(3, rainColAt(399f / canvasW))
-        assertEquals(rainCellLeftPx(2, canvasW), 200f, 0.01f)
+        assertEquals(0, rainColAt(50f / canvasW, columns = 4))
+        assertEquals(3, rainColAt(399f / canvasW, columns = 4))
+        assertEquals(rainCellLeftPx(2, canvasW, columns = 4), 200f, 0.01f)
     }
 
     @Test
@@ -46,7 +59,7 @@ class RainTilesTest {
         game.start(seed = seed)
         game.testingAlignRowAtBottom(row)
         val black = rainBlackCol(row, seed)
-        val nx = (black + 0.5f) / RAIN_COLUMNS
+        val nx = (black + 0.5f) / game.columnCount.toFloat()
         assertEquals(RainTapResult.HIT, game.tap(nx, 0.9f))
         assertEquals(1, game.score)
         assertTrue(game.isCleared(row))
@@ -59,7 +72,7 @@ class RainTilesTest {
         game.start(seed = seed)
         game.testingAlignRowAtBottom(row)
         val black = rainBlackCol(row, seed)
-        assertEquals(RainTapResult.HIT_BEAR, game.tap((black + 0.5f) / 4f, 0.9f))
+        assertEquals(RainTapResult.HIT_BEAR, game.tap((black + 0.5f) / game.columnCount.toFloat(), 0.9f))
         assertEquals(1, game.score)
     }
 
@@ -70,7 +83,7 @@ class RainTilesTest {
         game.start(seed = seed)
         game.testingAlignRowAtBottom(row)
         val black = rainBlackCol(row, seed)
-        val nx = (black + 0.5f) / 4f
+        val nx = (black + 0.5f) / game.columnCount.toFloat()
         assertEquals(RainTapResult.HIT_DOUBLE_PRIMED, game.tap(nx, 0.9f))
         assertEquals(0, game.score)
         assertTrue(game.isPrimed(row))
@@ -86,7 +99,7 @@ class RainTilesTest {
         game.start(seed = seed)
         game.testingAlignRowAtBottom(row)
         val black = rainBlackCol(row, seed)
-        game.tap((black + 0.5f) / 4f, 0.9f)
+        game.tap((black + 0.5f) / game.columnCount.toFloat(), 0.9f)
         repeat(200) { game.tick(1f / 60f) }
         assertEquals(RainPhase.OVER, game.phase)
         assertEquals(RainFail.MISS, game.fail)
@@ -96,10 +109,11 @@ class RainTilesTest {
     fun tapWhite_beforeScroll_staysPlaying() {
         val game = RainTiles()
         game.start(seed = 7L)
-        val black = rainBlackCol(0, 7L)
-        val white = (black + 1) % RAIN_COLUMNS
+        val cols = TILES_COLUMNS_DEFAULT
+        val black = rainBlackCol(0, 7L, cols)
+        val white = (black + 1) % cols
         assertFalse(game.moving)
-        assertEquals(RainTapResult.WHITE_WARMUP, game.tap((white + 0.5f) / RAIN_COLUMNS, 0.9f))
+        assertEquals(RainTapResult.WHITE_WARMUP, game.tap((white + 0.5f) / cols.toFloat(), 0.9f))
         assertEquals(RainPhase.PLAYING, game.phase)
         assertEquals(0, game.score)
     }
@@ -108,16 +122,17 @@ class RainTilesTest {
     fun tapWhite_afterFirstBlack_endsRun() {
         val game = RainTiles()
         game.start(seed = 7L)
-        val black0 = rainBlackCol(0, 7L)
-        val nxBlack = (black0 + 0.5f) / RAIN_COLUMNS
+        val cols = TILES_COLUMNS_DEFAULT
+        val black0 = rainBlackCol(0, 7L, cols)
+        val nxBlack = (black0 + 0.5f) / cols.toFloat()
         val first = game.tap(nxBlack, 0.9f)
         assertTrue(first == RainTapResult.HIT || first == RainTapResult.HIT_BEAR)
         assertTrue(game.moving)
-        val black1 = rainBlackCol(1, 7L)
-        val white1 = (black1 + 1) % RAIN_COLUMNS
+        val black1 = rainBlackCol(1, 7L, cols)
+        val white1 = (black1 + 1) % cols
         val top1 = rainCellTopPx(game.scroll, 1, 800f)
         val ny1 = (top1 + 40f) / 800f
-        assertEquals(RainTapResult.WHITE, game.tap((white1 + 0.5f) / RAIN_COLUMNS, ny1))
+        assertEquals(RainTapResult.WHITE, game.tap((white1 + 0.5f) / cols.toFloat(), ny1))
         assertEquals(RainPhase.OVER, game.phase)
     }
 
@@ -128,7 +143,7 @@ class RainTilesTest {
         game.start(seed = seed)
         game.testingAlignRowAtBottom(row)
         val black = rainBlackCol(row, seed)
-        game.tap((black + 0.5f) / 4f, 0.9f)
+        game.tap((black + 0.5f) / game.columnCount.toFloat(), 0.9f)
         repeat(180) { game.tick(1f / 60f) }
         assertEquals(RainPhase.OVER, game.phase)
         assertEquals(RainFail.MISS, game.fail)
@@ -148,7 +163,7 @@ class RainTilesTest {
         val (seed, row) = seedWhere(RainBlackKind.PLAIN, minRow = 0)
         val game = RainTiles()
         game.start(seed = seed)
-        val nx = (rainBlackCol(row, seed) + 0.5f) / 4f
+        val nx = (rainBlackCol(row, seed, game.columnCount) + 0.5f) / game.columnCount.toFloat()
         game.tap(nx, 0.92f)
         assertEquals(RainTapResult.IGNORE, game.tap(nx, 0.92f))
     }
