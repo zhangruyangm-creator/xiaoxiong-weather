@@ -62,6 +62,26 @@ internal class ReversiGame {
         return afterMove()
     }
 
+    /** 当前方无子可下时过手；返回 true 表示局面有变化（含终局）。 */
+    fun passTurnIfNoLegalMove(): Boolean {
+        if (phase != ReversiPhase.PLAYING) return false
+        if (reversiLegalMoves(board, turn).isNotEmpty()) {
+            passNotice = false
+            return false
+        }
+        if (reversiIsGameOver(board)) {
+            finish()
+            return true
+        }
+        val (nextTurn, skipped) = reversiAdvanceTurn(board, turn)
+        turn = nextTurn
+        passNotice = skipped
+        if (reversiIsGameOver(board)) {
+            finish()
+        }
+        return true
+    }
+
     private fun afterMove(): Boolean {
         if (reversiIsGameOver(board)) {
             finish()

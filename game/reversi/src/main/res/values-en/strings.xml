@@ -6,6 +6,7 @@
     <string name="reversi_start">Start</string>
     <string name="reversi_score">Black %1$d · White %2$d</string>
     <string name="reversi_turn_black">Your turn (black)</string>
+    <string name="reversi_turn_black_pass">No legal move — passing…</string>
     <string name="reversi_turn_white">Bear is thinking…</string>
     <string name="reversi_pass">No move — pass</string>
     <string name="reversi_over_win">You win</string>

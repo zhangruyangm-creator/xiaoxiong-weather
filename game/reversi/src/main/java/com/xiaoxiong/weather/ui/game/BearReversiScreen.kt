@@ -4,6 +4,7 @@ import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,10 +30,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -46,12 +45,8 @@ import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.game.intOr
 import kotlinx.coroutines.delay
 
-private val BOARD_GREEN = Color(0xFF2A5C44)
-private val BOARD_LINE = Color(0xFF1E4030)
-private val DISC_BLACK = Color(0xFF1A2228)
-private val DISC_WHITE = Color(0xFFF2EDE4)
-private val LEGAL_HINT = Color(0xFF7BE495)
-private val LAST_MOVE = Color(0xFFFFD54F)
+private val TABLE_TOP = Color(0xFF1E4D38)
+private val TABLE_BOTTOM = Color(0xFF0F2419)
 
 @Composable
 fun BearReversiScreen(
@@ -107,7 +102,16 @@ fun BearReversiScreen(
         frame++
     }
 
-    LaunchedEffect(game.turn, game.phase) {
+    LaunchedEffect(game.turn, game.phase, game.board) {
+        if (game.phase != ReversiPhase.PLAYING) return@LaunchedEffect
+        while (game.passTurnIfNoLegalMove()) {
+            frame++
+            if (game.phase == ReversiPhase.OVER && !resultSubmitted) {
+                submitIfNeeded()
+                GameAudio.play(if (game.outcome == ReversiOutcome.BLACK_WIN) GameCue.WIN else GameCue.LOSE)
+                return@LaunchedEffect
+            }
+        }
         if (game.phase == ReversiPhase.PLAYING && game.turn == REVERSI_WHITE) {
             delay(320)
             if (game.phase == ReversiPhase.PLAYING && game.turn == REVERSI_WHITE) {
@@ -134,7 +138,13 @@ fun BearReversiScreen(
     }
 
     val boardCd = stringResource(R.string.cd_reversi_board)
-    Box(modifier = Modifier.fillMaxSize()) {
+    val tableBrush = remember { Brush.verticalGradient(listOf(TABLE_TOP, TABLE_BOTTOM)) }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(tableBrush),
+    ) {
         Column(
             modifier =
                 Modifier
@@ -157,7 +167,11 @@ fun BearReversiScreen(
                             text =
                                 stringResource(
                                     if (game.turn == REVERSI_BLACK) {
-                                        R.string.reversi_turn_black
+                                        if (game.legalMovesForTurn().isEmpty()) {
+                                            R.string.reversi_turn_black_pass
+                                        } else {
+                                            R.string.reversi_turn_black
+                                        }
                                     } else {
                                         R.string.reversi_turn_white
                                     },
@@ -191,12 +205,11 @@ fun BearReversiScreen(
                         .pointerInput(game.phase, game.turn, game.board) {
                             if (game.phase != ReversiPhase.PLAYING || game.turn != REVERSI_BLACK) return@pointerInput
                             detectTapGestures { offset ->
-                                val side = minOf(size.width, size.height).toFloat()
-                                val left = (size.width - side) / 2f
-                                val top = (size.height - side) / 2f
-                                val cell = side / REVERSI_SIZE
-                                val col = ((offset.x - left) / cell).toInt().coerceIn(0, REVERSI_SIZE - 1)
-                                val row = ((offset.y - top) / cell).toInt().coerceIn(0, REVERSI_SIZE - 1)
+                                val layout = reversiBoardLayout(size.width.toFloat(), size.height.toFloat())
+                                val col =
+                                    ((offset.x - layout.left) / layout.cell).toInt().coerceIn(0, REVERSI_SIZE - 1)
+                                val row =
+                                    ((offset.y - layout.top) / layout.cell).toInt().coerceIn(0, REVERSI_SIZE - 1)
                                 val index = reversiIndex(row, col)
                                 if (game.playHumanMove(index)) {
                                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
@@ -216,49 +229,21 @@ fun BearReversiScreen(
             ) {
                 frame
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    val side = size.minDimension
-                    val left = (size.width - side) / 2f
-                    val top = (size.height - side) / 2f
-                    val cell = side / REVERSI_SIZE
-                    drawRect(
-                        BOARD_GREEN,
-                        topLeft = Offset(left, top),
-                        size = Size(side, side),
-                    )
-                    for (i in 0..REVERSI_SIZE) {
-                        val x = left + i * cell
-                        val y = top + i * cell
-                        drawLine(BOARD_LINE, Offset(left, y), Offset(left + side, y), strokeWidth = 2f)
-                        drawLine(BOARD_LINE, Offset(x, top), Offset(x, top + side), strokeWidth = 2f)
-                    }
+                    frame
+                    val layout = reversiBoardLayout(size.width, size.height)
                     val legal =
                         if (game.phase == ReversiPhase.PLAYING && game.turn == REVERSI_BLACK) {
                             game.legalMovesForTurn().toSet()
                         } else {
                             emptySet()
                         }
-                    for (i in 0 until REVERSI_CELLS) {
-                        val r = reversiRow(i)
-                        val c = reversiCol(i)
-                        val cx = left + (c + 0.5f) * cell
-                        val cy = top + (r + 0.5f) * cell
-                        val disc = game.board[i]
-                        if (i in legal) {
-                            drawCircle(LEGAL_HINT.copy(alpha = 0.35f), cell * 0.12f, Offset(cx, cy))
-                        }
-                        if (i == game.lastMove) {
-                            drawCircle(
-                                LAST_MOVE.copy(alpha = 0.45f),
-                                cell * 0.46f,
-                                Offset(cx, cy),
-                                style = Stroke(width = 3f),
-                            )
-                        }
-                        when (disc) {
-                            REVERSI_BLACK -> drawCircle(DISC_BLACK, cell * 0.42f, Offset(cx, cy))
-                            REVERSI_WHITE -> drawCircle(DISC_WHITE, cell * 0.42f, Offset(cx, cy))
-                        }
-                    }
+                    drawReversiBoard(
+                        layout = layout,
+                        board = game.board,
+                        legal = legal,
+                        lastMove = game.lastMove,
+                        showLegalHints = game.phase == ReversiPhase.PLAYING,
+                    )
                 }
             }
         }

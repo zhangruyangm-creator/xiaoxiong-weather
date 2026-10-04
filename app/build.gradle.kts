@@ -67,8 +67,8 @@ android {
         applicationId = "com.xiaoxiong.weather"
         minSdk = 26
         targetSdk = 37
-        versionCode = 91
-        versionName = "1.19.0"
+        versionCode = 92
+        versionName = "1.19.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             // 仅保留 ARM 架构：x86/x86_64 只服务于模拟器，2026 年已无实际设备使用
