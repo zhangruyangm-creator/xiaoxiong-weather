@@ -43,3 +43,5 @@ app/release.keystore
 # 图像生成工具的临时输出
 tools/.tmp_image_cache/
 tools/.tmp_image_gen/
+# Command Code 本地状态（taste 学习等），不入库
+.commandcode/
