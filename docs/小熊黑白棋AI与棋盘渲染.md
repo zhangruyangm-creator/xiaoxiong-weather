@@ -87,18 +87,19 @@ score = (mine − theirs) * discWeight + mobility * 8 + corners + dangerPenalty
 **搜索在后台线程执行**，避免深度 7 的主线程卡帧/ANR：
 
 ```kotlin
-// 主线程：判断轮到白方并等待"思考"延迟
+// LaunchedEffect 以 (turn, phase, board, pause.paused) 为 key
 delay(320)
 // 抓取快照 → 后台搜索 → 回主线程校验 → 落子
 val boardSnapshot = game.board.copyOf()
 val index = withContext(Dispatchers.Default) { reversiChooseAiMove(boardSnapshot, diff) }
-if (game.phase != PLAYING || game.turn != WHITE) return@LaunchedEffect  // 局面已变则丢弃
+if (game.phase != PLAYING || game.turn != WHITE || pause.paused) return@LaunchedEffect  // 局面变/已暂停则丢弃
 if (index != null) game.applyAiMove(index) else game.passTurnIfNoLegalMove()
 ```
 
 - `ReversiGame.applyAiMove(index)` 应用后台算好的落子（再校验 turn/phase 与合法性）；
 - 过手处理：`while (game.passTurnIfNoLegalMove()) {…}` 在 AI 落子前统一结算双方过手/终局；
 - 交互：落子/过手带触感反馈（`CLOCK_TICK`/`REJECT`）、音效（WIN/LOSE/KEY/UI_CLICK）；
+- **暂停冻结**：effect 以 `pause.paused` 为 key，并在 `delay` 前、后与后台搜索回来后都判一次——打开暂停菜单即取消在途思考，恢复后再继续（与五子棋一致）；
 - **状态机不落盘**：黑白棋不保存对局快照，仅持久化最高分与排行榜（见 §8）。
 
 ---
