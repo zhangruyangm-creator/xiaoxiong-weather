@@ -405,6 +405,7 @@ private fun WeatherScreenContent(
         bgCurrent?.let {
             WeatherCodes.displayCode(it.weatherCode, WeatherCodes.intensityPrecipMmPerHour(it))
         }
+    val gameHourlyScenes = remember(state.weather) { gameHourlyScenesOf(state.weather) }
 
     CompositionLocalProvider(LocalTemperatureUnit provides appSettings.temperatureUnit) {
         // 放在温度单位 Provider 内，分享卡片才能跟设置一致（°C / °F）
@@ -612,6 +613,7 @@ private fun WeatherScreenContent(
             },
             bearHomeResumeRoom = bearHomeResumeRoom,
             onBearHomeResumeRoomConsumed = { bearHomeResumeRoom = null },
+            hourlyScenes = gameHourlyScenes,
         )
     }
 }

@@ -92,17 +92,54 @@ object GrowingDegreeDays {
         var current = fromDate
         val result = mutableListOf<Double>()
         while (!current.isAfter(onDate)) {
-            val key = MonthDay.from(current)
-            val value =
-                normalByDay[key]
-                    ?: if (key.monthValue == 2 && key.dayOfMonth == 29) {
-                        normalByDay[MonthDay.of(2, 28)]
-                    } else {
-                        null
-                    }
-            value?.let { result += it }
+            tempOn(normalByDay, current)?.let { result += it }
             current = current.plusDays(1)
         }
         return result
+    }
+
+    /**
+     * 按日历日对齐「今年」与「常年」日均温。
+     *
+     * 缺测日、乱序、闰日都不能按下标 zip：否则后面每一天都会对错常年曲线，
+     * 积温差被放大成完全不实的提前/推迟。双边都缺的日子跳过。
+     */
+    fun alignedDailyTemps(
+        thisYearRecords: List<Pair<LocalDate, Double>>,
+        normalByDay: Map<MonthDay, Double>,
+        fromDate: LocalDate,
+        throughDate: LocalDate,
+    ): Pair<List<Double>, List<Double>> {
+        if (throughDate.isBefore(fromDate)) return emptyList<Double>() to emptyList()
+        val thisByDay = LinkedHashMap<MonthDay, Double>(thisYearRecords.size)
+        for ((date, temp) in thisYearRecords) {
+            thisByDay[MonthDay.from(date)] = temp
+        }
+        val thisTemps = mutableListOf<Double>()
+        val normalTemps = mutableListOf<Double>()
+        var current = fromDate
+        while (!current.isAfter(throughDate)) {
+            val thisTemp = tempOn(thisByDay, current)
+            val normalTemp = tempOn(normalByDay, current)
+            if (thisTemp != null && normalTemp != null) {
+                thisTemps += thisTemp
+                normalTemps += normalTemp
+            }
+            current = current.plusDays(1)
+        }
+        return thisTemps to normalTemps
+    }
+
+    private fun tempOn(
+        byDay: Map<MonthDay, Double>,
+        date: LocalDate,
+    ): Double? {
+        val key = MonthDay.from(date)
+        return byDay[key]
+            ?: if (key.monthValue == 2 && key.dayOfMonth == 29) {
+                byDay[MonthDay.of(2, 28)]
+            } else {
+                null
+            }
     }
 }

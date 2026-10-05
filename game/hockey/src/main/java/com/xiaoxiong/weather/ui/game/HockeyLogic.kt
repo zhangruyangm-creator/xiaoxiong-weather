@@ -133,7 +133,7 @@ object HockeyLogic {
 
     private val PRESET_MASTER =
         DifficultyParams(
-            // 仅抬高档：更快贴线 + 零延迟；低档仍走旧跟球逻辑（见 updateAiTarget）
+            // 走位与挑战不同：进攻瞄对方球门、球在你半场时卡中线；速度保持可过乌龙回归
             aiMaxSpeedMul = 2.05f,
             aiAccelMul = 18f,
             reactionDelay = 0f,
@@ -570,8 +570,8 @@ object HockeyLogic {
                 val besideX = (puck.x + side * paddleR * 2f).coerceIn(minX, maxX)
                 val above = ai.y <= aboveContact
                 return if (above) {
-                    // 已在上方：对准球心向下推，把球送往玩家球门（正中轴线）
-                    val tx = puck.x.coerceIn(minX, maxX)
+                    // 已在上方：对准球心向下推，把球送往玩家球门
+                    val tx = attackAimX(table, puck, params, minX, maxX)
                     val ty = (puck.y + d * 0.15f).coerceIn(table.top + paddleR, midY - paddleR * 0.35f)
                     Triple(tx, ty, true)
                 } else if (kotlin.math.abs(ai.x - besideX) > paddleR * 0.5f) {
@@ -589,10 +589,17 @@ object HockeyLogic {
                 } else {
                     (puck.x + puck.vx * (params.predict * 0.28f))
                 }
-            val tx = lerp(puck.x, interceptX, 0.35f + params.chase * 0.4f).coerceIn(minX, maxX)
+            val press = isMasterAi(params)
+            val tx =
+                lerp(puck.x, interceptX, if (press) 0.92f else (0.35f + params.chase * 0.4f))
+                    .coerceIn(minX, maxX)
             val ty =
                 if (inAiHalf) {
                     (puck.y - paddleR * 0.7f).coerceIn(table.top + paddleR, midY - paddleR * 0.35f)
+                } else if (press) {
+                    // 不缩回门区：悬在中线附近切断射门通道
+                    lerp(homeY, midY - paddleR * 0.35f, 0.78f)
+                        .coerceIn(table.top + paddleR, midY - paddleR * 0.35f)
                 } else {
                     homeY.coerceIn(table.top + paddleR, midY - paddleR * 0.35f)
                 }
@@ -625,6 +632,27 @@ object HockeyLogic {
             ty = lerp(ty, homeY, 0.4f)
         }
         return Triple(tx.coerceIn(minX, maxX), ty, true)
+    }
+
+    /** 大师档：零延迟 + 满预判。挑战档仍有 10ms 延迟，走旧的回位逻辑。 */
+    internal fun isMasterAi(params: DifficultyParams): Boolean = params.reactionDelay <= 0f && params.predict >= 0.99f
+
+    /**
+     * 进攻落点：从球的外侧（相对球门中轴）击打，让出球带向玩家球门，而不是直推当前 X。
+     */
+    private fun attackAimX(
+        table: Table,
+        puck: Body,
+        params: DifficultyParams,
+        minX: Float,
+        maxX: Float,
+    ): Float {
+        if (!isMasterAi(params)) return puck.x.coerceIn(minX, maxX)
+        // 贴自家门时不要侧击，避免把解围球蹭回门洞
+        if (puck.y < table.top + table.paddleR * 2.5f) return puck.x.coerceIn(minX, maxX)
+        val toward = table.midX - puck.x
+        val aimOff = (toward * 0.22f).coerceIn(-table.paddleR * 0.45f, table.paddleR * 0.45f)
+        return (puck.x - aimOff).coerceIn(minX, maxX)
     }
 
     /**

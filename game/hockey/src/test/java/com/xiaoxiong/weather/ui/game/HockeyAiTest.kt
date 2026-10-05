@@ -351,7 +351,10 @@ class HockeyAiTest {
                 ai = ai,
             )
         assertTrue(refreshed)
-        assertEquals("应回到跟球推进目标 x", puck.x, tx, 1f)
+        assertTrue(
+            "跟球推进应对准球附近，而不是门线扫球的侧位",
+            kotlin.math.abs(tx - puck.x) < t.paddleR * 1.2f,
+        )
     }
 
     @Test
@@ -378,5 +381,71 @@ class HockeyAiTest {
             kotlin.math.abs(tx - intercept) < kotlin.math.abs(tx - puck.x) + 1f,
         )
         assertTrue("goalie should be above the puck: ty=$ty puckY=${puck.y}", ty <= puck.y)
+    }
+
+    @Test
+    fun master_pressesCenterWhenPuckInPlayerHalf_hardRetreatsHome() {
+        val t = table()
+        val puck = Body(t.midX + 50f, t.midY + t.height * 0.22f, 80f, 40f, t.puckR)
+        val ai = Body(t.midX, t.top + t.height * 0.18f, 0f, 0f, t.paddleR)
+
+        fun tyOf(d: Difficulty): Float {
+            val (_, ty, refreshed) =
+                HockeyLogic.updateAiTarget(
+                    table = t,
+                    puck = puck,
+                    params = HockeyLogic.params(d),
+                    reactionAge = 1f,
+                    cachedTargetX = ai.x,
+                    cachedTargetY = ai.y,
+                    paddleR = ai.r,
+                    ai = ai,
+                )
+            assertTrue(refreshed)
+            return ty
+        }
+        val masterY = tyOf(Difficulty.MASTER)
+        val hardY = tyOf(Difficulty.HARD)
+        val homeY = t.top + t.height * 0.16f
+        assertTrue("大师应压到中线附近: ty=$masterY home=$homeY", masterY > hardY + t.paddleR)
+        assertTrue("挑战仍回门区: ty=$hardY", kotlin.math.abs(hardY - homeY) < t.paddleR)
+    }
+
+    @Test
+    fun master_attackAimsTowardPlayerGoal() {
+        val t = table()
+        val params = HockeyLogic.params(Difficulty.MASTER)
+        val puck = Body(t.midX - 70f, t.midY - 50f, 0f, 0f, t.puckR)
+        val gap = t.paddleR + t.puckR
+        val ai = Body(puck.x, puck.y - gap - 4f, 0f, 0f, t.paddleR)
+        val (tx, _, refreshed) =
+            HockeyLogic.updateAiTarget(
+                table = t,
+                puck = puck,
+                params = params,
+                reactionAge = 1f,
+                cachedTargetX = ai.x,
+                cachedTargetY = ai.y,
+                paddleR = ai.r,
+                ai = ai,
+            )
+        assertTrue(refreshed)
+        assertTrue(
+            "应从球左侧击打，把球送向球门中轴: tx=$tx puck=${puck.x}",
+            tx < puck.x - 1f,
+        )
+        val hardTx =
+            HockeyLogic
+                .updateAiTarget(
+                    table = t,
+                    puck = puck,
+                    params = HockeyLogic.params(Difficulty.HARD),
+                    reactionAge = 1f,
+                    cachedTargetX = ai.x,
+                    cachedTargetY = ai.y,
+                    paddleR = ai.r,
+                    ai = ai,
+                ).first
+        assertEquals("挑战仍推球心", puck.x, hardTx, 1f)
     }
 }

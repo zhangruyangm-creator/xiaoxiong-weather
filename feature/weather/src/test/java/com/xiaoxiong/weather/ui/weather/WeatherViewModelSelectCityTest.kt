@@ -56,6 +56,50 @@ class WeatherViewModelSelectCityTest {
         }
 
     @Test
+    fun selectCity_switch_clearsPreviousCityPersistentError() =
+        runTest {
+            val cityA = WeatherFixtures.city("济南", lat = 36.65, lon = 117.12)
+            val cityB = WeatherFixtures.city("青岛", lat = 36.07, lon = 120.38)
+            val gateB = CompletableDeferred<WeatherSnapshot>()
+            val fetcher =
+                RecordingFetcher(
+                    weatherBlock = { city ->
+                        if (city.name == "济南") throw AppError.NetworkUnavailable()
+                        gateB.await()
+                    },
+                )
+            val vm = createTestViewModel(fetcher).vm
+
+            vm.selectCity(cityA)
+            advanceUntilIdle()
+            assertEquals("网络不可用，请稍后重试", vm.uiState.value.lastErrorMessage)
+            assertNull(vm.uiState.value.weather)
+
+            vm.selectCity(cityB)
+            runCurrent()
+            assertNull(
+                "换城后不得把旧城市的常驻错误贴到新城市空天气页",
+                vm.uiState.value.lastErrorMessage,
+            )
+            assertNull(vm.uiState.value.weather)
+            assertEquals(
+                "青岛",
+                vm.uiState.value.selectedCity
+                    ?.name,
+            )
+
+            gateB.complete(snapshotFor(cityB, temp = 22.0))
+            advanceUntilIdle()
+            assertNull(vm.uiState.value.lastErrorMessage)
+            assertEquals(
+                22.0,
+                vm.uiState.value.weather
+                    ?.current
+                    ?.temperatureC,
+            )
+        }
+
+    @Test
     fun networkRecovery_triggersQuietRefresh() =
         runTest {
             val city = WeatherFixtures.city("济南")

@@ -4,6 +4,7 @@
     <string name="cd_gomoku_board">Bear Gomoku board</string>
     <string name="gomoku_hint">15×15 board. You play black first; connect five to win. Dots mark suggested moves.</string>
     <string name="gomoku_start">Start</string>
+    <string name="gomoku_score">Black %1$d · White %2$d</string>
     <string name="gomoku_turn_black">Your turn (black)</string>
     <string name="gomoku_turn_white">Bear is thinking…</string>
     <string name="gomoku_over_win">You win</string>

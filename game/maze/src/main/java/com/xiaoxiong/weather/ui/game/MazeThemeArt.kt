@@ -171,9 +171,8 @@ private fun DrawScope.wallAt(
     c: Int,
 ): Boolean = r in grid.indices && c in grid[r].indices && grid[r][c].tile == MazeTile.WALL
 
-/** 节日红毯的明暗双色。 */
+/** 节日地毯纹用深红描边，底板走主题金黄，避免路墙同色。 */
 private val mazeCarpet = Color(0xFF9E2B2B)
-private val mazeCarpetAlt = Color(0xFF8A2323)
 
 /**
  * 烘焙静态底层：天空/场地装饰 + 棋盘阴影 + 全部墙/地板 + 外框与暗角。
@@ -443,7 +442,7 @@ private fun DrawScope.drawSnowWall(
     cell: Float,
 ) {
     drawBrickWall(style, r, c, l, t, w, h, cell, wet = false)
-    val capH = h * 0.42f
+    val capH = h * 0.26f
     val snow = Color(0xFFF8FCFF)
     drawRect(snow.copy(alpha = 0.96f), topLeft = Offset(l, t), size = Size(w, capH))
     // 雪盖下缘的圆弧起伏
@@ -533,23 +532,23 @@ private fun DrawScope.drawCloudWall(
     cell: Float,
 ) {
     drawRect(mazeDarken(style.wall, 0.10f), topLeft = Offset(l, t), size = Size(w, h))
-    val puff = Color.White
-    val shade = Color(0xFFB9CFE6)
+    val puff = mazeLighten(style.wall, 0.22f)
+    val shade = style.wallSide
     val seed = r * 101 + c * 53
     drawCircle(shade.copy(alpha = 0.55f), w * 0.46f, Offset(l + w * 0.5f, t + h * 0.66f))
     for (k in 0 until 4) {
         val hx = l + w * (0.14f + 0.24f * mazeHash01(seed + k, 61))
         val hy = t + h * (0.30f + 0.34f * mazeHash01(seed + k, 62))
         val rad = w * (0.16f + 0.12f * mazeHash01(seed + k, 63))
-        drawCircle(puff.copy(alpha = 0.96f), rad, Offset(hx, hy))
-        drawCircle(puff.copy(alpha = 0.75f), rad * 0.8f, Offset(hx + w * 0.06f, hy - h * 0.10f))
+        drawCircle(puff.copy(alpha = 0.92f), rad, Offset(hx, hy))
+        drawCircle(mazeLighten(puff, 0.18f).copy(alpha = 0.55f), rad * 0.8f, Offset(hx + w * 0.06f, hy - h * 0.10f))
     }
     drawRect(
-        Color.White.copy(alpha = 0.35f),
+        mazeLighten(style.wall, 0.12f).copy(alpha = 0.40f),
         topLeft = Offset(l, t + h * 0.72f),
         size = Size(w, h * 0.28f),
     )
-    drawCircle(Color.White.copy(alpha = 0.30f), w * 0.08f, Offset(l + w * 0.72f, t + h * 0.20f))
+    drawCircle(mazeLighten(style.wall, 0.30f).copy(alpha = 0.45f), w * 0.08f, Offset(l + w * 0.72f, t + h * 0.20f))
 }
 
 // ---------------------------------------------------------------------
@@ -569,11 +568,7 @@ private fun DrawScope.drawFloorCell(
     val inset = cell - pad * 2
     if (inset <= 0f) return
     val even = (r + c) % 2 == 0
-    val base =
-        when (theme) {
-            MazeTheme.FESTIVAL -> if (even) mazeCarpet else mazeCarpetAlt
-            else -> if (even) style.floor else style.floorAlt
-        }
+    val base = if (even) style.floor else style.floorAlt
     val corner = CornerRadius(cell * (if (theme == MazeTheme.CLOUD) 0.24f else 0.10f))
     drawRoundRect(base, Offset(x + pad, y + pad), Size(inset, inset), corner)
     when (theme) {
@@ -585,11 +580,11 @@ private fun DrawScope.drawFloorCell(
         MazeTheme.CLOUD -> drawCloudFloor(style, r, c, x, y, cell)
     }
     drawRoundRect(
-        style.wallDeep.copy(alpha = 0.10f),
+        style.wallDeep.copy(alpha = 0.28f),
         Offset(x + pad, y + pad),
         Size(inset, inset),
         corner,
-        style = mazeStroke(max(1f, cell * 0.012f)),
+        style = mazeStroke(max(1f, cell * 0.018f)),
     )
 }
 
@@ -716,13 +711,13 @@ private fun DrawScope.drawCarpetFloor(
 ) {
     val gold = Color(0xFFE6B84A)
     drawRoundRect(
-        gold.copy(alpha = 0.30f),
+        mazeCarpet.copy(alpha = 0.55f),
         Offset(x + cell * 0.07f, y + cell * 0.07f),
         Size(cell * 0.86f, cell * 0.86f),
         CornerRadius(cell * 0.06f),
-        style = mazeStroke(max(1f, cell * 0.018f)),
+        style = mazeStroke(max(1f, cell * 0.022f)),
     )
-    val weave = Color.Black.copy(alpha = 0.10f)
+    val weave = mazeCarpet.copy(alpha = 0.28f)
     for (k in 0 until 3) {
         val off = cell * (0.30f + 0.16f * k)
         drawLine(weave, Offset(x + off, y + cell * 0.2f), Offset(x + cell * 0.2f, y + off), strokeWidth = max(1f, cell * 0.010f))

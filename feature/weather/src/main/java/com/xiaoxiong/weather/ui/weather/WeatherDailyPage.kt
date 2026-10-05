@@ -54,6 +54,7 @@ import com.xiaoxiong.weather.data.DailyCardPref
 import com.xiaoxiong.weather.data.DailyWeather
 import com.xiaoxiong.weather.data.TemperatureUnit
 import com.xiaoxiong.weather.data.WeatherSnapshot
+import com.xiaoxiong.weather.data.todayInSnapshotZone
 import com.xiaoxiong.weather.ui.LocalTemperatureUnit
 import com.xiaoxiong.weather.ui.ReduceMotionAwareVisibility
 import com.xiaoxiong.weather.util.MoonPhaseCalculator
@@ -87,6 +88,10 @@ fun DailyPage(
         remember(weather?.daily) {
             weather?.daily?.let { weekTemperatureBounds(it) }
         }
+    val calendarToday =
+        remember(weather?.timezone) {
+            todayInSnapshotZone(weather?.timezone)
+        }
 
     // 进入七日页（或页面内换城）时才按需补齐物候偏移，见 WeatherViewModel.ensurePhenologyShift
     LaunchedEffect(weather?.city) {
@@ -119,10 +124,10 @@ fun DailyPage(
                     itemsIndexed(
                         items = weather.daily,
                         key = { _, day -> day.date },
-                    ) { index, day ->
+                    ) { _, day ->
                         DailyDayCard(
                             day = day,
-                            isToday = index == 0,
+                            isToday = isDailyCalendarToday(day.date, calendarToday),
                             todayLabel = todayLabel,
                             tempUnit = tempUnit,
                             appDark = appDark,
@@ -141,6 +146,7 @@ fun DailyPage(
                             elevationMeters = weather.elevationMeters,
                             phenologyShiftDays = phenologyShiftDays,
                             phenologyShiftLoading = phenologyShiftLoading,
+                            timezoneId = weather.timezone ?: weather.city.timezone,
                         )
                     }
                 DailyCardId.HISTORY ->

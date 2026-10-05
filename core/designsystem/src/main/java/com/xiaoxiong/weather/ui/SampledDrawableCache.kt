@@ -27,6 +27,7 @@ import kotlin.math.roundToInt
  *
  * 原图常见 384–1024 边长；[painterResource] 会在主线程整图解码。这里按
  * (id, targetPx) 用 [BitmapFactory] 采样，IO 线程解码，[LruCache] 跨 composable 复用。
+ * 同图并发加载共用一把锁；不同图互不阻塞，避免相册缩略图被排成单队列。
  */
 object SampledDrawableCache {
     /** 占位位图最长边像素：只用来撑住宽高比，越省越好。 */
@@ -42,7 +43,9 @@ object SampledDrawableCache {
 
     private val boundsCache = ConcurrentHashMap<Int, IntArray>()
     private val placeholderCache = ConcurrentHashMap<Int, ImageBitmap>()
-    private val decodeLock = Mutex()
+
+    /** 按「资源+目标边长」互斥：同图去重，不同图可并行解码。 */
+    private val decodeLocks = ConcurrentHashMap<String, Mutex>()
 
     private val transparent by lazy { ImageBitmap(1, 1) }
 
@@ -59,11 +62,12 @@ object SampledDrawableCache {
         targetPx: Int,
     ): ImageBitmap? {
         get(id, targetPx)?.let { return it }
-        decodeLock.withLock {
-            get(id, targetPx)?.let { return it }
+        val cacheKey = key(id, targetPx)
+        return decodeLockFor(cacheKey).withLock {
+            get(id, targetPx)?.let { return@withLock it }
             val bitmap = withContext(Dispatchers.IO) { decode(context.resources, id, targetPx) }
-            if (bitmap != null) cache.put(key(id, targetPx), bitmap)
-            return bitmap
+            if (bitmap != null) cache.put(cacheKey, bitmap)
+            bitmap
         }
     }
 
@@ -123,6 +127,8 @@ object SampledDrawableCache {
         id: Int,
         targetPx: Int,
     ): String = "$id@$targetPx"
+
+    internal fun decodeLockFor(cacheKey: String): Mutex = decodeLocks.getOrPut(cacheKey) { Mutex() }
 
     private fun maxCacheBytes(): Int {
         val max = Runtime.getRuntime().maxMemory() / 8

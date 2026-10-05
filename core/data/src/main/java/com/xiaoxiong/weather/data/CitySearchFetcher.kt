@@ -4,7 +4,6 @@ import android.content.res.Resources
 import com.github.promeg.pinyinhelper.Pinyin
 import com.xiaoxiong.weather.data.remote.GeocodingResponse
 import com.xiaoxiong.weather.data.remote.OpenMeteoHttp
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
@@ -105,19 +104,23 @@ class CitySearchFetcher(
 
         val response = decodeGeocoding(OpenMeteoHttp.execute(url.toString(), searchClient))
 
-        // 单条残缺（缺 name/坐标，DTO 已给默认值兜底）直接丢弃，不拖垮整次搜索
+        // 单条残缺（缺 name / 缺坐标 / 非法坐标）直接丢弃，不拖垮整次搜索。
+        // 坐标必须是 JSON 里的真实字段：DTO 缺省为 null，不能再默认成 (0,0)，
+        // 否则残缺条目会变成几内亚湾上的假城市并进入搜索结果。
         return response.results.orEmpty().mapNotNull { result ->
+            val latitude = result.latitude ?: return@mapNotNull null
+            val longitude = result.longitude ?: return@mapNotNull null
             if (result.name.isBlank()) return@mapNotNull null
             City(
                 id = result.id,
                 name = result.name,
-                latitude = result.latitude,
-                longitude = result.longitude,
+                latitude = latitude,
+                longitude = longitude,
                 country = result.country,
                 admin1 = result.admin1,
                 admin2 = result.admin2,
                 timezone = result.timezone,
-            )
+            ).takeIf { it.isUsableForList() }
         }
     }
 

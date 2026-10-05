@@ -175,8 +175,8 @@ return max(frame * 0.92f * 0.40f, shortSide * 0.012f)
 
 1. **门线解围**（见 5.3）满足 `aiGoalLineClearanceActive` 时直接走横向扫球；
 2. **智能防反**：`smartDefense = predict >= 0.5f`（HARD/MASTER）且来球危险（`vy < -0.10 * shortSide`）时，用 `goalLineInterceptX` 算门线落点，`tx = lerp(puck.x, interceptX, 0.72 + 0.28*predict)`，`ty = puck.y - paddleR*0.9`（挡板必须在来球上方，接触才把球压回去）。若 AI 还在球下方/同一水平带（`ai.y > puck.y - d*0.35`），先侧移到球侧方 `puck.x ± paddleR*2` 再上移绕行——防止从内侧接触把原本会弹库的球蹭进自家门（`defense_fromBelowOutsidePost_neverOwnGoal`）；
-3. **进攻走位**：球在 AI 半场且不是快速来球时，先绕到球上方（`aboveContact = puck.y - d*0.55`），再对准球心向下推（`ty = puck.y + d*0.15`），把球送往玩家门。横向侧别用 `cachedTargetX` **锁存**，避免目标点左右抖动导致原地打转；
-4. **守门/回位**：来球危险时继续站门线落点；否则按 `puck.x + puck.vx * predict * 0.28` 预判，`ty = puck.y - paddleR*0.7`（在本方半场）或 `homeY = top + height*0.16`；
+3. **进攻走位**：球在 AI 半场且不是快速来球时，先绕到球上方（`aboveContact = puck.y - d*0.55`），再向下推。挑战及以下对准球心；**大师从外侧（相对中轴）击打**，出球带向玩家球门。横向侧别用 `cachedTargetX` **锁存**，避免目标点左右抖动导致原地打转；
+4. **守门/回位**：来球危险时继续站门线落点；否则按 `puck.x + puck.vx * predict * 0.28` 预判。挑战及以下：本方半场跟球、对方半场缩回 `homeY`；**大师在对方半场悬在中线附近切射门通道**（`lerp(homeY, midY, 0.78)`，拦截权重 0.92）；
 5. **兼容路径**：不传 `ai`（旧调用/单测）时保留原「跟球 + 半场出击 + defenseBias 混合」逻辑。
 
 `clampPaddle` 负责边界：玩家 `y ∈ [midY + r*0.35, bottom - r]`；AI 默认 `y ∈ [top + r, midY - r*0.35]`，仅门线解围时允许 `aiGoalLineHug` 压到 `top + r*0.5`（球的中心不能压到 `top`，否则半个挡板穿出球门框）。

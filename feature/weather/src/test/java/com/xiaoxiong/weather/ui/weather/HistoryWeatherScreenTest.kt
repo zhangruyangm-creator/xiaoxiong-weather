@@ -115,4 +115,29 @@ class HistoryWeatherScreenTest {
         assertNull(pendingHistoryRangeRestore("2026-07-01", "2026-07-15", "2026-07-01|2026-07-15", false, false, true, false))
         assertNull(pendingHistoryRangeRestore("2026-07-01", "2026-07-15", "2026-07-01|2026-07-15", false, false, false, true))
     }
+
+    @Test
+    fun historyCacheKeys_useUsDecimalRegardlessOfDefaultLocale() {
+        val original = Locale.getDefault()
+        val city =
+            com.xiaoxiong.weather.data.City(
+                id = 1L,
+                name = "济南",
+                latitude = 36.65,
+                longitude = 117.12,
+            )
+        try {
+            Locale.setDefault(Locale.GERMANY)
+            assertEquals(
+                "36.6500,117.1200|2026-08-11",
+                historyDayCacheKey(city, LocalDate.parse("2026-08-11")),
+            )
+            assertEquals(
+                "36.6500,117.1200|2026-07-01|2026-07-15",
+                historyRangeCacheKey(city, LocalDate.parse("2026-07-01"), LocalDate.parse("2026-07-15")),
+            )
+        } finally {
+            Locale.setDefault(original)
+        }
+    }
 }

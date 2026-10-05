@@ -127,7 +127,7 @@ class FarmSimulatorTest {
             )
         state.plots = state.plots.mapIndexed { i, p -> if (i == 0) p.copy(cropId = "radish", stage = 4) else p }
 
-        val effect = FarmSimulator.harvest(state, 0)
+        val effect = FarmSimulator.harvest(state, 0, FarmWeather.SUNNY)
 
         assertEquals(R.string.bear_farm_toast_harvest, effect.toastRes)
         assertEquals(listOf("cucumber"), effect.unlockCropIds)
@@ -148,7 +148,7 @@ class FarmSimulatorTest {
     fun harvest_notRipeIsRejected() {
         val state = FarmState(plots = List(FARM_PLOT_COUNT) { FarmPlotState(cropId = "radish", stage = 2) })
 
-        val effect = FarmSimulator.harvest(state, 0)
+        val effect = FarmSimulator.harvest(state, 0, FarmWeather.SUNNY)
 
         assertEquals(R.string.bear_farm_toast_not_ripe, effect.toastRes)
         assertEquals(0, state.inventory.size)
@@ -205,7 +205,7 @@ class FarmSimulatorTest {
                 }
             }
 
-        val effect = FarmSimulator.careAll(state)
+        val effect = FarmSimulator.careAll(state, FarmWeather.SUNNY)
 
         assertEquals(R.string.bear_farm_care_all_summary, effect.toastRes)
         assertEquals(listOf<Any>(1, 1, 1, 1, 1), effect.toastArgs)
@@ -226,7 +226,7 @@ class FarmSimulatorTest {
                 if (i < 3) p.copy(cropId = "radish", stage = 4) else p
             }
 
-        val effect = FarmSimulator.careAll(state)
+        val effect = FarmSimulator.careAll(state, FarmWeather.SUNNY)
 
         assertEquals(3, effect.rewards.size)
         assertEquals(listOf("cucumber", "carrot"), effect.unlockCropIds)
@@ -241,7 +241,7 @@ class FarmSimulatorTest {
             state.plots.mapIndexed { i, p ->
                 if (i == 0) p.copy(cropId = "radish", stage = 4) else p
             }
-        FarmSimulator.harvest(state, 0)
+        FarmSimulator.harvest(state, 0, FarmWeather.SUNNY)
         assertEquals(1, state.harvestedTotal)
         assertEquals(1, state.lifetimeHarvests)
 
@@ -255,7 +255,7 @@ class FarmSimulatorTest {
             state.plots.mapIndexed { i, p ->
                 if (i == 0) p.copy(cropId = "wheat", stage = 4) else p
             }
-        FarmSimulator.harvest(state, 0)
+        FarmSimulator.harvest(state, 0, FarmWeather.SUNNY)
         assertEquals(1, state.harvestedTotal)
         assertEquals(2, state.lifetimeHarvests)
     }
@@ -369,8 +369,80 @@ class FarmSimulatorTest {
 
         assertFalse(state.allCollected)
         assertEquals(crops.size - 1, state.seasonCollectedCount)
-        FarmSimulator.harvest(state, 0)
+        FarmSimulator.harvest(state, 0, FarmWeather.SUNNY)
         assertTrue("收齐本季全部作物后 allCollected 应为 true", state.allCollected)
         assertEquals(crops.size, state.seasonCollectedCount)
+    }
+
+    @Test
+    fun tick_forecastSlicesUsePastWeatherNotCurrent() {
+        val t0 = now - 2 * hourMs
+        val state = FarmState(plots = List(FARM_PLOT_COUNT) { FarmPlotState(lastTickMs = t0) })
+        state.plots.first().apply {
+            moisture = 0.5f
+            cropId = "radish"
+            stage = 1
+        }
+        val forecast =
+            listOf(
+                FarmWeatherSlice(t0, FarmWeather.SUNNY),
+                FarmWeatherSlice(t0 + hourMs, FarmWeather.RAINY),
+            )
+        FarmSimulator.tick(state, now, FarmWeather.SUNNY, noEvents, forecast)
+        // 1h 晴 -0.22，1h 雨 -0.02+0.35 → 0.61；若整段按当前晴天则 0.5-0.44=0.06
+        assertEquals(0.61f, state.plots.first().moisture, 1e-3f)
+    }
+
+    @Test
+    fun ensureWeatherOrders_rainAddsGrainAndHerb() {
+        val state = FarmState()
+        assertTrue(FarmSimulator.ensureWeatherOrders(state, FarmWeather.RAINY))
+        assertEquals(2, state.weatherOrders.size)
+        assertEquals(setOf("GRAIN", "HERB"), state.weatherOrders.map { it.category }.toSet())
+        assertFalse("同一天气不重复生成", FarmSimulator.ensureWeatherOrders(state, FarmWeather.RAINY))
+    }
+
+    @Test
+    fun harvest_matchingOrderPaysAndRemoves() {
+        val state =
+            FarmState(
+                coins = 80,
+                plots = List(FARM_PLOT_COUNT) { FarmPlotState() },
+                weatherOrders =
+                    listOf(
+                        FarmWeatherOrder(
+                            weather = FarmWeather.SUNNY.name,
+                            category = CropCategory.VEGETABLE.name,
+                            target = 1,
+                            progress = 0,
+                            rewardCoins = 20,
+                        ),
+                    ),
+            )
+        state.plots = state.plots.mapIndexed { i, p -> if (i == 0) p.copy(cropId = "radish", stage = 4) else p }
+        val effect = FarmSimulator.harvest(state, 0, FarmWeather.SUNNY)
+        assertEquals(20, effect.orderCoins)
+        assertEquals(100, state.coins)
+        assertTrue(state.weatherOrders.isEmpty())
+    }
+
+    @Test
+    fun startNewSeason_clearsWeatherOrders() {
+        val state =
+            FarmState(
+                seasonCollected = FARM_CROPS.take(12).map { it.id }.toSet(),
+                weatherOrders =
+                    listOf(
+                        FarmWeatherOrder(
+                            FarmWeather.RAINY.name,
+                            CropCategory.GRAIN.name,
+                            target = 3,
+                            rewardCoins = 30,
+                        ),
+                    ),
+            )
+        val effect = FarmSimulator.startNewSeason(state)
+        assertEquals(R.string.bear_farm_new_season_started, effect.toastRes)
+        assertTrue(state.weatherOrders.isEmpty())
     }
 }

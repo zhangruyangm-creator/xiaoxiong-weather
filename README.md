@@ -31,7 +31,7 @@
 ./gradlew assembleFullRelease
 ./gradlew assembleLiteRelease
 
-# 彩蛋游戏可选编译（full 版，默认全部 9 个都编译进去）
+# 彩蛋游戏可选编译（full 版，默认全部 11 个都编译进去）
 ./gradlew assembleFullRelease -Pgames=jump,star          # 只编译跳跳 + 摘星
 ./gradlew assembleFullRelease -Pgames=none               # 不含任何游戏
 
@@ -54,7 +54,7 @@
 
 ### full 版游戏可选编译
 
-游戏代码分散在独立模块 `:game:jump / :game:star / :game:rain / :game:maze / :game:farm / :game:home / :game:hockey / :game:pool / :game:plane`（共享部分在 `:game:common`），`full` 版默认全部编译进去；需要裁剪时用 `-Pgames` 让 `:app` 只对选中模块建立动态依赖：
+游戏代码分散在独立模块 `:game:jump / :game:star / :game:rain / :game:maze / :game:farm / :game:home / :game:hockey / :game:pool / :game:plane / :game:reversi / :game:gomoku`（共享部分在 `:game:common`），`full` 版默认全部编译进去；需要裁剪时用 `-Pgames` 让 `:app` 只对选中模块建立动态依赖：
 
 ```bash
 ./gradlew assembleFullRelease -Pgames=jump,maze          # 只编译跳跳 + 迷宫
@@ -148,7 +148,7 @@ xiaoxiong-weather/
 ├── game/
 │   ├── api/                  # GameEntry + GameEntryProvider（ServiceLoader） + 口令常量
 │   ├── common/               # 共享精灵表 / 排行榜 / 天气特效
-│   ├── jump/ star/ rain/ maze/ farm/ home/ hockey/ pool/ plane/   # 各游戏模块（代码 + 插画 + 字符串 + 测试）
+│   ├── jump/ star/ rain/ maze/ farm/ home/ hockey/ pool/ plane/ reversi/ gomoku/   # 各游戏模块
 ├── baselineprofile/          # macrobenchmark 生成 Baseline Profile
 └── build.gradle.kts          # 根构建脚本
 ```
@@ -179,6 +179,8 @@ xiaoxiong-weather/
 - [小熊冰球：AI 与场地主题](docs/小熊冰球AI与场地主题.md)
 - [小熊台球：物理引擎与 AI](docs/小熊台球物理引擎与AI.md)
 - [小熊战机：卷轴弹幕与无尽波次](docs/小熊战机卷轴弹幕与无尽波次.md)
+- [小熊黑白棋：AI 与棋盘渲染](docs/小熊黑白棋AI与棋盘渲染.md)
+- [小熊五子棋：AI 与棋盘渲染](docs/小熊五子棋AI与棋盘渲染.md)
 
 ## 数据源
 

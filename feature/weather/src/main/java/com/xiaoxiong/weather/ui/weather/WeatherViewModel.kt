@@ -357,6 +357,9 @@ class WeatherViewModel(
                 historyRangeFailed = if (samePlace) it.historyRangeFailed else false,
                 historyRangeNetworkFailed = if (samePlace) it.historyRangeNetworkFailed else false,
                 errorMessage = null,
+                // 换城后旧城市的常驻错误不能盖到新城市：否则 weather=null 时
+                // 今天页会用上一城的失败文案画 ErrorRetryCard。
+                lastErrorMessage = if (samePlace) it.lastErrorMessage else null,
             )
         }
         // UI query 被改成城市名时同步搜索基线（不触发重复搜索），

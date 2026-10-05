@@ -10,6 +10,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import java.util.Locale
 
 /** 历史天气与物候：Open-Meteo Archive（ERA5）+ 积温换算。 */
 class HistoryFetcher(
@@ -31,8 +32,8 @@ class HistoryFetcher(
                     .toHttpUrl()
                     .newBuilder()
                     .addPathSegment("archive")
-                    .addQueryParameter("latitude", city.latitude.toString())
-                    .addQueryParameter("longitude", city.longitude.toString())
+                    .addQueryParameter("latitude", openMeteoQueryCoord(city.latitude))
+                    .addQueryParameter("longitude", openMeteoQueryCoord(city.longitude))
                     .addQueryParameter("start_date", "$startYear-01-01")
                     .addQueryParameter("end_date", endDate.toString())
                     .addQueryParameter(
@@ -59,19 +60,29 @@ class HistoryFetcher(
             val records =
                 daily.time.mapIndexedNotNull { index, time ->
                     val date = runCatching { java.time.LocalDate.parse(time) }.getOrNull()
-                    val mean = daily.temperatureMean.getOrNull(index)
+                    val mean =
+                        WeatherValueClamp.temperatureC(
+                            WeatherValueClamp.finiteOrNull(daily.temperatureMean.getOrNull(index)),
+                        )
                     if (date == null || mean == null) null else date to mean
                 }
 
             val thisYear = today.year
-            val thisYearTemps =
-                records.filter { it.first.year == thisYear }.map { it.second }
-            if (thisYearTemps.size < GrowingDegreeDays.MIN_DAYS) return@withContext null
-
+            val fromDate = java.time.LocalDate.of(thisYear, 1, 1)
+            val thisYearRecords = records.filter { it.first.year == thisYear }
             val normalByDay = GrowingDegreeDays.averageByDayOfYear(records.filter { it.first.year < thisYear })
-            val normalTemps =
-                GrowingDegreeDays.normalTempsUntil(normalByDay, today, java.time.LocalDate.of(thisYear, 1, 1))
-            if (normalTemps.size < GrowingDegreeDays.MIN_DAYS) return@withContext null
+            val (thisYearTemps, normalTemps) =
+                GrowingDegreeDays.alignedDailyTemps(
+                    thisYearRecords = thisYearRecords,
+                    normalByDay = normalByDay,
+                    fromDate = fromDate,
+                    throughDate = endDate,
+                )
+            if (thisYearTemps.size < GrowingDegreeDays.MIN_DAYS ||
+                normalTemps.size < GrowingDegreeDays.MIN_DAYS
+            ) {
+                return@withContext null
+            }
 
             GrowingDegreeDays.shiftDays(thisYearTemps, normalTemps)
         }
@@ -93,8 +104,8 @@ class HistoryFetcher(
                     .toHttpUrl()
                     .newBuilder()
                     .addPathSegment("archive")
-                    .addQueryParameter("latitude", city.latitude.toString())
-                    .addQueryParameter("longitude", city.longitude.toString())
+                    .addQueryParameter("latitude", openMeteoQueryCoord(city.latitude))
+                    .addQueryParameter("longitude", openMeteoQueryCoord(city.longitude))
                     .addQueryParameter("start_date", date.toString())
                     .addQueryParameter("end_date", date.toString())
                     .addQueryParameter(
@@ -153,8 +164,8 @@ class HistoryFetcher(
                     .toHttpUrl()
                     .newBuilder()
                     .addPathSegment("archive")
-                    .addQueryParameter("latitude", city.latitude.toString())
-                    .addQueryParameter("longitude", city.longitude.toString())
+                    .addQueryParameter("latitude", openMeteoQueryCoord(city.latitude))
+                    .addQueryParameter("longitude", openMeteoQueryCoord(city.longitude))
                     .addQueryParameter("start_date", start.toString())
                     .addQueryParameter("end_date", end.toString())
                     .addQueryParameter(
@@ -264,6 +275,9 @@ class HistoryFetcher(
     companion object {
         /** 常年对比窗口年数（含今年共 N 年），N-1 年用于多年平均。 */
         private const val PHENOLOGY_YEARS = 6
+
+        /** Open-Meteo 查询坐标必须用小数点，德/法默认 Locale 会写成逗号导致 400。 */
+        internal fun openMeteoQueryCoord(value: Double): String = String.format(Locale.US, "%.4f", value)
 
         /** 日降水量 ≥ 此值（mm）计为"降水日"。 */
         private const val PRECIP_DAY_MM = 0.1

@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -20,6 +21,7 @@ class ReversiLogicTest {
         val flips = reversiApplyMove(board, move.index, REVERSI_BLACK)
         assertTrue(flips > 0)
         assertEquals(REVERSI_BLACK, board[move.index])
+        assertEquals(REVERSI_WHITE, reversiAdvanceTurn(board, REVERSI_BLACK).first)
     }
 
     @Test
@@ -46,6 +48,16 @@ class ReversiLogicTest {
     }
 
     @Test
+    fun hasLegalMove_whiteCanPlayWhenBlackMustPass() {
+        val board = IntArray(REVERSI_CELLS) { REVERSI_WHITE }
+        board[reversiIndex(0, 0)] = REVERSI_EMPTY
+        board[reversiIndex(0, 1)] = REVERSI_BLACK
+        assertFalse(reversiHasLegalMove(board, REVERSI_BLACK))
+        assertTrue(reversiHasLegalMove(board, REVERSI_WHITE))
+        assertEquals(REVERSI_WHITE, reversiAdvanceTurn(board, REVERSI_BLACK).first)
+    }
+
+    @Test
     fun difficulty_fromId_mapsLegacyAndDefaults() {
         assertEquals(ReversiDifficulty.BEGINNER, ReversiDifficulty.fromId("casual"))
         assertEquals(ReversiDifficulty.HARD, ReversiDifficulty.fromId("challenge"))
@@ -65,6 +77,13 @@ class ReversiLogicTest {
                 ReversiDifficulty.MASTER,
                 ReversiDifficulty.EXPERT,
             ).map { it.searchDepth }
-        assertEquals(listOf(0, 2, 3, 4, 5, 6, 7), depths)
+        assertEquals(listOf(0, 2, 3, 4, 5, 7, 8), depths)
+    }
+
+    @Test
+    fun master_usesDeeperEndgameThanLowerTiers() {
+        assertEquals(12, reversiEndgameEmpties(ReversiDifficulty.HARD))
+        assertEquals(16, reversiEndgameEmpties(ReversiDifficulty.MASTER))
+        assertEquals(16, reversiEndgameEmpties(ReversiDifficulty.EXPERT))
     }
 }

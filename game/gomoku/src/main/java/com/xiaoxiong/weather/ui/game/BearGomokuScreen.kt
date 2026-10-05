@@ -46,7 +46,6 @@ import com.xiaoxiong.weather.game.intOr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 private val TABLE_TOP = Color(0xFF1E4D38)
 private val TABLE_BOTTOM = Color(0xFF0F2419)
@@ -174,6 +173,11 @@ fun BearGomokuScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
+                            text = stringResource(R.string.gomoku_score, game.blackCount, game.whiteCount),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
                             text =
                                 stringResource(
                                     if (game.turn == GOMOKU_BLACK) {
@@ -182,8 +186,8 @@ fun BearGomokuScreen(
                                         R.string.gomoku_turn_white
                                     },
                                 ),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.85f),
                         )
                     }
                     GamePauseButton(onClick = {
@@ -201,19 +205,13 @@ fun BearGomokuScreen(
                         .weight(1f)
                         .fillMaxWidth()
                         .semantics { contentDescription = boardCd }
-                        .pointerInput(game.phase, game.turn) {
-                            if (game.phase != GomokuPhase.PLAYING || game.turn != GOMOKU_BLACK) return@pointerInput
+                        .pointerInput(game.phase, game.turn, pause.paused) {
+                            if (pause.paused || game.phase != GomokuPhase.PLAYING || game.turn != GOMOKU_BLACK) {
+                                return@pointerInput
+                            }
                             detectTapGestures { offset ->
                                 val layout = gomokuBoardLayout(size.width.toFloat(), size.height.toFloat())
-                                val col =
-                                    ((offset.x - layout.left) / layout.cell)
-                                        .roundToInt()
-                                        .coerceIn(0, GOMOKU_SIZE - 1)
-                                val row =
-                                    ((offset.y - layout.top) / layout.cell)
-                                        .roundToInt()
-                                        .coerceIn(0, GOMOKU_SIZE - 1)
-                                val index = gomokuIndex(row, col)
+                                val index = gomokuHitIndex(layout, offset.x, offset.y) ?: return@detectTapGestures
                                 if (game.isLegalHumanMove(index)) {
                                     if (game.playHumanMove(index)) {
                                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)

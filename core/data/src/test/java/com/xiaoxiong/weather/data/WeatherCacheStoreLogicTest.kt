@@ -183,6 +183,18 @@ class WeatherCacheStoreLogicTest {
         }
 
     @Test
+    fun get_corruptPayload_returnsNullWithoutThrowing() =
+        runBlocking {
+            val city = city("济南", 36.65, 117.12)
+            val name = cacheEntryKeyName(System.currentTimeMillis(), city.latitude, city.longitude)
+            dataStore.edit { prefs ->
+                prefs[stringPreferencesKey(name)] = "{not-json"
+            }
+
+            assertNull(store.get(city, TEST_STAMP))
+        }
+
+    @Test
     fun save_prunesExpiredKeysOfOtherCities() =
         runBlocking {
             val now = System.currentTimeMillis()

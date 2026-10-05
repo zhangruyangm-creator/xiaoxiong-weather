@@ -328,4 +328,18 @@ class SeasonTipGeneratorTest {
         val spring = tips.firstOrNull { it.kind == SeasonTipGenerator.Kind.SPRING_BLOOM }
         assertEquals(5, spring?.phenologyShiftDays)
     }
+
+    @Test
+    fun displayForCity_isoDateSelectsThatCalendarDay() {
+        val city = City(id = 1L, name = "北京", latitude = 39.9, longitude = 116.4)
+        val april = SeasonTipGenerator.displayForCity(city, "2026-04-15")
+        assertTrue(april.tips.any { it.kind == SeasonTipGenerator.Kind.SPRING_BLOOM })
+        val october = SeasonTipGenerator.displayForCity(city, "2026-10-20")
+        assertTrue(
+            october.tips.any {
+                it.kind == SeasonTipGenerator.Kind.AUTUMN_BLOOM ||
+                    it.kind == SeasonTipGenerator.Kind.FOLIAGE
+            },
+        )
+    }
 }

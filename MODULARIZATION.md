@@ -108,7 +108,7 @@ WeatherViewModel 刷新
 | `sceneCode: Int?` / `isDay: Boolean?` / `cityName: String?` | 参数（无 import） | 游戏侧纯函数自分类为 `FarmWeather`/`RainStrength` |
 
 **关键约束**：
-1. 游戏侧不 import 任何 `feature:weather` 类型；只消费 `sceneCode`/`isDay`/`cityName` 三个值
+1. 游戏侧不 import 任何 `feature:weather` 类型；只消费 `sceneCode`/`isDay`/`cityName` 三个值，以及可选的 `LocalGameHourlyForecast`（小时 `sceneCode`/`isDay`/`epochMs` 切片，农场离线追赶用；其它游戏可忽略）
 2. 天气码映射逻辑（`FarmWeatherCommon.kt` 的 `farmWeatherFromScene`/`rainStrengthOf`）留在 `:game:common`，随游戏走——新增游戏类型改映射只影响游戏模块
 3. `WeatherCodes` 自带的 `R.string`（排行榜天气文本）随代码迁入 `:core:common`
 4. 天气层只负责"把复杂天气归一化成场景码"，不关心游戏如何渲染——分工不变，只是固化为编译边界

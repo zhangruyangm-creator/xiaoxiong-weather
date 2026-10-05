@@ -1,6 +1,7 @@
 package com.xiaoxiong.weather.ui.weather
 
 import com.xiaoxiong.weather.data.DailyWeather
+import java.time.LocalDate
 
 /**
  * 七日温度条在整周刻度上的起止比例（0–1）。
@@ -50,4 +51,16 @@ fun weekAlignedTempBarRange(
         start = (end - minVisibleWidth).coerceAtLeast(0f)
     }
     return DailyTempBarRange(start = start, end = end)
+}
+
+/**
+ * 七日页「今天」标签：用日历日比对，而不是列表下标 0。
+ * 缓存裁剪失败或时区跨天时，daily[0] 可能仍是昨天/明天。
+ */
+fun isDailyCalendarToday(
+    date: String,
+    today: LocalDate,
+): Boolean {
+    val parsed = runCatching { LocalDate.parse(date) }.getOrNull() ?: return false
+    return parsed == today
 }

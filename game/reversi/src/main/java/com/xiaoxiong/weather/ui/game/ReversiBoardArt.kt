@@ -26,6 +26,20 @@ internal fun reversiBoardLayout(
     return ReversiBoardLayout(left, top, side, side / REVERSI_SIZE)
 }
 
+/** 点中棋盘格则返回下标；点在木框/空白处返回 null（不夹到边线格）。 */
+internal fun reversiHitIndex(
+    layout: ReversiBoardLayout,
+    x: Float,
+    y: Float,
+): Int? {
+    if (x < layout.left || y < layout.top) return null
+    if (x >= layout.left + layout.side || y >= layout.top + layout.side) return null
+    val col = ((x - layout.left) / layout.cell).toInt()
+    val row = ((y - layout.top) / layout.cell).toInt()
+    if (row !in 0 until REVERSI_SIZE || col !in 0 until REVERSI_SIZE) return null
+    return reversiIndex(row, col)
+}
+
 private val FRAME_DARK = Color(0xFF3D2817)
 private val FRAME_MID = Color(0xFF6B4423)
 private val FRAME_LIGHT = Color(0xFF8F5E32)

@@ -18,6 +18,8 @@ data class FarmState(
     var lifetimeHarvests: Int = 0,
     /** 本季已收获的作物种类；开启新一季后清空（判断能否开启新一季用）。 */
     var seasonCollected: Set<String> = emptySet(),
+    /** 本季天气订单（未完成最多 2 条）；换季清空。 */
+    var weatherOrders: List<FarmWeatherOrder> = emptyList(),
 ) {
     val currentSeason: Int get() = completedSeasons + 1
 
@@ -60,6 +62,7 @@ data class FarmState(
             schemaVersion = FARM_SAVE_SCHEMA_VERSION,
             inventory = inventory,
             seasonCollected = seasonCollected,
+            weatherOrders = weatherOrders.map { it.copy() },
         )
 
     companion object {
@@ -97,6 +100,7 @@ data class FarmState(
                 lifetimeHarvests = clean.lifetimeHarvests,
                 seasonCollected =
                     if (oldSaveFullyCollected) backfilledHarvestCounts.keys else clean.seasonCollected,
+                weatherOrders = clean.weatherOrders,
             )
         }
     }
@@ -114,6 +118,8 @@ data class FarmEffect(
     val rewards: List<FarmRewardSpec> = emptyList(),
     /** 本次操作新解锁的作物（一次操作可能解锁多个，如 [FarmSimulator.careAll]）。 */
     val unlockCropIds: List<String> = emptyList(),
+    /** 天气订单结算的金币（已写入 [FarmState.coins]）。 */
+    val orderCoins: Int = 0,
 )
 
 /**
@@ -130,8 +136,8 @@ object FarmSimulator {
         now: Long,
         weather: FarmWeather,
         random: Random = Random.Default,
+        forecast: List<FarmWeatherSlice> = emptyList(),
     ) {
-        val fx = farmWeatherEffect(weather)
         val maxCatchUp = 8L * 60L * 60L * 1000L
         val minStepMs = 200L
         val sliceMs = 60_000L // 离线追赶按 1 分钟切片
@@ -144,12 +150,11 @@ object FarmSimulator {
             }
         if (!needsWork) return
 
-        // 每分钟概率只按天气类型预计算一次（此前在逐切片循环里对每个格子反复 Math.pow）
-        val weedPPerMinute = farmChanceAtLeastOnce(fx.weedChancePerHour, 1f / 60f)
-        val bugPPerMinute = farmChanceAtLeastOnce(fx.bugChancePerHour, 1f / 60f)
         val wiltPPerMinute = farmChanceAtLeastOnce(0.25f / 24f, 1f / 60f)
-        // 周目永久生长加成
         val seasonMul = seasonGrowthMul(state.completedSeasons)
+        val fxByWeather = mutableMapOf<FarmWeather, FarmWeatherEffect>()
+        val weedPByWeather = mutableMapOf<FarmWeather, Float>()
+        val bugPByWeather = mutableMapOf<FarmWeather, Float>()
 
         var dirty = false
         val next =
@@ -173,17 +178,18 @@ object FarmSimulator {
                 dirty = true
 
                 val crop = cropById(plot.cropId)
-                val cropPrefers = crop?.prefers(weather) == true
+                var t = plot.lastTickMs
                 while (elapsed >= minStepMs) {
                     val step = if (elapsed > sliceMs) sliceMs else elapsed
                     elapsed -= step
-                    // 整分钟切片用预计算的精确概率；不足一分钟的尾切片用线性近似（误差可忽略）
+                    val w = farmWeatherAt(t, weather, forecast)
+                    val fx = fxByWeather.getOrPut(w) { farmWeatherEffect(w) }
                     val fullMinute = step >= sliceMs
                     val hours = step / 3_600_000f
-                    val weedP = if (fullMinute) weedPPerMinute else fx.weedChancePerHour * hours
-                    val bugP = if (fullMinute) bugPPerMinute else fx.bugChancePerHour * hours
-                    // 枯萎：按“每天 25%”的极宽松概率触发，缺一两天水远不会枯，
-                    // 只有连续干旱好几天（约 4-7 天）才有明显风险。
+                    val weedPMin = weedPByWeather.getOrPut(w) { farmChanceAtLeastOnce(fx.weedChancePerHour, 1f / 60f) }
+                    val bugPMin = bugPByWeather.getOrPut(w) { farmChanceAtLeastOnce(fx.bugChancePerHour, 1f / 60f) }
+                    val weedP = if (fullMinute) weedPMin else fx.weedChancePerHour * hours
+                    val bugP = if (fullMinute) bugPMin else fx.bugChancePerHour * hours
                     val wiltP = if (fullMinute) wiltPPerMinute else (0.25f / 24f) * hours
 
                     plot.moisture =
@@ -195,15 +201,22 @@ object FarmSimulator {
                         if (!plot.bug && random.nextFloat() < bugP) plot.bug = true
                     }
 
-                    // 枯萎：干旱即可按概率触发（不再要求单次 ≥ 0.5h，否则在线几乎永不枯）
                     if (plot.stage in 1..4 && plot.moisture < 0.08f && random.nextFloat() < wiltP) {
                         plot.stage = 5
                         plot.stageProgress = 0f
                     }
 
                     if (crop != null) {
-                        advanceGrowth(plot, crop, hours, fx, seasonMul, preferred = cropPrefers)
+                        advanceGrowth(
+                            plot,
+                            crop,
+                            hours,
+                            fx,
+                            seasonMul,
+                            preferred = crop.prefers(w),
+                        )
                     }
+                    t += step
                 }
                 plot.lastTickMs = now
                 plot
@@ -302,6 +315,7 @@ object FarmSimulator {
     fun harvest(
         state: FarmState,
         index: Int,
+        weather: FarmWeather,
     ): FarmEffect {
         val plot = state.plots.getOrNull(index) ?: return FarmEffect()
         if (plot.stage != 4) return FarmEffect(toastRes = R.string.bear_farm_toast_not_ripe)
@@ -312,6 +326,7 @@ object FarmSimulator {
         state.seasonCollected = state.seasonCollected + crop.id
         state.inventory = state.inventory + (crop.id to (state.inventory[crop.id] ?: 0) + 1)
         val unlockedCropId = unlockByProgress(state)
+        val orderCoins = applyHarvestToOrders(state, crop, weather)
         state.plots =
             state.plots.mapIndexed { i, p ->
                 if (i == index) {
@@ -332,6 +347,7 @@ object FarmSimulator {
             toastArgs = listOf(crop.emoji, crop.nameZh),
             rewards = listOf(FarmRewardSpec(index, "+1 ${crop.emoji}")),
             unlockCropIds = listOfNotNull(unlockedCropId),
+            orderCoins = orderCoins,
         )
     }
 
@@ -411,12 +427,16 @@ object FarmSimulator {
     }
 
     /** 一键照料：按智能照料优先级处理全部格子，收尾汇总成一条提示。 */
-    fun careAll(state: FarmState): FarmEffect {
+    fun careAll(
+        state: FarmState,
+        weather: FarmWeather,
+    ): FarmEffect {
         var harvested = 0
         var watered = 0
         var weeded = 0
         var debugged = 0
         var cleared = 0
+        var orderCoins = 0
         val rewards = mutableListOf<FarmRewardSpec>()
         val unlockCropIds = mutableListOf<String>()
         state.plots.indices.forEach { index ->
@@ -433,7 +453,7 @@ object FarmSimulator {
                     }
                     plot.stage == 4 -> {
                         harvested++
-                        harvest(state, index)
+                        harvest(state, index, weather)
                     }
                     plot.stage in 1..4 && plot.moisture < 0.35f -> {
                         watered++
@@ -448,6 +468,7 @@ object FarmSimulator {
             if (effect != null) {
                 rewards += effect.rewards
                 unlockCropIds += effect.unlockCropIds
+                orderCoins += effect.orderCoins
             }
         }
         val done = harvested + watered + weeded + debugged + cleared
@@ -456,6 +477,7 @@ object FarmSimulator {
             toastArgs = if (done == 0) emptyList() else listOf(harvested, watered, weeded, debugged, cleared),
             rewards = rewards,
             unlockCropIds = unlockCropIds,
+            orderCoins = orderCoins,
         )
     }
 
@@ -473,6 +495,7 @@ object FarmSimulator {
         state.unlocked = setOf("radish", "cabbage", "wheat", "tomato")
         state.harvestedTotal = 0
         state.seasonCollected = emptySet()
+        state.weatherOrders = emptyList()
         state.completedSeasons++
         return FarmEffect(
             toastRes = R.string.bear_farm_new_season_started,
@@ -539,4 +562,91 @@ object FarmSimulator {
         state.unlocked = state.unlocked + next
         return next
     }
+
+    /**
+     * 当前天气若有喜好类别，且本季未满 [FARM_ORDER_MAX] 条未完成订单、也还没有该天气的订单，则补 1～2 条。
+     * 已有其它天气的订单会保留（下次该天气再继续）。
+     */
+    fun ensureWeatherOrders(
+        state: FarmState,
+        weather: FarmWeather,
+    ): Boolean {
+        val open = state.weatherOrders.filter { it.progress < it.target }.sanitizedOpen()
+        val preferring = categoriesPreferring(weather)
+        if (preferring.isEmpty()) {
+            if (open.size == state.weatherOrders.size) return false
+            state.weatherOrders = open
+            return true
+        }
+        if (open.any { it.weatherEnum() == weather }) {
+            if (open.size == state.weatherOrders.size) return false
+            state.weatherOrders = open
+            return true
+        }
+        val slots = FARM_ORDER_MAX - open.size
+        if (slots <= 0) {
+            if (open.size == state.weatherOrders.size) return false
+            state.weatherOrders = open
+            return true
+        }
+        val target =
+            (FARM_ORDER_TARGET_MIN + state.completedSeasons)
+                .coerceIn(FARM_ORDER_TARGET_MIN, FARM_ORDER_TARGET_MAX)
+        val reward = 15 + target * 5
+        val added =
+            preferring.take(slots).map { cat ->
+                FarmWeatherOrder(
+                    weather = weather.name,
+                    category = cat.name,
+                    target = target,
+                    progress = 0,
+                    rewardCoins = reward,
+                )
+            }
+        state.weatherOrders = open + added
+        return true
+    }
+
+    private fun List<FarmWeatherOrder>.sanitizedOpen(): List<FarmWeatherOrder> {
+        val seen = mutableSetOf<String>()
+        return mapNotNull { order ->
+            val w = order.weatherEnum() ?: return@mapNotNull null
+            val c = order.categoryEnum() ?: return@mapNotNull null
+            val key = "${w.name}:${c.name}"
+            if (!seen.add(key)) return@mapNotNull null
+            order
+        }
+    }
+}
+
+internal fun categoriesPreferring(weather: FarmWeather): List<CropCategory> =
+    CropCategory.entries.filter { it.preferredWeather() == weather }
+
+/** 收获推进匹配天气的订单；完成后发奖并移除。返回本次发放金币。 */
+internal fun applyHarvestToOrders(
+    state: FarmState,
+    crop: CropDef,
+    weather: FarmWeather,
+): Int {
+    if (state.weatherOrders.isEmpty()) return 0
+    var coins = 0
+    val next = mutableListOf<FarmWeatherOrder>()
+    for (order in state.weatherOrders) {
+        val match = order.weatherEnum() == weather && order.categoryEnum() == crop.category
+        if (!match || order.progress >= order.target) {
+            if (order.progress < order.target) next += order
+            continue
+        }
+        val progress = (order.progress + 1).coerceAtMost(order.target)
+        if (progress >= order.target) {
+            coins += order.rewardCoins
+        } else {
+            next += order.copy(progress = progress)
+        }
+    }
+    if (next != state.weatherOrders || coins > 0) {
+        state.weatherOrders = next
+        if (coins > 0) state.coins += coins
+    }
+    return coins
 }

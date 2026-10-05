@@ -43,16 +43,16 @@ fun weatherSceneStyle(
                 )
             }
 
-        // WMO 1 少云：介于晴朗与局部多云之间的蓝紫渐变 + 单层轻云动画
+        // WMO 1 少云：白天浅蓝天空，和晴朗深蓝拉开；单层轻云动画
         WeatherScene.MAINLY_CLEAR ->
             if (day) {
                 WeatherSceneStyle(
                     scene = scene,
-                    // 略浅于 CLEAR、深于 PARTLY；最亮 stop 仍须过 muted 4.5:1（见 WeatherSceneContrastTest）
-                    gradient = listOf(Color(0xFF2C8FCE), Color(0xFF1D66B9), Color(0xFF3A9AD6)),
+                    // 比 CLEAR 明显更浅的天蓝，scrim 提到 0.42 保住白字小号 4.5:1
+                    gradient = listOf(Color(0xFF6EB2DF), Color(0xFF6495CE), Color(0xFF7FC7E9)),
                     contentColor = Color.White,
                     mutedContentColor = Color.White.copy(alpha = 0.92f),
-                    scrimAlpha = 0.33f,
+                    scrimAlpha = 0.42f,
                 )
             } else {
                 WeatherSceneStyle(

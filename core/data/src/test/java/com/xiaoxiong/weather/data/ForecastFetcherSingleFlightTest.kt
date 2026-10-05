@@ -115,6 +115,20 @@ class ForecastFetcherSingleFlightTest {
             assertEquals(2, forecastRequests.get())
         }
 
+    @Test
+    fun flightKey_usesUsLocaleEvenWhenDefaultUsesDecimalComma() {
+        val original = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.GERMANY)
+            assertEquals(
+                "39.9042,116.4074|Asia/Shanghai",
+                forecastFlightKey(city.copy(timezone = "Asia/Shanghai")),
+            )
+        } finally {
+            java.util.Locale.setDefault(original)
+        }
+    }
+
     private fun mockResources(): Resources {
         val resources = Mockito.mock(Resources::class.java)
         Mockito.`when`(resources.getString(Mockito.anyInt())).thenReturn("")

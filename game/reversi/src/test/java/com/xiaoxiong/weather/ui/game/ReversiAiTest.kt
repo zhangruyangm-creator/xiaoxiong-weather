@@ -48,6 +48,33 @@ class ReversiAiTest {
         assertEquals(0, reversiFlipsIfMove(board, REVERSI_CELLS, REVERSI_BLACK))
     }
 
+    @Test
+    fun exactEndgame_onOneEmpty_playsTheOnlyMove() {
+        val board = IntArray(REVERSI_CELLS) { REVERSI_WHITE }
+        board[reversiIndex(0, 0)] = REVERSI_EMPTY
+        board[reversiIndex(0, 1)] = REVERSI_BLACK
+        board[reversiIndex(0, 2)] = REVERSI_WHITE
+        assertEquals(1, reversiEmptyCount(board))
+        // 浅档也会因空位 ≤12 走精确终局
+        assertEquals(reversiIndex(0, 0), reversiChooseAiMove(board, ReversiDifficulty.EASY))
+    }
+
+    @Test
+    fun exactEndgame_picksHigherTerminalDiscCount() {
+        // 两处可下：角 (0,0) 终局白子更多；贪心可能更想翻另一处。精确解必须取角。
+        val board = IntArray(REVERSI_CELLS) { REVERSI_WHITE }
+        board[reversiIndex(0, 0)] = REVERSI_EMPTY
+        board[reversiIndex(0, 1)] = REVERSI_BLACK
+        board[reversiIndex(0, 2)] = REVERSI_WHITE
+        board[reversiIndex(2, 2)] = REVERSI_EMPTY
+        board[reversiIndex(2, 3)] = REVERSI_BLACK
+        board[reversiIndex(2, 4)] = REVERSI_WHITE
+        assertTrue(reversiEmptyCount(board) <= REVERSI_ENDGAME_EMPTIES)
+        val corner = reversiIndex(0, 0)
+        assertTrue(reversiFlipsIfMove(board, corner, REVERSI_WHITE) > 0)
+        assertEquals(corner, reversiChooseAiMove(board, ReversiDifficulty.NORMAL))
+    }
+
     private fun playGame(
         whiteMove: (IntArray) -> Int?,
         blackMove: (IntArray) -> Int?,

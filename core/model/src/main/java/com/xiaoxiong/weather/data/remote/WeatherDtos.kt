@@ -12,8 +12,8 @@ data class GeocodingResponse(
 data class GeocodingResult(
     val id: Long = 0,
     val name: String = "",
-    val latitude: Double = 0.0,
-    val longitude: Double = 0.0,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val country: String? = null,
     @SerialName("country_code") val countryCode: String? = null,
     val admin1: String? = null,

@@ -126,6 +126,90 @@ class WeatherRepositoryHttpTest {
         }
 
     @Test
+    fun searchCities_missingCoordinates_areDropped() =
+        runBlocking {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(
+                        """
+                        {
+                          "results": [
+                            { "id": 1, "name": "残缺点" },
+                            {
+                              "id": 2,
+                              "name": "济南",
+                              "latitude": 36.65,
+                              "longitude": 117.12
+                            },
+                            {
+                              "id": 3,
+                              "name": "越界",
+                              "latitude": 91.0,
+                              "longitude": 0.0
+                            }
+                          ]
+                        }
+                        """.trimIndent(),
+                    ),
+            )
+
+            val cities = repository.searchCities("Jinan")
+            assertEquals(listOf("济南"), cities.map { it.name })
+            assertEquals(36.65, cities.single().latitude, 0.001)
+        }
+
+    @Test
+    fun searchCities_malformedJson_throwsDataFormat() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("<html>oops</html>"))
+            try {
+                repository.searchCities("Jinan")
+                fail("expected AppError.DataFormat")
+            } catch (e: AppError.DataFormat) {
+                assertTrue(e.message?.contains("data format") == true)
+            }
+        }
+
+    @Test
+    fun searchCities_emptyObject_returnsEmptyAndCaches() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+            assertTrue(repository.searchCities("Jinan").isEmpty())
+            assertTrue(repository.searchCities("Jinan").isEmpty())
+            assertEquals(1, server.requestCount)
+        }
+
+    @Test
+    fun searchCities_httpError_isNotCached_soRetryHitsUpstream() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(
+                        """
+                        {
+                          "results": [
+                            { "id": 1, "name": "济南", "latitude": 36.65, "longitude": 117.12 }
+                          ]
+                        }
+                        """.trimIndent(),
+                    ),
+            )
+
+            try {
+                repository.searchCities("Jinan")
+                fail("expected AppError.Http")
+            } catch (e: AppError.Http) {
+                assertEquals(503, e.code)
+            }
+            val cities = repository.searchCities("Jinan")
+            assertEquals("济南", cities.single().name)
+            assertEquals(2, server.requestCount)
+        }
+
+    @Test
     fun fetchWeather_success_mapsSnapshotAndGeneratesAlerts() =
         runBlocking {
             server.dispatcher =
@@ -375,6 +459,29 @@ class WeatherRepositoryHttpTest {
             val recorded = server.takeRequest()
             assertEquals("2026-08-09", recorded.requestUrl?.queryParameter("end_date"))
             assertEquals("2020-01-01", recorded.requestUrl?.queryParameter("start_date"))
+        }
+
+    @Test
+    fun fetchPhenologyShiftDays_queryCoordsStayDotDecimalUnderGermanLocale() =
+        runBlocking {
+            val previous = java.util.Locale.getDefault()
+            java.util.Locale.setDefault(java.util.Locale.GERMANY)
+            try {
+                server.enqueue(
+                    MockResponse()
+                        .setResponseCode(200)
+                        .setBody(archiveJson(today = "2026-08-10", thisYearOffset = 6.0)),
+                )
+                repository.fetchPhenologyShiftDays(
+                    WeatherFixtures.city("济南"),
+                    today = java.time.LocalDate.of(2026, 8, 10),
+                )
+                val recorded = server.takeRequest()
+                assertEquals("36.6500", recorded.requestUrl?.queryParameter("latitude"))
+                assertEquals("117.1200", recorded.requestUrl?.queryParameter("longitude"))
+            } finally {
+                java.util.Locale.setDefault(previous)
+            }
         }
 
     @Test

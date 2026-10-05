@@ -16,6 +16,11 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import java.util.Locale
+
+/** 同城 single-flight 键：坐标必须用 Locale.US，避免德/法环境下逗号小数把同一城拆成两次请求。 */
+internal fun forecastFlightKey(city: City): String =
+    String.format(Locale.US, "%.4f,%.4f|%s", city.latitude, city.longitude, city.timezone.orEmpty())
 
 /** 天气与空气质量：Open-Meteo forecast / air-quality，并生成预警/建议/生活指数。 */
 class ForecastFetcher(
@@ -117,7 +122,7 @@ class ForecastFetcher(
         }
 
     /** 按坐标合并；同一点不同 City.id（定位 vs 收藏）仍共享一次请求。 */
-    internal fun flightKey(city: City): String = "%.4f,%.4f|%s".format(city.latitude, city.longitude, city.timezone.orEmpty())
+    internal fun flightKey(city: City): String = forecastFlightKey(city)
 
     /**
      * 主预报失败时先按 [forecastBaseFallbacks] 换 base URL（同格式镜像），

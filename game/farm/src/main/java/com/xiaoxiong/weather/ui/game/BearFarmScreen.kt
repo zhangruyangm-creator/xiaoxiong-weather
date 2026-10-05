@@ -63,6 +63,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.xiaoxiong.weather.R
+import com.xiaoxiong.weather.game.LocalGameHourlyForecast
 import com.xiaoxiong.weather.ui.LocalReduceMotion
 import com.xiaoxiong.weather.ui.ReduceMotionAwareVisibility
 import kotlinx.coroutines.delay
@@ -85,6 +86,14 @@ fun BearFarmScreen(
     val farm = remember(appContext, saveScope) { BearFarm(appContext, saveScope).also { it.load() } }
     val weather = remember(sceneCode, isDay) { farmWeatherFromScene(sceneCode, isDay) }
     val fx = remember(weather) { farmWeatherEffect(weather) }
+    val hourlyScenes = LocalGameHourlyForecast.current
+    val forecast =
+        remember(hourlyScenes) {
+            hourlyScenes.map { slice ->
+                FarmWeatherSlice(slice.epochMs, farmWeatherFromScene(slice.sceneCode, slice.isDay))
+            }
+        }
+    LaunchedEffect(weather) { farm.ensureWeatherOrders(weather) }
     // 减弱动画：跳过农场雨雪/星空/萤火虫等动态氛围，只保留静态天空与田地
     val reduceMotion = LocalReduceMotion.current
     var phase by remember(isDay) { mutableStateOf(farmSkyPhase(isDay)) }
@@ -125,7 +134,7 @@ fun BearFarmScreen(
             weather == FarmWeather.RAINY ||
                 weather == FarmWeather.STORMY ||
                 weather == FarmWeather.SNOWY
-        farm.tick(System.currentTimeMillis(), weather)
+        farm.tick(System.currentTimeMillis(), weather, forecast)
         // 动画时钟与重绘节流同步推进：farm.time 只在 Canvas 绘制中被读取，
         // 这样晴/多云/雾时 Canvas 才真正按约 12fps 重绘，省电优化才生效
         animDt += dt
@@ -298,6 +307,8 @@ fun BearFarmScreen(
                 }
             }
 
+            FarmTodayAdvice(weather = weather, orders = farm.weatherOrders)
+
             farm.toast?.let { t ->
                 GamePanel(
                     style = GamePanelStyleDefaults,
@@ -409,7 +420,7 @@ fun BearFarmScreen(
             FarmToolBar(
                 selected = farm.selectedTool,
                 onSelect = { farm.selectedTool = it },
-                onCareAll = { farm.careAll() },
+                onCareAll = { farm.careAll(weather) },
             )
         }
 
@@ -533,5 +544,67 @@ private fun FarmSaveUnreadableBanner(onReset: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FarmTodayAdvice(
+    weather: FarmWeather,
+    orders: List<FarmWeatherOrder>,
+) {
+    val hint = farmWeatherHintText(weather)
+    if (hint == null && orders.isEmpty()) return
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp, bottom = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (hint != null) {
+            Text(
+                hint,
+                color = Color.White.copy(alpha = 0.92f),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        orders.forEach { order ->
+            val orderWeather = order.weatherEnum() ?: return@forEach
+            val category = order.categoryEnum() ?: return@forEach
+            Text(
+                stringResource(
+                    R.string.bear_farm_order_line,
+                    stringResource(farmWeatherNameRes(orderWeather)),
+                    stringResource(category.labelRes()),
+                    order.progress,
+                    order.target,
+                ),
+                color = Color(0xFFFFF59D).copy(alpha = 0.95f),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun farmWeatherHintText(weather: FarmWeather): String? {
+    val name = stringResource(farmWeatherNameRes(weather))
+    val cats = categoriesPreferring(weather)
+    return when {
+        cats.isNotEmpty() -> {
+            val labels = ArrayList<String>(cats.size)
+            for (cat in cats) {
+                labels += stringResource(cat.labelRes())
+            }
+            val joined = labels.joinToString(stringResource(R.string.bear_farm_hint_cat_join))
+            stringResource(R.string.bear_farm_hint_sell, name, joined)
+        }
+        weather == FarmWeather.STORMY -> stringResource(R.string.bear_farm_hint_storm)
+        weather == FarmWeather.SNOWY -> stringResource(R.string.bear_farm_hint_snow)
+        else -> null
     }
 }

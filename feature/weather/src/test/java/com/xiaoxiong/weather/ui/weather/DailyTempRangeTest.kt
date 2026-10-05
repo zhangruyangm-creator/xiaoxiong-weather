@@ -2,9 +2,11 @@ package com.xiaoxiong.weather.ui.weather
 
 import com.xiaoxiong.weather.data.DailyWeather
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class DailyTempRangeTest {
     @Test
@@ -30,6 +32,14 @@ class DailyTempRangeTest {
         assertEquals(0f, cold.start, 0.001f)
         assertTrue(cold.end < hot.start)
         assertEquals(1f, hot.end, 0.001f)
+    }
+
+    @Test
+    fun isDailyCalendarToday_matchesIsoDateNotListIndex() {
+        val today = LocalDate.of(2026, 9, 13)
+        assertTrue(isDailyCalendarToday("2026-09-13", today))
+        assertFalse(isDailyCalendarToday("2026-09-12", today))
+        assertFalse(isDailyCalendarToday("not-a-date", today))
     }
 
     @Test

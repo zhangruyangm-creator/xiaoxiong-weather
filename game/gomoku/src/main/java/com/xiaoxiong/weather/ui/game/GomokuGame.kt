@@ -13,13 +13,18 @@ internal class GomokuGame {
     var difficulty by mutableStateOf(GomokuDifficulty.NORMAL)
         private set
     var board by mutableStateOf(gomokuInitialBoard())
-        private set
+        internal set
     var turn by mutableIntStateOf(GOMOKU_BLACK)
-        private set
+        internal set
     var lastMove by mutableIntStateOf(-1)
         private set
     var outcome by mutableStateOf(GomokuOutcome.NONE)
         private set
+
+    val blackCount: Int
+        get() = board.count { it == GOMOKU_BLACK }
+    val whiteCount: Int
+        get() = board.count { it == GOMOKU_WHITE }
 
     fun start(difficulty: GomokuDifficulty) {
         this.difficulty = difficulty

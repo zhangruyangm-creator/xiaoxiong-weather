@@ -92,4 +92,10 @@ class WeatherCacheDailyFreshnessTest {
         val zone = ZoneId.of("UTC")
         assertEquals(LocalDate.now(zone), todayInSnapshotZone("Not/AZone", zone))
     }
+
+    @Test
+    fun todayInSnapshotZone_namedZone_matchesLocalDateNowInThatZone() {
+        val zone = ZoneId.of("Pacific/Honolulu")
+        assertEquals(LocalDate.now(zone), todayInSnapshotZone("Pacific/Honolulu"))
+    }
 }

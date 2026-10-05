@@ -225,4 +225,28 @@ class OpenMeteoHttpFallbackTest {
 
             assertEquals("""{"ok":true}""", body)
         }
+
+    @Test
+    fun readTimeout_throwsNetworkUnavailable() {
+        serverA.enqueue(
+            MockResponse()
+                .setBodyDelay(2, TimeUnit.SECONDS)
+                .setBody("""{"ok":true}"""),
+        )
+        val shortClient =
+            OkHttpClient
+                .Builder()
+                .connectTimeout(200, TimeUnit.MILLISECONDS)
+                .readTimeout(200, TimeUnit.MILLISECONDS)
+                .build()
+        val urlA = serverA.url("/v1/forecast").toString()
+
+        val error =
+            assertThrows(AppError.NetworkUnavailable::class.java) {
+                runBlocking {
+                    OpenMeteoHttp.execute(urlA, shortClient)
+                }
+            }
+        assertTrue(error.cause is IOException)
+    }
 }

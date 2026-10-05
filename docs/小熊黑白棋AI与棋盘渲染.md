@@ -25,7 +25,7 @@
 | `reversiLegalMoves(board, color)` | 单方向 `reversiLineFlips` 累计翻转数，>0 即成合法着，返回 `ReversiMove(index, flips)` |
 | `reversiFlipsIfMove(board, index, color)` | 试算某点可翻转的子数（带越界保护，越界/非空返回 0） |
 | `reversiApplyMove(board, index, color)` | 落子并 `reversiFlipLine` 逐方向翻子，返回翻转总数 |
-| `reversiAdvanceTurn(board, turn)` | 判定过手：对手有子可下→换手；仅己方有子→己方续下（`skipped=true`）；都无→终局 |
+| `reversiAdvanceTurn(board, turn)` | 判定过手（`reversiHasLegalMove`，不分配列表）：对手有子可下→换手；仅己方有子→己方续下（`skipped=true`）；都无→终局 |
 | `reversiIsGameOver(board)` | 双方均无合法着即终局（经 `reversiHasLegalMove` 判定，不分配列表） |
 | `reversiOutcome(board)` | 数子定胜负 |
 
@@ -50,7 +50,7 @@ score = (mine − theirs) * discWeight + mobility * 8 + corners + dangerPenalty
 
 > 为什么要 X/C 惩罚：占据空角旁边的格子，等于把角拱手让给对手。四角已被占据时对应邻格不再计罚。
 
-**评估升级是经自对弈验证的**：把「角 + X/C + 机动性×8 + 残局计数」与旧版「数子×2 + 机动性×5 + 角」在同深度下自对弈，新版**两种先后手都以 61–2 取胜**，因此采用。
+**评估升级是经自对弈验证的**：把「角 + X/C + 机动性×8 + 残局计数」与旧版「数子×2 + 机动性×5 + 角」在同深度下自对弈，新版**两种先后手都以 61–2 取胜**，因此采用。当前位置权 + 前沿子是在此之上的增量；空位 ≤12（大师/宗师 ≤16）时改走精确数子。
 
 ---
 
@@ -63,7 +63,7 @@ score = (mine − theirs) * discWeight + mobility * 8 + corners + dangerPenalty
   - `reversiApplyMoveLogged` 落子并把被翻格子压入复用的 `IntArray` 翻转栈（容量 `REVERSI_CELLS * 8`）；
   - `reversiUndoMove` 按栈把翻过的格子还原为对手色、清空落子点。
   - 因为 α-β 提前返回时也要能正确回退，撤销与落子严格配对。
-- **未加走法排序**：实测本评估 + α-β 的搜索树本就很小（深度 6 约 3.6k 节点），加排序收益不明显甚至因排序开销变慢，故不引入。
+- **未加走法排序**：已改为角/位置权排序，配合终局精确解。
 - **平手打破**：分数相同时优先角位（`reversiCornerBonus` 更大者）。
 
 ### 4.1 难度档位（`ReversiDifficulty`）
@@ -75,8 +75,8 @@ score = (mine − theirs) * discWeight + mobility * 8 + corners + dangerPenalty
 | 普通 | `normal` | 3 | 默认档（`fromId(null)`） |
 | 进阶 | `advanced` | 4 | |
 | 挑战 | `hard` | 5 | |
-| 大师 | `master` | 6 | |
-| 宗师 | `expert` | 7 | |
+| 大师 | `master` | 7 | 空位 ≤16 精确终局 |
+| 宗师 | `expert` | 8 | 空位 ≤16 精确终局 |
 
 兼容旧 id：`casual → BEGINNER`、`challenge → HARD`。
 
@@ -84,7 +84,7 @@ score = (mine − theirs) * discWeight + mobility * 8 + corners + dangerPenalty
 
 ## 5. 线程与对局装配（`BearReversiScreen.kt` / `ReversiGame.kt`）
 
-**搜索在后台线程执行**，避免深度 7 的主线程卡帧/ANR：
+**搜索在后台线程执行**，避免深度 8 的主线程卡帧/ANR：
 
 ```kotlin
 // LaunchedEffect 以 (turn, phase, board, pause.paused) 为 key
@@ -141,7 +141,7 @@ if (index != null) game.applyAiMove(index) else game.passTurnIfNoLegalMove()
 
 | 测试文件 | 关键用例 |
 |----------|----------|
-| `ReversiLogicTest` | 开局四子与黑方合法着；`applyMove_flipsOpponentLine`；`countAndHasLegalMove_matchListVersion`（无分配版与列表版等价）；难度映射（含旧 id）；`difficulty_searchDepth_increasesWithTier` 深度阶梯 `[0,2,3,4,5,6,7]` |
+| `ReversiLogicTest` | 开局四子与黑方合法着；`applyMove_flipsOpponentLine`；`countAndHasLegalMove_matchListVersion`（无分配版与列表版等价）；难度映射（含旧 id）；`difficulty_searchDepth_increasesWithTier` 深度阶梯 `[0,2,3,4,5,7,8]` |
 | `ReversiAiTest` | `search_takesAvailableCorner`（必取角）；`search_beatsGreedyBaseline`（强度回归）；`chooseAiMove_returnsNullWhenWhiteHasNoMoves`；`flipsIfMove_outOfRangeIndexIsNotLegal`（越界保护） |
 | `BearReversiEntryProviderTest` | ServiceLoader 入口反射可实例化 |
 
@@ -151,11 +151,10 @@ if (index != null) game.applyAiMove(index) else game.passTurnIfNoLegalMove()
 
 | 取舍 / 方向 | 现状与可改进点 |
 |-------------|----------------|
-| **无终局精确解** | 目前固定深度评估搜索；标准强引擎会在空位 ≤ ~10 时切换到**精确终局求解**（配合奇偶/稳定度），这是最大的强度提升点 |
-| **无置换表 / 迭代加深** | 未做 Zobrist 哈希置换表与时间预算控制；加上后可用「固定时间、自适应深度」替代「固定深度」 |
-| **评估仍偏简** | 仅角 + X/C + 机动性 + 残局子数；可补**稳定子 / 前沿子（frontier）/ 奇偶（parity）**与更细的边权 |
-| **无走法排序** | 实测当前深度下收益不明显；若上终局精确解/更深搜索，需配合走法排序 |
+| **终局精确解（已实现）** | 空位 ≤ 12 时改走数子胜负的完备搜索（α-β + 走法排序，节点预算 25 万，超限回退评估） |
+| **走法排序（已实现）** | 根与内部均按「角加成 + 位置权」降序展开，服务终局与更深 α-β |
+| **评估：位置权 + 前沿子** | 8×8 位置表 + 贴空格的前沿子差；X/C 送角惩罚仍在角空时生效 |
+| **无置换表 / 迭代加深** | 未做 Zobrist；加上后可用固定时间自适应深度 |
 | **无开局库** | 前几手可查表，避免开局走弱 |
-| **主线程** | 搜索已在 `Dispatchers.Default`；深度/耗时若继续增大，建议加时间上限保护 |
 
 *本文档配套代码见 `game/reversi/src/main/java/com/xiaoxiong/weather/ui/game/`，测试见同模块 `src/test/java/.../ui/game/`。*

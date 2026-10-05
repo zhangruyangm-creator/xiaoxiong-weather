@@ -362,6 +362,47 @@ data class FarmPlotState(
     var lastTickMs: Long = 0L,
 )
 
+/** 离线追赶用的小时天气切片（[epochMs] 为该小时起点）。 */
+data class FarmWeatherSlice(
+    val epochMs: Long,
+    val weather: FarmWeather,
+)
+
+/**
+ * [atMs] 时刻应使用的天气：取预报里最后一个起点 ≤ 该时刻的切片；
+ * 空预报回退 [current]；早于第一条则用第一条（最接近的已知过去）。
+ */
+fun farmWeatherAt(
+    atMs: Long,
+    current: FarmWeather,
+    forecast: List<FarmWeatherSlice>,
+): FarmWeather {
+    if (forecast.isEmpty()) return current
+    var found: FarmWeather? = null
+    for (slice in forecast) {
+        if (slice.epochMs <= atMs) {
+            found = slice.weather
+        } else {
+            break
+        }
+    }
+    return found ?: forecast.first().weather
+}
+
+/** 本季天气订单：在指定天气下收获指定类别。 */
+@Serializable
+data class FarmWeatherOrder(
+    val weather: String,
+    val category: String,
+    val target: Int,
+    val progress: Int = 0,
+    val rewardCoins: Int,
+) {
+    fun weatherEnum(): FarmWeather? = runCatching { FarmWeather.valueOf(weather) }.getOrNull()
+
+    fun categoryEnum(): CropCategory? = runCatching { CropCategory.valueOf(category) }.getOrNull()
+}
+
 @Serializable
 data class FarmSave(
     var coins: Int = 80,
@@ -380,6 +421,8 @@ data class FarmSave(
     var inventory: Map<String, Int> = emptyMap(),
     /** 本季已收获的作物种类；开启新一季后清空。 */
     var seasonCollected: Set<String> = emptySet(),
+    /** 本季天气订单。 */
+    var weatherOrders: List<FarmWeatherOrder> = emptyList(),
 )
 
 const val FARM_COLS = 5
@@ -394,8 +437,10 @@ internal val FARM_DEFAULT_UNLOCKED = listOf("radish", "cabbage", "wheat", "tomat
  *
  * 读档时必须拒绝比它大的版本：`ignoreUnknownKeys=true` 会静默丢掉未来版本新增的
  * 字段，随后本版再写回就变成**不可逆的数据删除**。
+ *
+ * 3 = 天气订单（schema 2 缺字段时解码为空列表）。
  */
-const val FARM_SAVE_SCHEMA_VERSION = 2
+const val FARM_SAVE_SCHEMA_VERSION = 3
 
 /**
  * 存档里允许的周目数上限。
@@ -441,7 +486,31 @@ internal fun FarmSave.sanitized(): FarmSave {
         // 夹成当前版本等于静默降级，未识别字段会在下一次写回时永久丢失。
         inventory = inventory.sanitizedCounts(knownCrops),
         seasonCollected = seasonCollected.filter { it in knownCrops }.toSet(),
+        weatherOrders = weatherOrders.sanitizedOrders(),
     )
+}
+
+internal const val FARM_ORDER_MAX = 2
+internal const val FARM_ORDER_TARGET_MIN = 3
+internal const val FARM_ORDER_TARGET_MAX = 8
+
+private fun List<FarmWeatherOrder>.sanitizedOrders(): List<FarmWeatherOrder> {
+    val seen = mutableSetOf<String>()
+    return mapNotNull { order ->
+        val weather = order.weatherEnum() ?: return@mapNotNull null
+        val category = order.categoryEnum() ?: return@mapNotNull null
+        if (category.preferredWeather() != weather) return@mapNotNull null
+        val key = "${weather.name}:${category.name}"
+        if (!seen.add(key)) return@mapNotNull null
+        val target = order.target.coerceIn(FARM_ORDER_TARGET_MIN, FARM_ORDER_TARGET_MAX)
+        FarmWeatherOrder(
+            weather = weather.name,
+            category = category.name,
+            target = target,
+            progress = order.progress.coerceIn(0, target),
+            rewardCoins = order.rewardCoins.coerceIn(5, 80),
+        )
+    }.take(FARM_ORDER_MAX)
 }
 
 /** 作物 id → 数量：剔除未知 id 与非正数量。 */

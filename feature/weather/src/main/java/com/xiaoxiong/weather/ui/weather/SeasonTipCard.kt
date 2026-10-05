@@ -27,8 +27,8 @@ import androidx.compose.ui.unit.dp
 import com.xiaoxiong.weather.R
 import com.xiaoxiong.weather.data.City
 import com.xiaoxiong.weather.data.SeasonTipGenerator
+import com.xiaoxiong.weather.data.todayInSnapshotZone
 import com.xiaoxiong.weather.ui.rememberTodayEpochDay
-import java.time.LocalDate
 
 @Composable
 internal fun SeasonTipsSection(
@@ -36,19 +36,30 @@ internal fun SeasonTipsSection(
     elevationMeters: Double? = null,
     phenologyShiftDays: Int? = null,
     phenologyShiftLoading: Boolean = false,
+    timezoneId: String? = city.timezone,
 ) {
-    val todayEpochDay = rememberTodayEpochDay().value
-    val todayIso = remember(todayEpochDay) { LocalDate.ofEpochDay(todayEpochDay).toString() }
+    val todayTick = rememberTodayEpochDay().value
+    val onDate =
+        remember(todayTick, timezoneId) {
+            todayInSnapshotZone(timezoneId)
+        }
     val display =
         remember(
             city.latitude,
             city.longitude,
             city.admin1,
-            todayIso,
+            onDate,
             elevationMeters,
             phenologyShiftDays,
         ) {
-            SeasonTipGenerator.displayForCity(city, todayIso, elevationMeters, phenologyShiftDays)
+            SeasonTipGenerator.displayFor(
+                latitude = city.latitude,
+                longitude = city.longitude,
+                onDate = onDate,
+                elevationMeters = elevationMeters,
+                admin1 = city.admin1,
+                phenologyShiftDays = phenologyShiftDays,
+            )
         }
     if (!display.hasContent && !phenologyShiftLoading) return
 

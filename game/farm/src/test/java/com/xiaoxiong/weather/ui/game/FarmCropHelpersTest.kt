@@ -60,4 +60,34 @@ class FarmCropHelpersTest {
         assertEquals(FarmWeather.SUNNY, requireNotNull(cropById("radish")).preferredWeather)
         assertTrue(requireNotNull(cropById("mushroom")).prefers(FarmWeather.FOGGY))
     }
+
+    @Test
+    fun farmWeatherAt_usesLastSliceNotLaterThanTime() {
+        val slices =
+            listOf(
+                FarmWeatherSlice(1_000L, FarmWeather.SUNNY),
+                FarmWeatherSlice(2_000L, FarmWeather.RAINY),
+            )
+        assertEquals(FarmWeather.SUNNY, farmWeatherAt(1_500L, FarmWeather.CLOUDY, slices))
+        assertEquals(FarmWeather.RAINY, farmWeatherAt(2_500L, FarmWeather.CLOUDY, slices))
+        assertEquals(FarmWeather.SUNNY, farmWeatherAt(500L, FarmWeather.CLOUDY, slices))
+        assertEquals(FarmWeather.FOGGY, farmWeatherAt(9L, FarmWeather.FOGGY, emptyList()))
+    }
+
+    @Test
+    fun sanitizedOrders_dropsUnknownAndCapsCount() {
+        val dirty =
+            FarmSave(
+                weatherOrders =
+                    listOf(
+                        FarmWeatherOrder("NOPE", "VEGETABLE", 3, rewardCoins = 10),
+                        FarmWeatherOrder(FarmWeather.SUNNY.name, "VEGETABLE", 99, progress = 50, rewardCoins = 9),
+                        FarmWeatherOrder(FarmWeather.RAINY.name, "GRAIN", 3, rewardCoins = 10),
+                        FarmWeatherOrder(FarmWeather.FOGGY.name, "MUSHROOM", 3, rewardCoins = 10),
+                    ),
+            ).sanitized()
+        assertEquals(2, dirty.weatherOrders.size)
+        assertEquals(FARM_ORDER_TARGET_MAX, dirty.weatherOrders.first().target)
+        assertEquals(FARM_ORDER_TARGET_MAX, dirty.weatherOrders.first().progress)
+    }
 }

@@ -6,11 +6,13 @@ import com.xiaoxiong.weather.data.HistoryWeather
 import com.xiaoxiong.weather.data.PhenologyCache
 import com.xiaoxiong.weather.data.WeatherFetcher
 import com.xiaoxiong.weather.data.isSamePlace
+import com.xiaoxiong.weather.data.todayInSnapshotZone
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.util.Locale
 
 /**
  * 历史天气（单日/区间）与物候偏移查询控制器。
@@ -28,6 +30,7 @@ class HistoryAndPhenologyController(
     private val phenologyCache: PhenologyCache,
     private val updateState: ((WeatherUiState) -> WeatherUiState) -> Unit,
     private val currentCity: () -> City?,
+    private val todayOf: (timezoneId: String?) -> LocalDate = { todayInSnapshotZone(it) },
 ) {
     private var phenologyJob: Job? = null
     private var phenologyCity: City? = null
@@ -76,7 +79,7 @@ class HistoryAndPhenologyController(
                 if (stillOnCity(city)) {
                     updateState { it.copy(phenologyShiftLoading = true) }
                 }
-                val today = LocalDate.now()
+                val today = todayOf(city.timezone)
                 val cached = phenologyCache.get(city, today.year)
                 val shift =
                     if (cached != null) {
@@ -120,7 +123,7 @@ class HistoryAndPhenologyController(
             return
         }
         pendingHistoryDay = null
-        val cacheKey = "%.4f,%.4f|%s".format(city.latitude, city.longitude, date)
+        val cacheKey = historyDayCacheKey(city, date)
         historyCache[cacheKey]?.let { cached ->
             // 缓存命中即作废在途请求，避免旧请求晚到覆盖当前选择
             historyJob?.cancel()
@@ -203,8 +206,7 @@ class HistoryAndPhenologyController(
             return
         }
         pendingHistoryRange = null
-        val cacheKey =
-            "%.4f,%.4f|%s|%s".format(city.latitude, city.longitude, start, end)
+        val cacheKey = historyRangeCacheKey(city, start, end)
         historyRangeCache[cacheKey]?.let { cached ->
             // 缓存命中即作废在途请求，避免旧请求晚到覆盖当前选择
             historyRangeJob?.cancel()
@@ -286,3 +288,14 @@ class HistoryAndPhenologyController(
 
     private fun stillOnCity(city: City): Boolean = currentCity()?.isSamePlace(city) == true
 }
+
+internal fun historyDayCacheKey(
+    city: City,
+    date: LocalDate,
+): String = String.format(Locale.US, "%.4f,%.4f|%s", city.latitude, city.longitude, date)
+
+internal fun historyRangeCacheKey(
+    city: City,
+    start: LocalDate,
+    end: LocalDate,
+): String = String.format(Locale.US, "%.4f,%.4f|%s|%s", city.latitude, city.longitude, start, end)

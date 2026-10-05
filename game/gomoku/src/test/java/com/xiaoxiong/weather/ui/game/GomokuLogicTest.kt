@@ -85,11 +85,14 @@ class GomokuLogicTest {
             )
         assertTrue(tiers.zipWithNext().all { (a, b) -> a.searchDepth <= b.searchDepth })
         assertTrue(tiers.zipWithNext().all { (a, b) -> a.topMoves <= b.topMoves })
+        assertTrue(GomokuDifficulty.MASTER.searchDepth > GomokuDifficulty.HARD.searchDepth)
+        assertTrue(GomokuDifficulty.MASTER.searchRadius >= 3)
+        assertTrue(GomokuDifficulty.EXPERT.topMoves > GomokuDifficulty.MASTER.topMoves)
     }
 
     @Test
     fun search_beatsGreedyBaseline() {
-        // 确定性强度回归（类似 pool 的 perfect-bot）：白=EXPERT(深度4)、黑=贪心 1 层。
+        // 确定性强度回归：白=EXPERT(深度5)、黑=贪心 1 层。
         // 根节点符号 / 评估 / 深度任一出错都可能让白在此局落败——用于锁死回归。
         val outcome =
             playGomoku(
@@ -155,6 +158,31 @@ class GomokuLogicTest {
         board[gomokuIndex(7, 7)] = GOMOKU_WHITE
         board[gomokuIndex(7, 8)] = GOMOKU_BLACK
         assertEquals(null, gomokuVctForcedWin(board, GOMOKU_WHITE))
+    }
+
+    @Test
+    fun moveHeuristic_rewardsForkOverSingleOpenThree() {
+        val board = gomokuInitialBoard()
+        for ((r, c) in listOf(7 to 5, 7 to 6, 5 to 7, 6 to 7)) {
+            board[gomokuIndex(r, c)] = GOMOKU_WHITE
+        }
+        val fork = gomokuIndex(7, 7)
+        val side = gomokuIndex(7, 4)
+        assertTrue(gomokuMoveHeuristic(board, fork, GOMOKU_WHITE) > gomokuMoveHeuristic(board, side, GOMOKU_WHITE))
+    }
+
+    @Test
+    fun expert_blocksOpponentDoubleThreeFork() {
+        val board = gomokuInitialBoard()
+        for ((r, c) in listOf(7 to 5, 7 to 6, 5 to 7, 6 to 7)) {
+            board[gomokuIndex(r, c)] = GOMOKU_BLACK
+        }
+        board[gomokuIndex(0, 0)] = GOMOKU_WHITE
+        val fork = gomokuVctForcedWin(board, GOMOKU_BLACK)
+        assertTrue("黑方应有双三叉杀点", fork != null)
+        val move = gomokuChooseAiMove(board, GomokuDifficulty.EXPERT)
+        board[move!!] = GOMOKU_WHITE
+        assertEquals("白应堵住叉杀，堵后黑不应再有 VCT", null, gomokuVctForcedWin(board, GOMOKU_BLACK))
     }
 
     private fun playGomoku(

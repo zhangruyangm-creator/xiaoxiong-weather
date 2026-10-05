@@ -69,6 +69,16 @@ class WeatherSceneTest {
         assertEquals(clearNight.gradient, mainlyNight.gradient)
         assertNotEquals(mainlyDay.gradient, weatherSceneStyle(0, isDay = true).gradient)
         assertNotEquals(mainlyDay.gradient, weatherSceneStyle(2, isDay = true).gradient)
+        // 白天少云用浅蓝，晴朗仍是更深的蓝
+        assertEquals(
+            listOf(Color(0xFF6EB2DF), Color(0xFF6495CE), Color(0xFF7FC7E9)),
+            mainlyDay.gradient,
+        )
+        assertTrue(
+            mainlyDay.gradient.maxOf { it.luminance() } >
+                weatherSceneStyle(0, isDay = true).gradient.maxOf { it.luminance() },
+        )
+        assertEquals(0.42f, mainlyDay.scrimAlpha, 0.001f)
     }
 
     @Test

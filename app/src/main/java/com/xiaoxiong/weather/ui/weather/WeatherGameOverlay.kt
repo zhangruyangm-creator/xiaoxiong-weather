@@ -2,6 +2,7 @@ package com.xiaoxiong.weather.ui.weather
 
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,6 +14,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
 import com.xiaoxiong.weather.game.GameEntry
+import com.xiaoxiong.weather.game.GameHourlyScene
+import com.xiaoxiong.weather.game.LocalGameHourlyForecast
 import com.xiaoxiong.weather.game.matchesGamePassword
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -44,6 +47,7 @@ fun BearGameOverlay(
     onOpenBearAlbum: () -> Unit = {},
     bearHomeResumeRoom: String? = null,
     onBearHomeResumeRoomConsumed: () -> Unit = {},
+    hourlyScenes: List<GameHourlyScene> = emptyList(),
 ) {
     val focusManager = LocalFocusManager.current
     // 口令注册表直接来自装配方（ServiceLoader），无需过滤
@@ -112,21 +116,23 @@ fun BearGameOverlay(
             enabledEntries.filter { it.password != activePassword }
         }
     key(activePassword) {
-        entry.Content(
-            sceneCode = sceneCode,
-            isDay = isDay,
-            cityName = cityName,
-            onExit = {
-                activePassword = null
-                exitToHome()
-            },
-            onOpenGame = { password ->
-                enabledEntries.firstOrNull { it.password == password }?.let(launchGame)
-            },
-            onOpenBearAlbum = onOpenBearAlbum,
-            bearHomeResumeRoom = bearHomeResumeRoom,
-            onBearHomeResumeRoomConsumed = onBearHomeResumeRoomConsumed,
-            otherGames = otherGames,
-        )
+        CompositionLocalProvider(LocalGameHourlyForecast provides hourlyScenes) {
+            entry.Content(
+                sceneCode = sceneCode,
+                isDay = isDay,
+                cityName = cityName,
+                onExit = {
+                    activePassword = null
+                    exitToHome()
+                },
+                onOpenGame = { password ->
+                    enabledEntries.firstOrNull { it.password == password }?.let(launchGame)
+                },
+                onOpenBearAlbum = onOpenBearAlbum,
+                bearHomeResumeRoom = bearHomeResumeRoom,
+                onBearHomeResumeRoomConsumed = onBearHomeResumeRoomConsumed,
+                otherGames = otherGames,
+            )
+        }
     }
 }

@@ -16,7 +16,7 @@ class PerformanceInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val startMs = SystemClock.elapsedRealtime()
         val request = chain.request()
-        val pathLabel = extractPathLabel(request.url.encodedPath)
+        val pathLabel = performancePathLabel(request.url.encodedPath)
 
         val response =
             try {
@@ -31,23 +31,20 @@ class PerformanceInterceptor : Interceptor {
         PerformanceMonitor.recordNetwork(pathLabel, duration, success = response.isSuccessful)
         return response
     }
-
-    /**
-     * 从路径中提取标签，例如：
-     * - "/v1/forecast?..." → "forecast"
-     * - "/v1/air-quality?..." → "air-quality"
-     * - "/v1/search?..." → "search"
-     */
-    private fun extractPathLabel(encodedPath: String): String {
-        val segments = encodedPath.split('/').filter { it.isNotEmpty() }
-        // 取第一个有意义的路径段（跳过 "v1" 版本号与 "api"）：否则雷达瓦片末段
-        // （如 24.png）会各自成为标签，令 PerformanceMonitor 的指标键无限增长
-        return segments.firstOrNull { !VERSION_SEGMENT.matches(it) && it != "api" }
-            ?: segments.firstOrNull()
-            ?: "unknown"
-    }
-
-    private companion object {
-        val VERSION_SEGMENT = Regex("^v\\d+$")
-    }
 }
+
+/**
+ * 从路径中提取性能指标标签。
+ *
+ * 取**第一个**有意义的路径段（跳过 `v1` 版本号与 `api`）：
+ * `/v1/forecast` → `forecast`；`/radar/20241005/24.png` → `radar`。
+ * 若取末段，雷达瓦片会各自变成 `24.png` 这类无限增长的键。
+ */
+internal fun performancePathLabel(encodedPath: String): String {
+    val segments = encodedPath.split('/').filter { it.isNotEmpty() }
+    return segments.firstOrNull { !PERFORMANCE_VERSION_SEGMENT.matches(it) && it != "api" }
+        ?: segments.firstOrNull()
+        ?: "unknown"
+}
+
+private val PERFORMANCE_VERSION_SEGMENT = Regex("^v\\d+$")

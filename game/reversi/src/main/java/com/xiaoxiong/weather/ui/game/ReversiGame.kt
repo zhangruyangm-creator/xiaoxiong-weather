@@ -13,9 +13,9 @@ internal class ReversiGame {
     var difficulty by mutableStateOf(ReversiDifficulty.NORMAL)
         private set
     var board by mutableStateOf(reversiInitialBoard())
-        private set
+        internal set
     var turn by mutableIntStateOf(REVERSI_BLACK)
-        private set
+        internal set
     var lastMove by mutableIntStateOf(-1)
         private set
     var outcome by mutableStateOf(ReversiOutcome.NONE)
@@ -72,7 +72,7 @@ internal class ReversiGame {
     /** 当前方无子可下时过手；返回 true 表示局面有变化（含终局）。 */
     fun passTurnIfNoLegalMove(): Boolean {
         if (phase != ReversiPhase.PLAYING) return false
-        if (reversiLegalMoves(board, turn).isNotEmpty()) {
+        if (reversiHasLegalMove(board, turn)) {
             passNotice = false
             return false
         }
@@ -80,9 +80,10 @@ internal class ReversiGame {
             finish()
             return true
         }
-        val (nextTurn, skipped) = reversiAdvanceTurn(board, turn)
+        val (nextTurn, _) = reversiAdvanceTurn(board, turn)
         turn = nextTurn
-        passNotice = skipped
+        // 当前方无子可下而对手有：这就是过手，必须提示（skipped 表示的是「对手被跳过、己方续走」）
+        passNotice = true
         if (reversiIsGameOver(board)) {
             finish()
         }
@@ -111,6 +112,13 @@ internal class ReversiGame {
 
 internal fun reversiDifficultyFromPrefs(prefs: SharedPreferences): ReversiDifficulty =
     ReversiDifficulty.fromId(prefs.stringOr(REVERSI_PREF_DIFF))
+
+internal fun reversiOutcomeCue(outcome: ReversiOutcome): GameCue =
+    when (outcome) {
+        ReversiOutcome.BLACK_WIN -> GameCue.WIN
+        ReversiOutcome.WHITE_WIN -> GameCue.LOSE
+        ReversiOutcome.TIE, ReversiOutcome.NONE -> GameCue.STAR
+    }
 
 internal fun reversiPlayerScore(
     outcome: ReversiOutcome,

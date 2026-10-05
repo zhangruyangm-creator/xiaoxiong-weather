@@ -26,6 +26,7 @@ class FarmSaveTest {
         assertEquals(1, s.schemaVersion)
         assertTrue(s.inventory.isEmpty())
         assertTrue("旧存档无本季收集字段应默认空集", s.seasonCollected.isEmpty())
+        assertTrue(s.weatherOrders.isEmpty())
     }
 
     @Test

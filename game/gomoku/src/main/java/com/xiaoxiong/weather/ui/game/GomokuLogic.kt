@@ -1,5 +1,7 @@
 package com.xiaoxiong.weather.ui.game
 
+import kotlin.math.abs
+
 internal const val GOMOKU_SIZE = 15
 internal const val GOMOKU_CELLS = GOMOKU_SIZE * GOMOKU_SIZE
 
@@ -24,13 +26,12 @@ private val GOMOKU_DIRS =
     )
 
 // ── AI 搜索预算：顶档 VCF / VCT / 防守的深度、节点与候选上限 ──
-private const val GOMOKU_VCF_MAX_DEPTH = 10
-private const val GOMOKU_VCF_MAX_NODES = 3_000
-private const val GOMOKU_VCF_MAX_MOVES = 12
+private const val GOMOKU_VCF_MAX_DEPTH = 12
+private const val GOMOKU_VCF_MAX_NODES = 6_000
+private const val GOMOKU_VCF_MAX_MOVES = 16
 private const val GOMOKU_VCT_AXIS_RADIUS = 8
-private const val GOMOKU_VCT_MAX_MOVES = 6
-private const val GOMOKU_DEFENSE_VCF_NODES = 1_500
-private const val GOMOKU_DEFENSE_CHECK_LIMIT = 4
+private const val GOMOKU_VCT_MAX_MOVES = 8
+private const val GOMOKU_DEFENSE_VCF_NODES = 2_500
 
 internal enum class GomokuPhase {
     READY,
@@ -45,17 +46,16 @@ internal enum class GomokuDifficulty(
     val randomWeak: Boolean = false,
     /** 顶档启用连续冲四（VCF）强制取胜搜索。 */
     val usesVcf: Boolean = false,
+    /** 搜索候选邻域半径（切比雪夫）；顶档扩到 3 以免漏掉隔一路的叉杀。 */
+    val searchRadius: Int = 2,
 ) {
     BEGINNER("beginner", 0, 24, randomWeak = true),
     EASY("easy", 1, 8),
     NORMAL("normal", 2, 10),
     ADVANCED("advanced", 2, 14),
     HARD("hard", 3, 10),
-
-    // 顶两档加深到 4 层并启用 VCF：实测对旧 3 层档在两种先后手下全胜（自对弈验证）。
-    // 低档位（BEGINNER/EASY/NORMAL/ADVANCED/HARD）保持不变，确保简单难度仍轻松可胜。
-    MASTER("master", 4, 10, usesVcf = true),
-    EXPERT("expert", 4, 12, usesVcf = true),
+    MASTER("master", 5, 12, usesVcf = true, searchRadius = 3),
+    EXPERT("expert", 5, 16, usesVcf = true, searchRadius = 3),
     ;
 
     companion object {
@@ -92,23 +92,30 @@ internal fun gomokuCountStones(board: IntArray): Int = board.count { it != GOMOK
 
 internal fun gomokuIsFull(board: IntArray): Boolean = gomokuCountStones(board) >= GOMOKU_CELLS
 
-internal fun gomokuCandidateMoves(board: IntArray): List<Int> {
+internal fun gomokuCandidateMoves(
+    board: IntArray,
+    radius: Int = 2,
+): List<Int> {
     if (gomokuCountStones(board) == 0) {
         val m = GOMOKU_SIZE / 2
         return listOf(gomokuIndex(m, m))
     }
-    val out = LinkedHashSet<Int>()
+    val r0 = radius.coerceAtLeast(1)
+    val seen = BooleanArray(GOMOKU_CELLS)
+    val out = ArrayList<Int>(64)
     for (i in 0 until GOMOKU_CELLS) {
         if (board[i] == GOMOKU_EMPTY) continue
         val r = gomokuRow(i)
         val c = gomokuCol(i)
-        for (dr in -2..2) {
-            for (dc in -2..2) {
+        for (dr in -r0..r0) {
+            for (dc in -r0..r0) {
                 val nr = r + dr
                 val nc = c + dc
                 if (!gomokuInBounds(nr, nc)) continue
                 val idx = gomokuIndex(nr, nc)
-                if (board[idx] == GOMOKU_EMPTY) out.add(idx)
+                if (board[idx] != GOMOKU_EMPTY || seen[idx]) continue
+                seen[idx] = true
+                out.add(idx)
             }
         }
     }
@@ -117,7 +124,7 @@ internal fun gomokuCandidateMoves(board: IntArray): List<Int> {
             if (board[i] == GOMOKU_EMPTY) out.add(i)
         }
     }
-    return out.toList()
+    return out
 }
 
 /** 全盘扫描一步成五（含候选集外的杀棋/必防点）。 */
@@ -254,6 +261,11 @@ internal fun gomokuMoveHeuristic(
     val row = gomokuRow(index)
     val col = gomokuCol(index)
     var score = 0
+    // 越靠中心越好：15×15 中心(7,7) 约 +14，边角接近 0
+    score += (GOMOKU_SIZE - 1 - abs(row - GOMOKU_SIZE / 2) - abs(col - GOMOKU_SIZE / 2))
+    if (gomokuFiveThreatsThrough(board, index, color, 2) >= 2) {
+        score += 80_000
+    }
     for (d in GOMOKU_DIRS.indices step 2) {
         val dr = GOMOKU_DIRS[d]
         val dc = GOMOKU_DIRS[d + 1]
@@ -266,6 +278,9 @@ internal fun gomokuMoveHeuristic(
     if (gomokuWinAt(board, index, opp)) {
         score += 400_000
     } else {
+        if (gomokuFiveThreatsThrough(board, index, opp, 2) >= 2) {
+            score += 70_000
+        }
         for (d in GOMOKU_DIRS.indices step 2) {
             val dr = GOMOKU_DIRS[d]
             val dc = GOMOKU_DIRS[d + 1]
@@ -280,9 +295,10 @@ internal fun gomokuMoveHeuristic(
 internal fun gomokuEvaluateBoard(
     board: IntArray,
     forColor: Int,
+    radius: Int = 2,
 ): Int {
     var sum = 0
-    for (idx in gomokuCandidateMoves(board)) {
+    for (idx in gomokuCandidateMoves(board, radius)) {
         sum += gomokuMoveHeuristic(board, idx, forColor)
         sum -= gomokuMoveHeuristic(board, idx, gomokuOpponent(forColor)) * 95 / 100
     }
@@ -293,8 +309,9 @@ internal fun gomokuRankedMoves(
     board: IntArray,
     color: Int,
     top: Int,
+    radius: Int = 2,
 ): List<Int> {
-    val moves = gomokuCandidateMoves(board)
+    val moves = gomokuCandidateMoves(board, radius)
     if (moves.isEmpty()) return emptyList()
     return moves
         .map { it to gomokuMoveHeuristic(board, it, color) }
@@ -396,7 +413,11 @@ private fun gomokuVcfSearch(
             return move
         }
         if (wins == 1) {
-            val block = gomokuFindImmediateWin(board, attacker)!!
+            val block = gomokuFindImmediateWin(board, attacker)
+            if (block == null) {
+                board[move] = GOMOKU_EMPTY
+                continue
+            }
             board[block] = opp
             val sub = gomokuVcfSearch(board, attacker, depth - 1, budget)
             board[block] = GOMOKU_EMPTY
@@ -547,14 +568,18 @@ internal fun gomokuVctForcedWin(
     return null
 }
 
-/** 白方在 [move] 落子后，黑方（随后行棋）是否获得 VCF 强杀。 */
-private fun gomokuOpponentHasVcfAfterWhite(
+/** 白方在 [move] 落子后，黑方是否获得 VCF / VCT 强杀。 */
+private fun gomokuOpponentHasForcedWinAfterWhite(
     board: IntArray,
     move: Int,
 ): Boolean {
     val copy = board.copyOf()
     copy[move] = GOMOKU_WHITE
-    return gomokuVcfSearch(copy, GOMOKU_BLACK, GOMOKU_VCF_MAX_DEPTH, intArrayOf(GOMOKU_DEFENSE_VCF_NODES)) != null
+    if (gomokuFindImmediateWin(copy, GOMOKU_BLACK) != null) return true
+    if (gomokuVcfSearch(copy, GOMOKU_BLACK, GOMOKU_VCF_MAX_DEPTH, intArrayOf(GOMOKU_DEFENSE_VCF_NODES)) != null) {
+        return true
+    }
+    return gomokuVctForcedWin(copy, GOMOKU_BLACK) != null
 }
 
 internal fun gomokuChooseAiMove(
@@ -568,27 +593,24 @@ internal fun gomokuChooseAiMove(
         gomokuVcfWin(board, GOMOKU_WHITE)?.let { return it }
         gomokuVctForcedWin(board, GOMOKU_WHITE)?.let { return it }
     }
-    val moves = gomokuCandidateMoves(board)
+    val radius = difficulty.searchRadius
+    val moves = gomokuCandidateMoves(board, radius)
     if (moves.isEmpty()) return null
     if (difficulty.randomWeak) {
-        val ranked = gomokuRankedMoves(board, GOMOKU_WHITE, difficulty.topMoves)
+        val ranked = gomokuRankedMoves(board, GOMOKU_WHITE, difficulty.topMoves, radius)
         val weak = ranked.takeLast((ranked.size / 2).coerceAtLeast(1))
         // 用棋盘内容的确定性哈希从"较弱的一半"里取一个点：既有变化又可复现（便于测试/回放）
         return weak[Math.floorMod(board.contentHashCode(), weak.size)]
     }
     if (difficulty.searchDepth <= 0) {
-        return gomokuRankedMoves(board, GOMOKU_WHITE, 1).firstOrNull()
+        return gomokuRankedMoves(board, GOMOKU_WHITE, 1, radius).firstOrNull()
     }
-    val ranked = gomokuRankedMoves(board, GOMOKU_WHITE, difficulty.topMoves)
-    // 顶档防守：仅剔除"落子后让黑方获得 VCF 强杀"的候选，不缩减候选规模（避免削弱棋力）
+    val ranked = gomokuRankedMoves(board, GOMOKU_WHITE, difficulty.topMoves, radius)
+    // 顶档防守：剔除落子后让黑方获得 VCF/VCT 强杀的候选；全部候选都检查
     val candidates =
         if (difficulty.usesVcf && ranked.size > 1) {
-            val unsafe =
-                ranked
-                    .take(GOMOKU_DEFENSE_CHECK_LIMIT)
-                    .filter { gomokuOpponentHasVcfAfterWhite(board, it) }
-                    .toSet()
-            ranked.filterNot { it in unsafe }.ifEmpty { ranked }
+            val safe = ranked.filterNot { gomokuOpponentHasForcedWinAfterWhite(board, it) }
+            safe.ifEmpty { ranked }
         } else {
             ranked
         }
@@ -610,6 +632,7 @@ internal fun gomokuChooseAiMove(
                 Int.MIN_VALUE / 4,
                 Int.MAX_VALUE / 4,
                 difficulty.topMoves,
+                radius,
             )
         work[move] = GOMOKU_EMPTY
         if (score > bestScore) {
@@ -627,13 +650,14 @@ private fun gomokuMinimax(
     alpha: Int,
     beta: Int,
     topMoves: Int,
+    radius: Int,
 ): Int {
     if (depth <= 0) {
-        return gomokuEvaluateBoard(board, GOMOKU_WHITE)
+        return gomokuEvaluateBoard(board, GOMOKU_WHITE, radius)
     }
-    val moves = gomokuRankedMoves(board, turn, topMoves)
+    val moves = gomokuRankedMoves(board, turn, topMoves, radius)
     if (moves.isEmpty()) {
-        return gomokuEvaluateBoard(board, GOMOKU_WHITE)
+        return gomokuEvaluateBoard(board, GOMOKU_WHITE, radius)
     }
     var a = alpha
     var b = beta
@@ -645,7 +669,7 @@ private fun gomokuMinimax(
                 board[move] = GOMOKU_EMPTY
                 return 500_000
             }
-            val score = gomokuMinimax(board, depth - 1, GOMOKU_BLACK, a, b, topMoves)
+            val score = gomokuMinimax(board, depth - 1, GOMOKU_BLACK, a, b, topMoves, radius)
             board[move] = GOMOKU_EMPTY
             best = maxOf(best, score)
             a = maxOf(a, score)
@@ -660,7 +684,7 @@ private fun gomokuMinimax(
             board[move] = GOMOKU_EMPTY
             return -500_000
         }
-        val score = gomokuMinimax(board, depth - 1, GOMOKU_WHITE, a, b, topMoves)
+        val score = gomokuMinimax(board, depth - 1, GOMOKU_WHITE, a, b, topMoves, radius)
         board[move] = GOMOKU_EMPTY
         best = minOf(best, score)
         b = minOf(b, score)

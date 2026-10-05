@@ -110,7 +110,7 @@ fun BearReversiScreen(
             frame++
             if (game.phase == ReversiPhase.OVER && !resultSubmitted) {
                 submitIfNeeded()
-                GameAudio.play(if (game.outcome == ReversiOutcome.BLACK_WIN) GameCue.WIN else GameCue.LOSE)
+                GameAudio.play(reversiOutcomeCue(game.outcome))
                 return@LaunchedEffect
             }
         }
@@ -129,7 +129,7 @@ fun BearReversiScreen(
             if (index != null) game.applyAiMove(index) else game.passTurnIfNoLegalMove()
             if (game.phase == ReversiPhase.OVER && !resultSubmitted) {
                 submitIfNeeded()
-                GameAudio.play(if (game.outcome == ReversiOutcome.BLACK_WIN) GameCue.WIN else GameCue.LOSE)
+                GameAudio.play(reversiOutcomeCue(game.outcome))
             } else {
                 GameAudio.play(GameCue.KEY)
             }
@@ -212,26 +212,24 @@ fun BearReversiScreen(
                         .weight(1f)
                         .fillMaxWidth()
                         .semantics { contentDescription = boardCd }
-                        .pointerInput(game.phase, game.turn, game.board) {
-                            if (game.phase != ReversiPhase.PLAYING || game.turn != REVERSI_BLACK) return@pointerInput
+                        .pointerInput(game.phase, game.turn, game.board, pause.paused) {
+                            if (pause.paused || game.phase != ReversiPhase.PLAYING || game.turn != REVERSI_BLACK) {
+                                return@pointerInput
+                            }
                             detectTapGestures { offset ->
                                 val layout = reversiBoardLayout(size.width.toFloat(), size.height.toFloat())
-                                val col =
-                                    ((offset.x - layout.left) / layout.cell).toInt().coerceIn(0, REVERSI_SIZE - 1)
-                                val row =
-                                    ((offset.y - layout.top) / layout.cell).toInt().coerceIn(0, REVERSI_SIZE - 1)
-                                val index = reversiIndex(row, col)
+                                val index = reversiHitIndex(layout, offset.x, offset.y) ?: return@detectTapGestures
                                 if (game.playHumanMove(index)) {
                                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                     if (game.phase == ReversiPhase.OVER && !resultSubmitted) {
                                         submitIfNeeded()
-                                        GameAudio.play(
-                                            if (game.outcome == ReversiOutcome.BLACK_WIN) GameCue.WIN else GameCue.LOSE,
-                                        )
+                                        GameAudio.play(reversiOutcomeCue(game.outcome))
                                     } else {
                                         GameAudio.play(GameCue.KEY)
                                     }
                                     frame++
+                                } else {
+                                    view.performHapticFeedback(HapticFeedbackConstants.REJECT)
                                 }
                             }
                         },

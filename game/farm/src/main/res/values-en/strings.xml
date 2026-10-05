@@ -130,5 +130,11 @@
     <string name="farm_a11y_separator">, </string>
     <string name="bear_farm_save_unreadable">Your save could not be read, so autosave is paused to avoid overwriting it. The original data is still on this device.</string>
     <string name="bear_farm_save_reset">Erase save and start over</string>
+    <string name="bear_farm_hint_cat_join">, </string>
+    <string name="bear_farm_hint_sell">%1$s today · %2$s sell for more</string>
+    <string name="bear_farm_hint_storm">Stormy today · more pests, debug first</string>
+    <string name="bear_farm_hint_snow">Snow today · crops grow slowly</string>
+    <string name="bear_farm_order_line">Order: %1$s · %2$s %3$d/%4$d</string>
+    <string name="bear_farm_order_done">Weather order done, +%1$d coins</string>
     <string name="cd_close_game">Exit game</string>
 </resources>

@@ -4,6 +4,7 @@
     <string name="cd_gomoku_board">小熊五子棋棋盘</string>
     <string name="gomoku_hint">15×15 棋盘，你执黑先手，先连成五子即胜。绿色圆点为推荐落点，任意空点均可落子。</string>
     <string name="gomoku_start">开始对弈</string>
+    <string name="gomoku_score">黑 %1$d · 白 %2$d</string>
     <string name="gomoku_turn_black">轮到你（黑）</string>
     <string name="gomoku_turn_white">小熊思考中…</string>
     <string name="gomoku_over_win">你赢了</string>

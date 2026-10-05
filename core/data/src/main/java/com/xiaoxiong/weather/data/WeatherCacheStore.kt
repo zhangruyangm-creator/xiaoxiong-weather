@@ -275,7 +275,7 @@ internal fun trimSnapshotForCache(snapshot: WeatherSnapshot): WeatherSnapshot {
  * 快照所属时区的「今天」：timezone 缺失或非法时回退 [fallbackZone]（默认系统时区）。
  * 纯逻辑，便于单测跨天/回退边界。
  */
-internal fun todayInSnapshotZone(
+fun todayInSnapshotZone(
     timezoneId: String?,
     fallbackZone: ZoneId = ZoneId.systemDefault(),
 ): LocalDate {

@@ -7,7 +7,7 @@ import com.xiaoxiong.weather.R
  * 农场插画资源：土壤 / 生长阶段 / 杂草虫灾覆盖物 / 成熟作物。
  *
  * - 种子 / 枯萎：全作物共用
- * - 发芽 / 成长：按作物分类 + 2–3 种生长子形态；蔬菜再细分为根菜 / 藤蔓果菜 / 叶菜
+ * - 发芽 / 成长：按作物分类 + 生长子形态；花卉含单茎 / 灌木 / 花坛 / 花枝 / 藤本，水果含乔木 / 核果 / 柑橘 / 成串 / 热带 / 藤本 / 灌木
  * - 成熟：按作物 id 一对一映射，缺失时按分类兜底
  */
 internal object FarmCropArt {
@@ -43,11 +43,11 @@ internal object FarmCropArt {
     /** 蔬菜生长形态：根菜 / 藤蔓果菜 / 叶菜。 */
     private enum class VegMorph { ROOT, VINE, LEAFY }
 
-    /** 花卉：单茎 / 灌木 / 藤本。 */
-    private enum class FlowerMorph { STEM, SHRUB, VINE }
+    /** 花卉：单茎 / 灌木 / 低矮花坛 / 木本花枝 / 藤本。 */
+    private enum class FlowerMorph { STEM, SHRUB, BEDDING, BRANCH, VINE }
 
-    /** 水果：乔木 / 藤本 / 灌木（含地被浆果）。 */
-    private enum class FruitMorph { TREE, VINE, BUSH }
+    /** 水果：仁果乔木 / 核果 / 柑橘 / 成串 / 热带 / 藤本 / 灌木（含地被浆果）。 */
+    private enum class FruitMorph { TREE, STONE, CITRUS, CLUSTER, TROPICAL, VINE, BUSH }
 
     /** 谷物：麦类穗 / 散穗 / 高秆（玉米）。 */
     private enum class GrainMorph { SPIKE, PANICLE, STALK }
@@ -69,6 +69,8 @@ internal object FarmCropArt {
                 when (flowerMorph(crop?.id)) {
                     FlowerMorph.STEM -> R.drawable.farm_stage_sprout_flower
                     FlowerMorph.SHRUB -> R.drawable.farm_stage_sprout_flower_shrub
+                    FlowerMorph.BEDDING -> R.drawable.farm_stage_sprout_flower_bedding
+                    FlowerMorph.BRANCH -> R.drawable.farm_stage_sprout_flower_branch
                     FlowerMorph.VINE -> R.drawable.farm_stage_sprout_flower_vine
                 }
             CropCategory.GRAIN ->
@@ -80,6 +82,10 @@ internal object FarmCropArt {
             CropCategory.FRUIT ->
                 when (fruitMorph(crop?.id)) {
                     FruitMorph.TREE -> R.drawable.farm_stage_sprout_fruit_tree
+                    FruitMorph.STONE -> R.drawable.farm_stage_sprout_fruit_stone
+                    FruitMorph.CITRUS -> R.drawable.farm_stage_sprout_fruit_citrus
+                    FruitMorph.CLUSTER -> R.drawable.farm_stage_sprout_fruit_cluster
+                    FruitMorph.TROPICAL -> R.drawable.farm_stage_sprout_fruit_tropical
                     FruitMorph.VINE -> R.drawable.farm_stage_sprout_fruit_vine
                     FruitMorph.BUSH -> R.drawable.farm_stage_sprout_fruit_bush
                 }
@@ -117,6 +123,8 @@ internal object FarmCropArt {
                 when (flowerMorph(crop?.id)) {
                     FlowerMorph.STEM -> R.drawable.farm_stage_grow_flower
                     FlowerMorph.SHRUB -> R.drawable.farm_stage_grow_flower_shrub
+                    FlowerMorph.BEDDING -> R.drawable.farm_stage_grow_flower_bedding
+                    FlowerMorph.BRANCH -> R.drawable.farm_stage_grow_flower_branch
                     FlowerMorph.VINE -> R.drawable.farm_stage_grow_flower_vine
                 }
             CropCategory.GRAIN ->
@@ -128,6 +136,10 @@ internal object FarmCropArt {
             CropCategory.FRUIT ->
                 when (fruitMorph(crop?.id)) {
                     FruitMorph.TREE -> R.drawable.farm_stage_grow_fruit_tree
+                    FruitMorph.STONE -> R.drawable.farm_stage_grow_fruit_stone
+                    FruitMorph.CITRUS -> R.drawable.farm_stage_grow_fruit_citrus
+                    FruitMorph.CLUSTER -> R.drawable.farm_stage_grow_fruit_cluster
+                    FruitMorph.TROPICAL -> R.drawable.farm_stage_grow_fruit_tropical
                     FruitMorph.VINE -> R.drawable.farm_stage_grow_fruit_vine
                     FruitMorph.BUSH -> R.drawable.farm_stage_grow_fruit_bush
                 }
@@ -160,11 +172,13 @@ internal object FarmCropArt {
     private fun flowerMorph(id: String?): FlowerMorph =
         when (id) {
             "morning_glory", "wisteria" -> FlowerMorph.VINE
-            "clover", "marigold", "cosmos", "violet", "chrysanthemum", "jasmine",
-            "gardenia", "lavender", "azalea", "carnation", "osmanthus", "hibiscus",
-            "hydrangea", "blossom", "camellia", "rose", "magnolia", "cherry_blossom",
-            "orchid", "peony", "four_leaf", "lilac", "begonia", "impatiens", "zinnia",
-            "petunia", "pansy",
+            "blossom", "cherry_blossom", "magnolia" -> FlowerMorph.BRANCH
+            "clover", "marigold", "cosmos", "violet", "four_leaf", "begonia",
+            "impatiens", "zinnia", "petunia", "pansy", "carnation",
+            -> FlowerMorph.BEDDING
+            "chrysanthemum", "jasmine", "gardenia", "lavender", "azalea",
+            "osmanthus", "hibiscus", "hydrangea", "camellia", "rose", "orchid",
+            "peony", "lilac",
             -> FlowerMorph.SHRUB
             else -> FlowerMorph.STEM
         }
@@ -173,6 +187,10 @@ internal object FarmCropArt {
         when (id) {
             "grape", "watermelon", "melon", "pumpkin" -> FruitMorph.VINE
             "strawberry", "blueberry", "raspberry", "pineapple" -> FruitMorph.BUSH
+            "peach", "plum", "cherry" -> FruitMorph.STONE
+            "orange", "lemon" -> FruitMorph.CITRUS
+            "lychee", "longan", "pomegranate" -> FruitMorph.CLUSTER
+            "banana", "mango", "coconut", "kiwi" -> FruitMorph.TROPICAL
             else -> FruitMorph.TREE
         }
 

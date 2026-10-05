@@ -20,8 +20,29 @@ class FarmCropArtTest {
         val tulip = cropById("tulip")!!
         val rose = cropById("rose")!!
         val wisteria = cropById("wisteria")!!
+        val pansy = cropById("pansy")!!
+        val blossom = cropById("blossom")!!
         assertNotEquals(FarmCropArt.stage(2, tulip), FarmCropArt.stage(2, rose))
         assertNotEquals(FarmCropArt.stage(2, rose), FarmCropArt.stage(2, wisteria))
+        assertNotEquals(FarmCropArt.stage(2, rose), FarmCropArt.stage(2, pansy))
+        assertNotEquals(FarmCropArt.stage(2, rose), FarmCropArt.stage(2, blossom))
+        assertNotEquals(FarmCropArt.stage(3, pansy), FarmCropArt.stage(3, blossom))
+    }
+
+    @Test
+    fun fruitTreeMorphs_useDistinctStageArt() {
+        val apple = cropById("apple")!!
+        val peach = cropById("peach")!!
+        val orange = cropById("orange")!!
+        val lychee = cropById("lychee")!!
+        val banana = cropById("banana")!!
+        val grape = cropById("grape")!!
+        assertNotEquals(FarmCropArt.stage(3, apple), FarmCropArt.stage(3, peach))
+        assertNotEquals(FarmCropArt.stage(3, apple), FarmCropArt.stage(3, orange))
+        assertNotEquals(FarmCropArt.stage(3, apple), FarmCropArt.stage(3, lychee))
+        assertNotEquals(FarmCropArt.stage(3, apple), FarmCropArt.stage(3, banana))
+        assertNotEquals(FarmCropArt.stage(2, peach), FarmCropArt.stage(2, grape))
+        assertNotEquals(FarmCropArt.stage(3, banana), FarmCropArt.stage(3, lychee))
     }
 
     @Test

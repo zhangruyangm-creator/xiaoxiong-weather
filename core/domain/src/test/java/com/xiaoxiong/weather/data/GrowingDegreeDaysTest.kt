@@ -120,6 +120,55 @@ class GrowingDegreeDaysTest {
     }
 
     @Test
+    fun alignedDailyTemps_skipsMissingDaysInsteadOfShiftingTheRest() {
+        val thisYear =
+            listOf(
+                LocalDate.of(2026, 3, 1) to 10.0,
+                LocalDate.of(2026, 3, 3) to 12.0,
+                LocalDate.of(2026, 3, 2) to 11.0,
+            )
+        val normal =
+            mapOf(
+                MonthDay.of(3, 1) to 8.0,
+                MonthDay.of(3, 2) to 9.0,
+                MonthDay.of(3, 3) to 10.0,
+            )
+        val (thisTemps, normalTemps) =
+            GrowingDegreeDays.alignedDailyTemps(
+                thisYearRecords = thisYear,
+                normalByDay = normal,
+                fromDate = LocalDate.of(2026, 3, 1),
+                throughDate = LocalDate.of(2026, 3, 3),
+            )
+        assertEquals(listOf(10.0, 11.0, 12.0), thisTemps)
+        assertEquals(listOf(8.0, 9.0, 10.0), normalTemps)
+    }
+
+    @Test
+    fun alignedDailyTemps_dropsDaysMissingFromEitherSeries() {
+        val thisYear =
+            listOf(
+                LocalDate.of(2026, 3, 1) to 10.0,
+                LocalDate.of(2026, 3, 3) to 12.0,
+            )
+        val normal =
+            mapOf(
+                MonthDay.of(3, 1) to 8.0,
+                MonthDay.of(3, 2) to 9.0,
+                MonthDay.of(3, 3) to 10.0,
+            )
+        val (thisTemps, normalTemps) =
+            GrowingDegreeDays.alignedDailyTemps(
+                thisYearRecords = thisYear,
+                normalByDay = normal,
+                fromDate = LocalDate.of(2026, 3, 1),
+                throughDate = LocalDate.of(2026, 3, 3),
+            )
+        assertEquals(listOf(10.0, 12.0), thisTemps)
+        assertEquals(listOf(8.0, 10.0), normalTemps)
+    }
+
+    @Test
     fun normalTempsUntil_returnsWindowInOrder() {
         val normal =
             mapOf(

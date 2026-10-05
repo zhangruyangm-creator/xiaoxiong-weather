@@ -1,6 +1,8 @@
 package com.xiaoxiong.weather.ui
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -34,5 +36,14 @@ class SampledDrawableCacheTest {
         assertEquals(2, sampledDrawableSampleSize(1024, 1536, 768))
         assertEquals(1, sampledDrawableSampleSize(720, 1280, 1280))
         assertEquals(1, sampledDrawableSampleSize(1024, 1024, 0))
+    }
+
+    @Test
+    fun decodeLocks_sharedPerKey_independentAcrossKeys() {
+        val a = SampledDrawableCache.decodeLockFor("12@256")
+        val again = SampledDrawableCache.decodeLockFor("12@256")
+        val other = SampledDrawableCache.decodeLockFor("12@512")
+        assertSame(a, again)
+        assertNotSame(a, other)
     }
 }

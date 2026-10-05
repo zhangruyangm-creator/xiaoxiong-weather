@@ -232,6 +232,7 @@ internal class BearFarm(
     var inventory by mutableStateOf<Map<String, Int>>(emptyMap())
     var completedSeasons by mutableIntStateOf(0)
     var lifetimeHarvests by mutableIntStateOf(0)
+    var weatherOrders by mutableStateOf<List<FarmWeatherOrder>>(emptyList())
 
     var toast by mutableStateOf<FarmToast?>(null)
     private var toastSeq = 0
@@ -418,6 +419,7 @@ internal class BearFarm(
         inventory = state.inventory
         completedSeasons = state.completedSeasons
         lifetimeHarvests = state.lifetimeHarvests
+        weatherOrders = state.weatherOrders
     }
 
     /** 执行一次规则并同步状态。 */
@@ -435,6 +437,11 @@ internal class BearFarm(
         }
         effect.rewards.forEach { addReward(it.label, it.plotIndex) }
         effect.unlockCropIds.forEach { enqueueUnlockCard(it) }
+        if (effect.orderCoins > 0) {
+            toast(str(R.string.bear_farm_order_done, effect.orderCoins))
+            val plot = effect.rewards.firstOrNull()?.plotIndex ?: 0
+            addReward("+${effect.orderCoins}", plot)
+        }
     }
 
     /**
@@ -463,9 +470,16 @@ internal class BearFarm(
     fun tick(
         now: Long,
         weather: FarmWeather,
+        forecast: List<FarmWeatherSlice> = emptyList(),
     ) {
-        FarmSimulator.tick(state, now, weather)
+        FarmSimulator.tick(state, now, weather, forecast = forecast)
         syncFromState()
+    }
+
+    fun ensureWeatherOrders(weather: FarmWeather) {
+        if (!FarmSimulator.ensureWeatherOrders(state, weather)) return
+        syncFromState()
+        save()
     }
 
     fun onPlot(
@@ -473,13 +487,13 @@ internal class BearFarm(
         weather: FarmWeather,
     ) {
         when (selectedTool) {
-            FarmTool.CARE -> applyCare(index)
+            FarmTool.CARE -> applyCare(index, weather)
             FarmTool.INFO -> state.plots.getOrNull(index)?.let { showInfo(it) }
             FarmTool.PLANT -> runAction { FarmSimulator.plant(state, index, selectedSeedId) }
             FarmTool.WATER -> runAction { FarmSimulator.water(state, index) }
             FarmTool.WEED -> runAction { FarmSimulator.weed(state, index) }
             FarmTool.BUG -> runAction { FarmSimulator.bug(state, index) }
-            FarmTool.HARVEST -> runAction { FarmSimulator.harvest(state, index) }
+            FarmTool.HARVEST -> runAction { FarmSimulator.harvest(state, index, weather) }
             FarmTool.CLEAR -> runAction { FarmSimulator.clear(state, index) }
             FarmTool.FERTILIZE -> runAction { FarmSimulator.fertilize(state, index, weather) }
         }
@@ -487,12 +501,15 @@ internal class BearFarm(
     }
 
     /** 智能照料：害虫 > 杂草 > 成熟收获 > 浇水 > 枯萎清理 > 空地提示 > 查看。 */
-    private fun applyCare(index: Int) {
+    private fun applyCare(
+        index: Int,
+        weather: FarmWeather,
+    ) {
         val plot = state.plots.getOrNull(index) ?: return
         when {
             plot.bug -> runAction { FarmSimulator.bug(state, index) }
             plot.weed -> runAction { FarmSimulator.weed(state, index) }
-            plot.stage == 4 -> runAction { FarmSimulator.harvest(state, index) }
+            plot.stage == 4 -> runAction { FarmSimulator.harvest(state, index, weather) }
             plot.stage in 1..4 && plot.moisture < 0.35f -> runAction { FarmSimulator.water(state, index) }
             plot.stage == 5 -> runAction { FarmSimulator.clear(state, index) }
             plot.stage == 0 -> {
@@ -535,8 +552,8 @@ internal class BearFarm(
     }
 
     /** 一键照料：按智能照料优先级处理全部格子，收尾汇总成一条提示。 */
-    fun careAll() {
-        runAction { FarmSimulator.careAll(state) }
+    fun careAll(weather: FarmWeather) {
+        runAction { FarmSimulator.careAll(state, weather) }
         save()
     }
 

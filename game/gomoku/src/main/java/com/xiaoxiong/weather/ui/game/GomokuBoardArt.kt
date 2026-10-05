@@ -7,7 +7,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 internal data class GomokuBoardLayout(
     val left: Float,
@@ -24,6 +26,21 @@ internal fun gomokuBoardLayout(
     val left = (width - side) / 2f
     val top = (height - side) / 2f
     return GomokuBoardLayout(left, top, side, side / (GOMOKU_SIZE - 1))
+}
+
+/** 点中交叉点则返回下标；偏离交叉点超过半格或点在棋盘外返回 null。 */
+internal fun gomokuHitIndex(
+    layout: GomokuBoardLayout,
+    x: Float,
+    y: Float,
+): Int? {
+    val col = ((x - layout.left) / layout.cell)
+    val row = ((y - layout.top) / layout.cell)
+    val ci = col.roundToInt()
+    val ri = row.roundToInt()
+    if (ri !in 0 until GOMOKU_SIZE || ci !in 0 until GOMOKU_SIZE) return null
+    if (abs(col - ci) > 0.5f || abs(row - ri) > 0.5f) return null
+    return gomokuIndex(ri, ci)
 }
 
 private val FRAME_DARK = Color(0xFF3D2817)
